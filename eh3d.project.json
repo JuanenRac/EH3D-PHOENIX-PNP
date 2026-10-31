@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "ecosystem": "EH3D",
+  "name": "EH3D-PNP-MANAGER",
+  "version": "0.0.1",
+  "role": "tool",
+  "stack": "rust",
+  "technologies": [
+    "Rust",
+    "KiCad",
+    "CSV",
+    "JSON"
+  ],
+  "deployment_target": "user-pc",
+  "maturity": "scaffolding",
+  "evidence": "host-test",
+  "hardware_bound": false,
+  "family": "CNC Workflow Tools",
+  "parent": null,
+  "build": "cargo build --release; cargo test",
+  "notes": "Scaffolding v0.0.1: a library and a command line for pick and place assembly: they read the position file of a board (KiCad .pos or a CSV from another CAD program, in mm, mil or inches), give every part the feeder that holds its value and package, report the parts without a feeder and the feeders that will run out, and plan the order of the placements for a head with one to six nozzles, with the bottom side mirrored, as a JSON job. No window, no camera and no machine control; nothing has placed a part.",
+  "native_version": {
+    "file": "Cargo.toml",
+    "pattern": "^version\\s*=\\s*\"(\\d+\\.\\d+\\.\\d+)\""
+  }
+}

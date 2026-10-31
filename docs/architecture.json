@@ -1,0 +1,131 @@
+{
+  "repo": "EH3D-PNP-MANAGER",
+  "ecosystem": "eh3d",
+  "tagline": "Parts, feeders and the order to place them.",
+  "description": "EH3D-PNP-MANAGER is a Rust library and command line that read the position file of a board, give every part its feeder and plan the order of the placements as a JSON job. It has no camera or machine control yet.",
+  "columns": [
+    "WHO USES IT",
+    "THIS REPOSITORY",
+    "WHAT IT DEPENDS ON"
+  ],
+  "nodes": [
+    {
+      "id": "person",
+      "column": 0,
+      "level": "external",
+      "title": "A person",
+      "lines": [
+        "has a board and the feeders",
+        "of a machine"
+      ]
+    },
+    {
+      "id": "machine",
+      "column": 0,
+      "level": "config",
+      "title": "Machine and camera",
+      "lines": [
+        "planned: MOTIONCNC runs the",
+        "plan and VISION-STUDIO",
+        "centres the parts"
+      ]
+    },
+    {
+      "id": "parts",
+      "column": 1,
+      "level": "tested",
+      "title": "parts",
+      "lines": [
+        "KiCad and CSV position files",
+        "in millimetres"
+      ],
+      "code": [
+        "src/parts.rs::pub fn parse"
+      ]
+    },
+    {
+      "id": "feeders",
+      "column": 1,
+      "level": "tested",
+      "title": "feeders",
+      "lines": [
+        "a feeder for every part, and",
+        "what is missing"
+      ],
+      "code": [
+        "src/feeders.rs::pub fn assign"
+      ]
+    },
+    {
+      "id": "plan",
+      "column": 1,
+      "level": "tested",
+      "title": "plan",
+      "lines": [
+        "order, batches of nozzles,",
+        "mirrored bottom side"
+      ],
+      "code": [
+        "src/plan.rs::pub fn plan"
+      ]
+    },
+    {
+      "id": "cad",
+      "column": 2,
+      "level": "external",
+      "title": "CAD files",
+      "lines": [
+        "the .pos or CSV of the",
+        "board and the CSV of feeders"
+      ]
+    },
+    {
+      "id": "json",
+      "column": 2,
+      "level": "external",
+      "title": "JSON job",
+      "lines": [
+        "the plan for another program",
+        "to run"
+      ],
+      "code": [
+        "Cargo.toml::serde_json"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "person",
+      "to": "parts",
+      "label": "parts",
+      "level": "tested"
+    },
+    {
+      "from": "person",
+      "to": "plan",
+      "level": "tested"
+    },
+    {
+      "from": "machine",
+      "to": "plan",
+      "label": "planned",
+      "level": "config"
+    },
+    {
+      "from": "parts",
+      "to": "cad",
+      "level": "tested"
+    },
+    {
+      "from": "plan",
+      "to": "json",
+      "level": "tested"
+    }
+  ],
+  "legend": {
+    "tested": "covered by tests on a computer (14 tests)",
+    "config": "planned, not used today",
+    "external": "a person, a file or another repository"
+  },
+  "footer": "No part has been placed with this plan yet."
+}
