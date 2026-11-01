@@ -44,6 +44,18 @@ fn read(path: &str) -> Result<String, String> {
         .map_err(|e| format!("{path}: {e}"))
 }
 
+/// What is left of the arguments once the options and the wanted words are taken must be nothing more than `max` words: an option that is written wrong or an extra word is an
+/// error, not something to ignore (the program would then make its output with the default values).
+fn finish(args: &[String], max: usize) -> Result<(), String> {
+    if let Some(o) = args.iter().find(|a| a.starts_with("--")) {
+        return Err(format!("{o}: unknown option (see help)"));
+    }
+    if args.len() > max {
+        return Err(format!("{}: unexpected argument (see help)", args[max]));
+    }
+    Ok(())
+}
+
 fn run(mut args: Vec<String>) -> Result<(), String> {
     if args.is_empty() || matches!(args[0].as_str(), "help" | "--help" | "-h") {
         println!("{HELP}");
@@ -52,6 +64,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     let cmd = args.remove(0);
     match cmd.as_str() {
         "parts" => {
+            finish(&args, 1)?;
             for p in parse(&read(args.first().ok_or("parts needs a file")?)?)? {
                 println!(
                     "{:<8} {:<14} {:<16} {:>9.3} {:>9.3} {:>6.1}  {:?}",
@@ -87,6 +100,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             if args.len() < 2 {
                 return Err(format!("{cmd} needs the parts and the feeders"));
             }
+            finish(&args, if cmd == "check" { 2 } else { 3 })?;
             let parts = parse(&read(&args[0])?)?;
             let feeders = feeders_csv(&read(&args[1])?)?;
             let a = assign(&parts, &feeders);

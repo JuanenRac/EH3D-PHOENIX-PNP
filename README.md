@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-pnp`) with 14 tests that run on a computer: reads the position file of a board, gives each part its feeder, reports what is missing and plans the order of the placements for a head with up to six nozzles. It has no window yet, it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-pnp`) with 17 tests that run on a computer: reads the position file of a board, gives each part its feeder, reports what is missing and plans the order of the placements for a head with up to six nozzles. It has no window yet, it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.1` |
 | Maturity | Scaffolding |
-| Tests | 14 |
+| Tests | 17 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder, reports what is missing and plans the order of the placements for a head with up to six nozzles; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-pnp` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 14 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
+| Tests | 🟡 | 17 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🔴 | Planned: the egui window common to the suite; today there is only the command line. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -75,6 +75,7 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 ## ✨ Features
 
 * **A library and a command line:** every command of `eh3d-pnp` is a function of the library, so another program of the suite can call it without starting a process.
+* **Strict command line:** an option that is written wrong (`--powr`) or a word too many is an error that names it, not something to ignore; the program would otherwise make its output with the default values.
 * **Tests with damaged input:** the tests also feed empty files, garbage, huge numbers and cut files, and none of them may panic.
 * **No guessing:** a value that does not make sense is an error that says which value and why, never a result that only looks right.
 * **No unsafe code:** `#![forbid(unsafe_code)]` in the library and the program.
@@ -102,7 +103,8 @@ EH3D-PNP-MANAGER/
 │   ├── parts.rs                                 a part of the logic
 │   └── plan.rs                                  a part of the logic
 ├── tests/
-│   └── pnp.rs                                   tests of the library and the command line
+│   ├── pnp.rs                                   tests of the library and the command line
+│   └── strict.rs                                tests of the command line: options and words it does not know
 ├── examples/
 │   ├── board.pos                                a sample to try the program with
 │   └── feeders.csv                              a sample to try the program with
@@ -135,7 +137,7 @@ cargo run --release -- plan examples/board.pos examples/feeders.csv examples/pla
 
 ## 🧪 Testing
 
-The suite has 14 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 17 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -152,11 +154,21 @@ The version lives in `Cargo.toml` and in `eh3d.project.json`; each version has i
 
 ```text
 EH3D-PNP-MANAGER/
-├── crates/
-│   ├── eh3d-parser-gerber/                      Gerber RS-274X reader
-│   ├── eh3d-parser-excellon/                    Excellon drill file reader
-│   └── eh3d-parser-gcode/                       G-code reader and modal interpreter
-├── docs/                                        READERS.md, what every reader promises and what it does not do, and the data of the two pictures
+├── src/
+│   ├── feeders.rs                               a part of the logic
+│   ├── lib.rs                                   the library: what every command uses
+│   ├── main.rs                                  the command line
+│   ├── parts.rs                                 a part of the logic
+│   └── plan.rs                                  a part of the logic
+├── tests/
+│   ├── pnp.rs                                   tests of the library and the command line
+│   └── strict.rs                                tests of the command line: options and words it does not know
+├── examples/
+│   ├── board.pos                                a sample to try the program with
+│   └── feeders.csv                              a sample to try the program with
+├── docs/
+│   ├── architecture.json                        data of the Architecture picture
+│   └── structure.json                           data of the Repository Structure picture
 ├── tools/                                       CI check, README check and the picture tools
 ├── images/                                      banner and the Architecture and Repository Structure pictures
 ├── .github/                                     CI and release workflows, issue and pull-request templates
