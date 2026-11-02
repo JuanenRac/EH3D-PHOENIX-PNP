@@ -366,3 +366,417 @@ fn a_forged_assignment_is_an_error_not_a_panic() {
         .unwrap_err()
         .contains("does not exist"));
 }
+
+// ---- more edges: byte order marks, units, exhausted feeders, exact travel and the command line ----
+
+use std::path::PathBuf;
+use std::process::{Command, Output};
+
+fn scratch(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("eh3d_pnp_{}_{name}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+fn cli(args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_eh3d-pnp"))
+        .args(args)
+        .output()
+        .unwrap()
+}
+
+const HEAD: &str = "ref,val,package,x,y,rot,side\n";
+
+#[test]
+fn a_kicad_file_saved_with_a_byte_order_mark_and_windows_line_ends_is_still_read() {
+    let with_bom = format!("\u{feff}{}", POS.replace('\n', "\r\n"));
+    let parts = parse(&with_bom).unwrap();
+    assert_eq!(parts, parse(POS).unwrap());
+    assert_eq!(from_kicad_pos(&with_bom).unwrap().len(), 3);
+}
+
+#[test]
+fn a_kicad_file_with_tabs_and_blank_lines_is_read() {
+    let text = "## Unit = mm, Angle = deg.\n\n\tR1\t10k\tR_0603\t1.5\t2.5\t0\ttop\t\n\n";
+    let p = from_kicad_pos(text).unwrap();
+    assert_eq!((p.len(), p[0].x, p[0].y), (1, 1.5, 2.5));
+}
+
+#[test]
+fn a_millimetre_header_with_the_letters_in_does_not_turn_the_file_into_inches() {
+    // "origin" and "pin" contain "in": only the unit decides
+    let p = from_kicad_pos("## Unit = mm, Origin = pin 1\nR1 1k R 10 20 0 top\n").unwrap();
+    assert_eq!((p[0].x, p[0].y), (10.0, 20.0));
+    let q = from_kicad_pos("## Unit = inches\nR1 1k R 1 1 0 top\n").unwrap();
+    assert!((q[0].x - 25.4).abs() < 1e-9);
+}
+
+#[test]
+fn lengths_with_units_spaces_and_signs_are_converted_and_the_limit_applies_after_converting() {
+    let doc = |x: &str| format!("{HEAD}R1,1k,R,{x},0,0,top\n");
+    assert!((from_csv(&doc("-1000mil")).unwrap()[0].x + 25.4).abs() < 1e-9);
+    assert!((from_csv(&doc("2 in")).unwrap()[0].x - 50.8).abs() < 1e-9);
+    assert!((from_csv(&doc("1.5E1MM")).unwrap()[0].x - 15.0).abs() < 1e-9);
+    assert!(from_csv(&doc("10000mm")).is_ok());
+    assert!(from_csv(&doc("10000.01mm")).is_err());
+    assert!(from_csv(&doc("400in")).is_err(), "400 inches is 10160 mm");
+    for bad in [
+        "", "mm", "1..2", "inf", "-inf", "NaN", "1e999", "5 meters", "0x10",
+    ] {
+        let e = from_csv(&doc(bad)).unwrap_err();
+        assert!(e.contains("row 2"), "{bad:?}: {e}");
+    }
+}
+
+#[test]
+fn angles_wrap_into_the_circle_whatever_their_size() {
+    let doc = |a: &str| format!("{HEAD}R1,1k,R,0,0,{a},top\n");
+    for (given, want) in [
+        ("0", 0.0),
+        ("360", 0.0),
+        ("-1", 359.0),
+        ("720.5", 0.5),
+        ("-450", 270.0),
+        ("1e9", 1e9_f64.rem_euclid(360.0)),
+    ] {
+        let r = from_csv(&doc(given)).unwrap()[0].rotation;
+        assert!(
+            (r - want).abs() < 1e-6 && (0.0..360.0).contains(&r),
+            "{given}: {r}"
+        );
+    }
+    assert!(from_csv(&doc("inf")).is_err());
+}
+
+#[test]
+fn the_headers_of_other_cad_programs_are_found_by_name_in_any_order_and_case() {
+    let altium = "Designator,Comment,Layer,Footprint,Center-X(mm),Center-Y(mm),Rotation\nR1,10k,TopLayer,0603,1,2,90\nC1,1u,BottomLayer,0603,3,4,0\n";
+    let p = from_csv(altium).unwrap();
+    assert_eq!((p[0].side, p[1].side), (Side::Top, Side::Bottom));
+    assert_eq!((p[1].x, p[1].y), (3.0, 4.0));
+    let shuffled = "SIDE,Rot,REFDES,y,X,PATTERN,VAL\nBack,10,U1,2,1,SOIC8,NE555\n";
+    let q = from_csv(shuffled).unwrap();
+    assert_eq!(
+        (
+            q[0].reference.as_str(),
+            q[0].package.as_str(),
+            q[0].side,
+            q[0].rotation
+        ),
+        ("U1", "SOIC8", Side::Bottom, 10.0)
+    );
+}
+
+#[test]
+fn comment_lines_and_blank_lines_in_a_csv_are_skipped_but_a_short_row_is_not() {
+    let text = format!("// exported\n{HEAD}\nR1,1k,R,0,0,0,top\n// middle\nR2,1k,R,1,0,0,top\n");
+    assert_eq!(from_csv(&text).unwrap().len(), 2);
+    let short = format!("{HEAD}R1,1k,R,0,0,0,top\nR2,1k,R\n");
+    let e = from_csv(&short).unwrap_err();
+    assert!(e.contains("row 3") && e.contains("3 fields"), "{e}");
+}
+
+#[test]
+fn references_with_control_characters_or_nothing_at_all_are_refused() {
+    assert!(from_csv(&format!("{HEAD},1k,R,0,0,0,top\n"))
+        .unwrap_err()
+        .contains("reference"));
+    assert!(from_csv(&format!("{HEAD}\"R\u{7}1\",1k,R,0,0,0,top\n"))
+        .unwrap_err()
+        .contains("control"));
+    // a reference is case sensitive: R1 and r1 are two parts
+    assert_eq!(
+        from_csv(&format!("{HEAD}R1,1k,R,0,0,0,top\nr1,1k,R,0,0,0,top\n"))
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
+#[test]
+fn non_ascii_values_and_references_are_kept_and_matched() {
+    let text = format!("{HEAD}Ω1,\"10 kΩ\",R_0603,0,0,0,top\n");
+    let parts = from_csv(&text).unwrap();
+    assert_eq!(parts[0].reference, "Ω1");
+    let feeders = feeders_csv("id,value,package,x,y,count\nF1,10 kΩ,r_0603,0,0,4\n").unwrap();
+    assert_eq!(assign(&parts, &feeders).assignments.len(), 1);
+}
+
+#[test]
+fn the_same_value_in_another_package_does_not_share_a_feeder() {
+    let parts = vec![part("R1", "10k", "R_0402", 0.0, 0.0, Side::Top)];
+    let feeders = vec![feeder("F1", "10k", "R_0603", 0.0, 0.0, 9)];
+    let a = assign(&parts, &feeders);
+    assert!(a.assignments.is_empty());
+    assert_eq!(a.without_feeder, ["R1"]);
+}
+
+#[test]
+fn an_empty_feeder_is_short_and_two_empty_feeders_blame_the_last_one() {
+    let parts: Vec<Part> = (0..3)
+        .map(|i| part(&format!("R{i}"), "1k", "R", 0.0, 0.0, Side::Top))
+        .collect();
+    let empty = assign(&parts, &[feeder("F1", "1k", "R", 0.0, 0.0, 0)]);
+    assert_eq!(
+        (empty.assignments.len(), empty.short),
+        (0, vec![("F1".to_string(), 3)])
+    );
+    let both = assign(
+        &parts,
+        &[
+            feeder("F1", "1k", "R", 0.0, 0.0, 1),
+            feeder("F2", "1k", "R", 0.0, 0.0, 1),
+        ],
+    );
+    assert_eq!(both.assignments.len(), 2);
+    assert_eq!(both.short, vec![("F2".to_string(), 1)]);
+}
+
+#[test]
+fn the_feeder_counts_are_never_exceeded() {
+    let parts: Vec<Part> = (0..20)
+        .map(|i| part(&format!("R{i}"), "1k", "R", i as f64, 0.0, Side::Top))
+        .collect();
+    let feeders = vec![
+        feeder("F1", "1k", "R", 0.0, 0.0, 7),
+        feeder("F2", "1k", "R", 0.0, 0.0, 5),
+    ];
+    let a = assign(&parts, &feeders);
+    for (n, f) in feeders.iter().enumerate() {
+        assert!(a.assignments.iter().filter(|x| x.feeder == n).count() <= f.count as usize);
+    }
+    assert_eq!(
+        a.assignments.len() as u32 + a.short.iter().map(|s| s.1).sum::<u32>(),
+        20
+    );
+}
+
+#[test]
+fn the_feeders_file_refuses_what_cannot_be_a_position_or_an_id() {
+    let doc = |row: &str| format!("id,value,package,x,y,count\n{row}\n");
+    for row in [
+        "F1,a,b,nan,0,1",
+        "F1,a,b,0,inf,1",
+        "F1,a,b,10001,0,1",
+        "F1,a,b,0,0,1.5",
+        "F1,a,b,0,0,4294967296",
+        ",a,b,0,0,1",
+    ] {
+        assert!(feeders_csv(&doc(row)).is_err(), "{row}");
+    }
+    assert!(feeders_csv(&doc("F1,a,b,-10000,10000,0")).is_ok());
+    assert_eq!(
+        feeders_csv("\u{feff}ID, Value ,PACKAGE,X,Y,Count\r\nF1,a,b,0,0,1\r\n")
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(feeders_csv("").unwrap_err().contains("empty"));
+}
+
+#[test]
+fn the_time_and_the_travel_of_a_plan_add_up_exactly() {
+    // feeder at (0,0), one part at (30,40): 0 -> feeder 0, feeder -> part 50
+    let parts = vec![part("R1", "x", "p", 30.0, 40.0, Side::Top)];
+    let feeders = vec![feeder("F", "x", "p", 0.0, 0.0, 1)];
+    let s = Settings {
+        speed_mm_s: 100.0,
+        pick_s: 1.0,
+        place_s: 2.0,
+        ..Settings::default()
+    };
+    let p = plan(&parts, &feeders, &assign(&parts, &feeders), &s).unwrap();
+    assert!((p.travel_mm - 50.0).abs() < 1e-9);
+    assert!((p.seconds - (0.5 + 3.0)).abs() < 1e-9, "{}", p.seconds);
+    assert_eq!(p.placements[0].pick, (0.0, 0.0));
+}
+
+#[test]
+fn the_same_input_gives_the_same_plan_every_time_even_with_equal_distances() {
+    let parts: Vec<Part> = (0..9)
+        .map(|i| {
+            part(
+                &format!("R{i}"),
+                "x",
+                "p",
+                10.0 * f64::from(i % 3),
+                10.0 * f64::from(i / 3),
+                Side::Top,
+            )
+        })
+        .collect();
+    let feeders = vec![
+        feeder("F1", "x", "p", -5.0, 0.0, 99),
+        feeder("F2", "y", "p", 0.0, -5.0, 99),
+    ];
+    let a = assign(&parts, &feeders);
+    let s = Settings {
+        nozzles: 4,
+        ..Settings::default()
+    };
+    let first = plan(&parts, &feeders, &a, &s).unwrap();
+    for _ in 0..5 {
+        assert_eq!(plan(&parts, &feeders, &a, &s).unwrap(), first);
+    }
+    assert_eq!(
+        first.to_json(),
+        plan(&parts, &feeders, &a, &s).unwrap().to_json()
+    );
+}
+
+#[test]
+fn a_batch_never_holds_more_parts_than_the_nozzles_and_numbers_them_from_zero() {
+    let (parts, feeders) = line_of_parts(10);
+    let a = assign(&parts, &feeders);
+    let p = plan(
+        &parts,
+        &feeders,
+        &a,
+        &Settings {
+            nozzles: 4,
+            ..Settings::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(p.batches, 3);
+    for b in 0..p.batches {
+        let nozzles: Vec<usize> = p
+            .placements
+            .iter()
+            .filter(|x| x.batch == b)
+            .map(|x| x.nozzle)
+            .collect();
+        assert!(nozzles.len() <= 4);
+        assert_eq!(nozzles, (0..nozzles.len()).collect::<Vec<_>>());
+    }
+}
+
+#[test]
+fn a_part_on_the_other_side_makes_an_empty_plan_for_this_side() {
+    let parts = vec![part("B1", "x", "p", 1.0, 1.0, Side::Bottom)];
+    let feeders = vec![feeder("F", "x", "p", 0.0, 0.0, 1)];
+    let p = plan(
+        &parts,
+        &feeders,
+        &assign(&parts, &feeders),
+        &Settings::default(),
+    )
+    .unwrap();
+    assert_eq!((p.placements.len(), p.batches, p.seconds), (0, 0, 0.0));
+}
+
+#[test]
+fn mirroring_the_bottom_twice_gives_back_the_top_place_and_rotation() {
+    let mut p = part("B1", "x", "p", 12.0, 7.0, Side::Bottom);
+    p.rotation = 75.0;
+    let feeders = vec![feeder("F", "x", "p", 0.0, 0.0, 1)];
+    let s = Settings {
+        side: Side::Bottom,
+        board_width_mm: Some(80.0),
+        ..Settings::default()
+    };
+    let once = plan(&[p.clone()], &feeders, &assign(&[p.clone()], &feeders), &s)
+        .unwrap()
+        .placements[0]
+        .clone();
+    let mut again = part("B1", "x", "p", once.x, once.y, Side::Bottom);
+    again.rotation = once.rotation;
+    let twice = plan(&[again.clone()], &feeders, &assign(&[again], &feeders), &s)
+        .unwrap()
+        .placements[0]
+        .clone();
+    assert!(
+        (twice.x - 12.0).abs() < 1e-9 && (twice.rotation - 75.0).abs() < 1e-9 && twice.y == 7.0
+    );
+    let flat = Settings {
+        board_width_mm: Some(f64::NAN),
+        ..s
+    };
+    assert!(plan(&[p.clone()], &feeders, &assign(&[p], &feeders), &flat).is_err());
+}
+
+#[test]
+fn the_command_line_plans_writes_and_refuses_a_board_the_feeders_do_not_cover() {
+    let dir = scratch("cli_plan");
+    let parts = dir.join("parts.csv");
+    let feeders = dir.join("feeders.csv");
+    let out = dir.join("plan.json");
+    std::fs::write(
+        &parts,
+        format!("{HEAD}R1,10k,R,10,10,0,top\nR2,10k,R,20,10,0,top\nU1,MCU,QFN,30,10,0,top\n"),
+    )
+    .unwrap();
+    std::fs::write(&feeders, "id,value,package,x,y,count\nF1,10k,R,0,0,5\n").unwrap();
+    let (p, f, o) = (
+        parts.to_str().unwrap(),
+        feeders.to_str().unwrap(),
+        out.to_str().unwrap(),
+    );
+    let check = cli(&["check", p, f]);
+    assert_eq!(check.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&check.stdout).contains("no feeder for U1"));
+    let refused = cli(&["plan", p, f, o]);
+    assert_eq!(refused.status.code(), Some(1));
+    assert!(!out.exists(), "a refused plan must not leave a file behind");
+    let partial = cli(&["plan", p, f, o, "--partial", "--nozzles", "2"]);
+    assert!(
+        partial.status.success(),
+        "{}",
+        String::from_utf8_lossy(&partial.stderr)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!(v["placements"].as_array().unwrap().len(), 2);
+    assert_eq!(v["batches"], 1);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_command_line_names_a_missing_file_a_bad_number_and_a_bad_side() {
+    let dir = scratch("cli_errors");
+    let parts = dir.join("parts.csv");
+    let feeders = dir.join("feeders.csv");
+    std::fs::write(&parts, format!("{HEAD}R1,10k,R,10,10,0,top\n")).unwrap();
+    std::fs::write(&feeders, "id,value,package,x,y,count\nF1,10k,R,0,0,5\n").unwrap();
+    let (p, f) = (parts.to_str().unwrap(), feeders.to_str().unwrap());
+    let out = dir.join("o.json");
+    let o = out.to_str().unwrap();
+    let missing = dir.join("nope.csv");
+    let m = missing.to_str().unwrap();
+    for (args, word) in [
+        (vec!["parts", m], "nope.csv"),
+        (vec!["check", p, m], "nope.csv"),
+        (vec!["plan", p, f, o, "--nozzles", "many"], "--nozzles"),
+        (vec!["plan", p, f, o, "--nozzles", "0"], "nozzles"),
+        (vec!["plan", p, f, o, "--nozzles", "7"], "nozzles"),
+        (vec!["plan", p, f, o, "--side", "left"], "--side"),
+        (vec!["plan", p, f, o, "--side", "bottom"], "board"),
+        (vec!["plan", p, f, o, "--speed", "0"], "speed"),
+        (vec!["plan", p, f, o, "--speed"], "needs a value"),
+        (vec!["plan", p, f], "output file"),
+        (vec!["plan", p], "feeders"),
+    ] {
+        let r = cli(&args);
+        let e = String::from_utf8_lossy(&r.stderr).into_owned();
+        assert_eq!(r.status.code(), Some(1), "{args:?}");
+        assert!(e.starts_with("error:") && e.contains(word), "{args:?}: {e}");
+    }
+    assert!(!out.exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_parts_command_prints_every_part_in_millimetres_and_reads_a_file_that_is_not_utf8() {
+    let dir = scratch("cli_parts");
+    let file = dir.join("p.pos");
+    let mut bytes = b"## Unit = inch, Angle = deg.\nR1 caf".to_vec();
+    bytes.push(0xe9); // latin-1 e-acute: not UTF-8
+    bytes.extend_from_slice(b" R_0603 1 1 0 top\n");
+    std::fs::write(&file, bytes).unwrap();
+    let r = cli(&["parts", file.to_str().unwrap()]);
+    assert!(r.status.success(), "{}", String::from_utf8_lossy(&r.stderr));
+    let shown = String::from_utf8_lossy(&r.stdout).into_owned();
+    assert!(shown.contains("25.400") && shown.contains("R1"), "{shown}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

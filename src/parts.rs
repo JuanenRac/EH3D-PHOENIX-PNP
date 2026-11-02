@@ -170,7 +170,7 @@ pub fn from_csv(text: &str) -> Result<Vec<Part>, String> {
 pub fn from_kicad_pos(text: &str) -> Result<Vec<Part>, String> {
     let mut inches = false;
     let mut parts = Vec::new();
-    for (i, line) in text.lines().enumerate() {
+    for (i, line) in text.trim_start_matches('\u{feff}').lines().enumerate() {
         let t = line.trim();
         if t.is_empty() {
             continue;

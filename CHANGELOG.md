@@ -6,6 +6,7 @@ All notable changes to this project are documented here.
 
 - **Strict command line:** an option that is written wrong (`--powr`) or a word too many is an error that names it; before, it was ignored and the output was made with the default values.
 - **The banner of the README** shows the role and the technologies of this program (it showed the text of the shared library).
+- **More tests:** the position files are checked with a byte order mark, tabs, units and angles of any size; the feeders with exhausted tapes and non-ASCII names; the plan with exact travel and time, mirroring twice and the same result on two runs; and every command of the command line. A KiCad position file saved with a byte order mark is now read.
 
 ## [0.0.1] - Pick and place assembly: the position files, the feeders and the order of the placements
 
