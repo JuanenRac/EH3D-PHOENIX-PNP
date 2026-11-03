@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **Brand:** Add the application icon and the logos of the program.
 - **Shared checks updated:** the validator also compares the badge and the Version row of the README with the manifest, fails when one of its checks cannot run, and the CHANGELOG step of the workflow reads the base branch from the environment.
 - **Safer files:** a plan is written through a temporary file, text that is not UTF-8 is read as Latin-1 with a note, and a fractional `--nozzles` is refused.
 - **One side at a time:** a plan for one side no longer asks feeders for the parts of the other side nor uses them up, and a position column whose header names its unit (`PosX(mil)`, `Center-X(in)`) reads bare numbers in that unit.
