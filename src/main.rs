@@ -2,7 +2,7 @@
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 #![forbid(unsafe_code)]
 
-use eh3d_pnp_manager::feeders::{assign, from_csv as feeders_csv};
+use eh3d_pnp_manager::feeders::{assign, assign_side, from_csv as feeders_csv};
 use eh3d_pnp_manager::parts::{parse, Side};
 use eh3d_pnp_manager::plan::{plan, Settings};
 use std::env;
@@ -103,7 +103,12 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             finish(&args, if cmd == "check" { 2 } else { 3 })?;
             let parts = parse(&read(&args[0])?)?;
             let feeders = feeders_csv(&read(&args[1])?)?;
-            let a = assign(&parts, &feeders);
+            // a plan is for one side: the other side's parts neither need feeders nor use them up
+            let a = if cmd == "plan" {
+                assign_side(&parts, &feeders, Some(s.side))
+            } else {
+                assign(&parts, &feeders)
+            };
             for r in &a.without_feeder {
                 println!("no feeder for {r}");
             }

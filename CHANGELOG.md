@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **One side at a time:** a plan for one side no longer asks feeders for the parts of the other side nor uses them up, and a position column whose header names its unit (`PosX(mil)`, `Center-X(in)`) reads bare numbers in that unit.
 - **The workflows are hardened:** every action is pinned by its commit with its version in a comment, and the checkouts keep no credentials.
 
 ## [0.0.3] - CI hardening and shared validator

@@ -32,8 +32,8 @@ impl Part {
 pub const MAX_PARTS: usize = 50_000;
 const MAX_COORDINATE: f64 = 10_000.0;
 
-/// A number with an optional unit (`12.5`, `12.5mm`, `492mil`, `0.5in`), in millimetres; `default_mil` makes a bare number mils.
-fn length(text: &str, default_mil: bool) -> Result<f64, String> {
+/// A number with an optional unit (`12.5`, `12.5mm`, `492mil`, `0.5in`), in millimetres; a bare number is taken as `bare` millimetres per unit (the unit the column header names).
+fn length_with(text: &str, bare: f64) -> Result<f64, String> {
     let t = text.trim().to_ascii_lowercase();
     let (num, factor) = if let Some(n) = t.strip_suffix("mm") {
         (n, 1.0)
@@ -42,7 +42,7 @@ fn length(text: &str, default_mil: bool) -> Result<f64, String> {
     } else if let Some(n) = t.strip_suffix("in") {
         (n, 25.4)
     } else {
-        (t.as_str(), if default_mil { 0.0254 } else { 1.0 })
+        (t.as_str(), bare)
     };
     let v: f64 = num
         .trim()
@@ -107,6 +107,32 @@ fn column(header: &[String], names: &[&str]) -> Option<usize> {
         .position(|h| names.contains(&h.trim().to_ascii_lowercase().as_str()))
 }
 
+/// Like `column`, for a position: a header may name its unit, `PosX(mil)`, `Center-X(in)` or `X [mm]`, and the unit (in millimetres per unit) is returned with the column.
+fn column_unit(header: &[String], names: &[&str]) -> Option<(usize, f64)> {
+    header.iter().enumerate().find_map(|(i, h)| {
+        let lc = h.trim().to_ascii_lowercase();
+        if names.contains(&lc.as_str()) {
+            return Some((i, 1.0));
+        }
+        let (open, close) = if lc.ends_with(')') {
+            ('(', ')')
+        } else if lc.ends_with(']') {
+            ('[', ']')
+        } else {
+            return None;
+        };
+        let at = lc.rfind(open)?;
+        let unit = lc[at + 1..lc.len() - close.len_utf8()].trim();
+        let factor = match unit {
+            "mm" => 1.0,
+            "mil" | "mils" => 0.0254,
+            "in" | "inch" | "inches" => 25.4,
+            _ => return None,
+        };
+        names.contains(&lc[..at].trim()).then_some((i, factor))
+    })
+}
+
 /// A CSV (comma or semicolon) with a header row. The columns are found by name: designator or ref, value or val, package or footprint, x, y, rotation or rot, side or layer.
 pub fn from_csv(text: &str) -> Result<Vec<Part>, String> {
     let mut lines = text
@@ -128,13 +154,33 @@ pub fn from_csv(text: &str) -> Result<Vec<Part>, String> {
         find(&["value", "val", "comment"], "value")?,
         find(&["package", "footprint", "pattern"], "package")?,
     );
-    let (c_x, c_y) = (
-        find(
-            &["x", "posx", "mid x", "midx", "center-x(mm)", "ref x"],
+    let find_unit = |names: &[&str], what: &str| {
+        column_unit(&header, names)
+            .ok_or_else(|| format!("the header has no column for the {what}"))
+    };
+    let ((c_x, ux), (c_y, uy)) = (
+        find_unit(
+            &[
+                "x",
+                "posx",
+                "mid x",
+                "midx",
+                "center-x(mm)",
+                "center-x",
+                "ref x",
+            ],
             "x position",
         )?,
-        find(
-            &["y", "posy", "mid y", "midy", "center-y(mm)", "ref y"],
+        find_unit(
+            &[
+                "y",
+                "posy",
+                "mid y",
+                "midy",
+                "center-y(mm)",
+                "center-y",
+                "ref y",
+            ],
             "y position",
         )?,
     );
@@ -156,8 +202,8 @@ pub fn from_csv(text: &str) -> Result<Vec<Part>, String> {
             reference: at(c_ref).map_err(row)?.to_string(),
             value: at(c_val).map_err(row)?.to_string(),
             package: at(c_pkg).map_err(row)?.to_string(),
-            x: length(at(c_x).map_err(row)?, false).map_err(row)?,
-            y: length(at(c_y).map_err(row)?, false).map_err(row)?,
+            x: length_with(at(c_x).map_err(row)?, ux).map_err(row)?,
+            y: length_with(at(c_y).map_err(row)?, uy).map_err(row)?,
             rotation: angle(at(c_rot).map_err(row)?).map_err(row)?,
             side: side_of(at(c_side).map_err(row)?).map_err(row)?,
         });

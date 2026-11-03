@@ -1,6 +1,6 @@
 //! The feeders of the machine: each holds one kind of part at a known place, and runs out.
 
-use crate::parts::Part;
+use crate::parts::{Part, Side};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Feeder {
@@ -95,9 +95,18 @@ pub struct Assigned {
 /// Gives every part the first feeder that holds its value and package and still has parts; a feeder that runs out is reported with the number of parts that are missing and the next
 /// feeder of the same kind (if there is one) takes the rest.
 pub fn assign(parts: &[Part], feeders: &[Feeder]) -> Assigned {
+    assign_side(parts, feeders, None)
+}
+
+/// The same for one side of the board: the parts of the other side are not given a feeder, are not reported and do not use up the feeders. The numbers in the assignments
+/// stay the numbers of the parts in the whole list.
+pub fn assign_side(parts: &[Part], feeders: &[Feeder], side: Option<Side>) -> Assigned {
     let mut left: Vec<u32> = feeders.iter().map(|f| f.count).collect();
     let mut out = Assigned::default();
     for (i, p) in parts.iter().enumerate() {
+        if side.is_some_and(|s| s != p.side) {
+            continue;
+        }
         let key = p.key();
         let same: Vec<usize> = feeders
             .iter()

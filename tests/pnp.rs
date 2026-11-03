@@ -1,4 +1,4 @@
-use eh3d_pnp_manager::feeders::{assign, from_csv as feeders_csv, Feeder};
+use eh3d_pnp_manager::feeders::{assign, assign_side, from_csv as feeders_csv, Feeder};
 use eh3d_pnp_manager::parts::{from_csv, from_kicad_pos, parse, Part, Side};
 use eh3d_pnp_manager::plan::{plan, Settings};
 
@@ -779,4 +779,58 @@ fn the_parts_command_prints_every_part_in_millimetres_and_reads_a_file_that_is_n
     let shown = String::from_utf8_lossy(&r.stdout).into_owned();
     assert!(shown.contains("25.400") && shown.contains("R1"), "{shown}");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_plan_for_one_side_ignores_the_parts_of_the_other_side() {
+    let parts = vec![
+        part("R1", "10k", "R", 0.0, 0.0, Side::Top),
+        part("D1", "LED", "L", 1.0, 0.0, Side::Bottom),
+        part("D2", "LED", "L", 2.0, 0.0, Side::Top),
+    ];
+    // no feeder for the LED on the top side except one that holds a single part
+    let feeders = vec![
+        feeder("F1", "10k", "R", 0.0, 0.0, 5),
+        feeder("F2", "LED", "L", 0.0, 0.0, 1),
+    ];
+    // all the sides together: the LEDs share one feeder with one part
+    let both = assign(&parts, &feeders);
+    assert_eq!(both.short.len(), 1);
+    let top = assign_side(&parts, &feeders, Some(Side::Top));
+    assert!(
+        top.short.is_empty() && top.without_feeder.is_empty(),
+        "{top:?}"
+    );
+    assert_eq!(top.assignments.len(), 2);
+    // the numbers stay the numbers of the whole list
+    assert!(top.assignments.iter().any(|a| a.part == 2));
+    let bottom = assign_side(&parts, &feeders, Some(Side::Bottom));
+    assert_eq!(bottom.assignments.len(), 1);
+    assert_eq!(bottom.assignments[0].part, 1);
+    // without the LED feeder the top side is still fully covered
+    let only_r = assign_side(&parts[..2], &feeders[..1], Some(Side::Top));
+    assert!(only_r.without_feeder.is_empty());
+}
+
+#[test]
+fn the_unit_in_the_header_of_a_position_column_is_the_unit_of_a_bare_number() {
+    let mil = "Designator,Comment,Footprint,Center-X(mil),Center-Y(mil),Rotation,Layer\nR1,10k,0603,500,1000,0,Top\n";
+    let p = from_csv(mil).unwrap();
+    assert!(
+        (p[0].x - 12.7).abs() < 1e-9 && (p[0].y - 25.4).abs() < 1e-9,
+        "{p:?}"
+    );
+    let inch = "Ref;Val;Package;PosX [in];PosY(in);Rot;Side\nR1;10k;0603;1;2;0;top\n";
+    let p = from_csv(inch).unwrap();
+    assert!(
+        (p[0].x - 25.4).abs() < 1e-9 && (p[0].y - 50.8).abs() < 1e-9,
+        "{p:?}"
+    );
+    // a suffix on the value still wins, and a header with no unit is millimetres
+    let mixed = "Ref,Val,Package,PosX(mil),PosY,Rot,Side\nR1,10k,0603,10mm,3,0,top\n";
+    let p = from_csv(mixed).unwrap();
+    assert!(
+        (p[0].x - 10.0).abs() < 1e-9 && (p[0].y - 3.0).abs() < 1e-9,
+        "{p:?}"
+    );
 }
