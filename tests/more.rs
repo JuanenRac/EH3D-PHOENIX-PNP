@@ -28,7 +28,14 @@ fn a_semicolon_table_with_a_byte_order_mark_and_other_names_of_the_columns_is_re
     let ok = "\u{feff}Ref;Val;Footprint;PosX;PosY;Rot;Layer\nC1;100n;0402;1.5;2;90;Bottom\n";
     let p = from_csv(ok).unwrap();
     assert_eq!(p.len(), 1);
-    assert_eq!((p[0].reference.as_str(), p[0].value.as_str(), p[0].package.as_str()), ("C1", "100n", "0402"));
+    assert_eq!(
+        (
+            p[0].reference.as_str(),
+            p[0].value.as_str(),
+            p[0].package.as_str()
+        ),
+        ("C1", "100n", "0402")
+    );
     assert_eq!(p[0].side, Side::Bottom);
     assert_eq!(p[0].rotation, 90.0);
 }
@@ -96,8 +103,18 @@ fn a_kicad_position_file_is_read_with_its_unit_and_a_row_with_the_wrong_fields_i
 
 #[test]
 fn the_reader_that_chooses_by_the_content_takes_both_formats() {
-    assert_eq!(parse(&format!("{HEAD}R1,1k,0603,1,2,0,top\n")).unwrap().len(), 1);
-    assert_eq!(parse("## Unit = mm\nR1 1k R_0603 1.0 2.0 0.0 top\n").unwrap().len(), 1);
+    assert_eq!(
+        parse(&format!("{HEAD}R1,1k,0603,1,2,0,top\n"))
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        parse("## Unit = mm\nR1 1k R_0603 1.0 2.0 0.0 top\n")
+            .unwrap()
+            .len(),
+        1
+    );
     assert!(parse("").is_err());
 }
 
@@ -127,7 +144,9 @@ fn a_part_and_a_feeder_agree_on_the_key_without_regard_to_case_or_blanks() {
 #[test]
 fn the_feeders_need_the_exact_header_and_six_fields_in_a_row() {
     assert!(feeders_csv("").unwrap_err().contains("empty"));
-    assert!(feeders_csv("id,value,package,x,y\nF1,1k,0603,1,2\n").unwrap_err().contains("exactly"));
+    assert!(feeders_csv("id,value,package,x,y\nF1,1k,0603,1,2\n")
+        .unwrap_err()
+        .contains("exactly"));
     // the header is read without regard to case or blanks
     let ok = feeders_csv("ID, Value ,Package,X,Y,Count\nF1,1k,0603,1,2,10\n").unwrap();
     assert_eq!(ok.len(), 1);
@@ -142,7 +161,8 @@ fn the_feeders_need_the_exact_header_and_six_fields_in_a_row() {
 
 #[test]
 fn a_feeder_id_cannot_be_empty_or_used_twice() {
-    let e = feeders_csv("id,value,package,x,y,count\nF1,1k,0603,1,2,4\nF1,2k,0603,3,4,4\n").unwrap_err();
+    let e = feeders_csv("id,value,package,x,y,count\nF1,1k,0603,1,2,4\nF1,2k,0603,3,4,4\n")
+        .unwrap_err();
     assert!(e.contains("row 3") && e.contains("twice"), "{e}");
     assert!(feeders_csv("id,value,package,x,y,count\n,1k,0603,1,2,4\n").is_err());
 }
