@@ -1,6 +1,6 @@
-use eh3d_pnp_manager::feeders::{assign, assign_side, from_csv as feeders_csv, Feeder};
-use eh3d_pnp_manager::parts::{from_csv, from_kicad_pos, parse, Part, Side};
-use eh3d_pnp_manager::plan::{plan, Settings};
+use eh3d_phoenix_pnp::feeders::{assign, assign_side, from_csv as feeders_csv, Feeder};
+use eh3d_phoenix_pnp::parts::{from_csv, from_kicad_pos, parse, Part, Side};
+use eh3d_phoenix_pnp::plan::{plan, Settings};
 
 const POS: &str = "### Module positions\n## Unit = mm, Angle = deg.\n# Ref Val Package PosX PosY Rot Side\nR1 10k R_0603 10.000 20.000 0.0000 top\nR2 10k R_0603 15.000 20.000 450.0 top\nD1 LED LED_0603 30.000 10.000 -90 bottom\n";
 
@@ -380,7 +380,7 @@ fn scratch(name: &str) -> PathBuf {
 }
 
 fn cli(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_eh3d-pnp"))
+    Command::new(env!("CARGO_BIN_EXE_phoenix-pnp"))
         .args(args)
         .output()
         .unwrap()

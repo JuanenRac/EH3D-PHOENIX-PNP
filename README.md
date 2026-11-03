@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="images/EH3D_BANNER.svg" alt="EH3D-PNP-MANAGER banner" width="100%">
+  <img src="images/EH3D_PHOENIX_PNP_BANNER.svg" alt="EH3D-PHOENIX-PNP banner" width="100%">
 </p>
 
-# 📖 EH3D-PNP-MANAGER
+# 📖 EH3D-PHOENIX-PNP
 
 <p align="center">🇺🇸 <b>English</b> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a> | <a href="README_por.md">🇵🇹 Português</a></p>
 
@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-pnp`) with 53 tests that run on a computer: reads the position file of a board, gives each part its feeder, reports what is missing and plans the order of the placements for a head with up to six nozzles. It has no window yet, it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 53 tests that run on a computer: reads the position file of a board, gives each part its feeder, reports what is missing and plans the order of the placements for a head with up to six nozzles. It has no window yet, it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 | Area | State | What it means here |
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder, reports what is missing and plans the order of the placements for a head with up to six nozzles; tested on a computer with normal and damaged input, not with a collection of real files. |
-| Command line | 🟡 | `eh3d-pnp` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
+| Command line | 🟡 | `phoenix-pnp` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
 | Tests | 🟡 | 53 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🔴 | Planned: the egui window common to the suite; today there is only the command line. |
@@ -61,12 +61,12 @@ Each line is one part of this repository and the light says how far it is today.
 
 ## 🧩 Role in EH3D
 
-EH3D-PNP-MANAGER is one program of the EH3D Fabrication Suite. Today it works as a library and a command line; its window, in the look the other programs of the suite share, is planned. It reads and writes plain files, so it can be used on its own or between the other programs.
+EH3D-PHOENIX-PNP is one program of the EH3D Fabrication Suite. Today it works as a library and a command line; its window, in the look the other programs of the suite share, is planned. It reads and writes plain files, so it can be used on its own or between the other programs.
 
 ## 🏛️ Architecture
 
 <p align="center">
-  <img src="images/architecture.svg" alt="EH3D-PNP-MANAGER architecture: who uses it, what it holds and what it depends on" width="100%">
+  <img src="images/architecture.svg" alt="EH3D-PHOENIX-PNP architecture: who uses it, what it holds and what it depends on" width="100%">
 </p>
 
 
@@ -74,7 +74,7 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 
 ## ✨ Features
 
-* **A library and a command line:** every command of `eh3d-pnp` is a function of the library, so another program of the suite can call it without starting a process.
+* **A library and a command line:** every command of `phoenix-pnp` is a function of the library, so another program of the suite can call it without starting a process.
 * **Strict command line:** an option that is written wrong (`--powr`) or a word too many is an error that names it, not something to ignore; the program would otherwise make its output with the default values.
 * **Tests with damaged input:** the tests also feed empty files, garbage, huge numbers and cut files, and none of them may panic.
 * **No guessing:** a value that does not make sense is an error that says which value and why, never a result that only looks right.
@@ -92,10 +92,10 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 
 ## 🔌 Interfaces
 
-The library is `eh3d_pnp_manager` (`use eh3d_pnp_manager::...`); the command line is `eh3d-pnp`. The commands are these; each prints its result on the standard output and reports an error on the standard error with a non-zero exit code. There is no network access.
+The library is `eh3d_phoenix_pnp` (`use eh3d_phoenix_pnp::...`); the command line is `phoenix-pnp`. The commands are these; each prints its result on the standard output and reports an error on the standard error with a non-zero exit code. There is no network access.
 
 ```text
-EH3D-PNP-MANAGER/
+EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── feeders.rs                               a part of the logic
 │   ├── lib.rs                                   the library: what every command uses
@@ -124,7 +124,7 @@ EH3D-PNP-MANAGER/
 
 ## ⚙️ Configuration
 
-There is no configuration file yet: what a person chooses is given as arguments of the command line (see Interfaces) and every default is written in the help of the command (`eh3d-pnp help`). The fixed limits live in the code as named constants and are covered by tests.
+There is no configuration file yet: what a person chooses is given as arguments of the command line (see Interfaces) and every default is written in the help of the command (`phoenix-pnp help`). The fixed limits live in the code as named constants and are covered by tests.
 
 ## 🚀 Quick start
 
@@ -147,14 +147,14 @@ The version lives in `Cargo.toml` and in `eh3d.project.json`; each version has i
 ## 📂 Repository Structure
 
 <p align="center">
-  <img src="images/repository-structure.svg" alt="Repository structure of EH3D-PNP-MANAGER" width="100%">
+  <img src="images/repository-structure.svg" alt="Repository structure of EH3D-PHOENIX-PNP" width="100%">
 </p>
 
 <details>
 <summary>Text version of the tree</summary>
 
 ```text
-EH3D-PNP-MANAGER/
+EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── feeders.rs                               a part of the logic
 │   ├── lib.rs                                   the library: what every command uses

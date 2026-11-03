@@ -1,4 +1,4 @@
-# Contributing to EH3D-PNP-MANAGER
+# Contributing to EH3D-PHOENIX-PNP
 
 Thank you for looking. A wrong position or a wrong feeder puts a part in the wrong place on a board, so a file that cannot be read with certainty must be refused, not guessed.
 

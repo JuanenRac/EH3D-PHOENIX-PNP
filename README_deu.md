@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="images/EH3D_BANNER.svg" alt="EH3D-PNP-MANAGER banner" width="100%">
+  <img src="images/EH3D_PHOENIX_PNP_BANNER.svg" alt="EH3D-PHOENIX-PNP banner" width="100%">
 </p>
 
-# 📖 EH3D-PNP-MANAGER
+# 📖 EH3D-PHOENIX-PNP
 
 <p align="center"><a href="README.md">🇺🇸 English</a> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | 🇩🇪 <b>Deutsch</b> | <a href="README_zho.md">🇨🇳 中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a> | <a href="README_por.md">🇵🇹 Português</a></p>
 
@@ -18,7 +18,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-pnp`) mit 53 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu, meldet, was fehlt, und plant die Bestückungsreihenfolge für einen Kopf mit bis zu sechs Düsen. Es hat noch kein Fenster, wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 53 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu, meldet, was fehlt, und plant die Bestückungsreihenfolge für einen Kopf mit bis zu sechs Düsen. Es hat noch kein Fenster, wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -46,7 +46,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 | Bereich | Stand | Was das hier bedeutet |
 |---|---|---|
 | Kern | 🟡 | liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu, meldet, was fehlt, und plant die Bestückungsreihenfolge für einen Kopf mit bis zu sechs Düsen; am Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
-| Kommandozeile | 🟡 | `eh3d-pnp` führt dieselben Funktionen wie die Bibliothek aus und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit einem Exit-Code ungleich null zurück. |
+| Kommandozeile | 🟡 | `phoenix-pnp` führt dieselben Funktionen wie die Bibliothek aus und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit einem Exit-Code ungleich null zurück. |
 | Tests | 🟡 | 53 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
 | Fenster | 🔴 | Geplant: das egui-Fenster, das die Suite gemeinsam nutzt; heute gibt es nur die Kommandozeile. |
@@ -61,12 +61,12 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 
 ## 🧩 Rolle in EH3D
 
-EH3D-PNP-MANAGER ist ein Programm der EH3D Fabrication Suite. Heute arbeitet es als Bibliothek und Kommandozeile; sein Fenster im gemeinsamen Aussehen der Suite ist geplant. Es liest und schreibt einfache Dateien und lässt sich allein oder zwischen den anderen Programmen nutzen.
+EH3D-PHOENIX-PNP ist ein Programm der EH3D Fabrication Suite. Heute arbeitet es als Bibliothek und Kommandozeile; sein Fenster im gemeinsamen Aussehen der Suite ist geplant. Es liest und schreibt einfache Dateien und lässt sich allein oder zwischen den anderen Programmen nutzen.
 
 ## 🏛️ Architektur
 
 <p align="center">
-  <img src="images/architecture.svg" alt="Architektur von EH3D-PNP-MANAGER: wer es nutzt, was es enthält und wovon es abhängt" width="100%">
+  <img src="images/architecture.svg" alt="Architektur von EH3D-PHOENIX-PNP: wer es nutzt, was es enthält und wovon es abhängt" width="100%">
 </p>
 
 
@@ -74,7 +74,7 @@ Wie die Teile dieses Repositorys zusammenpassen: wer es nutzt, was es enthält u
 
 ## ✨ Funktionen
 
-* **Bibliothek und Kommandozeile:** Jeder Befehl von `eh3d-pnp` ist eine Funktion der Bibliothek, sodass ein anderes Programm der Suite ihn ohne Prozessstart aufrufen kann.
+* **Bibliothek und Kommandozeile:** Jeder Befehl von `phoenix-pnp` ist eine Funktion der Bibliothek, sodass ein anderes Programm der Suite ihn ohne Prozessstart aufrufen kann.
 * **Strenge Kommandozeile:** Eine falsch geschriebene Option (`--powr`) oder ein überzähliges Wort ist ein Fehler, der sie nennt, und wird nicht ignoriert; sonst würde das Programm seine Ausgabe mit den Standardwerten erzeugen.
 * **Tests mit beschädigten Eingaben:** Die Tests füttern auch leere Dateien, Datenmüll, riesige Zahlen und abgeschnittene Dateien; keiner darf in Panik geraten.
 * **Kein Raten:** Ein unsinniger Wert ist ein Fehler, der sagt welcher und warum, nie ein Ergebnis, das nur richtig aussieht.
@@ -92,10 +92,10 @@ Wie die Teile dieses Repositorys zusammenpassen: wer es nutzt, was es enthält u
 
 ## 🔌 Schnittstellen
 
-Die Bibliothek ist `eh3d_pnp_manager` (`use eh3d_pnp_manager::...`); die Kommandozeile ist `eh3d-pnp`. Die Befehle sind diese; jeder gibt sein Ergebnis auf der Standardausgabe aus und meldet einen Fehler auf der Fehlerausgabe mit einem Exit-Code ungleich null. Es gibt keinen Netzwerkzugriff.
+Die Bibliothek ist `eh3d_phoenix_pnp` (`use eh3d_phoenix_pnp::...`); die Kommandozeile ist `phoenix-pnp`. Die Befehle sind diese; jeder gibt sein Ergebnis auf der Standardausgabe aus und meldet einen Fehler auf der Fehlerausgabe mit einem Exit-Code ungleich null. Es gibt keinen Netzwerkzugriff.
 
 ```text
-EH3D-PNP-MANAGER/
+EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── feeders.rs                               ein Teil der Logik
 │   ├── lib.rs                                   die Bibliothek: was jeder Befehl nutzt
@@ -124,7 +124,7 @@ EH3D-PNP-MANAGER/
 
 ## ⚙️ Konfiguration
 
-Es gibt noch keine Konfigurationsdatei: Was die Person wählt, wird als Argument der Kommandozeile angegeben (siehe Schnittstellen), und jeder Standardwert steht in der Hilfe des Befehls (`eh3d-pnp help`). Die festen Grenzen stehen als benannte Konstanten im Code und sind durch Tests abgedeckt.
+Es gibt noch keine Konfigurationsdatei: Was die Person wählt, wird als Argument der Kommandozeile angegeben (siehe Schnittstellen), und jeder Standardwert steht in der Hilfe des Befehls (`phoenix-pnp help`). Die festen Grenzen stehen als benannte Konstanten im Code und sind durch Tests abgedeckt.
 
 ## 🚀 Schnellstart
 
@@ -147,14 +147,14 @@ Die Version steht in `Cargo.toml` und in `eh3d.project.json`; jede Version hat i
 ## 📂 Struktur des Repositorys
 
 <p align="center">
-  <img src="images/repository-structure.svg" alt="Struktur des Repositorys EH3D-PNP-MANAGER" width="100%">
+  <img src="images/repository-structure.svg" alt="Struktur des Repositorys EH3D-PHOENIX-PNP" width="100%">
 </p>
 
 <details>
 <summary>Textversion des Baums</summary>
 
 ```text
-EH3D-PNP-MANAGER/
+EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── feeders.rs                               ein Teil der Logik
 │   ├── lib.rs                                   die Bibliothek: was jeder Befehl nutzt

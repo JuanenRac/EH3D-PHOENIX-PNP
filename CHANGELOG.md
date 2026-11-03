@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Renamed:** The project is now called EH3D-PHOENIX-PNP (it was EH3D-PNP-MANAGER); it joins the PHOENIX family of programs.
+
 ## [0.0.4] - Audit fixes, the new reading limits, tests and the application icon
 
 - **Brand:** Add the application icon and the logos of the program.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # =============================================================================
-# EH3D-PNP-MANAGER - tools/ci_validate.py
+# EH3D-PHOENIX-PNP - tools/ci_validate.py
 # Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 # GPL-3.0-or-later - see LICENSE
 # =============================================================================

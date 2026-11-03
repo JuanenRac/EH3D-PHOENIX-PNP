@@ -12,7 +12,7 @@ body:
     id: repository
     attributes:
       label: Primary repository
-      placeholder: EH3D-PNP-MANAGER
+      placeholder: EH3D-PHOENIX-PNP
     validations:
       required: true
   - type: textarea

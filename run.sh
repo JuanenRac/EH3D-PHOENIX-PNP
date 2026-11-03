@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs eh3d-pnp with its sample. Extra arguments replace the sample: ./run.sh [ARGUMENTS]
+# Runs phoenix-pnp with its sample. Extra arguments replace the sample: ./run.sh [ARGUMENTS]
 set -u
 cd "$(dirname "$0")"
 pause() { [ -n "${NOPAUSE:-}" ] || { read -r -p "Press Enter to close..." _ || true; }; }

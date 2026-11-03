@@ -1,19 +1,19 @@
-// EH3D-PNP-MANAGER - command line.
+// EH3D-PHOENIX-PNP - command line.
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 #![forbid(unsafe_code)]
 
-use eh3d_pnp_manager::feeders::{assign, assign_side, from_csv as feeders_csv};
-use eh3d_pnp_manager::parts::{parse, Side};
-use eh3d_pnp_manager::plan::{plan, Settings};
+use eh3d_phoenix_pnp::feeders::{assign, assign_side, from_csv as feeders_csv};
+use eh3d_phoenix_pnp::parts::{parse, Side};
+use eh3d_phoenix_pnp::plan::{plan, Settings};
 use std::env;
 use std::fs;
 use std::process::ExitCode;
 
-const HELP: &str = "eh3d-pnp: pick and place assembly
+const HELP: &str = "phoenix-pnp: pick and place assembly
 
-  eh3d-pnp parts PARTS                      the parts of a position file (KiCad .pos or CSV) in millimetres
-  eh3d-pnp check PARTS FEEDERS              which parts have no feeder and which feeders will run out
-  eh3d-pnp plan PARTS FEEDERS OUT.json [--nozzles 2] [--side top|bottom] [--board-width MM] [--speed MM_S] [--partial]
+  phoenix-pnp parts PARTS                      the parts of a position file (KiCad .pos or CSV) in millimetres
+  phoenix-pnp check PARTS FEEDERS              which parts have no feeder and which feeders will run out
+  phoenix-pnp plan PARTS FEEDERS OUT.json [--nozzles 2] [--side top|bottom] [--board-width MM] [--speed MM_S] [--partial]
 
 FEEDERS is a CSV with the header id,value,package,x,y,count. plan refuses to write when a part has no feeder or a feeder runs out, unless --partial is given
 (then only the parts that can be placed are in the plan). The bottom side needs --board-width to be mirrored.";

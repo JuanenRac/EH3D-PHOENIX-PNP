@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="images/EH3D_BANNER.svg" alt="EH3D-PNP-MANAGER banner" width="100%">
+  <img src="images/EH3D_PHOENIX_PNP_BANNER.svg" alt="EH3D-PHOENIX-PNP banner" width="100%">
 </p>
 
-# 📖 EH3D-PNP-MANAGER
+# 📖 EH3D-PHOENIX-PNP
 
 <p align="center"><a href="README.md">🇺🇸 English</a> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | 🇨🇳 <b>中文</b> | <a href="README_jpn.md">🇯🇵 日本語</a> | <a href="README_por.md">🇵🇹 Português</a></p>
 
@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`eh3d-pnp`），有 53 个在电脑上运行的测试：读取电路板的位置文件，为每个元件分配供料器，报告缺少的内容，并为最多六个吸嘴的贴装头规划贴装顺序。目前还没有窗口，没有在机器上试过，也没有用大量真实文件验证过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 53 个在电脑上运行的测试：读取电路板的位置文件，为每个元件分配供料器，报告缺少的内容，并为最多六个吸嘴的贴装头规划贴装顺序。目前还没有窗口，没有在机器上试过，也没有用大量真实文件验证过。
 
 ---
 
@@ -46,7 +46,7 @@
 | 领域 | 状态 | 在这里的含义 |
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器，报告缺少的内容，并为最多六个吸嘴的贴装头规划贴装顺序；已在电脑上用正常和损坏的输入测试，未用大量真实文件验证。 |
-| 命令行 | 🟡 | `eh3d-pnp` 运行与库相同的函数并打印结果；每个错误都以消息和非零退出码返回。 |
+| 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数并打印结果；每个错误都以消息和非零退出码返回。 |
 | 测试 | 🟡 | 53 个测试通过（`cargo test`），包含正常情况、边界情况和损坏的输入。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
 | 窗口 | 🔴 | 计划中：套件通用的 egui 窗口；目前只有命令行。 |
@@ -61,12 +61,12 @@
 
 ## 🧩 在 EH3D 中的角色
 
-EH3D-PNP-MANAGER 是 EH3D Fabrication Suite 的一个程序。目前它以库和命令行的形式工作；与套件其他程序外观一致的窗口在计划中。它读写简单的文件，因此可以单独使用，也可以用在其他程序之间。
+EH3D-PHOENIX-PNP 是 EH3D Fabrication Suite 的一个程序。目前它以库和命令行的形式工作；与套件其他程序外观一致的窗口在计划中。它读写简单的文件，因此可以单独使用，也可以用在其他程序之间。
 
 ## 🏛️ 架构
 
 <p align="center">
-  <img src="images/architecture.svg" alt="EH3D-PNP-MANAGER 的架构：谁在使用、包含什么、依赖什么" width="100%">
+  <img src="images/architecture.svg" alt="EH3D-PHOENIX-PNP 的架构：谁在使用、包含什么、依赖什么" width="100%">
 </p>
 
 
@@ -74,7 +74,7 @@ EH3D-PNP-MANAGER 是 EH3D Fabrication Suite 的一个程序。目前它以库和
 
 ## ✨ 功能
 
-* **库加命令行：** `eh3d-pnp` 的每个命令都是库中的函数，套件中的其他程序无需启动进程即可调用。
+* **库加命令行：** `phoenix-pnp` 的每个命令都是库中的函数，套件中的其他程序无需启动进程即可调用。
 * **严格的命令行：** 写错的选项（`--powr`）或多余的词会产生指明它的错误，而不是被忽略；否则程序会用默认值生成输出。
 * **损坏输入的测试：** 测试还会输入空文件、乱码、巨大数字和被截断的文件，任何情况都不允许 panic。
 * **不猜测：** 没有意义的值是一个说明哪个值、为什么的错误，绝不是只是看起来正确的结果。
@@ -92,10 +92,10 @@ EH3D-PNP-MANAGER 是 EH3D Fabrication Suite 的一个程序。目前它以库和
 
 ## 🔌 接口
 
-库为 `eh3d_pnp_manager`（`use eh3d_pnp_manager::...`），命令行为 `eh3d-pnp`。命令如下；每个命令把结果打印到标准输出，把错误以非零退出码报告到标准错误。没有网络访问。
+库为 `eh3d_phoenix_pnp`（`use eh3d_phoenix_pnp::...`），命令行为 `phoenix-pnp`。命令如下；每个命令把结果打印到标准输出，把错误以非零退出码报告到标准错误。没有网络访问。
 
 ```text
-EH3D-PNP-MANAGER/
+EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── feeders.rs                               逻辑的一部分
 │   ├── lib.rs                                   库：每个命令所使用的部分
@@ -124,7 +124,7 @@ EH3D-PNP-MANAGER/
 
 ## ⚙️ 配置
 
-目前还没有配置文件：用户的选择通过命令行参数给出（见接口），每个默认值都写在命令的帮助中（`eh3d-pnp help`）。固定的限制是代码中的具名常量，并有测试覆盖。
+目前还没有配置文件：用户的选择通过命令行参数给出（见接口），每个默认值都写在命令的帮助中（`phoenix-pnp help`）。固定的限制是代码中的具名常量，并有测试覆盖。
 
 ## 🚀 快速开始
 
@@ -147,14 +147,14 @@ cargo run --release -- plan examples/board.pos examples/feeders.csv examples/pla
 ## 📂 仓库结构
 
 <p align="center">
-  <img src="images/repository-structure.svg" alt="EH3D-PNP-MANAGER 的仓库结构" width="100%">
+  <img src="images/repository-structure.svg" alt="EH3D-PHOENIX-PNP 的仓库结构" width="100%">
 </p>
 
 <details>
 <summary>目录树的文本版</summary>
 
 ```text
-EH3D-PNP-MANAGER/
+EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── feeders.rs                               逻辑的一部分
 │   ├── lib.rs                                   库：每个命令所使用的部分

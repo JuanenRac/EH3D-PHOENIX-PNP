@@ -10,7 +10,7 @@ if not defined PRETTY_RUN if exist "%~dp0tools\pretty_run.py" (
     exit /b
 )
 rem PRETTY_RUN_END
-rem Builds EH3D-PNP-MANAGER (release).
+rem Builds EH3D-PHOENIX-PNP (release).
 cd /d "%~dp0"
 set "TARGET_DIR=target"
 if defined CARGO_TARGET_DIR set "TARGET_DIR=%CARGO_TARGET_DIR%"
@@ -25,7 +25,7 @@ if errorlevel 1 (
     echo Build FAILED.
 ) else (
     echo.
-    echo Build OK: %TARGET_DIR%\release\eh3d-pnp.exe
+    echo Build OK: %TARGET_DIR%\release\phoenix-pnp.exe
 )
 :end
 if not defined NOPAUSE pause

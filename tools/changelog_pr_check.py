@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # =============================================================================
-# EH3D-PNP-MANAGER - tools/changelog_pr_check.py
+# EH3D-PHOENIX-PNP - tools/changelog_pr_check.py
 # Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 # GPL-3.0-or-later - see LICENSE
 # =============================================================================

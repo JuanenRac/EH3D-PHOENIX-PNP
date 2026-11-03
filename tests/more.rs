@@ -1,7 +1,7 @@
 //! More tests: units and delimiters of the position files, the rows that are wrong, the file of feeders and the keys of parts and feeders.
 
-use eh3d_pnp_manager::feeders::{from_csv as feeders_csv, Feeder};
-use eh3d_pnp_manager::parts::{from_csv, from_kicad_pos, parse, Part, Side, MAX_PARTS};
+use eh3d_phoenix_pnp::feeders::{from_csv as feeders_csv, Feeder};
+use eh3d_phoenix_pnp::parts::{from_csv, from_kicad_pos, parse, Part, Side, MAX_PARTS};
 
 const HEAD: &str = "Designator,Value,Package,X,Y,Rotation,Side\n";
 

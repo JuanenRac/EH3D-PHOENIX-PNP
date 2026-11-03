@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="images/EH3D_BANNER.svg" alt="EH3D-PNP-MANAGER banner" width="100%">
+  <img src="images/EH3D_PHOENIX_PNP_BANNER.svg" alt="EH3D-PHOENIX-PNP banner" width="100%">
 </p>
 
-# 📖 EH3D-PNP-MANAGER
+# 📖 EH3D-PHOENIX-PNP
 
 <p align="center"><a href="README.md">🇺🇸 English</a> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a> | 🇵🇹 <b>Português</b></p>
 
@@ -18,7 +18,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`eh3d-pnp`) com 53 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador, comunica o que falta e planeia a ordem de colocação para um cabeçote de até seis bicos. Ainda não tem janela, não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
+**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 53 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador, comunica o que falta e planeia a ordem de colocação para um cabeçote de até seis bicos. Ainda não tem janela, não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
 
 ---
 
@@ -46,7 +46,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 | Área | Estado | O que significa aqui |
 |---|---|---|
 | Núcleo | 🟡 | lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador, comunica o que falta e planeia a ordem de colocação para um cabeçote de até seis bicos; testado num computador com entradas normais e danificadas, não com uma coleção de ficheiros reais. |
-| Linha de comandos | 🟡 | `eh3d-pnp` executa as mesmas funções da biblioteca e imprime o resultado; cada erro volta como mensagem e código de saída diferente de zero. |
+| Linha de comandos | 🟡 | `phoenix-pnp` executa as mesmas funções da biblioteca e imprime o resultado; cada erro volta como mensagem e código de saída diferente de zero. |
 | Testes | 🟡 | 53 testes passam (`cargo test`), com casos normais, casos-limite e entradas danificadas. |
 | Segurança | 🟡 | Rust seguro e simples (`forbid(unsafe_code)`): nada entra em pânico com os ficheiros recebidos e um valor mau é um erro com o seu motivo; sem revisão independente. |
 | Janela | 🔴 | Previsto: a janela egui comum à suíte; hoje existe apenas a linha de comandos. |
@@ -61,12 +61,12 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 
 ## 🧩 Papel no EH3D
 
-EH3D-PNP-MANAGER é um programa da EH3D Fabrication Suite. Hoje funciona como biblioteca e linha de comandos; a sua janela, com o aspeto que os outros programas da suíte partilham, está prevista. Lê e escreve ficheiros simples, por isso pode ser usado sozinho ou entre os outros programas.
+EH3D-PHOENIX-PNP é um programa da EH3D Fabrication Suite. Hoje funciona como biblioteca e linha de comandos; a sua janela, com o aspeto que os outros programas da suíte partilham, está prevista. Lê e escreve ficheiros simples, por isso pode ser usado sozinho ou entre os outros programas.
 
 ## 🏛️ Arquitetura
 
 <p align="center">
-  <img src="images/architecture.svg" alt="Arquitetura de EH3D-PNP-MANAGER: quem o usa, o que contém e de que depende" width="100%">
+  <img src="images/architecture.svg" alt="Arquitetura de EH3D-PHOENIX-PNP: quem o usa, o que contém e de que depende" width="100%">
 </p>
 
 
@@ -74,7 +74,7 @@ Como as partes deste repositório se encaixam: quem o usa, o que contém e de qu
 
 ## ✨ Funcionalidades
 
-* **Biblioteca e linha de comandos:** cada comando de `eh3d-pnp` é uma função da biblioteca, por isso outro programa da suíte pode chamá-la sem lançar um processo.
+* **Biblioteca e linha de comandos:** cada comando de `phoenix-pnp` é uma função da biblioteca, por isso outro programa da suíte pode chamá-la sem lançar um processo.
 * **Linha de comandos estrita:** uma opção mal escrita (`--powr`) ou uma palavra a mais é um erro que a nomeia, não algo que se ignora; caso contrário o programa faria a sua saída com os valores por omissão.
 * **Testes com entradas danificadas:** os testes também dão ficheiros vazios, lixo, números enormes e ficheiros cortados, e nenhum pode entrar em pânico.
 * **Sem adivinhar:** um valor sem sentido é um erro que diz qual e porquê, nunca um resultado que apenas parece certo.
@@ -92,10 +92,10 @@ Como as partes deste repositório se encaixam: quem o usa, o que contém e de qu
 
 ## 🔌 Interfaces
 
-A biblioteca é `eh3d_pnp_manager` (`use eh3d_pnp_manager::...`); a linha de comandos é `eh3d-pnp`. Os comandos são estes; cada um imprime o resultado na saída padrão e comunica um erro na saída de erros com um código de saída diferente de zero. Não há acesso à rede.
+A biblioteca é `eh3d_phoenix_pnp` (`use eh3d_phoenix_pnp::...`); a linha de comandos é `phoenix-pnp`. Os comandos são estes; cada um imprime o resultado na saída padrão e comunica um erro na saída de erros com um código de saída diferente de zero. Não há acesso à rede.
 
 ```text
-EH3D-PNP-MANAGER/
+EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── feeders.rs                               uma parte da lógica
 │   ├── lib.rs                                   a biblioteca: o que cada comando usa
@@ -124,7 +124,7 @@ EH3D-PNP-MANAGER/
 
 ## ⚙️ Configuração
 
-Ainda não há ficheiro de configuração: o que a pessoa escolhe é dado como argumentos da linha de comandos (ver Interfaces) e cada valor por omissão está escrito na ajuda do comando (`eh3d-pnp help`). Os limites fixos são constantes com nome no código, cobertas por testes.
+Ainda não há ficheiro de configuração: o que a pessoa escolhe é dado como argumentos da linha de comandos (ver Interfaces) e cada valor por omissão está escrito na ajuda do comando (`phoenix-pnp help`). Os limites fixos são constantes com nome no código, cobertas por testes.
 
 ## 🚀 Início rápido
 
@@ -147,14 +147,14 @@ A versão está em `Cargo.toml` e em `eh3d.project.json`; cada versão tem a sua
 ## 📂 Estrutura do repositório
 
 <p align="center">
-  <img src="images/repository-structure.svg" alt="Estrutura do repositório EH3D-PNP-MANAGER" width="100%">
+  <img src="images/repository-structure.svg" alt="Estrutura do repositório EH3D-PHOENIX-PNP" width="100%">
 </p>
 
 <details>
 <summary>Versão em texto da árvore</summary>
 
 ```text
-EH3D-PNP-MANAGER/
+EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── feeders.rs                               uma parte da lógica
 │   ├── lib.rs                                   a biblioteca: o que cada comando usa

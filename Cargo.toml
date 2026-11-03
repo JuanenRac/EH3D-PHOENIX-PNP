@@ -1,19 +1,19 @@
 [package]
-name = "eh3d-pnp-manager"
+name = "eh3d-phoenix-pnp"
 version = "0.0.4"
 edition = "2021"
 rust-version = "1.75"
 description = "Pick and place assembly: the position files of the CAD programs, the feeders of the machine and the order in which the parts are placed"
 license = "GPL-3.0-or-later"
-repository = "https://github.com/JuanenRac/EH3D-PNP-MANAGER"
+repository = "https://github.com/JuanenRac/EH3D-PHOENIX-PNP"
 readme = "README.md"
 
 [lib]
-name = "eh3d_pnp_manager"
+name = "eh3d_phoenix_pnp"
 path = "src/lib.rs"
 
 [[bin]]
-name = "eh3d-pnp"
+name = "phoenix-pnp"
 path = "src/main.rs"
 
 [dependencies]

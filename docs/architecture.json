@@ -1,8 +1,8 @@
 {
-  "repo": "EH3D-PNP-MANAGER",
+  "repo": "EH3D-PHOENIX-PNP",
   "ecosystem": "eh3d",
   "tagline": "Parts, feeders and the order to place them.",
-  "description": "EH3D-PNP-MANAGER is a Rust library and command line that read the position file of a board, give every part its feeder and plan the order of the placements as a JSON job. It has no camera or machine control yet.",
+  "description": "EH3D-PHOENIX-PNP is a Rust library and command line that read the position file of a board, give every part its feeder and plan the order of the placements as a JSON job. It has no camera or machine control yet.",
   "columns": [
     "WHO USES IT",
     "THIS REPOSITORY",
