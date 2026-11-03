@@ -834,3 +834,36 @@ fn the_unit_in_the_header_of_a_position_column_is_the_unit_of_a_bare_number() {
         "{p:?}"
     );
 }
+
+#[test]
+fn a_latin1_file_is_noted_a_fractional_nozzle_count_is_refused_and_no_temporary_plan_is_left() {
+    let dir = scratch("cli_misc");
+    let parts = dir.join("parts.csv");
+    let feeders = dir.join("feeders.csv");
+    let out = dir.join("plan.json");
+    // a value with the single byte 0xEA is not valid UTF-8 (it is a Latin-1 text)
+    let mut bytes = format!("{HEAD}R1,10 k").into_bytes();
+    bytes.push(0xEA);
+    bytes.extend_from_slice(b",R,10,10,0,top\n");
+    std::fs::write(&parts, bytes).unwrap();
+    std::fs::write(&feeders, "id,value,package,x,y,count\nF1,10 k,R,0,0,5\n").unwrap();
+    let (p, f, o) = (
+        parts.to_str().unwrap(),
+        feeders.to_str().unwrap(),
+        out.to_str().unwrap(),
+    );
+    let checked = cli(&["check", p, f]);
+    assert!(
+        String::from_utf8_lossy(&checked.stderr).contains("read as Latin-1"),
+        "{}",
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    std::fs::write(&parts, format!("{HEAD}R1,10k,R,10,10,0,top\n")).unwrap();
+    std::fs::write(&feeders, "id,value,package,x,y,count\nF1,10k,R,0,0,5\n").unwrap();
+    let frac = cli(&["plan", p, f, o, "--nozzles", "2.9"]);
+    assert_eq!(frac.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&frac.stderr).contains("whole number"));
+    assert!(cli(&["plan", p, f, o]).status.success());
+    assert!(out.exists() && !dir.join("plan.json.tmp").exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}

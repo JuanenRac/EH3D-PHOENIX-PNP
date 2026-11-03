@@ -39,9 +39,15 @@ fn num(text: &str, what: &str) -> Result<f64, String> {
 }
 
 fn read(path: &str) -> Result<String, String> {
-    fs::read(path)
-        .map(|b| String::from_utf8_lossy(&b).into_owned())
-        .map_err(|e| format!("{path}: {e}"))
+    let bytes = fs::read(path).map_err(|e| format!("{path}: {e}"))?;
+    match String::from_utf8(bytes) {
+        Ok(text) => Ok(text),
+        Err(e) => {
+            // the suite reads such text as Latin-1; saying so keeps a value with an omega or a micro sign from silently not matching
+            eprintln!("note: {path}: the text is not UTF-8 and was read as Latin-1");
+            Ok(e.into_bytes().iter().map(|&b| char::from(b)).collect())
+        }
+    }
 }
 
 /// What is left of the arguments once the options and the wanted words are taken must be nothing more than `max` words: an option that is written wrong or an extra word is an
@@ -76,7 +82,11 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "check" | "plan" => {
             let mut s = Settings::default();
             if let Some(v) = flag(&mut args, "--nozzles")? {
-                s.nozzles = num(&v, "--nozzles")? as usize;
+                let n = num(&v, "--nozzles")?;
+                if n.fract() != 0.0 || !(1.0..=6.0).contains(&n) {
+                    return Err(format!("--nozzles {v} is not a whole number from 1 to 6"));
+                }
+                s.nozzles = n as usize;
             }
             if let Some(v) = flag(&mut args, "--speed")? {
                 s.speed_mm_s = num(&v, "--speed")?;
@@ -129,7 +139,14 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             }
             let out = args.get(2).ok_or("plan needs an output file")?;
             let p = plan(&parts, &feeders, &a, &s)?;
-            fs::write(out, p.to_json()).map_err(|e| format!("{out}: {e}"))?;
+            // written beside and renamed, so that a failure leaves the old plan whole
+            let tmp = format!("{out}.tmp");
+            fs::write(&tmp, p.to_json())
+                .and_then(|()| fs::rename(&tmp, out))
+                .map_err(|e| {
+                    let _ = fs::remove_file(&tmp);
+                    format!("{out}: {e}")
+                })?;
             println!(
                 "{} parts in {} batches, {:.0} mm of travel, about {:.0} s",
                 p.placements.len(),
