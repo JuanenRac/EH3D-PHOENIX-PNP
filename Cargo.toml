@@ -1,6 +1,6 @@
 [package]
 name = "eh3d-pnp-manager"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 rust-version = "1.75"
 description = "Pick and place assembly: the position files of the CAD programs, the feeders of the machine and the order in which the parts are placed"
