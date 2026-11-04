@@ -180,7 +180,8 @@ fn a_state_of_another_job_or_a_damaged_one_is_refused_and_changes_nothing() {
         let e = fresh.restore_state(text).unwrap_err();
         assert_eq!(e.code, Code::JobStateBad, "{text:?}");
     }
-    let damage: Vec<Box<dyn Fn(&mut Value)>> = vec![
+    type Damage = Box<dyn Fn(&mut Value)>;
+    let damage: Vec<Damage> = vec![
         Box::new(|v: &mut Value| v["status"].as_array_mut().unwrap().push(json!("pending"))),
         Box::new(|v: &mut Value| v["status"][0] = json!("flying")),
         Box::new(|v: &mut Value| v["cursor"]["kind"] = json!("dance")),
