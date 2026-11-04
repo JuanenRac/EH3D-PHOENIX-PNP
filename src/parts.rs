@@ -75,10 +75,22 @@ fn angle(text: &str) -> Result<f64, String> {
     Ok(v.rem_euclid(360.0))
 }
 
-fn split_csv(line: &str, delim: char) -> Vec<String> {
-    let mut out = Vec::new();
+/// The delimiter of a table, told by its header row: a semicolon when it has more semicolons than commas.
+pub fn detect_delimiter(head_line: &str) -> char {
+    if head_line.matches(';').count() > head_line.matches(',').count() {
+        ';'
+    } else {
+        ','
+    }
+}
+
+/// The records of a table, one reader for the parts and for the feeders: fields split by `delim`, a field in double quotes may hold the delimiter, a doubled quote and a line break,
+/// an empty row is left out, and every field is trimmed. A quote that is opened and never closed is an error.
+pub fn read_records(text: &str, delim: char) -> Result<Vec<Vec<String>>, String> {
+    let mut records: Vec<Vec<String>> = Vec::new();
+    let mut record: Vec<String> = Vec::new();
     let (mut field, mut quoted) = (String::new(), false);
-    let mut chars = line.chars().peekable();
+    let mut chars = text.chars().peekable();
     while let Some(c) = chars.next() {
         if quoted {
             if c == '"' && chars.peek() == Some(&'"') {
@@ -92,13 +104,27 @@ fn split_csv(line: &str, delim: char) -> Vec<String> {
         } else if c == '"' && field.is_empty() {
             quoted = true;
         } else if c == delim {
-            out.push(std::mem::take(&mut field));
-        } else {
+            record.push(std::mem::take(&mut field).trim().to_string());
+        } else if c == '\n' {
+            record.push(std::mem::take(&mut field).trim().to_string());
+            let row = std::mem::take(&mut record);
+            if !(row.len() == 1 && row[0].is_empty()) {
+                records.push(row);
+            }
+        } else if c != '\r' {
             field.push(c);
         }
     }
-    out.push(field);
-    out.into_iter().map(|f| f.trim().to_string()).collect()
+    if quoted {
+        return Err("a quote is opened and never closed".into());
+    }
+    if !field.is_empty() || !record.is_empty() {
+        record.push(field.trim().to_string());
+        if !(record.len() == 1 && record[0].is_empty()) {
+            records.push(record);
+        }
+    }
+    Ok(records)
 }
 
 fn column(header: &[String], names: &[&str]) -> Option<usize> {
@@ -135,17 +161,17 @@ fn column_unit(header: &[String], names: &[&str]) -> Option<(usize, f64)> {
 
 /// A CSV (comma or semicolon) with a header row. The columns are found by name: designator or ref, value or val, package or footprint, x, y, rotation or rot, side or layer.
 pub fn from_csv(text: &str) -> Result<Vec<Part>, String> {
-    let mut lines = text
-        .trim_start_matches('\u{feff}')
+    let text = text.trim_start_matches('\u{feff}');
+    let head_line = text
         .lines()
-        .filter(|l| !l.trim().is_empty() && !l.trim_start().starts_with("//"));
-    let head_line = lines.next().ok_or("the file is empty")?;
-    let delim = if head_line.matches(';').count() > head_line.matches(',').count() {
-        ';'
-    } else {
-        ','
-    };
-    let header = split_csv(head_line, delim);
+        .find(|l| !l.trim().is_empty() && !l.trim_start().starts_with("//"))
+        .ok_or("the file is empty")?;
+    let delim = detect_delimiter(head_line);
+    // a row whose first field starts with // is a comment
+    let mut records = read_records(text, delim)?
+        .into_iter()
+        .filter(|r| !r.first().is_some_and(|f| f.starts_with("//")));
+    let header = records.next().ok_or("the file is empty")?;
     let find = |names: &[&str], what: &str| {
         column(&header, names).ok_or_else(|| format!("the header has no column for the {what}"))
     };
@@ -187,11 +213,10 @@ pub fn from_csv(text: &str) -> Result<Vec<Part>, String> {
     let c_rot = find(&["rotation", "rot", "angle"], "rotation")?;
     let c_side = find(&["side", "layer", "tb"], "side")?;
     let mut parts = Vec::new();
-    for (i, line) in lines.enumerate() {
+    for (i, f) in records.enumerate() {
         if parts.len() >= MAX_PARTS {
             return Err(format!("more than {MAX_PARTS} parts"));
         }
-        let f = split_csv(line, delim);
         let at = |c: usize| {
             f.get(c)
                 .map(String::as_str)
@@ -275,6 +300,8 @@ pub fn parse(text: &str) -> Result<Vec<Part>, String> {
 }
 
 fn check(parts: &[Part]) -> Result<(), String> {
+    let mut seen: std::collections::HashSet<&str> =
+        std::collections::HashSet::with_capacity(parts.len());
     for (i, p) in parts.iter().enumerate() {
         if p.reference.is_empty() || p.reference.chars().any(|c| c.is_control()) {
             return Err(format!(
@@ -282,7 +309,7 @@ fn check(parts: &[Part]) -> Result<(), String> {
                 i + 1
             ));
         }
-        if parts[..i].iter().any(|q| q.reference == p.reference) {
+        if !seen.insert(p.reference.as_str()) {
             return Err(format!("the reference {} is used twice", p.reference));
         }
     }

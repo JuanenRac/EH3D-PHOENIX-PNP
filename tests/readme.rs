@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-const BIN: &str = env!("CARGO_BIN_EXE_eh3d-pnp");
+const BIN: &str = env!("CARGO_BIN_EXE_phoenix-pnp");
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -55,7 +55,8 @@ fn the_commands_of_the_readme_run() {
     let commands = of_readme();
     assert!(!commands.is_empty(), "the README shows no command");
     for (i, args) in commands.iter().enumerate() {
-        let dir = std::env::temp_dir().join(format!("eh3d_pnp_readme_{i}_{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("phoenix_pnp_readme_{i}_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         // a file of examples/ that does not exist yet is an output: it goes to the temporary folder
         let args: Vec<String> = args

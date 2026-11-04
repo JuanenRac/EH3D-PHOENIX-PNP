@@ -79,6 +79,7 @@ Como as partes deste repositório se encaixam: quem o usa, o que contém e de qu
 * **Testes com entradas danificadas:** os testes também dão ficheiros vazios, lixo, números enormes e ficheiros cortados, e nenhum pode entrar em pânico.
 * **Sem adivinhar:** um valor sem sentido é um erro que diz qual e porquê, nunca um resultado que apenas parece certo.
 * **Sem código unsafe:** `#![forbid(unsafe_code)]` na biblioteca e no programa.
+* **Um só leitor para as duas tabelas, e rápido numa placa grande:** o ficheiro de posições e o de alimentadores são lidos pelo mesmo leitor (vírgula ou ponto e vírgula, campos entre aspas com um separador ou uma quebra de linha), cinquenta mil peças são verificadas, atribuídas e planeadas num instante, o plano nunca é escrito por cima de um ficheiro de origem, uma opção desconhecida é um erro e `--origin-x` diz onde está a margem esquerda da placa ao espelhar a face inferior.
 
 ## 🔒 Segurança e proteção
 

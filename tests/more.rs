@@ -174,3 +174,164 @@ fn a_file_of_feeders_with_a_byte_order_mark_and_blank_lines_is_read() {
     assert_eq!(f.len(), 2);
     assert_eq!(f[1].count, 0);
 }
+
+#[test]
+fn quoted_fields_hold_the_delimiter_and_a_line_break_in_parts_and_in_feeders() {
+    let text = format!("{HEAD}\"R1\",\"10k, 1%\",\"0603\nlong\",1,2,0,top\n");
+    let p = from_csv(&text).unwrap();
+    assert_eq!(p[0].value, "10k, 1%");
+    assert_eq!(p[0].package, "0603\nlong");
+    let semicolon = "Designator;Value;Package;X;Y;Rotation;Side\nR1;\"a;b\";0603;1;2;0;top\n";
+    assert_eq!(from_csv(semicolon).unwrap()[0].value, "a;b");
+    // the file of feeders is read by the same reader: quotes, a semicolon and a line break in a field
+    let f = feeders_csv("id;value;package;x;y;count\nF1;\"10k; 1%\";0603;5;6;100\n").unwrap();
+    assert_eq!((f[0].value.as_str(), f[0].count), ("10k; 1%", 100));
+    let f = feeders_csv("id,value,package,x,y,count\r\nF1,\"10k, 1%\",0603,5,6,100\r\n").unwrap();
+    assert_eq!(f[0].value, "10k, 1%");
+    assert!(from_csv(&format!("{HEAD}R1,\"10k,0603,1,2,0,top\n")).is_err());
+}
+
+fn many(n: usize) -> (Vec<Part>, Vec<Feeder>) {
+    let mut state: u64 = 0x2545_F491_4F6C_DD1D;
+    let mut next = move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        (state % 100_000) as f64 / 1000.0
+    };
+    let parts = (0..n)
+        .map(|i| Part {
+            reference: format!("R{i}"),
+            value: format!("{}k", i % 40),
+            package: "0603".into(),
+            x: next(),
+            y: next(),
+            rotation: 0.0,
+            side: Side::Top,
+        })
+        .collect();
+    let feeders = (0..40)
+        .map(|k| Feeder {
+            id: format!("F{k}"),
+            value: format!("{k}k"),
+            package: "0603".into(),
+            x: f64::from(k),
+            y: 0.0,
+            count: 100_000,
+        })
+        .collect();
+    (parts, feeders)
+}
+
+#[test]
+fn fifty_thousand_parts_are_checked_assigned_and_planned_in_moments() {
+    use eh3d_phoenix_pnp::feeders::assign;
+    use eh3d_phoenix_pnp::plan::{plan, Settings};
+    let (parts, feeders) = many(MAX_PARTS);
+    let started = std::time::Instant::now();
+    let a = assign(&parts, &feeders);
+    assert_eq!(a.assignments.len(), MAX_PARTS);
+    let p = plan(
+        &parts,
+        &feeders,
+        &a,
+        &Settings {
+            nozzles: 4,
+            ..Settings::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(p.placements.len(), MAX_PARTS);
+    assert!(
+        started.elapsed().as_secs() < 60,
+        "{:?} for {MAX_PARTS} parts",
+        started.elapsed()
+    );
+}
+
+#[test]
+fn the_nearest_first_walk_is_the_plain_one_with_the_first_of_the_list_winning_a_tie() {
+    use eh3d_phoenix_pnp::plan::nearest_walk;
+    let brute = |pts: &[(f64, f64)]| {
+        let mut left: Vec<usize> = (0..pts.len()).collect();
+        let (mut here, mut out) = ((0.0, 0.0), Vec::new());
+        while !left.is_empty() {
+            let d = |k: usize| ((pts[k].0 - here.0).powi(2) + (pts[k].1 - here.1).powi(2)).sqrt();
+            let i = (0..left.len())
+                .min_by(|&a, &b| d(left[a]).partial_cmp(&d(left[b])).unwrap())
+                .unwrap();
+            let k = left.remove(i);
+            here = pts[k];
+            out.push(k);
+        }
+        out
+    };
+    let (parts, _) = many(500);
+    let pts: Vec<(f64, f64)> = parts.iter().map(|p| (p.x, p.y)).collect();
+    assert_eq!(nearest_walk(&pts, (0.0, 0.0)), brute(&pts));
+    // repeated points and points on a line: equal distances everywhere
+    let odd = vec![
+        (5.0, 0.0),
+        (5.0, 0.0),
+        (0.0, 5.0),
+        (5.0, 0.0),
+        (-5.0, 0.0),
+        (0.0, 0.0),
+    ];
+    assert_eq!(nearest_walk(&odd, (0.0, 0.0)), brute(&odd));
+    assert!(nearest_walk(&[], (0.0, 0.0)).is_empty());
+}
+
+#[test]
+fn the_bottom_side_is_mirrored_about_the_middle_of_the_board_wherever_its_left_edge_is() {
+    use eh3d_phoenix_pnp::feeders::assign_side;
+    use eh3d_phoenix_pnp::plan::{plan, Settings};
+    let parts = from_csv(&format!("{HEAD}R1,1k,0603,10,5,90,bottom\n")).unwrap();
+    let feeders = feeders_csv("id,value,package,x,y,count\nF1,1k,0603,0,0,5\n").unwrap();
+    let a = assign_side(&parts, &feeders, Some(Side::Bottom));
+    let at = |origin: f64| {
+        plan(
+            &parts,
+            &feeders,
+            &a,
+            &Settings {
+                side: Side::Bottom,
+                board_width_mm: Some(40.0),
+                origin_x_mm: origin,
+                ..Settings::default()
+            },
+        )
+        .unwrap()
+        .placements[0]
+            .x
+    };
+    assert_eq!(at(0.0), 30.0);
+    // the middle of a board that starts at X 100 and is 40 wide is 120: a part at 10 mirrors to 2 * 120 - 10
+    assert_eq!(at(100.0), 230.0);
+}
+
+#[test]
+fn a_plan_is_not_written_over_a_file_it_was_made_from() {
+    let dir = std::env::temp_dir().join(format!("eh3d_pnp_same_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let parts = dir.join("parts.csv");
+    let feeders = dir.join("feeders.csv");
+    std::fs::write(&parts, format!("{HEAD}R1,1k,0603,10,5,0,top\n")).unwrap();
+    std::fs::write(&feeders, "id,value,package,x,y,count\nF1,1k,0603,0,0,5\n").unwrap();
+    let before = std::fs::read_to_string(&parts).unwrap();
+    for out in [&parts, &feeders] {
+        let result = std::process::Command::new(env!("CARGO_BIN_EXE_phoenix-pnp"))
+            .args([
+                "plan",
+                parts.to_str().unwrap(),
+                feeders.to_str().unwrap(),
+                out.to_str().unwrap(),
+            ])
+            .output()
+            .unwrap();
+        assert!(!result.status.success());
+        assert!(String::from_utf8_lossy(&result.stderr).contains("also an input"));
+    }
+    assert_eq!(std::fs::read_to_string(&parts).unwrap(), before);
+    let _ = std::fs::remove_dir_all(&dir);
+}

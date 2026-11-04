@@ -79,6 +79,7 @@ Come si incastrano le parti di questo repository: chi lo usa, cosa contiene e da
 * **Test con input danneggiati:** i test forniscono anche file vuoti, spazzatura, numeri enormi e file tagliati, e nessuno può andare in panico.
 * **Nessuna ipotesi:** un valore privo di senso è un errore che dice quale e perché, mai un risultato che sembra solo giusto.
 * **Nessun codice unsafe:** `#![forbid(unsafe_code)]` nella libreria e nel programma.
+* **Un solo lettore per le due tabelle, e veloce su una scheda grande:** il file delle posizioni e quello degli alimentatori sono letti dallo stesso lettore (virgola o punto e virgola, campi tra virgolette con un delimitatore o un a capo), cinquantamila componenti sono controllati, assegnati e pianificati in un attimo, il piano non viene mai scritto su un file da cui è stato ricavato, un'opzione sconosciuta è un errore e `--origin-x` dice dove si trova il bordo sinistro della scheda quando si specchia il lato inferiore.
 
 ## 🔒 Sicurezza e protezione
 

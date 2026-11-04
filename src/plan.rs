@@ -13,6 +13,9 @@ pub struct Settings {
     pub side: Side,
     /// For the bottom side: the width of the board; the x of every part is mirrored about its middle.
     pub board_width_mm: Option<f64>,
+    /// For the bottom side: where the left edge of the board is on the X axis, in millimetres. The mirror is about the middle of the board, `origin_x_mm + board_width_mm / 2`;
+    /// with the default 0 the board is taken to start at X 0, as a position file of a board placed at the origin has it.
+    pub origin_x_mm: f64,
     /// The speed of the head, in mm/s.
     pub speed_mm_s: f64,
     /// The time to pick a part and to place it, in seconds.
@@ -26,6 +29,7 @@ impl Default for Settings {
             nozzles: 1,
             side: Side::Top,
             board_width_mm: None,
+            origin_x_mm: 0.0,
             speed_mm_s: 150.0,
             pick_s: 0.4,
             place_s: 0.4,
@@ -57,6 +61,80 @@ fn dist(a: (f64, f64), b: (f64, f64)) -> f64 {
     ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()
 }
 
+/// The order of a walk over `points` that always goes to the nearest one that is left, from `start`; of two at the same distance the first of the list goes first. The points go in
+/// a grid of about one per cell and the nearest is looked for ring by ring, so a board of fifty thousand parts is walked in moments (the plain walk is quadratic).
+pub fn nearest_walk(points: &[(f64, f64)], start: (f64, f64)) -> Vec<usize> {
+    let n = points.len();
+    let mut order = Vec::with_capacity(n);
+    if n == 0 {
+        return order;
+    }
+    let (mut x0, mut y0) = (f64::INFINITY, f64::INFINITY);
+    let (mut x1, mut y1) = (f64::NEG_INFINITY, f64::NEG_INFINITY);
+    for p in points {
+        x0 = x0.min(p.0);
+        y0 = y0.min(p.1);
+        x1 = x1.max(p.0);
+        y1 = y1.max(p.1);
+    }
+    let side = ((n as f64).sqrt().ceil() as usize).clamp(1, 2048);
+    let cw = ((x1 - x0) / side as f64).max(1e-9);
+    let ch = ((y1 - y0) / side as f64).max(1e-9);
+    let cell = |p: (f64, f64)| -> (usize, usize) {
+        let cx = (((p.0 - x0) / cw).floor().max(0.0) as usize).min(side - 1);
+        let cy = (((p.1 - y0) / ch).floor().max(0.0) as usize).min(side - 1);
+        (cx, cy)
+    };
+    let mut grid: Vec<Vec<usize>> = vec![Vec::new(); side * side];
+    for (k, p) in points.iter().enumerate() {
+        let (cx, cy) = cell(*p);
+        grid[cy * side + cx].push(k);
+    }
+    let smallest_cell = cw.min(ch);
+    let mut at = start;
+    for _ in 0..n {
+        let (cx, cy) = cell(at);
+        let mut best: Option<(f64, usize)> = None;
+        for r in 0..=side as i64 {
+            for dx in -r..=r {
+                let on_edge = dx.abs() == r;
+                let mut dy = -r;
+                while dy <= r {
+                    let (gx, gy) = (cx as i64 + dx, cy as i64 + dy);
+                    if gx >= 0 && gy >= 0 && (gx as usize) < side && (gy as usize) < side {
+                        for &k in &grid[gy as usize * side + gx as usize] {
+                            let d = dist(at, points[k]);
+                            let better = match best {
+                                None => true,
+                                Some((bd, bk)) => d < bd || (d == bd && k < bk),
+                            };
+                            if better {
+                                best = Some((d, k));
+                            }
+                        }
+                    }
+                    // inside the ring only its two sides are visited; on its top and bottom rows every cell
+                    dy += if on_edge || r == 0 { 1 } else { 2 * r };
+                }
+            }
+            if let Some((bd, _)) = best {
+                if bd < r as f64 * smallest_cell {
+                    break;
+                }
+            }
+        }
+        let Some((_, k)) = best else { break };
+        let (kx, ky) = cell(points[k]);
+        let bucket = &mut grid[ky * side + kx];
+        if let Some(pos) = bucket.iter().position(|&m| m == k) {
+            bucket.swap_remove(pos);
+        }
+        at = points[k];
+        order.push(k);
+    }
+    order
+}
+
 /// Plans the parts that have a feeder (see `feeders::assign`), on the side of `s`.
 pub fn plan(
     parts: &[Part],
@@ -83,6 +161,12 @@ pub fn plan(
             "the bottom side needs the width of the board (board_width_mm) to be mirrored".into(),
         );
     }
+    if !s.origin_x_mm.is_finite() {
+        return Err(format!(
+            "origin_x_mm is {}: it must be a number",
+            s.origin_x_mm
+        ));
+    }
     // every part of this side with its feeder, and where it goes
     let mut todo: Vec<(usize, usize, (f64, f64), f64)> = Vec::new();
     for a in &assigned.assignments {
@@ -102,29 +186,20 @@ pub fn plan(
             continue;
         }
         let (x, rot) = match (s.side, s.board_width_mm) {
-            (Side::Bottom, Some(w)) => (w - p.x, (180.0 - p.rotation).rem_euclid(360.0)),
+            (Side::Bottom, Some(w)) => (
+                2.0 * s.origin_x_mm + w - p.x,
+                (180.0 - p.rotation).rem_euclid(360.0),
+            ),
             _ => (p.x, p.rotation),
         };
         todo.push((a.part, a.feeder, (x, p.y), rot));
     }
     // the walk over the places, nearest first, from the corner of the board
-    let mut walk: Vec<(usize, usize, (f64, f64), f64)> = Vec::with_capacity(todo.len());
-    let mut here = (0.0, 0.0);
-    while !todo.is_empty() {
-        let i = todo
-            .iter()
-            .enumerate()
-            .min_by(|a, b| {
-                dist(here, a.1 .2)
-                    .partial_cmp(&dist(here, b.1 .2))
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .map(|(i, _)| i)
-            .unwrap_or(0);
-        let next = todo.remove(i);
-        here = next.2;
-        walk.push(next);
-    }
+    let points: Vec<(f64, f64)> = todo.iter().map(|t| t.2).collect();
+    let walk: Vec<(usize, usize, (f64, f64), f64)> = nearest_walk(&points, (0.0, 0.0))
+        .into_iter()
+        .map(|k| todo[k])
+        .collect();
     let (mut placements, mut travel, mut head) = (Vec::with_capacity(walk.len()), 0.0, (0.0, 0.0));
     for (batch, chunk) in walk.chunks(s.nozzles).enumerate() {
         // the order in which the feeders of the batch are visited

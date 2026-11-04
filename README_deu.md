@@ -79,6 +79,7 @@ Wie die Teile dieses Repositorys zusammenpassen: wer es nutzt, was es enthält u
 * **Tests mit beschädigten Eingaben:** Die Tests füttern auch leere Dateien, Datenmüll, riesige Zahlen und abgeschnittene Dateien; keiner darf in Panik geraten.
 * **Kein Raten:** Ein unsinniger Wert ist ein Fehler, der sagt welcher und warum, nie ein Ergebnis, das nur richtig aussieht.
 * **Kein unsafe-Code:** `#![forbid(unsafe_code)]` in Bibliothek und Programm.
+* **Ein Leser für beide Tabellen, und schnell bei einer großen Platine:** die Positionsdatei und die Zuführungsdatei werden vom selben Leser gelesen (Komma oder Semikolon, Felder in Anführungszeichen mit Trennzeichen oder Zeilenumbruch), fünfzigtausend Bauteile werden in Augenblicken geprüft, zugeordnet und geplant, der Plan überschreibt nie eine Datei, aus der er erstellt wurde, eine unbekannte Option ist ein Fehler, und `--origin-x` sagt, wo die linke Kante der Platine liegt, wenn die Unterseite gespiegelt wird.
 
 ## 🔒 Sicherheit und Schutz
 

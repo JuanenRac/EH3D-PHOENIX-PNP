@@ -1,6 +1,6 @@
 //! The feeders of the machine: each holds one kind of part at a known place, and runs out.
 
-use crate::parts::{Part, Side};
+use crate::parts::{detect_delimiter, read_records, Part, Side};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Feeder {
@@ -26,15 +26,18 @@ impl Feeder {
 
 /// A CSV of feeders with the header `id,value,package,x,y,count`.
 pub fn from_csv(text: &str) -> Result<Vec<Feeder>, String> {
-    let mut lines = text
-        .trim_start_matches('\u{feff}')
+    let text = text.trim_start_matches('\u{feff}');
+    let head_line = text
         .lines()
-        .filter(|l| !l.trim().is_empty());
-    let head: Vec<String> = lines
+        .find(|l| !l.trim().is_empty())
+        .ok_or("the file of feeders is empty")?;
+    // the same reader as the position file: a semicolon as delimiter, quoted fields with a delimiter or a line break
+    let mut records = read_records(text, detect_delimiter(head_line))?.into_iter();
+    let head: Vec<String> = records
         .next()
         .ok_or("the file of feeders is empty")?
-        .split(',')
-        .map(|h| h.trim().to_ascii_lowercase())
+        .iter()
+        .map(|h| h.to_ascii_lowercase())
         .collect();
     if head != ["id", "value", "package", "x", "y", "count"] {
         return Err(
@@ -42,8 +45,9 @@ pub fn from_csv(text: &str) -> Result<Vec<Feeder>, String> {
         );
     }
     let mut out: Vec<Feeder> = Vec::new();
-    for (i, line) in lines.enumerate() {
-        let f: Vec<&str> = line.split(',').map(str::trim).collect();
+    let mut ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for (i, record) in records.enumerate() {
+        let f: Vec<&str> = record.iter().map(String::as_str).collect();
         let row = |e: String| format!("feeder row {}: {e}", i + 2);
         if f.len() != 6 {
             return Err(row(format!("{} fields, not 6", f.len())));
@@ -64,7 +68,7 @@ pub fn from_csv(text: &str) -> Result<Vec<Feeder>, String> {
                 .parse()
                 .map_err(|_| row(format!("'{}' is not a count of parts", f[5])))?,
         };
-        if feeder.id.is_empty() || out.iter().any(|o| o.id == feeder.id) {
+        if feeder.id.is_empty() || !ids.insert(feeder.id.clone()) {
             return Err(row(format!(
                 "the id '{}' is empty or used twice",
                 feeder.id
@@ -103,17 +107,18 @@ pub fn assign(parts: &[Part], feeders: &[Feeder]) -> Assigned {
 pub fn assign_side(parts: &[Part], feeders: &[Feeder], side: Option<Side>) -> Assigned {
     let mut left: Vec<u32> = feeders.iter().map(|f| f.count).collect();
     let mut out = Assigned::default();
+    // the feeders that hold each kind of part, in the order of the list: found once, not by looking at every feeder for every part
+    let mut by_key: std::collections::HashMap<String, Vec<usize>> =
+        std::collections::HashMap::new();
+    for (n, f) in feeders.iter().enumerate() {
+        by_key.entry(f.key()).or_default().push(n);
+    }
     for (i, p) in parts.iter().enumerate() {
         if side.is_some_and(|s| s != p.side) {
             continue;
         }
         let key = p.key();
-        let same: Vec<usize> = feeders
-            .iter()
-            .enumerate()
-            .filter(|(_, f)| f.key() == key)
-            .map(|(n, _)| n)
-            .collect();
+        let same: &[usize] = by_key.get(&key).map_or(&[][..], Vec::as_slice);
         if same.is_empty() {
             out.without_feeder.push(p.reference.clone());
             continue;

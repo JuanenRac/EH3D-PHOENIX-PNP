@@ -3,6 +3,11 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **One reader for the position file and the file of feeders:** comma or semicolon, fields in quotes that hold the delimiter, a doubled quote or a line break.
+- **A big board is checked, assigned and planned in moments:** fifty thousand parts; the references and the feeders are looked up in an index and the walk over the places uses a grid, with the same result as before.
+- **The plan is never written over a file it was made from.**
+- **`--origin-x` for the bottom side:** the mirror is about the middle of the board whose left edge is at that X (0 by default, documented).
+- **An unknown option or an extra word is an error** (the shared command line file), and the commands of the README are run by a test.
 
 - **Renamed:** The project is now called EH3D-PHOENIX-PNP (it was EH3D-PNP-MANAGER); it joins the PHOENIX family of programs.
 
