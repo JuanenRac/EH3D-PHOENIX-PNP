@@ -8,7 +8,7 @@ use crate::parts::{detect_delimiter, read_records, Part};
 use std::collections::{BTreeMap, HashMap};
 
 pub const MAX_ROWS: usize = 100_000;
-const PROP_COLUMNS: [&str; 8] = [
+const PROP_COLUMNS: [&str; 9] = [
     "height_mm",
     "through_board_mm",
     "pick_retries",
@@ -17,6 +17,7 @@ const PROP_COLUMNS: [&str; 8] = [
     "rank",
     "origin_dx_mm",
     "origin_dy_mm",
+    "tape_mm",
 ];
 
 /// What a part or a package says about itself; an empty cell says nothing and the value is inherited.
@@ -32,6 +33,8 @@ pub struct PartProps {
     /// The distance from the origin of the footprint in the CAD file to the point where the nozzle must hold the part, for a part at 0 degrees.
     pub origin_dx_mm: Option<f64>,
     pub origin_dy_mm: Option<f64>,
+    /// The width of the tape the part comes in, in millimetres.
+    pub tape_mm: Option<f64>,
 }
 
 /// The values of every property, whatever its source.
@@ -45,6 +48,7 @@ pub struct Resolved {
     pub rank: i32,
     pub origin_dx_mm: f64,
     pub origin_dy_mm: f64,
+    pub tape_mm: f64,
 }
 
 /// The defaults of the machine configuration: the last link of the chain of inheritance.
@@ -61,6 +65,7 @@ impl Default for Resolved {
             rank: 0,
             origin_dx_mm: 0.0,
             origin_dy_mm: 0.0,
+            tape_mm: 8.0,
         }
     }
 }
@@ -176,6 +181,7 @@ fn read_table(text: &str, key_cols: &[&str], what: &str) -> Result<Vec<Row>, Pnp
             rank: int("rank", -1000.0, 1000.0)?.map(|v| v as i32),
             origin_dx_mm: opt_num(cell("origin_dx_mm"), -50.0, 50.0, "origin_dx_mm", row)?,
             origin_dy_mm: opt_num(cell("origin_dy_mm"), -50.0, 50.0, "origin_dy_mm", row)?,
+            tape_mm: opt_num(cell("tape_mm"), 1.0, 100.0, "tape_mm", row)?,
         };
         out.push((keys, props));
     }
@@ -286,6 +292,10 @@ impl Catalog {
                 .and_then(|p| p.origin_dy_mm)
                 .or(pkg.and_then(|p| p.origin_dy_mm))
                 .unwrap_or(d.origin_dy_mm),
+            tape_mm: own
+                .and_then(|p| p.tape_mm)
+                .or(pkg.and_then(|p| p.tape_mm))
+                .unwrap_or(d.tape_mm),
         }
     }
 }

@@ -13,7 +13,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 63] = [
+pub const KEYS: [&str; 64] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -61,6 +61,7 @@ pub const KEYS: [&str; 63] = [
     "default_bin",
     "default_tip",
     "default_rank",
+    "default_tape_mm",
     "tip_changer_x_mm",
     "tip_changer_y_mm",
     "rotation",
@@ -93,7 +94,7 @@ pub enum OrderStrategy {
     Pick,
     /// Nozzle tip by nozzle tip, each nearest-first.
     Tips,
-    /// The order of the position file.
+    /// By reference, with no attempt to shorten the way.
     None,
 }
 
@@ -200,6 +201,7 @@ pub struct MachineConfig {
     pub default_bin: u8,
     pub default_tip: String,
     pub default_rank: i32,
+    pub default_tape_mm: f64,
     pub tip_changer: Option<(f64, f64)>,
     pub rotation_rules: Vec<(String, f64)>,
     pub profile: Profile,
@@ -258,6 +260,7 @@ impl Default for MachineConfig {
             default_bin: 0,
             default_tip: String::new(),
             default_rank: 0,
+            default_tape_mm: 8.0,
             tip_changer: None,
             rotation_rules: Vec::new(),
             profile: Profile::default(),
@@ -476,6 +479,7 @@ impl MachineConfig {
                 self.default_tip = v.to_string();
             }
             "default_rank" => self.default_rank = int(line, key, v, -1000, 1000)? as i32,
+            "default_tape_mm" => self.default_tape_mm = n(1.0, 100.0)?,
             "tip_changer_x_mm" => {
                 let x = n(-100_000.0, 100_000.0)?;
                 self.tip_changer = Some((x, self.tip_changer.map_or(f64::NAN, |c| c.1)));
@@ -610,6 +614,7 @@ impl MachineConfig {
             rank: self.default_rank,
             origin_dx_mm: 0.0,
             origin_dy_mm: 0.0,
+            tape_mm: self.default_tape_mm,
         }
     }
 

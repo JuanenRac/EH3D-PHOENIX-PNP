@@ -398,6 +398,11 @@ pub fn from_kicad_pos(text: &str) -> Result<Vec<Part>, String> {
 
 /// Either kind of file, told apart by its first meaningful line.
 pub fn parse(text: &str) -> Result<Vec<Part>, String> {
+    parse_with(text, &Profile::default())
+}
+
+/// The same, reading a CSV with the names of the columns and the rules of a profile.
+pub fn parse_with(text: &str, profile: &Profile) -> Result<Vec<Part>, String> {
     let first = text
         .trim_start_matches('\u{feff}')
         .lines()
@@ -406,7 +411,7 @@ pub fn parse(text: &str) -> Result<Vec<Part>, String> {
     if first.trim_start().starts_with('#') {
         from_kicad_pos(text)
     } else {
-        from_csv(text)
+        from_csv_with(text, profile)
     }
 }
 

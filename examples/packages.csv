@@ -1,0 +1,5 @@
+package,height_mm,pick_retries,bin,nozzle_tip,rank,tape_mm
+R_0603,0.5,2,0,N45,0,8
+C_0603,0.5,2,0,N45,0,8
+LED_0603,0.6,2,0,N45,0,8
+QFN-32,0.9,3,0,N75,20,12

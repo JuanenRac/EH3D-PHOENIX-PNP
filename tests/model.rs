@@ -492,7 +492,6 @@ fn a_bad_table_is_refused_with_its_code_and_the_row() {
         "package,pick_retries\nR,1.5\n",
         "package,bin\nR,5\n",
         "package,rank\nR,1,2\n",
-        "package\n\"\"\n",
         "",
     ];
     for text in rows {

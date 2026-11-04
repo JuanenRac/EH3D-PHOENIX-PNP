@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "boards": { "main": "board.pos" },
+  "panels": {
+    "panel": {
+      "children": [
+        { "id": "A", "board": "main", "x": 0, "y": 0, "rotation": 0 },
+        { "id": "B", "board": "main", "x": 60, "y": 0, "rotation": 0 }
+      ],
+      "fiducials": [
+        { "id": "f1", "x": -5, "y": -5 },
+        { "id": "f2", "x": 105, "y": -5 }
+      ]
+    }
+  },
+  "root": "panel"
+}
