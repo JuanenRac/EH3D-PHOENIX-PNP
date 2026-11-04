@@ -93,3 +93,58 @@ fn the_help_runs_and_names_the_commands() {
         assert!(text.contains(command), "the help does not name {command}");
     }
 }
+
+fn readmes() -> Vec<(String, String)> {
+    [
+        "README.md",
+        "README_spa.md",
+        "README_deu.md",
+        "README_fra.md",
+        "README_ita.md",
+        "README_jpn.md",
+        "README_zho.md",
+        "README_por.md",
+    ]
+    .iter()
+    .map(|name| (name.to_string(), read(name)))
+    .collect()
+}
+
+#[test]
+fn every_error_code_is_documented_in_the_eight_readmes() {
+    for (name, text) in readmes() {
+        for code in eh3d_phoenix_pnp::error::Code::ALL {
+            assert!(
+                text.contains(&code.label()),
+                "{name} does not document {}",
+                code.label()
+            );
+        }
+    }
+}
+
+#[test]
+fn the_readmes_count_the_tests_that_exist() {
+    // the marker is built here so that this file does not count itself twice
+    let marker = format!("#[{}]", "test");
+    let mut total = 0;
+    for dir in ["src", "tests"] {
+        for entry in std::fs::read_dir(root().join(dir)).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_some_and(|e| e == "rs") {
+                total += std::fs::read_to_string(&path)
+                    .unwrap()
+                    .lines()
+                    .filter(|l| l.contains(&marker))
+                    .count();
+            }
+        }
+    }
+    for (name, text) in readmes() {
+        assert!(
+            text.contains(&format!("| {total} |")),
+            "{name} does not say {total} tests"
+        );
+    }
+    assert!(read("README.md").contains(&format!("{total} tests")));
+}

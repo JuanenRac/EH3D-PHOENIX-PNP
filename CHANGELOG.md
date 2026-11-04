@@ -3,6 +3,28 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **Error codes:** every error of the new code has a code `PHOENIX-PNP-NNN` with its short meaning in the eight languages, and the eight READMEs list them (a test checks it).
+- **Typed lengths and places:** built once from millimetres, mils or inches, so units cannot be mixed.
+- **Machine configuration file:** `key = value` lines with a schema version, a validator that names the line, safety limits, and `examples/machine.cfg` documenting every key; the options of the command line win over it.
+- **Tables of parts and packages:** height, depth through the board, pick retries, bin, nozzle tip, rank, origin correction and tape width, inherited from the part, then the package, then the defaults; kinds that no table describes are listed, not refused.
+- **More names for the columns of a CSV position file,** extendable in the configuration, a choice between the centre and the origin of the part, and a setting for the angle of the bottom side.
+- **Rotation corrections by package:** patterns with an angle added to the parts; the first matching rule wins.
+- **Feeders with priority, trays and strips,** that can be switched off and warn when a tape will be nearly empty; the choice of the feeder does not depend on the order of the files.
+- **Ranks:** blocks of ranks placed one after the other, with a preference inside a block.
+- **Order strategies:** nearest, by kind, by height, by feeder, by nozzle tip, or by reference.
+- **Time model of the moves** with top speed, acceleration and jerk per axis, X and Y moving together.
+- **Shorter walks** with 2-opt moves that never make a walk longer.
+- **Nozzle tips and angle limits:** a batch holds one tip, the tip changer costs its trip and its time, and the nozzle turns within its range, while the head moves or after.
+- **Origin of a part:** the correction from the origin of the footprint to the centre of the pads, turned with the part.
+- **Panels:** boards and panels inside panels, each with a place and a turn, fiducials, and stable names such as `A/R1`.
+- **Load sheet:** the slot of each kind of tape (the widest tapes first, nearest to the board) as a CSV and as a file of feeders.
+- **Exports:** a report, the list of what is missing and a G-code that only moves the head.
+- **Checks before a job,** each with a severity and the part, feeder or setting it points at.
+- **Simulated machine** with a virtual clock and failures injected by chance (with a seed) or at a chosen place, and traits for the machine, nozzles, feeders, an actuator, a camera and a driver.
+- **Job:** pause, step by step, retries in layers, the policies alert and defer, feeders switched off after repeated faults, the rule that a nozzle never picks while it holds a part, statistics, and a saved state to resume from.
+- **Commands** `schedule`, `preflight`, `simulate`, `loadsheet` and `config-check`.
+- **Files larger than `max_file_bytes` are refused** and the number of parts is limited by the configuration.
+- **A test checks** that the eight READMEs give the number of tests that exist.
 - **One reader for the position file and the file of feeders:** comma or semicolon, fields in quotes that hold the delimiter, a doubled quote or a line break.
 - **A big board is checked, assigned and planned in moments:** fifty thousand parts; the references and the feeders are looked up in an index and the walk over the places uses a grid, with the same result as before.
 - **The plan is never written over a file it was made from.**

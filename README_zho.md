@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 67 个在电脑上运行的测试：读取电路板的位置文件，为每个元件分配供料器，报告缺少的内容，并为最多六个吸嘴的贴装头规划贴装顺序。目前还没有窗口，没有在机器上试过，也没有用大量真实文件验证过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 198 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它不控制任何机器：还没有窗口，没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.0.4` |
 | 成熟度 | 脚手架 |
-| 测试 | 67 |
+| 测试 | 198 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -45,9 +45,11 @@
 
 | 领域 | 状态 | 在这里的含义 |
 |---|---|---|
-| 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器，报告缺少的内容，并为最多六个吸嘴的贴装头规划贴装顺序；已在电脑上用正常和损坏的输入测试，未用大量真实文件验证。 |
-| 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数并打印结果；每个错误都以消息和非零退出码返回。 |
-| 测试 | 🟡 | 67 个测试通过（`cargo test`），包含正常情况、边界情况和损坏的输入。 |
+| 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
+| 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
+| 测试 | 🟡 | 198 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
+| 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
 | 窗口 | 🔴 | 计划中：套件通用的 egui 窗口；目前只有命令行。 |
 | 真实硬件 | 🔴 | 未试过：这里的任何内容都没有在机器上运行过。 |
@@ -58,6 +60,11 @@
 * **元件**（`src/parts.rs`）：KiCad 的 `.pos` 文件或 CSV（逗号或分号、引号、按名称查找表头），位置单位可为 mm、mil 或英寸，角度归一到 0-360，面为顶面或底面；每个不合理的行都会带行号被拒绝，重复的位号是错误。
 * **供料器**（`src/feeders.rs`）：供料器的 CSV（编号、值、封装、取料位置、剩余数量）；每个元件得到第一个值和封装相同（不区分大小写）的供料器；没有供料器的元件和将耗尽的供料器会被报告，同类的第二个供料器接替。
 * **计划**（`src/plan.rs`）：按最近优先走过各贴装位置，并切分成一到六个吸嘴的批次，批内供料器也按最近优先访问，底面按板宽镜像，计划给出行程和时间估计，并写成 JSON 作业。
+* **表格与设置**（`src/catalog.rs`、`src/config.rs`、`src/rotation.rs`）：数值可继承的零件表和封装表（先零件，再封装，再默认值）、`键 = 值` 格式的机器配置文件（`examples/machine.cfg` 说明每个键）、CSV 位置文件列名的更多写法，以及按封装的旋转修正。
+* **不止料带的供料器**（`src/feeding.rs`）：优先级、托盘、料带和被停用的供料器；无论文件顺序如何，元件的供料器选择都相同。
+* **机器的规划器**（`src/planner.rs`、`src/motion.rs`）：等级（依次贴装的块）、顺序策略、吸嘴头及其更换、吸嘴角度的限制、含加速度和加加速度的移动时间、更短的路径（2-opt）以及元件原点的修正。
+* **拼板、上料表与导出**（`src/panel.rs`、`src/loadsheet.rs`、`src/export.rs`）：拼板中的电路板和拼板、每种料带的槽位、报告、缺料清单，以及只移动贴装头的 G 代码。
+* **模拟器与作业**（`src/sim.rs`、`src/job.rs`、`src/preflight.rs`、`src/model.rs`）：作业前的检查、带虚拟时钟和可注入故障的机器，以及可暂停、单步执行、保存并恢复的作业。
 
 ## 🧩 在 EH3D 中的角色
 
@@ -98,17 +105,50 @@ EH3D-PHOENIX-PNP 是 EH3D Fabrication Suite 的一个程序。目前它以库和
 ```text
 EH3D-PHOENIX-PNP/
 ├── src/
+│   ├── catalog.rs                               零件表和封装表及其属性的继承
+│   ├── cli_args.rs                              命令行参数，严格：未知选项即错误
+│   ├── commands.rs                              使用配置的命令：schedule、preflight、simulate、loadsheet
+│   ├── config.rs                                机器的配置文件：键、范围和安全限制
+│   ├── error.rs                                 错误代码 PHOENIX-PNP-NNN 及其八种语言的含义
+│   ├── export.rs                                报告、缺料清单和移动的 G 代码
 │   ├── feeders.rs                               逻辑的一部分
+│   ├── feeding.rs                               带优先级、托盘和料带的供料器，以及元件供料器的选择
+│   ├── job.rs                                   作业：步骤、暂停、重试、策略、统计和已保存状态
 │   ├── lib.rs                                   库：每个命令所使用的部分
+│   ├── loadsheet.rs                             上料表：每种料带的槽位
 │   ├── main.rs                                  命令行
+│   ├── model.rs                                 以 trait 表示的机器部件：机器、吸嘴、供料器、执行器、相机、驱动
+│   ├── motion.rs                                包含加速度和加加速度的移动时间
+│   ├── panel.rs                                 拼板：拼板中的电路板和拼板，各在其位
 │   ├── parts.rs                                 逻辑的一部分
-│   └── plan.rs                                  逻辑的一部分
+│   ├── plan.rs                                  逻辑的一部分
+│   ├── planner.rs                               了解机器的规划器：等级、顺序、吸嘴头、角度和时间
+│   ├── preflight.rs                             作业前的检查，含严重程度及其所指对象
+│   ├── rotation.rs                              按封装的旋转修正，以及受限吸嘴如何转动
+│   ├── sim.rs                                   模拟机器：虚拟时钟和可注入的故障
+│   └── units.rs                                 带单位的长度和位置
 ├── tests/
+│   ├── commands.rs                              使用配置的命令的测试
+│   ├── feeding.rs                               供料器测试：优先级、托盘和料带
+│   ├── job.rs                                   作业测试：步骤、重试和已保存状态
+│   ├── loadsheet.rs                             上料表和导出的测试
+│   ├── model.rs                                 数据模型测试：代码、长度、配置和表格
+│   ├── more.rs                                  库和命令行的更多测试
+│   ├── panel.rs                                 拼板测试
+│   ├── planner.rs                               移动时间和规划器的测试
 │   ├── pnp.rs                                   库和命令行的测试
+│   ├── preflight.rs                             作业前检查的测试
+│   ├── readme.rs                                验证 README 可运行且完整的测试
+│   ├── sim.rs                                   模拟机器的测试
 │   └── strict.rs                                命令行测试：它不认识的选项和词
 ├── examples/
 │   ├── board.pos                                试用的示例
-│   └── feeders.csv                              试用的示例
+│   ├── catalog.csv                              零件表：等级和高度
+│   ├── feeders.csv                              试用的示例
+│   ├── machine.cfg                              机器设置，每个键均有说明
+│   ├── packages.csv                             封装表：高度、吸嘴头、等级和料带
+│   ├── panel.json                               由两块板组成的拼板
+│   └── slots.csv                                机器的槽位
 ├── docs/
 │   ├── architecture.json                        架构图数据
 │   └── structure.json                           结构图数据
@@ -125,7 +165,43 @@ EH3D-PHOENIX-PNP/
 
 ## ⚙️ 配置
 
-目前还没有配置文件：用户的选择通过命令行参数给出（见接口），每个默认值都写在命令的帮助中（`phoenix-pnp help`）。固定的限制是代码中的具名常量，并有测试覆盖。
+机器和规划器通过由 `键 = 值` 行组成的文本文件配置（`--config 文件`），格式与套件中其他程序相同；`examples/machine.cfg` 列出每个键的默认值及作用。缺少的键保持默认值；未知的键、重复书写的键或超出范围的键都会产生指出行号的错误。命令行选项（`--nozzles`、`--speed`、`--order`、`--side`）优先于文件。
+
+封装表和零件表（`--packages`、`--catalog`）是 CSV 文件，空单元格会继承；拼板（`--panel`）是 JSON 文件；机器的槽位（`loadsheet`）是带 `id,x,y,max_width_mm` 的 CSV。超过 `max_file_bytes` 的文件会被拒绝。每个错误都有代码 `PHOENIX-PNP-NNN`，其消息使用键 `language` 或 `--lang` 指定的语言（`en`、`es`、`de`、`fr`、`it`、`ja`、`zh` 或 `pt`）：
+
+| 代码 | 含义 |
+|---|---|
+| `PHOENIX-PNP-001` | 文件超过允许的大小 |
+| `PHOENIX-PNP-002` | 零件数量超过上限 |
+| `PHOENIX-PNP-003` | 配置中有一行不是“键 = 值” |
+| `PHOENIX-PNP-004` | 配置中有未知的键 |
+| `PHOENIX-PNP-005` | 配置中的某个值无效 |
+| `PHOENIX-PNP-006` | 配置中的某个值超出范围 |
+| `PHOENIX-PNP-007` | 该配置是为更新版本的程序编写的 |
+| `PHOENIX-PNP-008` | 配置中有键重复 |
+| `PHOENIX-PNP-009` | 某项设置超出安全限制 |
+| `PHOENIX-PNP-010` | 零件或封装表中有无效的行 |
+| `PHOENIX-PNP-011` | 零件或封装被重复定义 |
+| `PHOENIX-PNP-012` | 旋转偏移规则无效 |
+| `PHOENIX-PNP-013` | 供料器表中有无效的行 |
+| `PHOENIX-PNP-014` | 拼板文件无效 |
+| `PHOENIX-PNP-015` | 拼板嵌套过深或电路板过多 |
+| `PHOENIX-PNP-016` | 槽位表无效 |
+| `PHOENIX-PNP-017` | 计划的某项设置无效 |
+| `PHOENIX-PNP-018` | 吸嘴无法在其限位内转到该角度 |
+| `PHOENIX-PNP-019` | 吸嘴已吸着零件，不能再取另一个 |
+| `PHOENIX-PNP-020` | 吸嘴上没有可贴装的零件 |
+| `PHOENIX-PNP-021` | 该零件没有可用的供料器 |
+| `PHOENIX-PNP-022` | 多次尝试后仍无法拾取该零件 |
+| `PHOENIX-PNP-023` | 多次尝试后供料器仍无法前进 |
+| `PHOENIX-PNP-024` | 多次尝试后仍无法贴装该零件 |
+| `PHOENIX-PNP-025` | 保存的状态属于另一个作业 |
+| `PHOENIX-PNP-026` | 保存的作业状态无效 |
+| `PHOENIX-PNP-027` | 作业已暂停、已完成或因错误而停止 |
+| `PHOENIX-PNP-028` | 作业前检查发现了错误 |
+| `PHOENIX-PNP-029` | 长度或角度无效 |
+| `PHOENIX-PNP-030` | 驱动程序未接受该命令 |
+| `PHOENIX-PNP-031` | 模拟器注入了故障 |
 
 ## 🚀 快速开始
 
@@ -135,11 +211,14 @@ EH3D-PHOENIX-PNP/
 cargo build --release
 cargo test
 cargo run --release -- plan examples/board.pos examples/feeders.csv examples/plan.json --nozzles 2
+cargo run --release -- schedule examples/board.pos examples/feeders.csv examples/schedule.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
+cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
+cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
 ```
 
 ## 🧪 测试
 
-测试套件有 67 个测试（`cargo test`，CI 在 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会 panic。CI 还运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 198 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -157,17 +236,50 @@ cargo run --release -- plan examples/board.pos examples/feeders.csv examples/pla
 ```text
 EH3D-PHOENIX-PNP/
 ├── src/
+│   ├── catalog.rs                               零件表和封装表及其属性的继承
+│   ├── cli_args.rs                              命令行参数，严格：未知选项即错误
+│   ├── commands.rs                              使用配置的命令：schedule、preflight、simulate、loadsheet
+│   ├── config.rs                                机器的配置文件：键、范围和安全限制
+│   ├── error.rs                                 错误代码 PHOENIX-PNP-NNN 及其八种语言的含义
+│   ├── export.rs                                报告、缺料清单和移动的 G 代码
 │   ├── feeders.rs                               逻辑的一部分
+│   ├── feeding.rs                               带优先级、托盘和料带的供料器，以及元件供料器的选择
+│   ├── job.rs                                   作业：步骤、暂停、重试、策略、统计和已保存状态
 │   ├── lib.rs                                   库：每个命令所使用的部分
+│   ├── loadsheet.rs                             上料表：每种料带的槽位
 │   ├── main.rs                                  命令行
+│   ├── model.rs                                 以 trait 表示的机器部件：机器、吸嘴、供料器、执行器、相机、驱动
+│   ├── motion.rs                                包含加速度和加加速度的移动时间
+│   ├── panel.rs                                 拼板：拼板中的电路板和拼板，各在其位
 │   ├── parts.rs                                 逻辑的一部分
-│   └── plan.rs                                  逻辑的一部分
+│   ├── plan.rs                                  逻辑的一部分
+│   ├── planner.rs                               了解机器的规划器：等级、顺序、吸嘴头、角度和时间
+│   ├── preflight.rs                             作业前的检查，含严重程度及其所指对象
+│   ├── rotation.rs                              按封装的旋转修正，以及受限吸嘴如何转动
+│   ├── sim.rs                                   模拟机器：虚拟时钟和可注入的故障
+│   └── units.rs                                 带单位的长度和位置
 ├── tests/
+│   ├── commands.rs                              使用配置的命令的测试
+│   ├── feeding.rs                               供料器测试：优先级、托盘和料带
+│   ├── job.rs                                   作业测试：步骤、重试和已保存状态
+│   ├── loadsheet.rs                             上料表和导出的测试
+│   ├── model.rs                                 数据模型测试：代码、长度、配置和表格
+│   ├── more.rs                                  库和命令行的更多测试
+│   ├── panel.rs                                 拼板测试
+│   ├── planner.rs                               移动时间和规划器的测试
 │   ├── pnp.rs                                   库和命令行的测试
+│   ├── preflight.rs                             作业前检查的测试
+│   ├── readme.rs                                验证 README 可运行且完整的测试
+│   ├── sim.rs                                   模拟机器的测试
 │   └── strict.rs                                命令行测试：它不认识的选项和词
 ├── examples/
 │   ├── board.pos                                试用的示例
-│   └── feeders.csv                              试用的示例
+│   ├── catalog.csv                              零件表：等级和高度
+│   ├── feeders.csv                              试用的示例
+│   ├── machine.cfg                              机器设置，每个键均有说明
+│   ├── packages.csv                             封装表：高度、吸嘴头、等级和料带
+│   ├── panel.json                               由两块板组成的拼板
+│   └── slots.csv                                机器的槽位
 ├── docs/
 │   ├── architecture.json                        架构图数据
 │   └── structure.json                           结构图数据
@@ -188,15 +300,16 @@ EH3D-PHOENIX-PNP/
 
 **目前已知的限制**
 
-* 还没有窗口：只有库和命令行。
-* 没有在机器上试过，也没有用大量真实文件验证过，也没有独立审查。
-* 还没有摄像头和机器控制（计划是供其他程序执行的 JSON 文件），供料器要在 CSV 中手工描述，料带的旋转也不按封装修正。
+* 还没有窗口：目前只有库和命令行。
+* 没有在机器上试过，也没有用真实文件集合测试过，也没有经过独立审查；它对机器所做的一切都是模拟。
+* 它不读取其他贴片程序的文件；CSV 底面角度的规则（`bottom_rotation`）没有与任何 CAD 程序的真实文件比对过。
+* 还没有相机、没有视觉取料修正，也没有真实机器的驱动；计划是一个 JSON 文件，供其他程序执行。
 
 **下一步**
 
-* 修正每种封装在料带上的角度，用 EH3D-VISION-STUDIO 的摄像头对中元件，并把计划发送给机器。
-* 添加与套件程序外观一致、支持八种语言的窗口。
-* 用真实文件和套件的其他程序进行试用。
+* 加入与套件其他程序外观一致的窗口，支持八种语言：工作台、零件与供料器表格以及问题与解决方案面板。
+* 电路板和拼板的基准点，以及 EH3D-VISION-STUDIO 的相机修正；只有在真实机器上试过之后才把计划发送给机器。
+* 用真实文件和套件中的其他程序试用。
 
 ## 🌍 语言
 

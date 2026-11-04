@@ -27,6 +27,84 @@
       "accent": "a",
       "rows": [
         {
+          "name": "catalog.rs",
+          "desc": {
+            "en": "the tables of parts and packages and the inheritance of their properties",
+            "es": "las tablas de componentes y encapsulados y la herencia de sus propiedades",
+            "de": "die Tabellen von Teilen und Gehäusen und die Vererbung ihrer Eigenschaften",
+            "fr": "les tables de pièces et de boîtiers et l'héritage de leurs propriétés",
+            "it": "le tabelle di parti e package e l'ereditarietà delle loro proprietà",
+            "ja": "部品とパッケージの表、およびその属性の継承",
+            "zh": "零件表和封装表及其属性的继承",
+            "pt": "as tabelas de peças e de encapsulamentos e a herança das suas propriedades"
+          }
+        },
+        {
+          "name": "cli_args.rs",
+          "desc": {
+            "en": "the arguments of the command line, strict: an unknown option is an error",
+            "es": "los argumentos de la línea de comandos, estrictos: una opción desconocida es un error",
+            "de": "die Argumente der Kommandozeile, streng: eine unbekannte Option ist ein Fehler",
+            "fr": "les arguments de la ligne de commande, stricts : une option inconnue est une erreur",
+            "it": "gli argomenti della riga di comando, rigorosi: un'opzione sconosciuta è un errore",
+            "ja": "コマンドライン引数（厳格：未知のオプションはエラー）",
+            "zh": "命令行参数，严格：未知选项即错误",
+            "pt": "os argumentos da linha de comandos, estritos: uma opção desconhecida é um erro"
+          }
+        },
+        {
+          "name": "commands.rs",
+          "desc": {
+            "en": "the commands that use the configuration: schedule, preflight, simulate, loadsheet",
+            "es": "las órdenes que usan la configuración: schedule, preflight, simulate, loadsheet",
+            "de": "die Befehle, die die Konfiguration nutzen: schedule, preflight, simulate, loadsheet",
+            "fr": "les commandes qui utilisent la configuration : schedule, preflight, simulate, loadsheet",
+            "it": "i comandi che usano la configurazione: schedule, preflight, simulate, loadsheet",
+            "ja": "設定を使うコマンド：schedule、preflight、simulate、loadsheet",
+            "zh": "使用配置的命令：schedule、preflight、simulate、loadsheet",
+            "pt": "os comandos que usam a configuração: schedule, preflight, simulate, loadsheet"
+          }
+        },
+        {
+          "name": "config.rs",
+          "desc": {
+            "en": "the configuration file of the machine: keys, ranges and safety limits",
+            "es": "el fichero de configuración de la máquina: claves, rangos y límites de seguridad",
+            "de": "die Konfigurationsdatei der Maschine: Schlüssel, Bereiche und Sicherheitsgrenzen",
+            "fr": "le fichier de configuration de la machine : clés, plages et limites de sécurité",
+            "it": "il file di configurazione della macchina: chiavi, intervalli e limiti di sicurezza",
+            "ja": "機械の設定ファイル：キー、範囲、安全限界",
+            "zh": "机器的配置文件：键、范围和安全限制",
+            "pt": "o ficheiro de configuração da máquina: chaves, intervalos e limites de segurança"
+          }
+        },
+        {
+          "name": "error.rs",
+          "desc": {
+            "en": "the error codes PHOENIX-PNP-NNN and their meaning in eight languages",
+            "es": "los códigos de error PHOENIX-PNP-NNN y su significado en ocho idiomas",
+            "de": "die Fehlercodes PHOENIX-PNP-NNN und ihre Bedeutung in acht Sprachen",
+            "fr": "les codes d'erreur PHOENIX-PNP-NNN et leur sens en huit langues",
+            "it": "i codici di errore PHOENIX-PNP-NNN e il loro significato in otto lingue",
+            "ja": "エラーコード PHOENIX-PNP-NNN と8言語での意味",
+            "zh": "错误代码 PHOENIX-PNP-NNN 及其八种语言的含义",
+            "pt": "os códigos de erro PHOENIX-PNP-NNN e o seu significado em oito idiomas"
+          }
+        },
+        {
+          "name": "export.rs",
+          "desc": {
+            "en": "the report, the list of what is missing and the G-code of the movements",
+            "es": "el informe, la lista de lo que falta y el G-code de los movimientos",
+            "de": "der Bericht, die Liste des Fehlenden und der G-Code der Bewegungen",
+            "fr": "le rapport, la liste de ce qui manque et le G-code des déplacements",
+            "it": "il rapporto, l'elenco di ciò che manca e il G-code dei movimenti",
+            "ja": "レポート、不足の一覧、移動の G コード",
+            "zh": "报告、缺料清单和移动的 G 代码",
+            "pt": "o relatório, a lista do que falta e o G-code dos movimentos"
+          }
+        },
+        {
           "name": "feeders.rs",
           "desc": {
             "en": "a part of the logic",
@@ -37,6 +115,32 @@
             "ja": "ロジックの一部",
             "zh": "逻辑的一部分",
             "pt": "uma parte da lógica"
+          }
+        },
+        {
+          "name": "feeding.rs",
+          "desc": {
+            "en": "feeders with priority, trays and strips, and the choice of the feeder for a part",
+            "es": "alimentadores con prioridad, bandejas y tiras, y la elección del alimentador de un componente",
+            "de": "Zuführer mit Priorität, Trays und Streifen und die Wahl des Zuführers für ein Bauteil",
+            "fr": "alimentateurs avec priorité, plateaux et bandes, et le choix de l'alimentateur d'un composant",
+            "it": "alimentatori con priorità, vassoi e strisce, e la scelta dell'alimentatore per un componente",
+            "ja": "優先度・トレイ・ストリップ付きのフィーダーと、部品のフィーダーの選択",
+            "zh": "带优先级、托盘和料带的供料器，以及元件供料器的选择",
+            "pt": "alimentadores com prioridade, tabuleiros e tiras, e a escolha do alimentador de um componente"
+          }
+        },
+        {
+          "name": "job.rs",
+          "desc": {
+            "en": "the job: steps, pause, retries, policies, statistics and saved state",
+            "es": "el trabajo: pasos, pausa, reintentos, políticas, estadísticas y estado guardado",
+            "de": "der Auftrag: Schritte, Pause, Wiederholungen, Richtlinien, Statistik und gespeicherter Zustand",
+            "fr": "le travail : étapes, pause, nouvelles tentatives, politiques, statistiques et état enregistré",
+            "it": "il lavoro: passi, pausa, nuovi tentativi, politiche, statistiche e stato salvato",
+            "ja": "ジョブ：ステップ、一時停止、再試行、方針、統計、保存状態",
+            "zh": "作业：步骤、暂停、重试、策略、统计和已保存状态",
+            "pt": "o trabalho: passos, pausa, repetições, políticas, estatísticas e estado guardado"
           }
         },
         {
@@ -53,6 +157,19 @@
           }
         },
         {
+          "name": "loadsheet.rs",
+          "desc": {
+            "en": "the load sheet: the slot of each kind of tape",
+            "es": "la hoja de carga: la ranura de cada tipo de cinta",
+            "de": "die Ladeliste: der Platz jeder Gurtart",
+            "fr": "la feuille de chargement : l'emplacement de chaque type de bande",
+            "it": "il foglio di carico: lo slot di ogni tipo di nastro",
+            "ja": "搭載シート：各テープのスロット",
+            "zh": "上料表：每种料带的槽位",
+            "pt": "a folha de carga: a ranhura de cada tipo de fita"
+          }
+        },
+        {
           "name": "main.rs",
           "desc": {
             "en": "the command line",
@@ -63,6 +180,45 @@
             "ja": "コマンドライン",
             "zh": "命令行",
             "pt": "a linha de comandos"
+          }
+        },
+        {
+          "name": "model.rs",
+          "desc": {
+            "en": "the parts of a machine as traits: machine, nozzle, feeder, actuator, camera, driver",
+            "es": "las partes de una máquina como traits: máquina, boquilla, alimentador, actuador, cámara, controlador",
+            "de": "die Teile einer Maschine als Traits: Maschine, Düse, Zuführer, Aktor, Kamera, Treiber",
+            "fr": "les parties d'une machine en traits : machine, buse, alimentateur, actionneur, caméra, pilote",
+            "it": "le parti di una macchina come trait: macchina, ugello, alimentatore, attuatore, telecamera, driver",
+            "ja": "機械の部品をトレイトで表現：機械、ノズル、フィーダー、アクチュエーター、カメラ、ドライバー",
+            "zh": "以 trait 表示的机器部件：机器、吸嘴、供料器、执行器、相机、驱动",
+            "pt": "as partes de uma máquina como traits: máquina, bico, alimentador, atuador, câmara, controlador"
+          }
+        },
+        {
+          "name": "motion.rs",
+          "desc": {
+            "en": "the time a move takes, with acceleration and jerk",
+            "es": "el tiempo que tarda un movimiento, con aceleración y tirón",
+            "de": "die Zeit einer Bewegung, mit Beschleunigung und Ruck",
+            "fr": "le temps d'un déplacement, avec accélération et à-coup",
+            "it": "il tempo di un movimento, con accelerazione e jerk",
+            "ja": "加速度とジャークを含む移動時間",
+            "zh": "包含加速度和加加速度的移动时间",
+            "pt": "o tempo de um movimento, com aceleração e arranque brusco"
+          }
+        },
+        {
+          "name": "panel.rs",
+          "desc": {
+            "en": "panels: boards and panels inside panels, each in its place",
+            "es": "paneles: placas y paneles dentro de paneles, cada uno en su sitio",
+            "de": "Panels: Platinen und Panels in Panels, jede an ihrem Platz",
+            "fr": "panneaux : cartes et panneaux dans des panneaux, chacun à sa place",
+            "it": "pannelli: schede e pannelli dentro pannelli, ciascuno al suo posto",
+            "ja": "パネル：パネルの中の基板とパネル、それぞれの位置",
+            "zh": "拼板：拼板中的电路板和拼板，各在其位",
+            "pt": "painéis: placas e painéis dentro de painéis, cada um no seu lugar"
           }
         },
         {
@@ -90,6 +246,71 @@
             "zh": "逻辑的一部分",
             "pt": "uma parte da lógica"
           }
+        },
+        {
+          "name": "planner.rs",
+          "desc": {
+            "en": "the planner that knows the machine: ranks, order, tips, angles and time",
+            "es": "el planificador que conoce la máquina: rangos, orden, puntas, ángulos y tiempo",
+            "de": "der Planer, der die Maschine kennt: Ränge, Reihenfolge, Spitzen, Winkel und Zeit",
+            "fr": "le planificateur qui connaît la machine : rangs, ordre, pointes, angles et temps",
+            "it": "il pianificatore che conosce la macchina: ranghi, ordine, punte, angoli e tempo",
+            "ja": "機械を知るプランナー：ランク、順序、チップ、角度、時間",
+            "zh": "了解机器的规划器：等级、顺序、吸嘴头、角度和时间",
+            "pt": "o planeador que conhece a máquina: níveis, ordem, pontas, ângulos e tempo"
+          }
+        },
+        {
+          "name": "preflight.rs",
+          "desc": {
+            "en": "the checks before a job, with a severity and what they point at",
+            "es": "las comprobaciones previas al trabajo, con gravedad y aquello a lo que apuntan",
+            "de": "die Prüfungen vor einem Auftrag, mit Schwere und dem, worauf sie zeigen",
+            "fr": "les vérifications avant un travail, avec une gravité et ce qu'elles désignent",
+            "it": "i controlli prima di un lavoro, con una gravità e ciò a cui puntano",
+            "ja": "ジョブ前の確認（重大度と対象つき）",
+            "zh": "作业前的检查，含严重程度及其所指对象",
+            "pt": "as verificações antes de um trabalho, com gravidade e aquilo a que apontam"
+          }
+        },
+        {
+          "name": "rotation.rs",
+          "desc": {
+            "en": "corrections of the rotation by package, and how a limited nozzle turns",
+            "es": "correcciones de la rotación por encapsulado, y cómo gira una boquilla limitada",
+            "de": "Drehwinkelkorrekturen je Gehäuse und wie sich eine begrenzte Düse dreht",
+            "fr": "corrections de rotation par boîtier, et comment tourne une buse limitée",
+            "it": "correzioni della rotazione per package, e come ruota un ugello limitato",
+            "ja": "パッケージ別の回転補正と、制限付きノズルの回し方",
+            "zh": "按封装的旋转修正，以及受限吸嘴如何转动",
+            "pt": "correções da rotação por encapsulamento, e como roda um bico limitado"
+          }
+        },
+        {
+          "name": "sim.rs",
+          "desc": {
+            "en": "the simulated machine: virtual clock and failures that can be injected",
+            "es": "la máquina simulada: reloj virtual y fallos que se pueden inyectar",
+            "de": "die simulierte Maschine: virtuelle Uhr und einspeisbare Fehler",
+            "fr": "la machine simulée : horloge virtuelle et pannes injectables",
+            "it": "la macchina simulata: orologio virtuale e guasti iniettabili",
+            "ja": "模擬機械：仮想時計と注入できる故障",
+            "zh": "模拟机器：虚拟时钟和可注入的故障",
+            "pt": "a máquina simulada: relógio virtual e falhas que se podem injetar"
+          }
+        },
+        {
+          "name": "units.rs",
+          "desc": {
+            "en": "lengths and places that carry their unit",
+            "es": "longitudes y lugares que llevan su unidad",
+            "de": "Längen und Orte, die ihre Einheit tragen",
+            "fr": "longueurs et lieux qui portent leur unité",
+            "it": "lunghezze e posizioni che portano la loro unità",
+            "ja": "単位を持つ長さと位置",
+            "zh": "带单位的长度和位置",
+            "pt": "comprimentos e lugares que levam a sua unidade"
+          }
         }
       ]
     },
@@ -98,6 +319,110 @@
       "span": 3,
       "accent": "d",
       "rows": [
+        {
+          "name": "commands.rs",
+          "desc": {
+            "en": "tests of the commands that use the configuration",
+            "es": "pruebas de las órdenes que usan la configuración",
+            "de": "Tests der Befehle, die die Konfiguration nutzen",
+            "fr": "tests des commandes qui utilisent la configuration",
+            "it": "test dei comandi che usano la configurazione",
+            "ja": "設定を使うコマンドのテスト",
+            "zh": "使用配置的命令的测试",
+            "pt": "testes dos comandos que usam a configuração"
+          }
+        },
+        {
+          "name": "feeding.rs",
+          "desc": {
+            "en": "tests of the feeders: priority, trays and strips",
+            "es": "pruebas de los alimentadores: prioridad, bandejas y tiras",
+            "de": "Tests der Zuführer: Priorität, Trays und Streifen",
+            "fr": "tests des alimentateurs : priorité, plateaux et bandes",
+            "it": "test degli alimentatori: priorità, vassoi e strisce",
+            "ja": "フィーダーのテスト：優先度、トレイ、ストリップ",
+            "zh": "供料器测试：优先级、托盘和料带",
+            "pt": "testes dos alimentadores: prioridade, tabuleiros e tiras"
+          }
+        },
+        {
+          "name": "job.rs",
+          "desc": {
+            "en": "tests of the job: steps, retries and saved state",
+            "es": "pruebas del trabajo: pasos, reintentos y estado guardado",
+            "de": "Tests des Auftrags: Schritte, Wiederholungen und gespeicherter Zustand",
+            "fr": "tests du travail : étapes, nouvelles tentatives et état enregistré",
+            "it": "test del lavoro: passi, nuovi tentativi e stato salvato",
+            "ja": "ジョブのテスト：ステップ、再試行、保存状態",
+            "zh": "作业测试：步骤、重试和已保存状态",
+            "pt": "testes do trabalho: passos, repetições e estado guardado"
+          }
+        },
+        {
+          "name": "loadsheet.rs",
+          "desc": {
+            "en": "tests of the load sheet and the exports",
+            "es": "pruebas de la hoja de carga y las exportaciones",
+            "de": "Tests der Ladeliste und der Exporte",
+            "fr": "tests de la feuille de chargement et des exports",
+            "it": "test del foglio di carico e delle esportazioni",
+            "ja": "搭載シートと出力のテスト",
+            "zh": "上料表和导出的测试",
+            "pt": "testes da folha de carga e das exportações"
+          }
+        },
+        {
+          "name": "model.rs",
+          "desc": {
+            "en": "tests of the data model: codes, lengths, configuration and tables",
+            "es": "pruebas del modelo de datos: códigos, longitudes, configuración y tablas",
+            "de": "Tests des Datenmodells: Codes, Längen, Konfiguration und Tabellen",
+            "fr": "tests du modèle de données : codes, longueurs, configuration et tables",
+            "it": "test del modello dei dati: codici, lunghezze, configurazione e tabelle",
+            "ja": "データモデルのテスト：コード、長さ、設定、表",
+            "zh": "数据模型测试：代码、长度、配置和表格",
+            "pt": "testes do modelo de dados: códigos, comprimentos, configuração e tabelas"
+          }
+        },
+        {
+          "name": "more.rs",
+          "desc": {
+            "en": "more tests of the library and the command line",
+            "es": "más pruebas de la biblioteca y la línea de comandos",
+            "de": "weitere Tests von Bibliothek und Kommandozeile",
+            "fr": "d'autres tests de la bibliothèque et de la ligne de commande",
+            "it": "altri test della libreria e della riga di comando",
+            "ja": "ライブラリとコマンドラインの追加テスト",
+            "zh": "库和命令行的更多测试",
+            "pt": "mais testes da biblioteca e da linha de comandos"
+          }
+        },
+        {
+          "name": "panel.rs",
+          "desc": {
+            "en": "tests of panels",
+            "es": "pruebas de los paneles",
+            "de": "Tests der Panels",
+            "fr": "tests des panneaux",
+            "it": "test dei pannelli",
+            "ja": "パネルのテスト",
+            "zh": "拼板测试",
+            "pt": "testes dos painéis"
+          }
+        },
+        {
+          "name": "planner.rs",
+          "desc": {
+            "en": "tests of the time of the moves and of the planner",
+            "es": "pruebas del tiempo de los movimientos y del planificador",
+            "de": "Tests der Bewegungszeit und des Planers",
+            "fr": "tests du temps des déplacements et du planificateur",
+            "it": "test del tempo dei movimenti e del pianificatore",
+            "ja": "移動時間とプランナーのテスト",
+            "zh": "移动时间和规划器的测试",
+            "pt": "testes do tempo dos movimentos e do planeador"
+          }
+        },
         {
           "name": "pnp.rs",
           "desc": {
@@ -109,6 +434,45 @@
             "ja": "ライブラリとコマンドラインのテスト",
             "zh": "库和命令行的测试",
             "pt": "testes da biblioteca e da linha de comandos"
+          }
+        },
+        {
+          "name": "preflight.rs",
+          "desc": {
+            "en": "tests of the checks before a job",
+            "es": "pruebas de las comprobaciones previas al trabajo",
+            "de": "Tests der Prüfungen vor einem Auftrag",
+            "fr": "tests des vérifications avant un travail",
+            "it": "test dei controlli prima di un lavoro",
+            "ja": "ジョブ前の確認のテスト",
+            "zh": "作业前检查的测试",
+            "pt": "testes das verificações antes de um trabalho"
+          }
+        },
+        {
+          "name": "readme.rs",
+          "desc": {
+            "en": "tests that the README can be run and is complete",
+            "es": "pruebas de que el README se puede ejecutar y está completo",
+            "de": "Tests, dass die README ausführbar und vollständig ist",
+            "fr": "tests que le README est exécutable et complet",
+            "it": "test che il README sia eseguibile e completo",
+            "ja": "README が実行でき、漏れがないことのテスト",
+            "zh": "验证 README 可运行且完整的测试",
+            "pt": "testes de que o README se pode executar e está completo"
+          }
+        },
+        {
+          "name": "sim.rs",
+          "desc": {
+            "en": "tests of the simulated machine",
+            "es": "pruebas de la máquina simulada",
+            "de": "Tests der simulierten Maschine",
+            "fr": "tests de la machine simulée",
+            "it": "test della macchina simulata",
+            "ja": "模擬機械のテスト",
+            "zh": "模拟机器的测试",
+            "pt": "testes da máquina simulada"
           }
         },
         {
@@ -145,6 +509,19 @@
           }
         },
         {
+          "name": "catalog.csv",
+          "desc": {
+            "en": "a table of parts: rank and height",
+            "es": "una tabla de componentes: rango y altura",
+            "de": "eine Teiletabelle: Rang und Höhe",
+            "fr": "une table de pièces : rang et hauteur",
+            "it": "una tabella di parti: rango e altezza",
+            "ja": "部品の表：ランクと高さ",
+            "zh": "零件表：等级和高度",
+            "pt": "uma tabela de peças: nível e altura"
+          }
+        },
+        {
           "name": "feeders.csv",
           "desc": {
             "en": "a sample to try the program with",
@@ -155,6 +532,58 @@
             "ja": "試すためのサンプル",
             "zh": "试用的示例",
             "pt": "um exemplo para experimentar o programa"
+          }
+        },
+        {
+          "name": "machine.cfg",
+          "desc": {
+            "en": "the settings of the machine, every key explained",
+            "es": "los ajustes de la máquina, cada clave explicada",
+            "de": "die Maschineneinstellungen, jeder Schlüssel erklärt",
+            "fr": "les réglages de la machine, chaque clé expliquée",
+            "it": "le impostazioni della macchina, ogni chiave spiegata",
+            "ja": "機械の設定（すべてのキーを説明）",
+            "zh": "机器设置，每个键均有说明",
+            "pt": "as definições da máquina, cada chave explicada"
+          }
+        },
+        {
+          "name": "packages.csv",
+          "desc": {
+            "en": "a table of packages: height, nozzle tip, rank and tape",
+            "es": "una tabla de encapsulados: altura, punta, rango y cinta",
+            "de": "eine Gehäusetabelle: Höhe, Spitze, Rang und Gurt",
+            "fr": "une table de boîtiers : hauteur, pointe, rang et bande",
+            "it": "una tabella di package: altezza, punta, rango e nastro",
+            "ja": "パッケージの表：高さ、チップ、ランク、テープ",
+            "zh": "封装表：高度、吸嘴头、等级和料带",
+            "pt": "uma tabela de encapsulamentos: altura, ponta, nível e fita"
+          }
+        },
+        {
+          "name": "panel.json",
+          "desc": {
+            "en": "a panel of two boards",
+            "es": "un panel de dos placas",
+            "de": "ein Panel aus zwei Platinen",
+            "fr": "un panneau de deux cartes",
+            "it": "un pannello di due schede",
+            "ja": "2枚の基板のパネル",
+            "zh": "由两块板组成的拼板",
+            "pt": "um painel de duas placas"
+          }
+        },
+        {
+          "name": "slots.csv",
+          "desc": {
+            "en": "the slots of the machine",
+            "es": "las ranuras de la máquina",
+            "de": "die Plätze der Maschine",
+            "fr": "les emplacements de la machine",
+            "it": "gli slot della macchina",
+            "ja": "機械のスロット",
+            "zh": "机器的槽位",
+            "pt": "as ranhuras da máquina"
           }
         }
       ]

@@ -18,7 +18,7 @@
 
 ---
 
-**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`phoenix-pnp`) con 67 pruebas que se ejecutan en un ordenador: lee el fichero de posiciones de una placa, da a cada componente su alimentador, informa de lo que falta y planifica el orden de colocación para un cabezal de hasta seis boquillas. Todavía no tiene ventana, no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
+**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`phoenix-pnp`) con 198 pruebas que se ejecutan en un ordenador: lee el fichero de posiciones de una placa, da a cada componente su alimentador (con prioridades, bandejas y tiras), lee los ajustes de la máquina de un fichero, planifica el orden de colocación para un cabezal de hasta seis boquillas (rangos, puntas de boquilla, límites de ángulo, tiempo de los movimientos, paneles), escribe una hoja de carga y, en una máquina simulada, ejecuta el plan paso a paso con fallos inyectados. No controla ninguna máquina: todavía no tiene ventana, no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versión | `0.0.4` |
 | Madurez | Andamiaje |
-| Pruebas | 67 |
+| Pruebas | 198 |
 | Pila tecnológica | Rust |
 | En hardware real | No probado: nada de esto se ha ejecutado en una máquina |
 
@@ -45,9 +45,11 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 
 | Área | Estado | Qué significa aquí |
 |---|---|---|
-| Núcleo | 🟡 | lee el fichero de posiciones de una placa, da a cada componente su alimentador, informa de lo que falta y planifica el orden de colocación para un cabezal de hasta seis boquillas; probado en un ordenador con entradas normales y dañadas, no con una colección de ficheros reales. |
-| Línea de comandos | 🟡 | `phoenix-pnp` ejecuta las mismas funciones que la biblioteca e imprime el resultado; cada error vuelve como mensaje y un código de salida distinto de cero. |
-| Pruebas | 🟡 | 67 pruebas pasan (`cargo test`), con casos normales, casos límite y entradas dañadas. |
+| Núcleo | 🟡 | lee el fichero de posiciones de una placa, da a cada componente su alimentador (prioridad, bandeja, tira), planifica el orden de colocación para un cabezal de hasta seis boquillas con rangos, puntas de boquilla, límites de ángulo y el tiempo de los movimientos, planifica paneles y escribe la hoja de carga; probado en un ordenador con entradas normales y dañadas, no con una colección de ficheros reales. |
+| Línea de comandos | 🟡 | `phoenix-pnp` ejecuta las mismas funciones que la biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`) e imprime el resultado; cada error vuelve como un mensaje con su código `PHOENIX-PNP-NNN` y un código de salida distinto de cero. |
+| Pruebas | 🟡 | 198 pruebas pasan (`cargo test`), con casos normales, casos límite, entradas dañadas y pequeños casos generados. |
+| Configuración de la máquina | 🟡 | un fichero `clave = valor` con versión, un validador que nombra la línea y los límites de seguridad (recorrido de Z, límites de X e Y, reintentos, ángulos de boquilla); los valores no se han comparado con una máquina real. |
+| Simulador y trabajo | 🟡 | un reloj virtual, fallos inyectados al azar (con semilla) o en un lugar elegido, reintentos, las políticas alerta y aplazar, alimentadores que se apagan tras fallos repetidos, pausa, paso a paso y un estado guardado para reanudar; solo simula, nada ha movido una máquina. |
 | Seguridad | 🟡 | Rust seguro y simple (`forbid(unsafe_code)`): nada entra en pánico con los ficheros recibidos y un valor malo es un error con su motivo; sin revisión independiente. |
 | Ventana | 🔴 | Previsto: la ventana egui común a la suite; hoy solo existe la línea de comandos. |
 | Hardware real | 🔴 | No probado: nada de esto se ha ejecutado en una máquina. |
@@ -58,6 +60,11 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 * **Los componentes** (`src/parts.rs`): un fichero `.pos` de KiCad o un CSV (coma o punto y coma, comillas, cabecera hallada por nombre) con posiciones en mm, mil o pulgadas, los ángulos llevados a 0-360, la cara superior o inferior, y cada fila sin sentido se rechaza con su número; una referencia repetida es un error.
 * **Los alimentadores** (`src/feeders.rs`): un CSV de alimentadores (id, valor, encapsulado, posición de recogida, piezas que quedan); cada componente recibe el primer alimentador que contiene su valor y encapsulado, sin distinguir mayúsculas; se informa de un componente sin alimentador y de un alimentador que se agota, y un segundo alimentador del mismo tipo toma el relevo.
 * **El plan** (`src/plan.rs`): los lugares se recorren al más cercano y se cortan en lotes de una a seis boquillas, los alimentadores de un lote se visitan al más cercano, la cara inferior se refleja respecto al ancho de la placa, y el plan da el recorrido y una estimación del tiempo; se escribe como trabajo JSON.
+* **Las tablas y los ajustes** (`src/catalog.rs`, `src/config.rs`, `src/rotation.rs`): tablas de componentes y encapsulados cuyos valores se heredan (componente, luego encapsulado, luego los valores por defecto), un fichero de configuración de la máquina en formato `clave = valor` (`examples/machine.cfg` documenta cada clave), más nombres para las columnas de un CSV de posiciones y correcciones de la rotación por encapsulado.
+* **Los alimentadores con algo más que una cinta** (`src/feeding.rs`): prioridad, bandejas, tiras y alimentadores que se apagan; el alimentador de un componente se elige igual sea cual sea el orden de los ficheros.
+* **El planificador de la máquina** (`src/planner.rs`, `src/motion.rs`): rangos (bloques que se colocan uno tras otro), estrategias de orden, puntas de boquilla y sus cambios, los límites del ángulo de la boquilla, el tiempo de los movimientos con aceleración y tirón, recorridos más cortos (2-opt) y la corrección del origen de un componente.
+* **Paneles, hoja de carga y exportaciones** (`src/panel.rs`, `src/loadsheet.rs`, `src/export.rs`): placas y paneles dentro de paneles, la ranura de cada tipo de cinta, un informe, la lista de lo que falta y un G-code que solo mueve el cabezal.
+* **El simulador y el trabajo** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): las comprobaciones previas al trabajo, una máquina con reloj virtual y fallos que se pueden inyectar, y un trabajo que se puede pausar, ejecutar paso a paso, guardar y reanudar.
 
 ## 🧩 Papel en EH3D
 
@@ -98,17 +105,50 @@ La biblioteca es `eh3d_phoenix_pnp` (`use eh3d_phoenix_pnp::...`); la línea de 
 ```text
 EH3D-PHOENIX-PNP/
 ├── src/
+│   ├── catalog.rs                               las tablas de componentes y encapsulados y la herencia de sus propiedades
+│   ├── cli_args.rs                              los argumentos de la línea de comandos, estrictos: una opción desconocida es un error
+│   ├── commands.rs                              las órdenes que usan la configuración: schedule, preflight, simulate, loadsheet
+│   ├── config.rs                                el fichero de configuración de la máquina: claves, rangos y límites de seguridad
+│   ├── error.rs                                 los códigos de error PHOENIX-PNP-NNN y su significado en ocho idiomas
+│   ├── export.rs                                el informe, la lista de lo que falta y el G-code de los movimientos
 │   ├── feeders.rs                               una parte de la lógica
+│   ├── feeding.rs                               alimentadores con prioridad, bandejas y tiras, y la elección del alimentador de un componente
+│   ├── job.rs                                   el trabajo: pasos, pausa, reintentos, políticas, estadísticas y estado guardado
 │   ├── lib.rs                                   la biblioteca: lo que usa cada orden
+│   ├── loadsheet.rs                             la hoja de carga: la ranura de cada tipo de cinta
 │   ├── main.rs                                  la línea de comandos
+│   ├── model.rs                                 las partes de una máquina como traits: máquina, boquilla, alimentador, actuador, cámara, controlador
+│   ├── motion.rs                                el tiempo que tarda un movimiento, con aceleración y tirón
+│   ├── panel.rs                                 paneles: placas y paneles dentro de paneles, cada uno en su sitio
 │   ├── parts.rs                                 una parte de la lógica
-│   └── plan.rs                                  una parte de la lógica
+│   ├── plan.rs                                  una parte de la lógica
+│   ├── planner.rs                               el planificador que conoce la máquina: rangos, orden, puntas, ángulos y tiempo
+│   ├── preflight.rs                             las comprobaciones previas al trabajo, con gravedad y aquello a lo que apuntan
+│   ├── rotation.rs                              correcciones de la rotación por encapsulado, y cómo gira una boquilla limitada
+│   ├── sim.rs                                   la máquina simulada: reloj virtual y fallos que se pueden inyectar
+│   └── units.rs                                 longitudes y lugares que llevan su unidad
 ├── tests/
+│   ├── commands.rs                              pruebas de las órdenes que usan la configuración
+│   ├── feeding.rs                               pruebas de los alimentadores: prioridad, bandejas y tiras
+│   ├── job.rs                                   pruebas del trabajo: pasos, reintentos y estado guardado
+│   ├── loadsheet.rs                             pruebas de la hoja de carga y las exportaciones
+│   ├── model.rs                                 pruebas del modelo de datos: códigos, longitudes, configuración y tablas
+│   ├── more.rs                                  más pruebas de la biblioteca y la línea de comandos
+│   ├── panel.rs                                 pruebas de los paneles
+│   ├── planner.rs                               pruebas del tiempo de los movimientos y del planificador
 │   ├── pnp.rs                                   pruebas de la biblioteca y la línea de comandos
+│   ├── preflight.rs                             pruebas de las comprobaciones previas al trabajo
+│   ├── readme.rs                                pruebas de que el README se puede ejecutar y está completo
+│   ├── sim.rs                                   pruebas de la máquina simulada
 │   └── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
 ├── examples/
 │   ├── board.pos                                una muestra para probar el programa
-│   └── feeders.csv                              una muestra para probar el programa
+│   ├── catalog.csv                              una tabla de componentes: rango y altura
+│   ├── feeders.csv                              una muestra para probar el programa
+│   ├── machine.cfg                              los ajustes de la máquina, cada clave explicada
+│   ├── packages.csv                             una tabla de encapsulados: altura, punta, rango y cinta
+│   ├── panel.json                               un panel de dos placas
+│   └── slots.csv                                las ranuras de la máquina
 ├── docs/
 │   ├── architecture.json                        datos de la imagen de Arquitectura
 │   └── structure.json                           datos de la imagen de Estructura
@@ -125,7 +165,43 @@ EH3D-PHOENIX-PNP/
 
 ## ⚙️ Configuración
 
-Todavía no hay fichero de configuración: lo que elige la persona se da como argumentos de la línea de comandos (véase Interfaces) y cada valor por defecto está escrito en la ayuda de la orden (`phoenix-pnp help`). Los límites fijos están en el código como constantes con nombre y las pruebas los cubren.
+La máquina y el planificador se configuran con un fichero de texto de líneas `clave = valor` (`--config FICHERO`), el mismo formato que usan los demás programas de la suite; `examples/machine.cfg` lista cada clave con su valor por defecto y lo que hace. Una clave que falta conserva su valor por defecto; una clave desconocida, escrita dos veces o fuera de su rango es un error que nombra la línea. Las opciones de la línea de comandos (`--nozzles`, `--speed`, `--order`, `--side`) mandan sobre el fichero.
+
+Las tablas de encapsulados y de componentes (`--packages`, `--catalog`) son ficheros CSV en los que una celda vacía hereda; un panel (`--panel`) es un fichero JSON; las ranuras de la máquina (`loadsheet`) son un CSV con `id,x,y,max_width_mm`. Un fichero mayor que `max_file_bytes` se rechaza. Cada error tiene un código `PHOENIX-PNP-NNN`; su mensaje se escribe en el idioma de la clave `language` o de `--lang` (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh` o `pt`):
+
+| Código | Significado |
+|---|---|
+| `PHOENIX-PNP-001` | El archivo supera el tamaño permitido |
+| `PHOENIX-PNP-002` | Hay más piezas de las que permite el límite |
+| `PHOENIX-PNP-003` | Una línea de la configuración no es clave = valor |
+| `PHOENIX-PNP-004` | La configuración tiene una clave que no se conoce |
+| `PHOENIX-PNP-005` | Un valor de la configuración no es válido |
+| `PHOENIX-PNP-006` | Un valor de la configuración está fuera de su rango |
+| `PHOENIX-PNP-007` | La configuración se escribió para una versión más nueva del programa |
+| `PHOENIX-PNP-008` | Una clave de la configuración está escrita dos veces |
+| `PHOENIX-PNP-009` | Un ajuste supera los límites de seguridad |
+| `PHOENIX-PNP-010` | Una fila de la tabla de piezas o paquetes no es válida |
+| `PHOENIX-PNP-011` | Una pieza o un paquete está definido dos veces |
+| `PHOENIX-PNP-012` | Una regla de corrección de rotación no es válida |
+| `PHOENIX-PNP-013` | Una fila de los alimentadores no es válida |
+| `PHOENIX-PNP-014` | El archivo del panel no es válido |
+| `PHOENIX-PNP-015` | El panel está anidado demasiado hondo o tiene demasiadas placas |
+| `PHOENIX-PNP-016` | La tabla de ranuras no es válida |
+| `PHOENIX-PNP-017` | Un ajuste del plan no es válido |
+| `PHOENIX-PNP-018` | El nozzle no puede girar a ese ángulo dentro de sus límites |
+| `PHOENIX-PNP-019` | El nozzle ya lleva una pieza: no puede recoger otra |
+| `PHOENIX-PNP-020` | El nozzle no lleva ninguna pieza para colocar |
+| `PHOENIX-PNP-021` | No hay ningún alimentador disponible para la pieza |
+| `PHOENIX-PNP-022` | No se pudo recoger la pieza tras todos los intentos |
+| `PHOENIX-PNP-023` | El alimentador no pudo avanzar tras todos los intentos |
+| `PHOENIX-PNP-024` | No se pudo colocar la pieza tras todos los intentos |
+| `PHOENIX-PNP-025` | El estado guardado pertenece a otro trabajo |
+| `PHOENIX-PNP-026` | El estado guardado del trabajo no es válido |
+| `PHOENIX-PNP-027` | El trabajo está en pausa, terminado o detenido por un error |
+| `PHOENIX-PNP-028` | Las comprobaciones previas al trabajo encontraron errores |
+| `PHOENIX-PNP-029` | Una longitud o un ángulo no es válido |
+| `PHOENIX-PNP-030` | El controlador no aceptó la orden |
+| `PHOENIX-PNP-031` | El simulador inyectó un fallo |
 
 ## 🚀 Inicio rápido
 
@@ -135,11 +211,14 @@ Necesita una cadena de herramientas Rust estable (1.75 o más reciente).
 cargo build --release
 cargo test
 cargo run --release -- plan examples/board.pos examples/feeders.csv examples/plan.json --nozzles 2
+cargo run --release -- schedule examples/board.pos examples/feeders.csv examples/schedule.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
+cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
+cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
 ```
 
 ## 🧪 Pruebas
 
-El conjunto tiene 67 pruebas (`cargo test`, ejecutadas en Windows y Linux en el CI). Comprueban los casos normales, los casos límite y las entradas dañadas: ficheros vacíos, basura y ficheros cortados nunca provocan un pánico. El CI ejecuta además `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
+La suite tiene 198 pruebas (`cargo test`, que se ejecutan en Windows y Linux en la CI). Comprueban los casos normales, los casos límite y las entradas dañadas: los ficheros vacíos, la basura y los ficheros cortados nunca provocan un pánico. Pequeños casos generados (desde una semilla fija, así que dan los mismos números en cada ejecución) comprueban que el plan no depende del orden de los ficheros, que un recorrido nunca se alarga, que un trabajo guardado y reanudado en cualquier punto acaba igual que el que nunca se detuvo, y que las longitudes y los ángulos se convierten de ida y vuelta. La CI también ejecuta `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilación y publicación
 
@@ -157,17 +236,50 @@ La versión está en `Cargo.toml` y en `eh3d.project.json`; cada versión tiene 
 ```text
 EH3D-PHOENIX-PNP/
 ├── src/
+│   ├── catalog.rs                               las tablas de componentes y encapsulados y la herencia de sus propiedades
+│   ├── cli_args.rs                              los argumentos de la línea de comandos, estrictos: una opción desconocida es un error
+│   ├── commands.rs                              las órdenes que usan la configuración: schedule, preflight, simulate, loadsheet
+│   ├── config.rs                                el fichero de configuración de la máquina: claves, rangos y límites de seguridad
+│   ├── error.rs                                 los códigos de error PHOENIX-PNP-NNN y su significado en ocho idiomas
+│   ├── export.rs                                el informe, la lista de lo que falta y el G-code de los movimientos
 │   ├── feeders.rs                               una parte de la lógica
+│   ├── feeding.rs                               alimentadores con prioridad, bandejas y tiras, y la elección del alimentador de un componente
+│   ├── job.rs                                   el trabajo: pasos, pausa, reintentos, políticas, estadísticas y estado guardado
 │   ├── lib.rs                                   la biblioteca: lo que usa cada orden
+│   ├── loadsheet.rs                             la hoja de carga: la ranura de cada tipo de cinta
 │   ├── main.rs                                  la línea de comandos
+│   ├── model.rs                                 las partes de una máquina como traits: máquina, boquilla, alimentador, actuador, cámara, controlador
+│   ├── motion.rs                                el tiempo que tarda un movimiento, con aceleración y tirón
+│   ├── panel.rs                                 paneles: placas y paneles dentro de paneles, cada uno en su sitio
 │   ├── parts.rs                                 una parte de la lógica
-│   └── plan.rs                                  una parte de la lógica
+│   ├── plan.rs                                  una parte de la lógica
+│   ├── planner.rs                               el planificador que conoce la máquina: rangos, orden, puntas, ángulos y tiempo
+│   ├── preflight.rs                             las comprobaciones previas al trabajo, con gravedad y aquello a lo que apuntan
+│   ├── rotation.rs                              correcciones de la rotación por encapsulado, y cómo gira una boquilla limitada
+│   ├── sim.rs                                   la máquina simulada: reloj virtual y fallos que se pueden inyectar
+│   └── units.rs                                 longitudes y lugares que llevan su unidad
 ├── tests/
+│   ├── commands.rs                              pruebas de las órdenes que usan la configuración
+│   ├── feeding.rs                               pruebas de los alimentadores: prioridad, bandejas y tiras
+│   ├── job.rs                                   pruebas del trabajo: pasos, reintentos y estado guardado
+│   ├── loadsheet.rs                             pruebas de la hoja de carga y las exportaciones
+│   ├── model.rs                                 pruebas del modelo de datos: códigos, longitudes, configuración y tablas
+│   ├── more.rs                                  más pruebas de la biblioteca y la línea de comandos
+│   ├── panel.rs                                 pruebas de los paneles
+│   ├── planner.rs                               pruebas del tiempo de los movimientos y del planificador
 │   ├── pnp.rs                                   pruebas de la biblioteca y la línea de comandos
+│   ├── preflight.rs                             pruebas de las comprobaciones previas al trabajo
+│   ├── readme.rs                                pruebas de que el README se puede ejecutar y está completo
+│   ├── sim.rs                                   pruebas de la máquina simulada
 │   └── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
 ├── examples/
 │   ├── board.pos                                una muestra para probar el programa
-│   └── feeders.csv                              una muestra para probar el programa
+│   ├── catalog.csv                              una tabla de componentes: rango y altura
+│   ├── feeders.csv                              una muestra para probar el programa
+│   ├── machine.cfg                              los ajustes de la máquina, cada clave explicada
+│   ├── packages.csv                             una tabla de encapsulados: altura, punta, rango y cinta
+│   ├── panel.json                               un panel de dos placas
+│   └── slots.csv                                las ranuras de la máquina
 ├── docs/
 │   ├── architecture.json                        datos de la imagen de Arquitectura
 │   └── structure.json                           datos de la imagen de Estructura
@@ -189,13 +301,14 @@ EH3D-PHOENIX-PNP/
 **Límites conocidos hoy**
 
 * Todavía no tiene ventana: solo existen la biblioteca y la línea de comandos.
-* No se ha probado en una máquina ni con una colección de ficheros reales y no ha tenido revisión independiente.
-* Todavía no hay cámara ni control de máquina (el plan es un fichero JSON para que lo ejecute otro programa), los alimentadores se describen a mano en un CSV y la rotación de la cinta no se corrige por encapsulado.
+* No se ha probado en una máquina ni con una colección de ficheros reales, y no ha tenido revisión independiente; todo lo que hace con una máquina es una simulación.
+* No lee los ficheros de otros programas de colocación, y la regla del ángulo de la cara inferior de un CSV (`bottom_rotation`) no se ha comparado con ficheros reales de ningún programa de CAD.
+* Todavía no hay cámara, ni corrección de la recogida por visión, ni controlador de una máquina real; el plan es un fichero JSON para que lo ejecute otro programa.
 
 **Siguiente**
 
-* Corregir el ángulo de cada encapsulado en la cinta, centrar los componentes con la cámara de EH3D-VISION-STUDIO y enviar el plan a la máquina.
-* Añadir la ventana con el aspecto compartido por los programas de la suite, en los ocho idiomas.
+* Añadir la ventana con el aspecto que comparten los programas de la suite, en los ocho idiomas: la mesa de trabajo, las tablas de componentes y alimentadores y el panel de problemas y soluciones.
+* Fiduciales de la placa y del panel, y la corrección con la cámara de EH3D-VISION-STUDIO; enviar un plan a una máquina solo después de probarlo en una real.
 * Probarlo con ficheros reales y con los demás programas de la suite.
 
 ## 🌍 Idiomas

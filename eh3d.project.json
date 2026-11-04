@@ -19,7 +19,7 @@
   "family": "CNC Workflow Tools",
   "parent": null,
   "build": "cargo build --release; cargo test",
-  "notes": "EH3D-PHOENIX-PNP is the pick and place program of the PHOENIX family (green phoenix), formerly EH3D-PNP-MANAGER. Scaffolding v0.0.4: a library and a command line for pick and place assembly: they read the position file of a board (KiCad .pos or a CSV from another CAD program, in mm, mil or inches), give every part the feeder that holds its value and package, report the parts without a feeder and the feeders that will run out, and plan the order of the placements for a head with one to six nozzles, with the bottom side mirrored, as a JSON job. No window, no camera and no machine control; nothing has placed a part.",
+  "notes": "EH3D-PHOENIX-PNP is the pick and place program of the PHOENIX family (green phoenix), formerly EH3D-PNP-MANAGER. Scaffolding v0.0.4: a library and a command line for pick and place assembly: they read the position file of a board (KiCad .pos or a CSV from another CAD program, in mm, mil or inches), give every part the feeder that holds its value and package, report the parts without a feeder and the feeders that will run out, and plan the order of the placements for a head with one to six nozzles, with the bottom side mirrored, as a JSON job. Unreleased work adds a machine configuration file, tables of parts and packages, feeders with priority, trays and strips, a planner with ranks, nozzle tips and the time of the moves, panels, a load sheet, a simulated machine and a job that can be paused and resumed. No window, no camera and no machine control; nothing has placed a part.",
   "native_version": {
     "file": "Cargo.toml",
     "pattern": "^version\\s*=\\s*\"(\\d+\\.\\d+\\.\\d+)\""

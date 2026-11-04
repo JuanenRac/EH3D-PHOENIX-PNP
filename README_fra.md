@@ -18,7 +18,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 67 tests exécutés sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son chargeur, signale ce qui manque et planifie l'ordre de pose pour une tête jusqu'à six buses. Il n'a pas encore de fenêtre, n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 198 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il ne pilote aucune machine : il n'a pas encore de fenêtre, il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.4` |
 | Maturité | Échafaudage |
-| Tests | 67 |
+| Tests | 198 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -45,9 +45,11 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 
 | Domaine | État | Ce que cela veut dire ici |
 |---|---|---|
-| Cœur | 🟡 | lit le fichier de positions d'une carte, donne à chaque composant son chargeur, signale ce qui manque et planifie l'ordre de pose pour une tête jusqu'à six buses ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
-| Ligne de commande | 🟡 | `phoenix-pnp` exécute les mêmes fonctions que la bibliothèque et affiche le résultat ; chaque erreur revient sous forme de message et de code de sortie non nul. |
-| Tests | 🟡 | 67 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées. |
+| Cœur | 🟡 | lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (priorité, plateau, bande), planifie l'ordre de pose pour une tête de jusqu'à six buses avec des rangs, des pointes de buse, des limites d'angle et le temps des déplacements, planifie des panneaux et écrit la feuille de chargement ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
+| Ligne de commande | 🟡 | `phoenix-pnp` exécute les mêmes fonctions que la bibliothèque (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`) et affiche le résultat ; chaque erreur revient comme un message avec son code `PHOENIX-PNP-NNN` et un code de sortie non nul. |
+| Tests | 🟡 | 198 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
+| Configuration de la machine | 🟡 | un fichier `clé = valeur` avec une version, un validateur qui nomme la ligne et les limites de sécurité (course de Z, limites de X et Y, nouvelles tentatives, angles de buse) ; les valeurs n'ont pas été comparées à une machine réelle. |
+| Simulateur et travail | 🟡 | une horloge virtuelle, des pannes injectées au hasard (avec une graine) ou à un endroit choisi, des nouvelles tentatives, les politiques alerte et report, des alimentateurs qui s'éteignent après des pannes répétées, pause, pas à pas et un état enregistré pour reprendre ; il ne fait que simuler, rien n'a piloté une machine. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
 | Fenêtre | 🔴 | Prévu : la fenêtre egui commune à la suite ; aujourd'hui il n'y a que la ligne de commande. |
 | Matériel réel | 🔴 | Non essayé : rien ici n'a été exécuté sur une machine. |
@@ -58,6 +60,11 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 * **Les composants** (`src/parts.rs`) : un fichier `.pos` de KiCad ou un CSV (virgule ou point-virgule, guillemets, en-tête trouvé par nom) avec des positions en mm, mil ou pouces, les angles ramenés à 0-360, la face dessus ou dessous, et chaque ligne absurde est refusée avec son numéro ; une référence répétée est une erreur.
 * **Les chargeurs** (`src/feeders.rs`) : un CSV de chargeurs (id, valeur, boîtier, position de prise, pièces restantes) ; chaque composant reçoit le premier chargeur qui contient sa valeur et son boîtier, sans tenir compte de la casse ; un composant sans chargeur et un chargeur qui s'épuise sont signalés, et un second chargeur du même type prend le relais.
 * **Le plan** (`src/plan.rs`) : les emplacements sont parcourus au plus proche et coupés en lots d'une à six buses, les chargeurs d'un lot sont visités au plus proche, la face dessous est inversée selon la largeur de la carte, et le plan donne le trajet et une estimation du temps ; il s'écrit comme un travail JSON.
+* **Les tables et les réglages** (`src/catalog.rs`, `src/config.rs`, `src/rotation.rs`) : des tables de pièces et de boîtiers dont les valeurs sont héritées (pièce, puis boîtier, puis les valeurs par défaut), un fichier de configuration de la machine au format `clé = valeur` (`examples/machine.cfg` documente chaque clé), davantage de noms pour les colonnes d'un CSV de positions et des corrections de rotation par boîtier.
+* **Les alimentateurs avec plus qu'une bande** (`src/feeding.rs`) : priorité, plateaux, bandes et alimentateurs éteints ; l'alimentateur d'un composant est choisi de la même façon quel que soit l'ordre des fichiers.
+* **Le planificateur de la machine** (`src/planner.rs`, `src/motion.rs`) : rangs (blocs posés l'un après l'autre), stratégies d'ordre, pointes de buse et leurs changements, limites de l'angle de la buse, temps des déplacements avec accélération et à-coup, parcours plus courts (2-opt) et correction de l'origine d'un composant.
+* **Panneaux, feuille de chargement et exports** (`src/panel.rs`, `src/loadsheet.rs`, `src/export.rs`) : cartes et panneaux dans des panneaux, l'emplacement de chaque type de bande, un rapport, la liste de ce qui manque et un G-code qui ne fait que déplacer la tête.
+* **Le simulateur et le travail** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`) : les vérifications avant un travail, une machine à horloge virtuelle et pannes injectables, et un travail qu'on peut mettre en pause, exécuter pas à pas, enregistrer et reprendre.
 
 ## 🧩 Rôle dans EH3D
 
@@ -98,17 +105,50 @@ La bibliothèque est `eh3d_phoenix_pnp` (`use eh3d_phoenix_pnp::...`) ; la ligne
 ```text
 EH3D-PHOENIX-PNP/
 ├── src/
+│   ├── catalog.rs                               les tables de pièces et de boîtiers et l'héritage de leurs propriétés
+│   ├── cli_args.rs                              les arguments de la ligne de commande, stricts : une option inconnue est une erreur
+│   ├── commands.rs                              les commandes qui utilisent la configuration : schedule, preflight, simulate, loadsheet
+│   ├── config.rs                                le fichier de configuration de la machine : clés, plages et limites de sécurité
+│   ├── error.rs                                 les codes d'erreur PHOENIX-PNP-NNN et leur sens en huit langues
+│   ├── export.rs                                le rapport, la liste de ce qui manque et le G-code des déplacements
 │   ├── feeders.rs                               une partie de la logique
+│   ├── feeding.rs                               alimentateurs avec priorité, plateaux et bandes, et le choix de l'alimentateur d'un composant
+│   ├── job.rs                                   le travail : étapes, pause, nouvelles tentatives, politiques, statistiques et état enregistré
 │   ├── lib.rs                                   la bibliothèque : ce que chaque commande utilise
+│   ├── loadsheet.rs                             la feuille de chargement : l'emplacement de chaque type de bande
 │   ├── main.rs                                  la ligne de commande
+│   ├── model.rs                                 les parties d'une machine en traits : machine, buse, alimentateur, actionneur, caméra, pilote
+│   ├── motion.rs                                le temps d'un déplacement, avec accélération et à-coup
+│   ├── panel.rs                                 panneaux : cartes et panneaux dans des panneaux, chacun à sa place
 │   ├── parts.rs                                 une partie de la logique
-│   └── plan.rs                                  une partie de la logique
+│   ├── plan.rs                                  une partie de la logique
+│   ├── planner.rs                               le planificateur qui connaît la machine : rangs, ordre, pointes, angles et temps
+│   ├── preflight.rs                             les vérifications avant un travail, avec une gravité et ce qu'elles désignent
+│   ├── rotation.rs                              corrections de rotation par boîtier, et comment tourne une buse limitée
+│   ├── sim.rs                                   la machine simulée : horloge virtuelle et pannes injectables
+│   └── units.rs                                 longueurs et lieux qui portent leur unité
 ├── tests/
+│   ├── commands.rs                              tests des commandes qui utilisent la configuration
+│   ├── feeding.rs                               tests des alimentateurs : priorité, plateaux et bandes
+│   ├── job.rs                                   tests du travail : étapes, nouvelles tentatives et état enregistré
+│   ├── loadsheet.rs                             tests de la feuille de chargement et des exports
+│   ├── model.rs                                 tests du modèle de données : codes, longueurs, configuration et tables
+│   ├── more.rs                                  d'autres tests de la bibliothèque et de la ligne de commande
+│   ├── panel.rs                                 tests des panneaux
+│   ├── planner.rs                               tests du temps des déplacements et du planificateur
 │   ├── pnp.rs                                   tests de la bibliothèque et de la ligne de commande
+│   ├── preflight.rs                             tests des vérifications avant un travail
+│   ├── readme.rs                                tests que le README est exécutable et complet
+│   ├── sim.rs                                   tests de la machine simulée
 │   └── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
 ├── examples/
 │   ├── board.pos                                un exemple pour essayer le programme
-│   └── feeders.csv                              un exemple pour essayer le programme
+│   ├── catalog.csv                              une table de pièces : rang et hauteur
+│   ├── feeders.csv                              un exemple pour essayer le programme
+│   ├── machine.cfg                              les réglages de la machine, chaque clé expliquée
+│   ├── packages.csv                             une table de boîtiers : hauteur, pointe, rang et bande
+│   ├── panel.json                               un panneau de deux cartes
+│   └── slots.csv                                les emplacements de la machine
 ├── docs/
 │   ├── architecture.json                        données de l'image d'Architecture
 │   └── structure.json                           données de l'image de Structure
@@ -125,7 +165,43 @@ EH3D-PHOENIX-PNP/
 
 ## ⚙️ Configuration
 
-Il n'y a pas encore de fichier de configuration : ce que la personne choisit est donné en arguments de la ligne de commande (voir Interfaces) et chaque valeur par défaut est écrite dans l'aide de la commande (`phoenix-pnp help`). Les limites fixes sont des constantes nommées dans le code, couvertes par des tests.
+La machine et le planificateur se configurent avec un fichier texte de lignes `clé = valeur` (`--config FICHIER`), le même format que les autres programmes de la suite ; `examples/machine.cfg` liste chaque clé avec sa valeur par défaut et son effet. Une clé absente garde sa valeur par défaut ; une clé inconnue, écrite deux fois ou hors de sa plage est une erreur qui nomme la ligne. Les options de la ligne de commande (`--nozzles`, `--speed`, `--order`, `--side`) l'emportent sur le fichier.
+
+Les tables de boîtiers et de pièces (`--packages`, `--catalog`) sont des fichiers CSV où une cellule vide hérite ; un panneau (`--panel`) est un fichier JSON ; les emplacements de la machine (`loadsheet`) sont un CSV avec `id,x,y,max_width_mm`. Un fichier plus grand que `max_file_bytes` est refusé. Chaque erreur a un code `PHOENIX-PNP-NNN` ; son message est écrit dans la langue de la clé `language` ou de `--lang` (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh` ou `pt`) :
+
+| Code | Signification |
+|---|---|
+| `PHOENIX-PNP-001` | Le fichier dépasse la taille autorisée |
+| `PHOENIX-PNP-002` | Il y a plus de pièces que la limite ne l'autorise |
+| `PHOENIX-PNP-003` | Une ligne de la configuration n'est pas clé = valeur |
+| `PHOENIX-PNP-004` | La configuration contient une clé inconnue |
+| `PHOENIX-PNP-005` | Une valeur de la configuration n'est pas valide |
+| `PHOENIX-PNP-006` | Une valeur de la configuration est hors de sa plage |
+| `PHOENIX-PNP-007` | La configuration a été écrite pour une version plus récente du programme |
+| `PHOENIX-PNP-008` | Une clé de la configuration est écrite deux fois |
+| `PHOENIX-PNP-009` | Un réglage dépasse les limites de sécurité |
+| `PHOENIX-PNP-010` | Une ligne de la table des pièces ou des boîtiers n'est pas valide |
+| `PHOENIX-PNP-011` | Une pièce ou un boîtier est défini deux fois |
+| `PHOENIX-PNP-012` | Une règle de correction de rotation n'est pas valide |
+| `PHOENIX-PNP-013` | Une ligne des alimentateurs n'est pas valide |
+| `PHOENIX-PNP-014` | Le fichier du panneau n'est pas valide |
+| `PHOENIX-PNP-015` | Le panneau est imbriqué trop profondément ou a trop de cartes |
+| `PHOENIX-PNP-016` | La table des emplacements n'est pas valide |
+| `PHOENIX-PNP-017` | Un réglage du plan n'est pas valide |
+| `PHOENIX-PNP-018` | La buse ne peut pas tourner à cet angle dans ses limites |
+| `PHOENIX-PNP-019` | La buse tient déjà une pièce : elle ne peut pas en prendre une autre |
+| `PHOENIX-PNP-020` | La buse ne tient aucune pièce à poser |
+| `PHOENIX-PNP-021` | Aucun alimentateur n'est disponible pour la pièce |
+| `PHOENIX-PNP-022` | La pièce n'a pas pu être prise après toutes les tentatives |
+| `PHOENIX-PNP-023` | L'alimentateur n'a pas pu avancer après toutes les tentatives |
+| `PHOENIX-PNP-024` | La pièce n'a pas pu être posée après toutes les tentatives |
+| `PHOENIX-PNP-025` | L'état enregistré appartient à un autre travail |
+| `PHOENIX-PNP-026` | L'état enregistré du travail n'est pas valide |
+| `PHOENIX-PNP-027` | Le travail est en pause, terminé ou arrêté par une erreur |
+| `PHOENIX-PNP-028` | Les vérifications avant le travail ont trouvé des erreurs |
+| `PHOENIX-PNP-029` | Une longueur ou un angle n'est pas valide |
+| `PHOENIX-PNP-030` | Le pilote n'a pas accepté la commande |
+| `PHOENIX-PNP-031` | Le simulateur a injecté une panne |
 
 ## 🚀 Démarrage rapide
 
@@ -135,11 +211,14 @@ Il faut une chaîne d'outils Rust stable (1.75 ou plus récente).
 cargo build --release
 cargo test
 cargo run --release -- plan examples/board.pos examples/feeders.csv examples/plan.json --nozzles 2
+cargo run --release -- schedule examples/board.pos examples/feeders.csv examples/schedule.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
+cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
+cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
 ```
 
 ## 🧪 Tests
 
-La suite compte 67 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
+La suite compte 198 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
@@ -157,17 +236,50 @@ La version se trouve dans `Cargo.toml` et `eh3d.project.json` ; chaque version a
 ```text
 EH3D-PHOENIX-PNP/
 ├── src/
+│   ├── catalog.rs                               les tables de pièces et de boîtiers et l'héritage de leurs propriétés
+│   ├── cli_args.rs                              les arguments de la ligne de commande, stricts : une option inconnue est une erreur
+│   ├── commands.rs                              les commandes qui utilisent la configuration : schedule, preflight, simulate, loadsheet
+│   ├── config.rs                                le fichier de configuration de la machine : clés, plages et limites de sécurité
+│   ├── error.rs                                 les codes d'erreur PHOENIX-PNP-NNN et leur sens en huit langues
+│   ├── export.rs                                le rapport, la liste de ce qui manque et le G-code des déplacements
 │   ├── feeders.rs                               une partie de la logique
+│   ├── feeding.rs                               alimentateurs avec priorité, plateaux et bandes, et le choix de l'alimentateur d'un composant
+│   ├── job.rs                                   le travail : étapes, pause, nouvelles tentatives, politiques, statistiques et état enregistré
 │   ├── lib.rs                                   la bibliothèque : ce que chaque commande utilise
+│   ├── loadsheet.rs                             la feuille de chargement : l'emplacement de chaque type de bande
 │   ├── main.rs                                  la ligne de commande
+│   ├── model.rs                                 les parties d'une machine en traits : machine, buse, alimentateur, actionneur, caméra, pilote
+│   ├── motion.rs                                le temps d'un déplacement, avec accélération et à-coup
+│   ├── panel.rs                                 panneaux : cartes et panneaux dans des panneaux, chacun à sa place
 │   ├── parts.rs                                 une partie de la logique
-│   └── plan.rs                                  une partie de la logique
+│   ├── plan.rs                                  une partie de la logique
+│   ├── planner.rs                               le planificateur qui connaît la machine : rangs, ordre, pointes, angles et temps
+│   ├── preflight.rs                             les vérifications avant un travail, avec une gravité et ce qu'elles désignent
+│   ├── rotation.rs                              corrections de rotation par boîtier, et comment tourne une buse limitée
+│   ├── sim.rs                                   la machine simulée : horloge virtuelle et pannes injectables
+│   └── units.rs                                 longueurs et lieux qui portent leur unité
 ├── tests/
+│   ├── commands.rs                              tests des commandes qui utilisent la configuration
+│   ├── feeding.rs                               tests des alimentateurs : priorité, plateaux et bandes
+│   ├── job.rs                                   tests du travail : étapes, nouvelles tentatives et état enregistré
+│   ├── loadsheet.rs                             tests de la feuille de chargement et des exports
+│   ├── model.rs                                 tests du modèle de données : codes, longueurs, configuration et tables
+│   ├── more.rs                                  d'autres tests de la bibliothèque et de la ligne de commande
+│   ├── panel.rs                                 tests des panneaux
+│   ├── planner.rs                               tests du temps des déplacements et du planificateur
 │   ├── pnp.rs                                   tests de la bibliothèque et de la ligne de commande
+│   ├── preflight.rs                             tests des vérifications avant un travail
+│   ├── readme.rs                                tests que le README est exécutable et complet
+│   ├── sim.rs                                   tests de la machine simulée
 │   └── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
 ├── examples/
 │   ├── board.pos                                un exemple pour essayer le programme
-│   └── feeders.csv                              un exemple pour essayer le programme
+│   ├── catalog.csv                              une table de pièces : rang et hauteur
+│   ├── feeders.csv                              un exemple pour essayer le programme
+│   ├── machine.cfg                              les réglages de la machine, chaque clé expliquée
+│   ├── packages.csv                             une table de boîtiers : hauteur, pointe, rang et bande
+│   ├── panel.json                               un panneau de deux cartes
+│   └── slots.csv                                les emplacements de la machine
 ├── docs/
 │   ├── architecture.json                        données de l'image d'Architecture
 │   └── structure.json                           données de l'image de Structure
@@ -189,13 +301,14 @@ EH3D-PHOENIX-PNP/
 **Limites connues aujourd'hui**
 
 * Il n'a pas encore de fenêtre : seules la bibliothèque et la ligne de commande existent.
-* Il n'a été essayé ni sur une machine ni avec une collection de fichiers réels, et n'a pas eu de revue indépendante.
-* Il n'y a pas encore de caméra ni de commande de machine (le plan est un fichier JSON qu'un autre programme exécute), les chargeurs sont décrits à la main dans un CSV et la rotation de la bande n'est pas corrigée par boîtier.
+* Il n'a pas été essayé sur une machine ni avec une collection de fichiers réels, et il n'a eu aucune revue indépendante ; tout ce qu'il fait avec une machine est une simulation.
+* Il ne lit pas les fichiers d'autres programmes de pose, et la règle de l'angle de la face inférieure d'un CSV (`bottom_rotation`) n'a pas été comparée à des fichiers réels d'un programme de CAO.
+* Il n'y a pas encore de caméra, de correction de la prise par vision ni de pilote d'une machine réelle ; le plan est un fichier JSON qu'un autre programme doit exécuter.
 
 **Ensuite**
 
-* Corriger l'angle de chaque boîtier sur la bande, centrer les composants avec la caméra d'EH3D-VISION-STUDIO et envoyer le plan à la machine.
-* Ajouter la fenêtre avec l'aspect commun des programmes de la suite, en huit langues.
+* Ajouter la fenêtre dans l'aspect commun aux programmes de la suite, dans les huit langues : la table de travail, les tables de pièces et d'alimentateurs et le panneau des problèmes et solutions.
+* Repères de la carte et du panneau, et correction par la caméra d'EH3D-VISION-STUDIO ; n'envoyer un plan à une machine qu'après l'avoir essayé sur une vraie.
 * L'essayer avec des fichiers réels et avec les autres programmes de la suite.
 
 ## 🌍 Langues

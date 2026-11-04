@@ -1,8 +1,8 @@
 {
   "repo": "EH3D-PHOENIX-PNP",
   "ecosystem": "eh3d",
-  "tagline": "Parts, feeders and the order to place them.",
-  "description": "EH3D-PHOENIX-PNP is a Rust library and command line that read the position file of a board, give every part its feeder and plan the order of the placements as a JSON job. It has no camera or machine control yet.",
+  "tagline": "Parts, feeders, settings, the order to place them and a simulated machine.",
+  "description": "EH3D-PHOENIX-PNP is a Rust library and command line that read the position file of a board, give every part its feeder, read the settings of the machine, plan the order of the placements as a JSON job and carry it out on a simulated machine. It has no camera or machine control yet.",
   "columns": [
     "WHO USES IT",
     "THIS REPOSITORY",
@@ -70,6 +70,45 @@
       ]
     },
     {
+      "id": "config",
+      "column": 1,
+      "level": "tested",
+      "title": "config",
+      "lines": [
+        "settings of the machine,",
+        "tables of parts and packages"
+      ],
+      "code": [
+        "src/config.rs::pub fn parse"
+      ]
+    },
+    {
+      "id": "planner",
+      "column": 1,
+      "level": "tested",
+      "title": "planner",
+      "lines": [
+        "ranks, order, nozzle tips,",
+        "angles, time of the moves, panels"
+      ],
+      "code": [
+        "src/planner.rs::pub fn plan_advanced"
+      ]
+    },
+    {
+      "id": "job",
+      "column": 1,
+      "level": "tested",
+      "title": "simulator and job",
+      "lines": [
+        "virtual clock, failures,",
+        "pause, steps, saved state"
+      ],
+      "code": [
+        "src/job.rs::pub fn step"
+      ]
+    },
+    {
       "id": "cad",
       "column": 2,
       "level": "external",
@@ -120,12 +159,29 @@
       "from": "plan",
       "to": "json",
       "level": "tested"
+    },
+    {
+      "from": "person",
+      "to": "config",
+      "label": "settings",
+      "level": "tested"
+    },
+    {
+      "from": "planner",
+      "to": "json",
+      "level": "tested"
+    },
+    {
+      "from": "job",
+      "to": "json",
+      "label": "state",
+      "level": "tested"
     }
   ],
   "legend": {
-    "tested": "covered by tests on a computer (67 tests)",
+    "tested": "covered by tests on a computer (198 tests)",
     "config": "planned, not used today",
     "external": "a person, a file or another repository"
   },
-  "footer": "No part has been placed with this plan yet."
+  "footer": "No part has been placed with this plan on a real machine yet."
 }
