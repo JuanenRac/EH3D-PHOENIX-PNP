@@ -2,7 +2,7 @@
   "repo": "EH3D-PHOENIX-PNP",
   "ecosystem": "eh3d",
   "tagline": "Parts, feeders, settings, the order to place them and a simulated machine.",
-  "description": "EH3D-PHOENIX-PNP is a Rust library and command line that read the position file of a board, give every part its feeder, read the settings of the machine, plan the order of the placements as a JSON job and carry it out on a simulated machine. It has no camera or machine control yet.",
+  "description": "EH3D-PHOENIX-PNP is a Rust library, a command line and a window that read the position file of a board, give every part its feeder, read the settings of the machine, plan the order of the placements as a JSON job and carry it out on a simulated machine. It has no camera or machine control yet.",
   "columns": [
     "WHO USES IT",
     "THIS REPOSITORY",
@@ -34,25 +34,13 @@
       "id": "parts",
       "column": 1,
       "level": "tested",
-      "title": "parts",
+      "title": "parts and feeders",
       "lines": [
-        "KiCad and CSV position files",
-        "in millimetres"
+        "KiCad and CSV position files,",
+        "a feeder for every part"
       ],
       "code": [
-        "src/parts.rs::pub fn parse"
-      ]
-    },
-    {
-      "id": "feeders",
-      "column": 1,
-      "level": "tested",
-      "title": "feeders",
-      "lines": [
-        "a feeder for every part, and",
-        "what is missing"
-      ],
-      "code": [
+        "src/parts.rs::pub fn parse",
         "src/feeders.rs::pub fn assign"
       ]
     },
@@ -80,6 +68,19 @@
       ],
       "code": [
         "src/config.rs::pub fn parse"
+      ]
+    },
+    {
+      "id": "window",
+      "column": 1,
+      "level": "tested",
+      "title": "window",
+      "lines": [
+        "tables, map, problems,",
+        "guide and a simulated job"
+      ],
+      "code": [
+        "src/gui/app.rs::pub fn start"
       ]
     },
     {
@@ -176,10 +177,15 @@
       "to": "json",
       "label": "state",
       "level": "tested"
+    },
+    {
+      "from": "person",
+      "to": "window",
+      "level": "tested"
     }
   ],
   "legend": {
-    "tested": "covered by tests on a computer (198 tests)",
+    "tested": "covered by tests on a computer (248 tests)",
     "config": "planned, not used today",
     "external": "a person, a file or another repository"
   },

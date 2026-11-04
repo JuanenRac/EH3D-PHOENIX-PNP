@@ -78,6 +78,9 @@ pub const KEYS: [&str; 64] = [
     "sim_feed_fail_rate",
     "sim_pick_fail_rate",
     "sim_place_fail_rate",
+    "gui_steps_per_s",
+    "gui_theme",
+    "gui_part_size_mm",
 ];
 
 /// The order in which the places are visited.
@@ -209,6 +212,12 @@ pub struct MachineConfig {
     pub sim_feed_fail_rate: f64,
     pub sim_pick_fail_rate: f64,
     pub sim_place_fail_rate: f64,
+    /// The window: how many steps of the simulated job it makes in a second.
+    pub gui_steps_per_s: f64,
+    /// The window: the colours, one of `phoenix`, `light` and `contrast`.
+    pub gui_theme: String,
+    /// The window: the side of the square drawn for a part whose package is not known, in millimetres.
+    pub gui_part_size_mm: f64,
 }
 
 impl Default for MachineConfig {
@@ -268,6 +277,9 @@ impl Default for MachineConfig {
             sim_feed_fail_rate: 0.0,
             sim_pick_fail_rate: 0.0,
             sim_place_fail_rate: 0.0,
+            gui_steps_per_s: 4.0,
+            gui_theme: "phoenix".to_string(),
+            gui_part_size_mm: 2.0,
         }
     }
 }
@@ -536,6 +548,15 @@ impl MachineConfig {
             "sim_feed_fail_rate" => self.sim_feed_fail_rate = n(0.0, 1.0)?,
             "sim_pick_fail_rate" => self.sim_pick_fail_rate = n(0.0, 1.0)?,
             "sim_place_fail_rate" => self.sim_place_fail_rate = n(0.0, 1.0)?,
+            "gui_steps_per_s" => self.gui_steps_per_s = n(0.1, 1000.0)?,
+            "gui_theme" => {
+                let name = v.to_ascii_lowercase();
+                if !["phoenix", "light", "contrast"].contains(&name.as_str()) {
+                    return Err(bad(line, key, v, "phoenix, light or contrast"));
+                }
+                self.gui_theme = name;
+            }
+            "gui_part_size_mm" => self.gui_part_size_mm = n(0.2, 50.0)?,
             other => {
                 return Err(PnpError::new(
                     Code::ConfigUnknownKey,

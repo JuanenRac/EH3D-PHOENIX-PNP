@@ -1,0 +1,171 @@
+// EH3D-PHOENIX-PNP - what the window remembers between runs.
+// Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
+//! The settings of the window that belong to the person and not to the machine: the language, the theme, the layers of the view and the folder for the files that are written. They are
+//! kept in a small `key = value` file in the folder of the settings of the user. What tunes the machine or the simulation lives in `machine.cfg`, not here.
+
+use super::theme::ThemeId;
+use crate::error::Lang;
+use std::path::PathBuf;
+
+/// The layers of the view that can be switched on and off.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Layers {
+    pub parts: bool,
+    pub feeders: bool,
+    pub path: bool,
+    pub polarity: bool,
+}
+
+impl Default for Layers {
+    fn default() -> Self {
+        Layers {
+            parts: true,
+            feeders: true,
+            path: true,
+            polarity: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UiSettings {
+    pub lang: Lang,
+    pub theme: ThemeId,
+    pub layers: Layers,
+    /// Where the plan, the report and the load sheet are written.
+    pub out_dir: String,
+    /// Whether the person has seen the guide.
+    pub guide_seen: bool,
+}
+
+impl Default for UiSettings {
+    fn default() -> Self {
+        UiSettings {
+            lang: Lang::En,
+            theme: ThemeId::Phoenix,
+            layers: Layers::default(),
+            out_dir: String::new(),
+            guide_seen: false,
+        }
+    }
+}
+
+fn flag(text: &str) -> Option<bool> {
+    match text.trim().to_ascii_lowercase().as_str() {
+        "yes" | "true" | "on" | "1" => Some(true),
+        "no" | "false" | "off" | "0" => Some(false),
+        _ => None,
+    }
+}
+
+fn word(on: bool) -> &'static str {
+    if on {
+        "yes"
+    } else {
+        "no"
+    }
+}
+
+impl UiSettings {
+    /// Reads the settings from text. A line that is not understood is skipped: a file from another version must never keep the window from opening.
+    pub fn parse(text: &str) -> UiSettings {
+        let mut s = UiSettings::default();
+        for line in text.lines().take(200) {
+            let t = line.trim();
+            if t.is_empty() || t.starts_with('#') {
+                continue;
+            }
+            let Some((k, v)) = t.split_once('=') else {
+                continue;
+            };
+            let (k, v) = (k.trim().to_ascii_lowercase(), v.trim());
+            match k.as_str() {
+                "language" => {
+                    if let Some(l) = Lang::from_code(v) {
+                        s.lang = l;
+                    }
+                }
+                "theme" => {
+                    if let Some(id) = ThemeId::from_key(v) {
+                        s.theme = id;
+                    }
+                }
+                "layer_parts" => s.layers.parts = flag(v).unwrap_or(s.layers.parts),
+                "layer_feeders" => s.layers.feeders = flag(v).unwrap_or(s.layers.feeders),
+                "layer_path" => s.layers.path = flag(v).unwrap_or(s.layers.path),
+                "layer_polarity" => s.layers.polarity = flag(v).unwrap_or(s.layers.polarity),
+                "out_dir" => {
+                    if v.chars().count() <= 1024 && !v.chars().any(char::is_control) {
+                        s.out_dir = v.to_string();
+                    }
+                }
+                "guide_seen" => s.guide_seen = flag(v).unwrap_or(s.guide_seen),
+                _ => {}
+            }
+        }
+        s
+    }
+
+    pub fn to_text(&self) -> String {
+        format!(
+            "# EH3D-PHOENIX-PNP window settings\nlanguage = {}\ntheme = {}\nlayer_parts = {}\nlayer_feeders = {}\nlayer_path = {}\nlayer_polarity = {}\nout_dir = {}\nguide_seen = {}\n",
+            self.lang.code(),
+            self.theme.key(),
+            word(self.layers.parts),
+            word(self.layers.feeders),
+            word(self.layers.path),
+            word(self.layers.polarity),
+            self.out_dir,
+            word(self.guide_seen),
+        )
+    }
+}
+
+/// The file of the settings, from the variables of the environment: `%APPDATA%` on Windows, else `$XDG_CONFIG_HOME` or `~/.config`. None when none of them is set.
+pub fn settings_path(
+    appdata: Option<&str>,
+    xdg: Option<&str>,
+    home: Option<&str>,
+) -> Option<PathBuf> {
+    let base = if let Some(a) = appdata.filter(|a| !a.is_empty()) {
+        PathBuf::from(a).join("EH3D-PHOENIX-PNP")
+    } else if let Some(x) = xdg.filter(|x| !x.is_empty()) {
+        PathBuf::from(x).join("eh3d-phoenix-pnp")
+    } else {
+        let h = home.filter(|h| !h.is_empty())?;
+        PathBuf::from(h).join(".config").join("eh3d-phoenix-pnp")
+    };
+    Some(base.join("window.cfg"))
+}
+
+fn env_path() -> Option<PathBuf> {
+    settings_path(
+        std::env::var("APPDATA").ok().as_deref(),
+        std::env::var("XDG_CONFIG_HOME").ok().as_deref(),
+        std::env::var("HOME").ok().as_deref(),
+    )
+}
+
+/// The settings from the file of the user, or the defaults when there is none or it cannot be read.
+pub fn load() -> UiSettings {
+    env_path()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|t| UiSettings::parse(&t))
+        .unwrap_or_default()
+}
+
+/// Writes the settings; a failure is not an error of the program (the window works without them).
+pub fn save(s: &UiSettings) -> bool {
+    let Some(path) = env_path() else {
+        return false;
+    };
+    if let Some(dir) = path.parent() {
+        if std::fs::create_dir_all(dir).is_err() {
+            return false;
+        }
+    }
+    let tmp = path.with_extension("tmp");
+    std::fs::write(&tmp, s.to_text())
+        .and_then(|()| std::fs::rename(&tmp, &path))
+        .is_ok()
+}

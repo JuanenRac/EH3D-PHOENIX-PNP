@@ -131,6 +131,188 @@
           }
         },
         {
+          "name": "gui.rs",
+          "desc": {
+            "en": "the window: modules that need no screen, and the drawing in window.rs",
+            "es": "la ventana: módulos que no necesitan pantalla y el dibujo en window.rs",
+            "de": "das Fenster: Module ohne Bildschirm und die Zeichnung in window.rs",
+            "fr": "la fenêtre : des modules sans écran et le dessin dans window.rs",
+            "it": "la finestra: moduli senza schermo e il disegno in window.rs",
+            "ja": "ウィンドウ：画面不要のモジュールと window.rs の描画",
+            "zh": "窗口：无需屏幕的模块，以及 window.rs 中的绘制",
+            "pt": "a janela: módulos que não precisam de ecrã e o desenho em window.rs"
+          }
+        },
+        {
+          "name": "gui/app.rs",
+          "desc": {
+            "en": "the state of the window: load, plan, start, pause, step, fix, save",
+            "es": "el estado de la ventana: cargar, planificar, iniciar, pausar, avanzar, arreglar, guardar",
+            "de": "der Zustand des Fensters: laden, planen, starten, pausieren, Schritt, beheben, speichern",
+            "fr": "l'état de la fenêtre : charger, planifier, démarrer, pause, pas, corriger, enregistrer",
+            "it": "lo stato della finestra: carica, pianifica, avvia, pausa, passo, correggi, salva",
+            "ja": "ウィンドウの状態：読み込み、計画、開始、一時停止、ステップ、修正、保存",
+            "zh": "窗口的状态：载入、规划、开始、暂停、单步、修复、保存",
+            "pt": "o estado da janela: carregar, planear, iniciar, pausar, avançar, corrigir, guardar"
+          }
+        },
+        {
+          "name": "gui/log.rs",
+          "desc": {
+            "en": "the log with levels, and the text of the diagnostic that can be copied",
+            "es": "el registro con niveles y el texto del diagnóstico que se puede copiar",
+            "de": "das Protokoll mit Stufen und der Text der kopierbaren Diagnose",
+            "fr": "le journal avec niveaux et le texte du diagnostic à copier",
+            "it": "il registro con livelli e il testo della diagnostica da copiare",
+            "ja": "レベル付きのログと、コピーできる診断テキスト",
+            "zh": "带级别的日志，以及可复制的诊断文本",
+            "pt": "o registo com níveis e o texto do diagnóstico que se pode copiar"
+          }
+        },
+        {
+          "name": "gui/problems.rs",
+          "desc": {
+            "en": "the problems of a job and the fixes that put them right",
+            "es": "los problemas de un trabajo y los arreglos que los corrigen",
+            "de": "die Probleme eines Auftrags und die Lösungen dafür",
+            "fr": "les problèmes d'un travail et les corrections qui les règlent",
+            "it": "i problemi di un lavoro e le correzioni che li risolvono",
+            "ja": "ジョブの問題と、それを直す修正",
+            "zh": "作业的问题及解决它们的修复",
+            "pt": "os problemas de um trabalho e as correções que os resolvem"
+          }
+        },
+        {
+          "name": "gui/samples.rs",
+          "desc": {
+            "en": "samples, from a small board to a large one",
+            "es": "ejemplos, de una placa pequeña a una grande",
+            "de": "Beispiele, von der kleinen bis zur großen Platine",
+            "fr": "des exemples, de la petite carte à la grande",
+            "it": "esempi, dalla scheda piccola a quella grande",
+            "ja": "小さな基板から大きな基板までのサンプル",
+            "zh": "示例，从小型电路板到大型电路板",
+            "pt": "exemplos, da placa pequena à grande"
+          }
+        },
+        {
+          "name": "gui/session.rs",
+          "desc": {
+            "en": "the simulated job that is started, paused, resumed and stepped",
+            "es": "el trabajo simulado que se inicia, pausa, reanuda y avanza paso a paso",
+            "de": "der simulierte Auftrag: starten, pausieren, fortsetzen, Einzelschritt",
+            "fr": "le travail simulé qu'on démarre, met en pause, reprend et avance pas à pas",
+            "it": "il lavoro simulato che si avvia, mette in pausa, riprende e avanza passo dopo passo",
+            "ja": "開始・一時停止・再開・ステップができる模擬ジョブ",
+            "zh": "可开始、暂停、继续和单步的模拟作业",
+            "pt": "o trabalho simulado que se inicia, pausa, retoma e avança passo a passo"
+          }
+        },
+        {
+          "name": "gui/settings.rs",
+          "desc": {
+            "en": "what the window remembers: language, theme, layers and the output folder",
+            "es": "lo que recuerda la ventana: idioma, tema, capas y carpeta de salida",
+            "de": "was das Fenster sich merkt: Sprache, Design, Ebenen und Ausgabeordner",
+            "fr": "ce dont la fenêtre se souvient : langue, thème, couches et dossier de sortie",
+            "it": "ciò che la finestra ricorda: lingua, tema, livelli e cartella di uscita",
+            "ja": "ウィンドウが記憶するもの：言語、テーマ、レイヤー、出力フォルダー",
+            "zh": "窗口记住的内容：语言、主题、图层和输出文件夹",
+            "pt": "o que a janela memoriza: idioma, tema, camadas e pasta de saída"
+          }
+        },
+        {
+          "name": "gui/tables.rs",
+          "desc": {
+            "en": "the rows, the sorting and the selection shared by the tables",
+            "es": "las filas, el orden y la selección que comparten las tablas",
+            "de": "die Zeilen, die Sortierung und die gemeinsame Auswahl der Tabellen",
+            "fr": "les lignes, le tri et la sélection partagée par les tableaux",
+            "it": "le righe, l'ordinamento e la selezione condivisa dalle tabelle",
+            "ja": "表の行、並べ替え、表で共有される選択",
+            "zh": "表格的行、排序和共享的选择",
+            "pt": "as linhas, a ordenação e a seleção partilhada pelas tabelas"
+          }
+        },
+        {
+          "name": "gui/texts.rs",
+          "desc": {
+            "en": "every word of the window in the eight languages",
+            "es": "cada palabra de la ventana en los ocho idiomas",
+            "de": "jedes Wort des Fensters in den acht Sprachen",
+            "fr": "chaque mot de la fenêtre dans les huit langues",
+            "it": "ogni parola della finestra nelle otto lingue",
+            "ja": "ウィンドウのすべての文言（8言語）",
+            "zh": "窗口的每个词（八种语言）",
+            "pt": "cada palavra da janela nos oito idiomas"
+          }
+        },
+        {
+          "name": "gui/theme.rs",
+          "desc": {
+            "en": "the colours: phoenix green, light and high contrast",
+            "es": "los colores: verde fénix, claro y alto contraste",
+            "de": "die Farben: Phönixgrün, hell und hoher Kontrast",
+            "fr": "les couleurs : vert phénix, clair et contraste élevé",
+            "it": "i colori: verde fenice, chiaro e alto contrasto",
+            "ja": "配色：フェニックスグリーン、ライト、ハイコントラスト",
+            "zh": "配色：凤凰绿、浅色和高对比度",
+            "pt": "as cores: verde fénix, claro e alto contraste"
+          }
+        },
+        {
+          "name": "gui/view.rs",
+          "desc": {
+            "en": "the geometry of the map: bodies, polarity marks, fit, zoom and hit",
+            "es": "la geometría del mapa: cuerpos, marcas de polaridad, ajuste, zoom y selección",
+            "de": "die Geometrie der Karte: Körper, Polaritätsmarken, Anpassung, Zoom und Treffer",
+            "fr": "la géométrie de la carte : corps, marques de polarité, ajustement, zoom et sélection",
+            "it": "la geometria della mappa: corpi, marche di polarità, adattamento, zoom e selezione",
+            "ja": "地図の幾何：部品の形、極性マーク、フィット、ズーム、選択",
+            "zh": "地图的几何：元件外形、极性标记、适应、缩放和点选",
+            "pt": "a geometria do mapa: corpos, marcas de polaridade, ajuste, zoom e seleção"
+          }
+        },
+        {
+          "name": "gui/window.rs",
+          "desc": {
+            "en": "the drawing with egui, built with the gui feature: tabs, map and tables",
+            "es": "el dibujo con egui, que se compila con la característica gui: pestañas, mapa y tablas",
+            "de": "die Zeichnung mit egui, gebaut mit dem Feature gui: Reiter, Karte und Tabellen",
+            "fr": "le dessin avec egui, construit avec la fonctionnalité gui : onglets, carte et tableaux",
+            "it": "il disegno con egui, compilato con la feature gui: schede, mappa e tabelle",
+            "ja": "egui による描画（gui フィーチャーでビルド）：タブ、地図、表",
+            "zh": "用 egui 绘制（用 gui 特性构建）：页面、地图和表格",
+            "pt": "o desenho com egui, compilado com a funcionalidade gui: separadores, mapa e tabelas"
+          }
+        },
+        {
+          "name": "gui/wizard.rs",
+          "desc": {
+            "en": "the guide of five steps from nothing to a simulated job",
+            "es": "el asistente de cinco pasos, de la nada a un trabajo simulado",
+            "de": "der Assistent in fünf Schritten, von nichts zu einem simulierten Auftrag",
+            "fr": "l'assistant en cinq étapes, de rien à un travail simulé",
+            "it": "la guida in cinque passi, da zero a un lavoro simulato",
+            "ja": "何もない状態から模擬ジョブまでの5ステップのガイド",
+            "zh": "从零到模拟作业的五步向导",
+            "pt": "o assistente de cinco passos, do nada a um trabalho simulado"
+          }
+        },
+        {
+          "name": "gui/workspace.rs",
+          "desc": {
+            "en": "the files that were loaded, the plan and the edits, without a window",
+            "es": "los archivos cargados, el plan y las ediciones, sin ventana",
+            "de": "die geladenen Dateien, der Plan und die Änderungen, ohne Fenster",
+            "fr": "les fichiers chargés, le plan et les modifications, sans fenêtre",
+            "it": "i file caricati, il piano e le modifiche, senza finestra",
+            "ja": "読み込んだファイル、計画、編集（ウィンドウなし）",
+            "zh": "已载入的文件、规划和编辑，无需窗口",
+            "pt": "os ficheiros carregados, o plano e as edições, sem janela"
+          }
+        },
+        {
           "name": "job.rs",
           "desc": {
             "en": "the job: steps, pause, retries, policies, statistics and saved state",
@@ -172,14 +354,14 @@
         {
           "name": "main.rs",
           "desc": {
-            "en": "the command line",
-            "es": "la línea de comandos",
-            "de": "die Kommandozeile",
-            "fr": "la ligne de commande",
-            "it": "la riga di comando",
-            "ja": "コマンドライン",
-            "zh": "命令行",
-            "pt": "a linha de comandos"
+            "en": "the command line, and the entry of the window when it runs with no command",
+            "es": "la línea de comandos y la entrada de la ventana cuando se ejecuta sin orden",
+            "de": "die Kommandozeile und der Einstieg des Fensters, wenn es ohne Befehl läuft",
+            "fr": "la ligne de commande et l'entrée de la fenêtre quand il s'exécute sans commande",
+            "it": "la riga di comando e l'ingresso della finestra quando gira senza comando",
+            "ja": "コマンドラインと、コマンドなしで実行したときのウィンドウの入口",
+            "zh": "命令行，以及不带命令运行时窗口的入口",
+            "pt": "a linha de comandos e a entrada da janela quando corre sem comando"
           }
         },
         {
@@ -343,6 +525,19 @@
             "ja": "フィーダーのテスト：優先度、トレイ、ストリップ",
             "zh": "供料器测试：优先级、托盘和料带",
             "pt": "testes dos alimentadores: prioridade, tabuleiros e tiras"
+          }
+        },
+        {
+          "name": "gui.rs",
+          "desc": {
+            "en": "tests of the window without a screen: state, plan, job, map, tables and guide",
+            "es": "pruebas de la ventana sin pantalla: estado, plan, trabajo, mapa, tablas y asistente",
+            "de": "Tests des Fensters ohne Bildschirm: Zustand, Plan, Auftrag, Karte, Tabellen und Assistent",
+            "fr": "tests de la fenêtre sans écran : état, plan, travail, carte, tableaux et assistant",
+            "it": "test della finestra senza schermo: stato, piano, lavoro, mappa, tabelle e guida",
+            "ja": "画面なしのウィンドウのテスト：状態、計画、ジョブ、地図、表、ガイド",
+            "zh": "无屏幕的窗口测试：状态、规划、作业、地图、表格和向导",
+            "pt": "testes da janela sem ecrã: estado, plano, trabalho, mapa, tabelas e assistente"
           }
         },
         {

@@ -2,11 +2,16 @@
 name = "eh3d-phoenix-pnp"
 version = "0.0.4"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.95"
 description = "Pick and place assembly: the position files of the CAD programs, the feeders of the machine and the order in which the parts are placed"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/JuanenRac/EH3D-PHOENIX-PNP"
 readme = "README.md"
+
+[features]
+default = []
+# the window (egui through eframe); without it the program is the command line only
+gui = ["dep:eframe", "dep:png"]
 
 [lib]
 name = "eh3d_phoenix_pnp"
@@ -18,7 +23,18 @@ path = "src/main.rs"
 
 [dependencies]
 serde_json = "1"
+eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts", "clipboard"], optional = true }
+# only to read the icon of the window
+png = { version = "0.17", optional = true }
+
+# the window of Linux needs a windowing system chosen at build time (X11 and Wayland); Windows and macOS have their own
+[target.'cfg(target_os = "linux")'.dependencies]
+eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts", "clipboard", "x11", "wayland"], optional = true }
 
 [profile.release]
 opt-level = 3
 lto = true
+
+[profile.dev]
+# a lighter debug build: the file and line of a panic stay, the full debug symbols (the bulk of the target folder) do not
+debug = "line-tables-only"

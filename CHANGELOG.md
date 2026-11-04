@@ -31,6 +31,17 @@ All notable changes to this project are documented here.
 - **`--origin-x` for the bottom side:** the mirror is about the middle of the board whose left edge is at that X (0 by default, documented).
 - **An unknown option or an extra word is an error** (the shared command line file), and the commands of the README are run by a test.
 
+- **The window:** `phoenix-pnp` with no command (or with `gui FILES...`) opens an egui window when it is built with `--features gui`; with a command it stays a command line.
+- **Tabs and tables:** the job (plan, batches and tip changes), parts, packages, feeders, load sheet, machine, problems and log; tables sort by a column, a part chosen in one is chosen in all with its feeder, and the count of a feeder is edited with a second click.
+- **The map of the work table:** parts at their places with the polarity mark, feeders, the path of the head by batch, layers that can be switched, zoom and drag, and the part that comes next marked while the job runs.
+- **Problems and fixes:** the checks before a job as a list; a part with no feeder can be left out and a feeder that is short can be given what it lacks, both can be undone, and the plan is made again after each.
+- **A simulated job in the window:** start, pause, resume, one step and reset, with the events of the machine in the log; an error stops it and resume tries the step again.
+- **A guide of five steps,** samples from a board of six parts to one of four hundred, a log with a diagnostic that holds no paths, and the plan, report and load sheet written to a folder (never over a file that was loaded).
+- **The eight languages in the window,** with the error codes `PHOENIX-PNP-NNN` in the language chosen, three themes (phoenix, light and high contrast) and files that can be dropped on the window.
+- **Rust 1.95 or newer** is needed now (the window's library asks for it, and so does the lock file).
+- **Three keys of `machine.cfg`** for the window: `gui_steps_per_s`, `gui_theme` and `gui_part_size_mm`.
+- **The CI also checks the window:** clippy runs with the `gui` feature, and the logic of the window is covered by tests that need no screen.
+
 - **Renamed:** The project is now called EH3D-PHOENIX-PNP (it was EH3D-PNP-MANAGER); it joins the PHOENIX family of programs.
 
 ## [0.0.4] - Audit fixes, the new reading limits, tests and the application icon

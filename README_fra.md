@@ -18,7 +18,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 198 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il ne pilote aucune machine : il n'a pas encore de fenêtre, il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 248 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il a aussi une fenêtre (construite avec `--features gui`) dont la logique est testée sans écran ; le dessin lui-même n'est pas couvert par des tests et n'a pas été vérifié sur un écran. Il ne pilote aucune machine : il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.4` |
 | Maturité | Échafaudage |
-| Tests | 198 |
+| Tests | 248 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -47,11 +47,11 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 |---|---|---|
 | Cœur | 🟡 | lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (priorité, plateau, bande), planifie l'ordre de pose pour une tête de jusqu'à six buses avec des rangs, des pointes de buse, des limites d'angle et le temps des déplacements, planifie des panneaux et écrit la feuille de chargement ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
 | Ligne de commande | 🟡 | `phoenix-pnp` exécute les mêmes fonctions que la bibliothèque (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`) et affiche le résultat ; chaque erreur revient comme un message avec son code `PHOENIX-PNP-NNN` et un code de sortie non nul. |
-| Tests | 🟡 | 198 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
+| Tests | 🟡 | 248 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
 | Configuration de la machine | 🟡 | un fichier `clé = valeur` avec une version, un validateur qui nomme la ligne et les limites de sécurité (course de Z, limites de X et Y, nouvelles tentatives, angles de buse) ; les valeurs n'ont pas été comparées à une machine réelle. |
 | Simulateur et travail | 🟡 | une horloge virtuelle, des pannes injectées au hasard (avec une graine) ou à un endroit choisi, des nouvelles tentatives, les politiques alerte et report, des alimentateurs qui s'éteignent après des pannes répétées, pause, pas à pas et un état enregistré pour reprendre ; il ne fait que simuler, rien n'a piloté une machine. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
-| Fenêtre | 🔴 | Prévu : la fenêtre egui commune à la suite ; aujourd'hui il n'y a que la ligne de commande. |
+| Fenêtre | 🟠 | Une fenêtre egui (à construire avec `--features gui` ; `phoenix-pnp` sans commande l'ouvre) : onglets de travail, pièces, boîtiers, alimentateurs, feuille de chargement, machine, problèmes et journal, une carte de la table de travail avec le trajet de la tête, des marques de polarité et la pièce suivante, un assistant en cinq étapes, des problèmes avec des corrections qu'on peut annuler, un travail simulé qu'on peut mettre en pause, reprendre et avancer pas à pas, et les huit langues. Sa logique est testée sans écran ; le dessin n'est pas couvert par des tests et n'a pas été vérifié sur un écran. |
 | Matériel réel | 🔴 | Non essayé : rien ici n'a été exécuté sur une machine. |
 | Documentation | 🟡 | README en huit langues, le journal des modifications et les deux images dessinées depuis `docs/`. |
 
@@ -65,10 +65,11 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 * **Le planificateur de la machine** (`src/planner.rs`, `src/motion.rs`) : rangs (blocs posés l'un après l'autre), stratégies d'ordre, pointes de buse et leurs changements, limites de l'angle de la buse, temps des déplacements avec accélération et à-coup, parcours plus courts (2-opt) et correction de l'origine d'un composant.
 * **Panneaux, feuille de chargement et exports** (`src/panel.rs`, `src/loadsheet.rs`, `src/export.rs`) : cartes et panneaux dans des panneaux, l'emplacement de chaque type de bande, un rapport, la liste de ce qui manque et un G-code qui ne fait que déplacer la tête.
 * **Le simulateur et le travail** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`) : les vérifications avant un travail, une machine à horloge virtuelle et pannes injectables, et un travail qu'on peut mettre en pause, exécuter pas à pas, enregistrer et reprendre.
+* **La fenêtre** (`src/gui.rs`, `src/gui/`) : ce que la fenêtre fait en dehors du dessin n'a pas besoin d'écran (les fichiers chargés, le plan et ses problèmes avec corrections, le travail simulé, la géométrie de la carte, les tableaux à sélection partagée, l'assistant en cinq étapes et les textes en huit langues) et est testé ; seul `src/gui/window.rs`, construit avec `--features gui`, le dessine avec egui. La vitesse de la simulation, le thème et la taille dessinée pour une pièce de boîtier inconnu sont des clés de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
 ## 🧩 Rôle dans EH3D
 
-EH3D-PHOENIX-PNP est un programme de l'EH3D Fabrication Suite. Aujourd'hui il fonctionne comme bibliothèque et ligne de commande ; sa fenêtre, avec l'aspect commun aux autres programmes de la suite, est prévue. Il lit et écrit des fichiers simples et peut donc s'utiliser seul ou entre les autres programmes.
+EH3D-PHOENIX-PNP est un programme de l'EH3D Fabrication Suite. Aujourd'hui il fonctionne comme bibliothèque, ligne de commande et fenêtre (construite avec `--features gui`) ; la fenêtre n'a pas encore l'aspect commun aux autres programmes de la suite. Il lit et écrit des fichiers simples et peut donc s'utiliser seul ou entre les autres programmes.
 
 ## 🏛️ Architecture
 
@@ -113,10 +114,24 @@ EH3D-PHOENIX-PNP/
 │   ├── export.rs                                le rapport, la liste de ce qui manque et le G-code des déplacements
 │   ├── feeders.rs                               une partie de la logique
 │   ├── feeding.rs                               alimentateurs avec priorité, plateaux et bandes, et le choix de l'alimentateur d'un composant
+│   ├── gui.rs                                   la fenêtre : des modules sans écran et le dessin dans window.rs
+│   ├── gui/app.rs                               l'état de la fenêtre : charger, planifier, démarrer, pause, pas, corriger, enregistrer
+│   ├── gui/log.rs                               le journal avec niveaux et le texte du diagnostic à copier
+│   ├── gui/problems.rs                          les problèmes d'un travail et les corrections qui les règlent
+│   ├── gui/samples.rs                           des exemples, de la petite carte à la grande
+│   ├── gui/session.rs                           le travail simulé qu'on démarre, met en pause, reprend et avance pas à pas
+│   ├── gui/settings.rs                          ce dont la fenêtre se souvient : langue, thème, couches et dossier de sortie
+│   ├── gui/tables.rs                            les lignes, le tri et la sélection partagée par les tableaux
+│   ├── gui/texts.rs                             chaque mot de la fenêtre dans les huit langues
+│   ├── gui/theme.rs                             les couleurs : vert phénix, clair et contraste élevé
+│   ├── gui/view.rs                              la géométrie de la carte : corps, marques de polarité, ajustement, zoom et sélection
+│   ├── gui/window.rs                            le dessin avec egui, construit avec la fonctionnalité gui : onglets, carte et tableaux
+│   ├── gui/wizard.rs                            l'assistant en cinq étapes, de rien à un travail simulé
+│   ├── gui/workspace.rs                         les fichiers chargés, le plan et les modifications, sans fenêtre
 │   ├── job.rs                                   le travail : étapes, pause, nouvelles tentatives, politiques, statistiques et état enregistré
 │   ├── lib.rs                                   la bibliothèque : ce que chaque commande utilise
 │   ├── loadsheet.rs                             la feuille de chargement : l'emplacement de chaque type de bande
-│   ├── main.rs                                  la ligne de commande
+│   ├── main.rs                                  la ligne de commande et l'entrée de la fenêtre quand il s'exécute sans commande
 │   ├── model.rs                                 les parties d'une machine en traits : machine, buse, alimentateur, actionneur, caméra, pilote
 │   ├── motion.rs                                le temps d'un déplacement, avec accélération et à-coup
 │   ├── panel.rs                                 panneaux : cartes et panneaux dans des panneaux, chacun à sa place
@@ -130,6 +145,7 @@ EH3D-PHOENIX-PNP/
 ├── tests/
 │   ├── commands.rs                              tests des commandes qui utilisent la configuration
 │   ├── feeding.rs                               tests des alimentateurs : priorité, plateaux et bandes
+│   ├── gui.rs                                   tests de la fenêtre sans écran : état, plan, travail, carte, tableaux et assistant
 │   ├── job.rs                                   tests du travail : étapes, nouvelles tentatives et état enregistré
 │   ├── loadsheet.rs                             tests de la feuille de chargement et des exports
 │   ├── model.rs                                 tests du modèle de données : codes, longueurs, configuration et tables
@@ -205,7 +221,7 @@ Les tables de boîtiers et de pièces (`--packages`, `--catalog`) sont des fichi
 
 ## 🚀 Démarrage rapide
 
-Il faut une chaîne d'outils Rust stable (1.75 ou plus récente).
+Il faut une chaîne d'outils Rust stable (1.95 ou plus récente).
 
 ```bash
 cargo build --release
@@ -214,11 +230,14 @@ cargo run --release -- plan examples/board.pos examples/feeders.csv examples/pla
 cargo run --release -- schedule examples/board.pos examples/feeders.csv examples/schedule.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
 cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
+cargo run --release --features gui
 ```
+
+La dernière ligne ouvre la fenêtre ; `phoenix-pnp` sans commande le fait aussi s'il a été construit avec `--features gui` (sous Linux la fenêtre demande les fichiers de développement de X11 ou Wayland et d'OpenGL). Avec une commande, le programme reste une ligne de commande.
 
 ## 🧪 Tests
 
-La suite compte 198 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
+La suite compte 248 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
@@ -300,14 +319,14 @@ EH3D-PHOENIX-PNP/
 
 **Limites connues aujourd'hui**
 
-* Il n'a pas encore de fenêtre : seules la bibliothèque et la ligne de commande existent.
+* Le dessin de la fenêtre n'a pas été vérifié sur un écran ; ses tableaux ne retiennent pas la largeur des colonnes, et elle n'a ni onglets pour les panneaux et les cartes, ni jog, ni caméra.
 * Il n'a pas été essayé sur une machine ni avec une collection de fichiers réels, et il n'a eu aucune revue indépendante ; tout ce qu'il fait avec une machine est une simulation.
 * Il ne lit pas les fichiers d'autres programmes de pose, et la règle de l'angle de la face inférieure d'un CSV (`bottom_rotation`) n'a pas été comparée à des fichiers réels d'un programme de CAO.
 * Il n'y a pas encore de caméra, de correction de la prise par vision ni de pilote d'une machine réelle ; le plan est un fichier JSON qu'un autre programme doit exécuter.
 
 **Ensuite**
 
-* Ajouter la fenêtre dans l'aspect commun aux programmes de la suite, dans les huit langues : la table de travail, les tables de pièces et d'alimentateurs et le panneau des problèmes et solutions.
+* Amener la fenêtre à l'aspect commun aux programmes de la suite et ajouter ce qui lui manque : onglets pour les panneaux et les cartes, largeurs de colonnes mémorisées et édition des tables de boîtiers.
 * Repères de la carte et du panneau, et correction par la caméra d'EH3D-VISION-STUDIO ; n'envoyer un plan à une machine qu'après l'avoir essayé sur une vraie.
 * L'essayer avec des fichiers réels et avec les autres programmes de la suite.
 

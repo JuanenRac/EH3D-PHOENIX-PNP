@@ -16,6 +16,7 @@ use std::process::ExitCode;
 
 const HELP: &str = "phoenix-pnp: pick and place assembly
 
+  phoenix-pnp [gui [FILES...]]                 the window, with the files loaded (built with --features gui; run with no command it opens too)
   phoenix-pnp parts PARTS                      the parts of a position file (KiCad .pos or CSV) in millimetres
   phoenix-pnp check PARTS FEEDERS              which parts have no feeder and which feeders will run out
   phoenix-pnp plan PARTS FEEDERS OUT.json [--nozzles 2] [--side top|bottom] [--board-width MM] [--origin-x MM] [--speed MM_S] [--partial]
@@ -38,13 +39,40 @@ fn read(path: &str) -> Result<String, String> {
     commands::read_text(path, MachineConfig::default().max_file_bytes)
 }
 
+/// Opens the window with the files named. Without the window in this build, no command shows the help and `gui` says why it cannot open.
+#[cfg(feature = "gui")]
+fn open_window(files: &[String]) -> Result<(), String> {
+    let paths: Vec<std::path::PathBuf> = files.iter().map(std::path::PathBuf::from).collect();
+    eh3d_phoenix_pnp::gui::window::run(&paths)
+        .map_err(|e| format!("the window could not open: {e}"))
+}
+
+#[cfg(not(feature = "gui"))]
+fn open_window(files: &[String]) -> Result<(), String> {
+    if files.is_empty() {
+        println!("{HELP}");
+        return Ok(());
+    }
+    Err("this build has no window; build it with --features gui".into())
+}
+
 fn run(mut args: Vec<String>) -> Result<(), String> {
-    if args.is_empty() || matches!(args[0].as_str(), "help" | "--help" | "-h") {
+    if args.is_empty() {
+        return open_window(&[]);
+    }
+    if matches!(args[0].as_str(), "help" | "--help" | "-h") {
         println!("{HELP}");
         return Ok(());
     }
     let cmd = args.remove(0);
     match cmd.as_str() {
+        "gui" => {
+            if cfg!(feature = "gui") {
+                open_window(&args)
+            } else {
+                Err("this build has no window; build it with --features gui".into())
+            }
+        }
         "parts" => {
             finish(&args, 1)?;
             for p in parse(&read(args.first().ok_or("parts needs a file")?)?)? {

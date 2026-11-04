@@ -37,10 +37,15 @@ jobs:
       - name: Rust toolchain
         shell: bash
         run: rustup toolchain install "$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" --profile minimal --component rustfmt,clippy
+      - name: Linux libraries of the window
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev
       - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
       - name: Format
         run: cargo fmt --check
       - name: Lints
         run: cargo clippy --all-targets -- -D warnings
+      - name: Lints of the window
+        run: cargo clippy --all-targets --features gui -- -D warnings
       - name: Tests
         run: cargo test --all-targets

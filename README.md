@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 198 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It does not drive any machine: it has no window yet, it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 248 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests and has not been checked on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.4` |
 | Maturity | Scaffolding |
-| Tests | 198 |
+| Tests | 248 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -47,11 +47,11 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder (priority, tray, strip), plans the order of the placements for a head with up to six nozzles with ranks, nozzle tips, angle limits and the time of the moves, plans panels and writes the load sheet; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
-| Tests | 🟡 | 198 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
+| Tests | 🟡 | 248 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
 | Machine configuration | 🟡 | a `key = value` file with a version, a validator that names the line, and the safety limits (travel of Z, limits of X and Y, retries, nozzle angles); the values have not been compared with a real machine. |
 | Simulator and job | 🟡 | a virtual clock, failures injected by chance (with a seed) or at a chosen place, retries, the policies alert and defer, feeders that switch off after repeated faults, pause, step by step, and a saved state to resume from; it only simulates, nothing has driven a machine. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
-| Window | 🔴 | Planned: the egui window common to the suite; today there is only the command line. |
+| Window | 🟠 | An egui window (build it with `--features gui`; `phoenix-pnp` with no command opens it): tabs for the job, parts, packages, feeders, load sheet, machine, problems and log, a map of the work table with the path of the head, polarity marks and the part that is next, a guide of five steps, problems with fixes that can be undone, a simulated job that can be paused, resumed and stepped, and the eight languages. Its logic is tested without a screen; the drawing is not covered by tests and has not been checked on a screen. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
 | Documentation | 🟡 | README in eight languages, the changelog and the two pictures drawn from `docs/`. |
 
@@ -65,10 +65,11 @@ Each line is one part of this repository and the light says how far it is today.
 * **The planner of the machine** (`src/planner.rs`, `src/motion.rs`): ranks (blocks that are placed one after the other), strategies of order, nozzle tips and their changes, the limits of the angle of the nozzle, the time of the moves with acceleration and jerk, shorter walks (2-opt) and the correction of the origin of a part.
 * **Panels, load sheet and exports** (`src/panel.rs`, `src/loadsheet.rs`, `src/export.rs`): boards and panels inside panels, the slot of each kind of tape, a report, the list of what is missing and a G-code that only moves the head.
 * **The simulator and the job** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): the checks before a job, a machine with a virtual clock and failures that can be injected, and a job that can be paused, taken step by step, saved and resumed.
+* **The window** (`src/gui.rs`, `src/gui/`): what the window does besides drawing needs no screen (the files that were loaded, the plan and its problems with fixes, the simulated job, the geometry of the map, the tables with a shared selection, the guide of five steps and the words in eight languages) and is tested; only `src/gui/window.rs`, built with `--features gui`, draws it with egui. The speed of the simulation, the theme and the size drawn for a part of an unknown package are keys of `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
 ## 🧩 Role in EH3D
 
-EH3D-PHOENIX-PNP is one program of the EH3D Fabrication Suite. Today it works as a library and a command line; its window, in the look the other programs of the suite share, is planned. It reads and writes plain files, so it can be used on its own or between the other programs.
+EH3D-PHOENIX-PNP is one program of the EH3D Fabrication Suite. Today it works as a library, a command line and a window (built with `--features gui`); the window does not yet have the look the other programs of the suite share. It reads and writes plain files, so it can be used on its own or between the other programs.
 
 ## 🏛️ Architecture
 
@@ -113,10 +114,24 @@ EH3D-PHOENIX-PNP/
 │   ├── export.rs                                the report, the list of what is missing and the G-code of the movements
 │   ├── feeders.rs                               a part of the logic
 │   ├── feeding.rs                               feeders with priority, trays and strips, and the choice of the feeder for a part
+│   ├── gui.rs                                   the window: modules that need no screen, and the drawing in window.rs
+│   ├── gui/app.rs                               the state of the window: load, plan, start, pause, step, fix, save
+│   ├── gui/log.rs                               the log with levels, and the text of the diagnostic that can be copied
+│   ├── gui/problems.rs                          the problems of a job and the fixes that put them right
+│   ├── gui/samples.rs                           samples, from a small board to a large one
+│   ├── gui/session.rs                           the simulated job that is started, paused, resumed and stepped
+│   ├── gui/settings.rs                          what the window remembers: language, theme, layers and the output folder
+│   ├── gui/tables.rs                            the rows, the sorting and the selection shared by the tables
+│   ├── gui/texts.rs                             every word of the window in the eight languages
+│   ├── gui/theme.rs                             the colours: phoenix green, light and high contrast
+│   ├── gui/view.rs                              the geometry of the map: bodies, polarity marks, fit, zoom and hit
+│   ├── gui/window.rs                            the drawing with egui, built with the gui feature: tabs, map and tables
+│   ├── gui/wizard.rs                            the guide of five steps from nothing to a simulated job
+│   ├── gui/workspace.rs                         the files that were loaded, the plan and the edits, without a window
 │   ├── job.rs                                   the job: steps, pause, retries, policies, statistics and saved state
 │   ├── lib.rs                                   the library: what every command uses
 │   ├── loadsheet.rs                             the load sheet: the slot of each kind of tape
-│   ├── main.rs                                  the command line
+│   ├── main.rs                                  the command line, and the entry of the window when it runs with no command
 │   ├── model.rs                                 the parts of a machine as traits: machine, nozzle, feeder, actuator, camera, driver
 │   ├── motion.rs                                the time a move takes, with acceleration and jerk
 │   ├── panel.rs                                 panels: boards and panels inside panels, each in its place
@@ -130,6 +145,7 @@ EH3D-PHOENIX-PNP/
 ├── tests/
 │   ├── commands.rs                              tests of the commands that use the configuration
 │   ├── feeding.rs                               tests of the feeders: priority, trays and strips
+│   ├── gui.rs                                   tests of the window without a screen: state, plan, job, map, tables and guide
 │   ├── job.rs                                   tests of the job: steps, retries and saved state
 │   ├── loadsheet.rs                             tests of the load sheet and the exports
 │   ├── model.rs                                 tests of the data model: codes, lengths, configuration and tables
@@ -205,7 +221,7 @@ The tables of packages and parts (`--packages`, `--catalog`) are CSV files in wh
 
 ## 🚀 Quick start
 
-You need a stable Rust toolchain (1.75 or newer).
+You need a stable Rust toolchain (1.95 or newer).
 
 ```bash
 cargo build --release
@@ -214,11 +230,14 @@ cargo run --release -- plan examples/board.pos examples/feeders.csv examples/pla
 cargo run --release -- schedule examples/board.pos examples/feeders.csv examples/schedule.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
 cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
+cargo run --release --features gui
 ```
+
+The last line opens the window; so does `phoenix-pnp` with no command when it was built with `--features gui` (on Linux the window needs the development files of X11 or Wayland and OpenGL). With a command, the program stays a command line.
 
 ## 🧪 Testing
 
-The suite has 198 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 248 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -300,14 +319,14 @@ EH3D-PHOENIX-PNP/
 
 **Known limits today**
 
-* It has no window yet: only the library and the command line exist.
+* The drawing of the window has not been checked on a screen; its tables do not remember the width of their columns, and it has no tabs for panels and boards, no jog and no camera.
 * It has not been tried on a machine nor with a collection of real files, and it has had no independent review; everything it does with a machine is a simulation.
 * It does not read the files of other pick and place programs, and the rule for the angle of the bottom side of a CSV (`bottom_rotation`) has not been compared with real files of any CAD program.
 * There is no camera, no correction of the pick by vision and no driver of a real machine yet; the plan is a JSON file for another program to run.
 
 **Next**
 
-* Add the window in the look shared by the programs of the suite, in the eight languages: the work table, the tables of parts and feeders and the panel of problems and solutions.
+* Bring the window to the look shared by the programs of the suite and add what it lacks: tabs for panels and boards, widths of the columns that are remembered and the editing of the tables of packages.
 * Fiducials of the board and the panel, and the correction by camera of EH3D-VISION-STUDIO; send a plan to a machine only after trying it on a real one.
 * Try it with real files and with the other programs of the suite.
 
