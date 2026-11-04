@@ -3,6 +3,11 @@
 #![forbid(unsafe_code)]
 //! The parts of a board with their positions, the feeders that hold them and the order in which a machine with one or more nozzles places them.
 
+pub mod catalog;
+pub mod config;
+pub mod error;
 pub mod feeders;
 pub mod parts;
 pub mod plan;
+pub mod rotation;
+pub mod units;

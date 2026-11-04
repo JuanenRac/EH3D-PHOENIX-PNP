@@ -33,7 +33,7 @@ pub const MAX_PARTS: usize = 50_000;
 const MAX_COORDINATE: f64 = 10_000.0;
 
 /// A number with an optional unit (`12.5`, `12.5mm`, `492mil`, `0.5in`), in millimetres; a bare number is taken as `bare` millimetres per unit (the unit the column header names).
-fn length_with(text: &str, bare: f64) -> Result<f64, String> {
+pub(crate) fn length_with(text: &str, bare: f64) -> Result<f64, String> {
     let t = text.trim().to_ascii_lowercase();
     let (num, factor) = if let Some(n) = t.strip_suffix("mm") {
         (n, 1.0)
@@ -127,17 +127,92 @@ pub fn read_records(text: &str, delim: char) -> Result<Vec<Vec<String>>, String>
     Ok(records)
 }
 
-fn column(header: &[String], names: &[&str]) -> Option<usize> {
-    header
-        .iter()
-        .position(|h| names.contains(&h.trim().to_ascii_lowercase().as_str()))
+/// Where the names of the columns of a CSV come from: the ones every CAD program uses, plus the synonyms that the configuration adds.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Profile {
+    pub extra_reference: Vec<String>,
+    pub extra_value: Vec<String>,
+    pub extra_package: Vec<String>,
+    pub extra_x: Vec<String>,
+    pub extra_y: Vec<String>,
+    pub extra_rotation: Vec<String>,
+    pub extra_side: Vec<String>,
+    /// Which pair of position columns is read when the file has both the centre of the body and the origin of the part.
+    pub position: PositionColumns,
+    /// What is done with the angle of the parts of the bottom side.
+    pub bottom_rotation: BottomRotation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PositionColumns {
+    /// The first position column of the file, whatever it is called.
+    #[default]
+    Any,
+    /// The centre of the body (`Mid X`, `Center-X`).
+    Center,
+    /// The origin of the part (`Ref X`).
+    Origin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BottomRotation {
+    /// The angle as the file gives it.
+    #[default]
+    Keep,
+    /// The angle turned to the other direction: 360 minus the angle.
+    Mirror,
+    /// The angle plus a half turn.
+    HalfTurn,
+}
+
+fn names_of(base: &[&str], extra: &[String]) -> Vec<String> {
+    base.iter()
+        .map(|s| s.to_string())
+        .chain(extra.iter().map(|s| s.trim().to_ascii_lowercase()))
+        .collect()
+}
+
+fn position_names(axis: char, mode: PositionColumns, extra: &[String]) -> Vec<String> {
+    let a = axis;
+    let mut names = vec![
+        a.to_string(),
+        format!("pos{a}"),
+        format!("pos {a}"),
+        format!("pos-{a}"),
+    ];
+    let center = [
+        format!("mid {a}"),
+        format!("mid{a}"),
+        format!("center-{a}"),
+        format!("center {a}"),
+        format!("center{a}"),
+        format!("center-{a}(mm)"),
+    ];
+    let origin = [format!("ref {a}"), format!("ref{a}"), format!("ref-{a}")];
+    match mode {
+        PositionColumns::Any => {
+            names.extend(center);
+            names.extend(origin);
+        }
+        PositionColumns::Center => names.extend(center),
+        PositionColumns::Origin => names.extend(origin),
+    }
+    names.extend(extra.iter().map(|s| s.trim().to_ascii_lowercase()));
+    names
+}
+
+fn column(header: &[String], names: &[String]) -> Option<usize> {
+    header.iter().position(|h| {
+        let lc = h.trim().to_ascii_lowercase();
+        names.iter().any(|n| *n == lc)
+    })
 }
 
 /// Like `column`, for a position: a header may name its unit, `PosX(mil)`, `Center-X(in)` or `X [mm]`, and the unit (in millimetres per unit) is returned with the column.
-fn column_unit(header: &[String], names: &[&str]) -> Option<(usize, f64)> {
+fn column_unit(header: &[String], names: &[String]) -> Option<(usize, f64)> {
     header.iter().enumerate().find_map(|(i, h)| {
         let lc = h.trim().to_ascii_lowercase();
-        if names.contains(&lc.as_str()) {
+        if names.iter().any(|n| *n == lc) {
             return Some((i, 1.0));
         }
         let (open, close) = if lc.ends_with(')') {
@@ -155,12 +230,18 @@ fn column_unit(header: &[String], names: &[&str]) -> Option<(usize, f64)> {
             "in" | "inch" | "inches" => 25.4,
             _ => return None,
         };
-        names.contains(&lc[..at].trim()).then_some((i, factor))
+        let base = lc[..at].trim();
+        names.iter().any(|n| n == base).then_some((i, factor))
     })
 }
 
 /// A CSV (comma or semicolon) with a header row. The columns are found by name: designator or ref, value or val, package or footprint, x, y, rotation or rot, side or layer.
 pub fn from_csv(text: &str) -> Result<Vec<Part>, String> {
+    from_csv_with(text, &Profile::default())
+}
+
+/// The same with the synonyms of a profile for the names of the columns, the pair of position columns it prefers and its rule for the angle of the bottom side.
+pub fn from_csv_with(text: &str, profile: &Profile) -> Result<Vec<Part>, String> {
     let text = text.trim_start_matches('\u{feff}');
     let head_line = text
         .lines()
@@ -172,46 +253,68 @@ pub fn from_csv(text: &str) -> Result<Vec<Part>, String> {
         .into_iter()
         .filter(|r| !r.first().is_some_and(|f| f.starts_with("//")));
     let header = records.next().ok_or("the file is empty")?;
-    let find = |names: &[&str], what: &str| {
-        column(&header, names).ok_or_else(|| format!("the header has no column for the {what}"))
+    let find = |names: Vec<String>, what: &str| {
+        column(&header, &names).ok_or_else(|| format!("the header has no column for the {what}"))
     };
     let (c_ref, c_val, c_pkg) = (
-        find(&["designator", "ref", "reference", "refdes"], "reference")?,
-        find(&["value", "val", "comment"], "value")?,
-        find(&["package", "footprint", "pattern"], "package")?,
+        find(
+            names_of(
+                &[
+                    "designator",
+                    "ref",
+                    "reference",
+                    "refdes",
+                    "ref des",
+                    "ref-des",
+                    "part ref",
+                ],
+                &profile.extra_reference,
+            ),
+            "reference",
+        )?,
+        find(
+            names_of(
+                &["value", "val", "comment", "part value"],
+                &profile.extra_value,
+            ),
+            "value",
+        )?,
+        find(
+            names_of(
+                &["package", "footprint", "pattern", "decal"],
+                &profile.extra_package,
+            ),
+            "package",
+        )?,
     );
-    let find_unit = |names: &[&str], what: &str| {
-        column_unit(&header, names)
+    let find_unit = |names: Vec<String>, what: &str| {
+        column_unit(&header, &names)
             .ok_or_else(|| format!("the header has no column for the {what}"))
     };
     let ((c_x, ux), (c_y, uy)) = (
         find_unit(
-            &[
-                "x",
-                "posx",
-                "mid x",
-                "midx",
-                "center-x(mm)",
-                "center-x",
-                "ref x",
-            ],
+            position_names('x', profile.position, &profile.extra_x),
             "x position",
         )?,
         find_unit(
-            &[
-                "y",
-                "posy",
-                "mid y",
-                "midy",
-                "center-y(mm)",
-                "center-y",
-                "ref y",
-            ],
+            position_names('y', profile.position, &profile.extra_y),
             "y position",
         )?,
     );
-    let c_rot = find(&["rotation", "rot", "angle"], "rotation")?;
-    let c_side = find(&["side", "layer", "tb"], "side")?;
+    let c_rot = find(
+        names_of(
+            &["rotation", "rot", "angle", "orientation"],
+            &profile.extra_rotation,
+        ),
+        "rotation",
+    )?;
+    let c_side = find(
+        names_of(
+            &["side", "layer", "tb", "top/bottom", "topbottom"],
+            &profile.extra_side,
+        ),
+        "side",
+    )?;
     let mut parts = Vec::new();
     for (i, f) in records.enumerate() {
         if parts.len() >= MAX_PARTS {
@@ -223,7 +326,7 @@ pub fn from_csv(text: &str) -> Result<Vec<Part>, String> {
                 .ok_or_else(|| format!("row {}: it has {} fields", i + 2, f.len()))
         };
         let row = |e: String| format!("row {}: {e}", i + 2);
-        parts.push(Part {
+        let mut part = Part {
             reference: at(c_ref).map_err(row)?.to_string(),
             value: at(c_val).map_err(row)?.to_string(),
             package: at(c_pkg).map_err(row)?.to_string(),
@@ -231,7 +334,15 @@ pub fn from_csv(text: &str) -> Result<Vec<Part>, String> {
             y: length_with(at(c_y).map_err(row)?, uy).map_err(row)?,
             rotation: angle(at(c_rot).map_err(row)?).map_err(row)?,
             side: side_of(at(c_side).map_err(row)?).map_err(row)?,
-        });
+        };
+        if part.side == Side::Bottom {
+            part.rotation = match profile.bottom_rotation {
+                BottomRotation::Keep => part.rotation,
+                BottomRotation::Mirror => (360.0 - part.rotation).rem_euclid(360.0),
+                BottomRotation::HalfTurn => (part.rotation + 180.0).rem_euclid(360.0),
+            };
+        }
+        parts.push(part);
     }
     check(&parts)?;
     Ok(parts)

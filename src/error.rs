@@ -1,0 +1,499 @@
+//! The error codes of the program, `PHOENIX-PNP-NNN`, and their short meaning in the eight languages of the suite. A code never changes its number once it is published; the detail that
+//! follows it names the file, the line, the key or the value that caused the error.
+
+use std::fmt;
+
+/// The languages of the suite, in the order of the columns of the table of messages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Lang {
+    En,
+    Es,
+    De,
+    Fr,
+    It,
+    Ja,
+    Zh,
+    Pt,
+}
+
+impl Lang {
+    pub const ALL: [Lang; 8] = [
+        Lang::En,
+        Lang::Es,
+        Lang::De,
+        Lang::Fr,
+        Lang::It,
+        Lang::Ja,
+        Lang::Zh,
+        Lang::Pt,
+    ];
+
+    /// The two-letter code of the language (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh`, `pt`).
+    pub fn code(self) -> &'static str {
+        match self {
+            Lang::En => "en",
+            Lang::Es => "es",
+            Lang::De => "de",
+            Lang::Fr => "fr",
+            Lang::It => "it",
+            Lang::Ja => "ja",
+            Lang::Zh => "zh",
+            Lang::Pt => "pt",
+        }
+    }
+
+    /// The language that a code names, without regard to case; `None` for a code the suite does not have.
+    pub fn from_code(text: &str) -> Option<Lang> {
+        let t = text.trim().to_ascii_lowercase();
+        Lang::ALL.into_iter().find(|l| l.code() == t)
+    }
+}
+
+/// Every error the program can name. The number is the one shown to the person: `PHOENIX-PNP-007`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(u16)]
+pub enum Code {
+    FileTooBig = 1,
+    TooManyParts = 2,
+    ConfigSyntax = 3,
+    ConfigUnknownKey = 4,
+    ConfigBadValue = 5,
+    ConfigOutOfRange = 6,
+    ConfigSchemaNewer = 7,
+    ConfigDuplicateKey = 8,
+    UnsafeSetting = 9,
+    CatalogBadRow = 10,
+    CatalogDuplicate = 11,
+    RotationRule = 12,
+    FeederBadRow = 13,
+    PanelBad = 14,
+    PanelTooBig = 15,
+    SlotsBad = 16,
+    PlanSetting = 17,
+    RotationUnreachable = 18,
+    NozzleBusy = 19,
+    NozzleEmpty = 20,
+    FeederUnavailable = 21,
+    PickFailed = 22,
+    FeedFailed = 23,
+    PlaceFailed = 24,
+    JobStateMismatch = 25,
+    JobStateBad = 26,
+    JobNotRunnable = 27,
+    PreflightFailed = 28,
+    UnitBad = 29,
+    DriverError = 30,
+    SimFault = 31,
+}
+
+impl Code {
+    pub const ALL: [Code; 31] = [
+        Code::FileTooBig,
+        Code::TooManyParts,
+        Code::ConfigSyntax,
+        Code::ConfigUnknownKey,
+        Code::ConfigBadValue,
+        Code::ConfigOutOfRange,
+        Code::ConfigSchemaNewer,
+        Code::ConfigDuplicateKey,
+        Code::UnsafeSetting,
+        Code::CatalogBadRow,
+        Code::CatalogDuplicate,
+        Code::RotationRule,
+        Code::FeederBadRow,
+        Code::PanelBad,
+        Code::PanelTooBig,
+        Code::SlotsBad,
+        Code::PlanSetting,
+        Code::RotationUnreachable,
+        Code::NozzleBusy,
+        Code::NozzleEmpty,
+        Code::FeederUnavailable,
+        Code::PickFailed,
+        Code::FeedFailed,
+        Code::PlaceFailed,
+        Code::JobStateMismatch,
+        Code::JobStateBad,
+        Code::JobNotRunnable,
+        Code::PreflightFailed,
+        Code::UnitBad,
+        Code::DriverError,
+        Code::SimFault,
+    ];
+
+    pub fn number(self) -> u16 {
+        self as u16
+    }
+
+    /// `PHOENIX-PNP-007`.
+    pub fn label(self) -> String {
+        format!("PHOENIX-PNP-{:03}", self.number())
+    }
+
+    /// The short meaning of the code in a language.
+    pub fn message(self, lang: Lang) -> &'static str {
+        MESSAGES[self as usize - 1][lang as usize]
+    }
+}
+
+/// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
+static MESSAGES: [[&str; 8]; 31] = [
+    [
+        "The file is larger than the allowed size",
+        "El archivo supera el tamaño permitido",
+        "Die Datei ist größer als erlaubt",
+        "Le fichier dépasse la taille autorisée",
+        "Il file supera la dimensione consentita",
+        "ファイルが許容サイズを超えています",
+        "文件超过允许的大小",
+        "O ficheiro excede o tamanho permitido",
+    ],
+    [
+        "There are more parts than the limit allows",
+        "Hay más piezas de las que permite el límite",
+        "Es gibt mehr Teile, als das Limit erlaubt",
+        "Il y a plus de pièces que la limite ne l'autorise",
+        "Ci sono più parti di quante ne consenta il limite",
+        "部品数が上限を超えています",
+        "零件数量超过上限",
+        "Há mais peças do que o limite permite",
+    ],
+    [
+        "A line of the configuration is not key = value",
+        "Una línea de la configuración no es clave = valor",
+        "Eine Zeile der Konfiguration ist nicht Schlüssel = Wert",
+        "Une ligne de la configuration n'est pas clé = valeur",
+        "Una riga della configurazione non è chiave = valore",
+        "設定の行が「キー = 値」の形式ではありません",
+        "配置中有一行不是“键 = 值”",
+        "Uma linha da configuração não é chave = valor",
+    ],
+    [
+        "The configuration has a key that is not known",
+        "La configuración tiene una clave que no se conoce",
+        "Die Konfiguration enthält einen unbekannten Schlüssel",
+        "La configuration contient une clé inconnue",
+        "La configurazione contiene una chiave sconosciuta",
+        "設定に未知のキーがあります",
+        "配置中有未知的键",
+        "A configuração tem uma chave desconhecida",
+    ],
+    [
+        "A value of the configuration is not valid",
+        "Un valor de la configuración no es válido",
+        "Ein Wert der Konfiguration ist ungültig",
+        "Une valeur de la configuration n'est pas valide",
+        "Un valore della configurazione non è valido",
+        "設定の値が無効です",
+        "配置中的某个值无效",
+        "Um valor da configuração não é válido",
+    ],
+    [
+        "A value of the configuration is outside its range",
+        "Un valor de la configuración está fuera de su rango",
+        "Ein Wert der Konfiguration liegt außerhalb seines Bereichs",
+        "Une valeur de la configuration est hors de sa plage",
+        "Un valore della configurazione è fuori dal suo intervallo",
+        "設定の値が範囲外です",
+        "配置中的某个值超出范围",
+        "Um valor da configuração está fora do seu intervalo",
+    ],
+    [
+        "The configuration was written for a newer version of the program",
+        "La configuración se escribió para una versión más nueva del programa",
+        "Die Konfiguration wurde für eine neuere Programmversion geschrieben",
+        "La configuration a été écrite pour une version plus récente du programme",
+        "La configurazione è stata scritta per una versione più recente del programma",
+        "この設定は新しいバージョンのプログラム用です",
+        "该配置是为更新版本的程序编写的",
+        "A configuração foi escrita para uma versão mais recente do programa",
+    ],
+    [
+        "A key of the configuration is written twice",
+        "Una clave de la configuración está escrita dos veces",
+        "Ein Schlüssel der Konfiguration steht doppelt",
+        "Une clé de la configuration est écrite deux fois",
+        "Una chiave della configurazione è scritta due volte",
+        "設定のキーが重複しています",
+        "配置中有键重复",
+        "Uma chave da configuração está escrita duas vezes",
+    ],
+    [
+        "A setting is beyond the safety limits",
+        "Un ajuste supera los límites de seguridad",
+        "Eine Einstellung überschreitet die Sicherheitsgrenzen",
+        "Un réglage dépasse les limites de sécurité",
+        "Un'impostazione supera i limiti di sicurezza",
+        "設定が安全限界を超えています",
+        "某项设置超出安全限制",
+        "Uma definição ultrapassa os limites de segurança",
+    ],
+    [
+        "A row of the table of parts or packages is not valid",
+        "Una fila de la tabla de piezas o paquetes no es válida",
+        "Eine Zeile der Teile- oder Gehäusetabelle ist ungültig",
+        "Une ligne de la table des pièces ou des boîtiers n'est pas valide",
+        "Una riga della tabella di parti o package non è valida",
+        "部品またはパッケージ表の行が無効です",
+        "零件或封装表中有无效的行",
+        "Uma linha da tabela de peças ou de encapsulamentos não é válida",
+    ],
+    [
+        "A part or package is defined twice",
+        "Una pieza o un paquete está definido dos veces",
+        "Ein Teil oder Gehäuse ist doppelt definiert",
+        "Une pièce ou un boîtier est défini deux fois",
+        "Una parte o un package è definito due volte",
+        "部品またはパッケージが二重に定義されています",
+        "零件或封装被重复定义",
+        "Uma peça ou um encapsulamento está definido duas vezes",
+    ],
+    [
+        "A rule of rotation offset is not valid",
+        "Una regla de corrección de rotación no es válida",
+        "Eine Regel für den Drehwinkelversatz ist ungültig",
+        "Une règle de correction de rotation n'est pas valide",
+        "Una regola di correzione della rotazione non è valida",
+        "回転補正の規則が無効です",
+        "旋转偏移规则无效",
+        "Uma regra de correção de rotação não é válida",
+    ],
+    [
+        "A row of the feeders is not valid",
+        "Una fila de los alimentadores no es válida",
+        "Eine Zeile der Zuführungen ist ungültig",
+        "Une ligne des alimentateurs n'est pas valide",
+        "Una riga degli alimentatori non è valida",
+        "フィーダーの行が無効です",
+        "供料器表中有无效的行",
+        "Uma linha dos alimentadores não é válida",
+    ],
+    [
+        "The panel file is not valid",
+        "El archivo del panel no es válido",
+        "Die Panel-Datei ist ungültig",
+        "Le fichier du panneau n'est pas valide",
+        "Il file del pannello non è valido",
+        "パネルファイルが無効です",
+        "拼板文件无效",
+        "O ficheiro do painel não é válido",
+    ],
+    [
+        "The panel is nested too deep or has too many boards",
+        "El panel está anidado demasiado hondo o tiene demasiadas placas",
+        "Das Panel ist zu tief verschachtelt oder hat zu viele Platinen",
+        "Le panneau est imbriqué trop profondément ou a trop de cartes",
+        "Il pannello è annidato troppo in profondità o ha troppe schede",
+        "パネルの入れ子が深すぎるか基板が多すぎます",
+        "拼板嵌套过深或电路板过多",
+        "O painel está demasiado aninhado ou tem demasiadas placas",
+    ],
+    [
+        "The table of slots is not valid",
+        "La tabla de ranuras no es válida",
+        "Die Slot-Tabelle ist ungültig",
+        "La table des emplacements n'est pas valide",
+        "La tabella degli slot non è valida",
+        "スロット表が無効です",
+        "槽位表无效",
+        "A tabela de ranhuras não é válida",
+    ],
+    [
+        "A setting of the plan is not valid",
+        "Un ajuste del plan no es válido",
+        "Eine Einstellung des Plans ist ungültig",
+        "Un réglage du plan n'est pas valide",
+        "Un'impostazione del piano non è valida",
+        "計画の設定が無効です",
+        "计划的某项设置无效",
+        "Uma definição do plano não é válida",
+    ],
+    [
+        "The nozzle cannot turn to that angle within its limits",
+        "El nozzle no puede girar a ese ángulo dentro de sus límites",
+        "Die Düse kann sich innerhalb ihrer Grenzen nicht auf diesen Winkel drehen",
+        "La buse ne peut pas tourner à cet angle dans ses limites",
+        "L'ugello non può ruotare a quell'angolo entro i suoi limiti",
+        "ノズルは制限内でその角度に回転できません",
+        "吸嘴无法在其限位内转到该角度",
+        "O nozzle não consegue rodar para esse ângulo dentro dos seus limites",
+    ],
+    [
+        "The nozzle already holds a part: it cannot pick another",
+        "El nozzle ya lleva una pieza: no puede recoger otra",
+        "Die Düse hält schon ein Teil: sie kann kein weiteres aufnehmen",
+        "La buse tient déjà une pièce : elle ne peut pas en prendre une autre",
+        "L'ugello tiene già una parte: non può prenderne un'altra",
+        "ノズルは既に部品を保持しており、別の部品は取れません",
+        "吸嘴已吸着零件，不能再取另一个",
+        "O nozzle já tem uma peça: não pode pegar noutra",
+    ],
+    [
+        "The nozzle holds no part to place",
+        "El nozzle no lleva ninguna pieza para colocar",
+        "Die Düse hält kein Teil zum Bestücken",
+        "La buse ne tient aucune pièce à poser",
+        "L'ugello non tiene nessuna parte da posizionare",
+        "ノズルに配置する部品がありません",
+        "吸嘴上没有可贴装的零件",
+        "O nozzle não tem nenhuma peça para colocar",
+    ],
+    [
+        "No feeder is available for the part",
+        "No hay ningún alimentador disponible para la pieza",
+        "Für das Teil ist keine Zuführung verfügbar",
+        "Aucun alimentateur n'est disponible pour la pièce",
+        "Nessun alimentatore è disponibile per la parte",
+        "この部品に使えるフィーダーがありません",
+        "该零件没有可用的供料器",
+        "Não há nenhum alimentador disponível para a peça",
+    ],
+    [
+        "The part could not be picked after all the attempts",
+        "No se pudo recoger la pieza tras todos los intentos",
+        "Das Teil konnte nach allen Versuchen nicht aufgenommen werden",
+        "La pièce n'a pas pu être prise après toutes les tentatives",
+        "Non è stato possibile prelevare la parte dopo tutti i tentativi",
+        "すべての試行後も部品を取れませんでした",
+        "多次尝试后仍无法拾取该零件",
+        "Não foi possível pegar na peça depois de todas as tentativas",
+    ],
+    [
+        "The feeder could not advance after all the attempts",
+        "El alimentador no pudo avanzar tras todos los intentos",
+        "Die Zuführung konnte nach allen Versuchen nicht weiterschalten",
+        "L'alimentateur n'a pas pu avancer après toutes les tentatives",
+        "L'alimentatore non è riuscito ad avanzare dopo tutti i tentativi",
+        "すべての試行後もフィーダーが送れませんでした",
+        "多次尝试后供料器仍无法前进",
+        "O alimentador não conseguiu avançar depois de todas as tentativas",
+    ],
+    [
+        "The part could not be placed after all the attempts",
+        "No se pudo colocar la pieza tras todos los intentos",
+        "Das Teil konnte nach allen Versuchen nicht bestückt werden",
+        "La pièce n'a pas pu être posée après toutes les tentatives",
+        "Non è stato possibile posizionare la parte dopo tutti i tentativi",
+        "すべての試行後も部品を配置できませんでした",
+        "多次尝试后仍无法贴装该零件",
+        "Não foi possível colocar a peça depois de todas as tentativas",
+    ],
+    [
+        "The saved state belongs to another job",
+        "El estado guardado pertenece a otro trabajo",
+        "Der gespeicherte Zustand gehört zu einem anderen Auftrag",
+        "L'état enregistré appartient à un autre travail",
+        "Lo stato salvato appartiene a un altro lavoro",
+        "保存された状態は別のジョブのものです",
+        "保存的状态属于另一个作业",
+        "O estado guardado pertence a outro trabalho",
+    ],
+    [
+        "The saved state of the job is not valid",
+        "El estado guardado del trabajo no es válido",
+        "Der gespeicherte Zustand des Auftrags ist ungültig",
+        "L'état enregistré du travail n'est pas valide",
+        "Lo stato salvato del lavoro non è valido",
+        "保存されたジョブの状態が無効です",
+        "保存的作业状态无效",
+        "O estado guardado do trabalho não é válido",
+    ],
+    [
+        "The job is paused, finished or stopped by an error",
+        "El trabajo está en pausa, terminado o detenido por un error",
+        "Der Auftrag ist pausiert, beendet oder durch einen Fehler gestoppt",
+        "Le travail est en pause, terminé ou arrêté par une erreur",
+        "Il lavoro è in pausa, terminato o fermato da un errore",
+        "ジョブは一時停止中、完了、またはエラーで停止しています",
+        "作业已暂停、已完成或因错误而停止",
+        "O trabalho está em pausa, terminado ou parado por um erro",
+    ],
+    [
+        "The checks before the job found errors",
+        "Las comprobaciones previas al trabajo encontraron errores",
+        "Die Prüfungen vor dem Auftrag haben Fehler gefunden",
+        "Les vérifications avant le travail ont trouvé des erreurs",
+        "I controlli prima del lavoro hanno trovato errori",
+        "ジョブ前の確認でエラーが見つかりました",
+        "作业前检查发现了错误",
+        "As verificações antes do trabalho encontraram erros",
+    ],
+    [
+        "A length or an angle is not valid",
+        "Una longitud o un ángulo no es válido",
+        "Eine Länge oder ein Winkel ist ungültig",
+        "Une longueur ou un angle n'est pas valide",
+        "Una lunghezza o un angolo non è valido",
+        "長さまたは角度が無効です",
+        "长度或角度无效",
+        "Um comprimento ou um ângulo não é válido",
+    ],
+    [
+        "The driver did not accept the command",
+        "El controlador no aceptó la orden",
+        "Der Treiber hat den Befehl nicht angenommen",
+        "Le pilote n'a pas accepté la commande",
+        "Il driver non ha accettato il comando",
+        "ドライバーがコマンドを受け付けませんでした",
+        "驱动程序未接受该命令",
+        "O controlador não aceitou o comando",
+    ],
+    [
+        "The simulator injected a fault",
+        "El simulador inyectó un fallo",
+        "Der Simulator hat einen Fehler eingespeist",
+        "Le simulateur a injecté une panne",
+        "Il simulatore ha iniettato un guasto",
+        "シミュレーターが障害を注入しました",
+        "模拟器注入了故障",
+        "O simulador injetou uma falha",
+    ],
+];
+
+/// An error with its code and the detail that says what, where and why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PnpError {
+    pub code: Code,
+    pub detail: String,
+}
+
+impl PnpError {
+    pub fn new(code: Code, detail: impl Into<String>) -> PnpError {
+        PnpError {
+            code,
+            detail: detail.into(),
+        }
+    }
+
+    /// The error in a language: the code, its meaning and the detail (which stays in English).
+    pub fn localized(&self, lang: Lang) -> String {
+        if self.detail.is_empty() {
+            format!("{}: {}", self.code.label(), self.code.message(lang))
+        } else {
+            format!(
+                "{}: {} ({})",
+                self.code.label(),
+                self.code.message(lang),
+                self.detail
+            )
+        }
+    }
+}
+
+impl fmt::Display for PnpError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.detail.is_empty() {
+            write!(f, "{}: {}", self.code.label(), self.code.message(Lang::En))
+        } else {
+            write!(f, "{}: {}", self.code.label(), self.detail)
+        }
+    }
+}
+
+impl std::error::Error for PnpError {}
+
+impl From<PnpError> for String {
+    fn from(e: PnpError) -> String {
+        e.to_string()
+    }
+}
