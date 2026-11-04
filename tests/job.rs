@@ -428,8 +428,7 @@ fn the_tip_is_changed_when_the_plan_says_and_the_changes_are_counted() {
     let parts = "ref,val,package,x,y,rot,side\nA1,a,PA,1,0,0,top\nB1,b,PB,2,0,0,top\nA2,a,PA,3,0,0,top\nB2,b,PB,4,0,0,top\n";
     let feeders = "id,value,package,x,y,count\nFA,a,PA,-10,0,5\nFB,b,PB,-10,10,5\n";
     let tables = "package,nozzle_tip\nPA,N1\nPB,N2\n";
-    let cfg =
-        "tip_strategy = as_planned\ntip_changer_x_mm = -50\ntip_changer_y_mm = 0\ntip_change_s = 3";
+    let cfg = "tip_strategy = as_planned\ntip_changer_x_mm = -50\ntip_changer_y_mm = 0";
     let mut j = job_of(
         parts,
         feeders,
