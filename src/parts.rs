@@ -204,7 +204,7 @@ fn position_names(axis: char, mode: PositionColumns, extra: &[String]) -> Vec<St
 fn column(header: &[String], names: &[String]) -> Option<usize> {
     header.iter().position(|h| {
         let lc = h.trim().to_ascii_lowercase();
-        names.iter().any(|n| *n == lc)
+        names.contains(&lc)
     })
 }
 
@@ -212,7 +212,7 @@ fn column(header: &[String], names: &[String]) -> Option<usize> {
 fn column_unit(header: &[String], names: &[String]) -> Option<(usize, f64)> {
     header.iter().enumerate().find_map(|(i, h)| {
         let lc = h.trim().to_ascii_lowercase();
-        if names.iter().any(|n| *n == lc) {
+        if names.contains(&lc) {
             return Some((i, 1.0));
         }
         let (open, close) = if lc.ends_with(')') {
