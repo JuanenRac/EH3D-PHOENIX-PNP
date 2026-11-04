@@ -132,7 +132,7 @@ fn icon() -> Option<egui::IconData> {
 
 /// A cell of a table: a text in a box of a fixed width.
 fn cell(ui: &mut egui::Ui, w: f32, text: impl Into<RichText>) {
-    ui.add_sized([w, ROW_H - 2.0], egui::Label::new(text).truncate());
+    ui.add_sized([w, ROW_H - 2.0], egui::Label::new(text.into()).truncate());
 }
 
 /// The head of a table: the names of the columns over the boxes of the cells.
@@ -621,7 +621,7 @@ impl PnpApp {
                     let (status_text, status_color) = status_label(r.status, lang, &pal);
                     let resp = row_ui(
                         ui,
-                        egui::Id::new(("plan_row", r.step)),
+                        egui::Id::unique("plan_row").with(r.step),
                         chosen || current,
                         &pal,
                         true,
@@ -924,7 +924,7 @@ impl PnpApp {
                     };
                     let resp = row_ui(
                         ui,
-                        egui::Id::new(("part_row", i)),
+                        egui::Id::unique("part_row").with(i),
                         chosen,
                         &pal,
                         true,
@@ -1058,7 +1058,7 @@ impl PnpApp {
                     let mut count_rect = Rect::NOTHING;
                     let resp = row_ui(
                         ui,
-                        egui::Id::new(("feeder_row", i)),
+                        egui::Id::unique("feeder_row").with(i),
                         chosen,
                         &pal,
                         !editing,
