@@ -3,8 +3,10 @@
 #![forbid(unsafe_code)]
 
 mod cli_args;
+mod commands;
 
 use cli_args::{finish, flag, num, switch};
+use eh3d_phoenix_pnp::config::MachineConfig;
 use eh3d_phoenix_pnp::feeders::{assign, assign_side, from_csv as feeders_csv};
 use eh3d_phoenix_pnp::parts::{parse, Side};
 use eh3d_phoenix_pnp::plan::{plan, Settings};
@@ -18,19 +20,22 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp check PARTS FEEDERS              which parts have no feeder and which feeders will run out
   phoenix-pnp plan PARTS FEEDERS OUT.json [--nozzles 2] [--side top|bottom] [--board-width MM] [--origin-x MM] [--speed MM_S] [--partial]
 
+  phoenix-pnp schedule PARTS FEEDERS OUT.json [OPTIONS] [--report-text F] [--gcode F] [--missing F] [--partial]
+  phoenix-pnp preflight PARTS FEEDERS [OPTIONS]            the checks before a job, without writing anything
+  phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--partial]
+  phoenix-pnp loadsheet PARTS SLOTS OUT.csv [OPTIONS] [--feeders-out F]
+  phoenix-pnp config-check FILE [--lang CODE]
+
+OPTIONS of schedule, preflight, simulate and loadsheet: --config FILE (the machine settings), --packages FILE and --catalog FILE (the tables of packages and parts), --panel FILE (a panel in place of
+PARTS), --side top|bottom, --board-width MM, --origin-x MM, --nozzles N, --speed MM_S, --order NAME and --lang CODE (the language of the error messages: en es de fr it ja zh pt). schedule and
+simulate use the whole configuration (ranks, nozzle tips, the limits of the nozzle, the time of the moves) and print the checks before the job; they stop on an error unless --partial is given.
+simulate runs the plan on a simulated machine; with --state the job is saved when it stops (after N steps, or on an error) and resumed from that file the next time.
+
 FEEDERS is a CSV with the header id,value,package,x,y,count. plan refuses to write when a part has no feeder or a feeder runs out, unless --partial is given
 (then only the parts that can be placed are in the plan). The bottom side needs --board-width to be mirrored, about the middle of a board that starts at X 0 (--origin-x MM says where its left edge is).";
 
 fn read(path: &str) -> Result<String, String> {
-    let bytes = fs::read(path).map_err(|e| format!("{path}: {e}"))?;
-    match String::from_utf8(bytes) {
-        Ok(text) => Ok(text),
-        Err(e) => {
-            // the suite reads such text as Latin-1; saying so keeps a value with an omega or a micro sign from silently not matching
-            eprintln!("note: {path}: the text is not UTF-8 and was read as Latin-1");
-            Ok(e.into_bytes().iter().map(|&b| char::from(b)).collect())
-        }
-    }
+    commands::read_text(path, MachineConfig::default().max_file_bytes)
 }
 
 fn run(mut args: Vec<String>) -> Result<(), String> {
@@ -138,6 +143,11 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             );
             Ok(())
         }
+        "schedule" => commands::schedule(args),
+        "preflight" => commands::run_preflight(args),
+        "simulate" => commands::simulate(args),
+        "loadsheet" => commands::run_loadsheet(args),
+        "config-check" => commands::config_check(args),
         other => Err(format!("{other}: unknown command (see help)")),
     }
 }
