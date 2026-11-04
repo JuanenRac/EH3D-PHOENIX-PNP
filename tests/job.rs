@@ -430,7 +430,15 @@ fn the_tip_is_changed_when_the_plan_says_and_the_changes_are_counted() {
     let tables = "package,nozzle_tip\nPA,N1\nPB,N2\n";
     let cfg =
         "tip_strategy = as_planned\ntip_changer_x_mm = -50\ntip_changer_y_mm = 0\ntip_change_s = 3";
-    let mut j = job_of(parts, feeders, tables, cfg);
+    let mut j = job_of(
+        parts,
+        feeders,
+        tables,
+        &format!(
+            "{cfg}
+tip_change_s = 3"
+        ),
+    );
     assert_eq!(j.plan().tip_changes, 3);
     j.run(None).unwrap();
     assert_eq!(j.stats().tip_changes, 3);
