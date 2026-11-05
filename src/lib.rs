@@ -10,6 +10,7 @@ pub mod error;
 pub mod export;
 pub mod feeders;
 pub mod feeding;
+pub mod fiducial;
 pub mod gui;
 pub mod job;
 pub mod loadsheet;

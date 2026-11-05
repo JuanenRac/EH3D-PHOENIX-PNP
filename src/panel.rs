@@ -57,6 +57,21 @@ pub struct Panel {
     root: String,
 }
 
+/// A child of a panel as a row of a table.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChildInfo {
+    /// The panel the child is in.
+    pub panel: String,
+    pub id: String,
+    /// A board (else a panel).
+    pub is_board: bool,
+    /// The name of the board or of the panel.
+    pub target: String,
+    pub x: f64,
+    pub y: f64,
+    pub rotation: f64,
+}
+
 /// The parts and the fiducials of a panel, all in the coordinates of the panel.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Expanded {
@@ -228,6 +243,67 @@ impl Panel {
             }
         }
         Ok(panel)
+    }
+
+    /// The name of the panel the others hang from.
+    pub fn root(&self) -> &str {
+        &self.root
+    }
+
+    /// Every child of every panel, for a table: the panels in the order of their names and the children of each in the order of the file.
+    pub fn children(&self) -> Vec<ChildInfo> {
+        let mut out = Vec::new();
+        for (name, def) in &self.panels {
+            for c in &def.children {
+                let (is_board, target) = match &c.what {
+                    What::Board(b) => (true, b.clone()),
+                    What::Panel(p) => (false, p.clone()),
+                };
+                out.push(ChildInfo {
+                    panel: name.clone(),
+                    id: c.id.clone(),
+                    is_board,
+                    target,
+                    x: c.x,
+                    y: c.y,
+                    rotation: c.rotation,
+                });
+            }
+        }
+        out
+    }
+
+    /// How many times each board is placed in the panel once the panels inside panels are counted; a board that is never reached from the root is not in the list.
+    pub fn board_counts(&self) -> BTreeMap<String, usize> {
+        let mut out = BTreeMap::new();
+        let mut budget = MAX_VISITS;
+        self.count_boards(&self.root, 0, &mut budget, &mut out);
+        out
+    }
+
+    fn count_boards(
+        &self,
+        name: &str,
+        depth: usize,
+        budget: &mut usize,
+        out: &mut BTreeMap<String, usize>,
+    ) {
+        let Some(def) = self.panels.get(name) else {
+            return;
+        };
+        if depth > MAX_DEPTH {
+            return;
+        }
+        for c in &def.children {
+            if *budget == 0 {
+                return;
+            }
+            *budget -= 1;
+            match &c.what {
+                What::Board(b) => *out.entry(b.clone()).or_insert(0) += 1,
+                What::Panel(p) => self.count_boards(p, depth + 1, budget, out),
+            }
+        }
     }
 
     /// The boards the panel uses, with their files, sorted by name.

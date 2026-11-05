@@ -84,10 +84,11 @@ pub enum Code {
     UnitBad = 29,
     DriverError = 30,
     SimFault = 31,
+    FiducialBad = 32,
 }
 
 impl Code {
-    pub const ALL: [Code; 31] = [
+    pub const ALL: [Code; 32] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -119,6 +120,7 @@ impl Code {
         Code::UnitBad,
         Code::DriverError,
         Code::SimFault,
+        Code::FiducialBad,
     ];
 
     pub fn number(self) -> u16 {
@@ -137,7 +139,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 31] = [
+static MESSAGES: [[&str; 8]; 32] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -447,6 +449,16 @@ static MESSAGES: [[&str; 8]; 31] = [
         "シミュレーターが障害を注入しました",
         "模拟器注入了故障",
         "O simulador injetou uma falha",
+    ],
+    [
+        "The fiducials are not valid or do not give a position",
+        "Los fiduciales no son válidos o no dan una posición",
+        "Die Passmarken sind ungültig oder ergeben keine Lage",
+        "Les repères ne sont pas valides ou ne donnent pas de position",
+        "I fiduciali non sono validi o non danno una posizione",
+        "フィデューシャルが無効か、位置を決められません",
+        "基准点无效，或无法确定位置",
+        "Os fiduciais não são válidos ou não dão uma posição",
     ],
 ];
 
