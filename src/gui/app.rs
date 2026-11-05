@@ -3,6 +3,7 @@
 //! Everything the window does that is not drawing: load files, make the plan, find the problems, start, pause, resume and step the simulated job, put a problem right, write the
 //! outputs. The window calls these and shows the result, so all of it can be tested without a screen.
 
+use super::browse::{self, Browser, Purpose};
 use super::log::{Level, Log};
 use super::problems::{self, Fix, Problem};
 use super::samples::SampleFile;
@@ -14,8 +15,11 @@ use super::theme::ThemeId;
 use super::view::{Scene, Viewport};
 use super::wizard::{PlanState, Wizard};
 use super::workspace::{FileKind, Planned, Workspace};
+use crate::catalog::PartProps;
 use crate::error::{Code, Lang, PnpError};
 use crate::export;
+use crate::feeding::FeederSpec;
+use crate::fiducial;
 use crate::job::Phase;
 use crate::preflight::Severity;
 use std::path::{Path, PathBuf};
@@ -27,6 +31,8 @@ pub enum Tab {
     Parts,
     Packages,
     Feeders,
+    Panels,
+    Boards,
     LoadSheet,
     Machine,
     Problems,
@@ -34,11 +40,13 @@ pub enum Tab {
 }
 
 impl Tab {
-    pub const ALL: [Tab; 8] = [
+    pub const ALL: [Tab; 10] = [
         Tab::Job,
         Tab::Parts,
         Tab::Packages,
         Tab::Feeders,
+        Tab::Panels,
+        Tab::Boards,
         Tab::LoadSheet,
         Tab::Machine,
         Tab::Problems,
@@ -51,6 +59,8 @@ impl Tab {
             Tab::Parts => Text::TabParts,
             Tab::Packages => Text::TabPackages,
             Tab::Feeders => Text::TabFeeders,
+            Tab::Panels => Text::TabPanels,
+            Tab::Boards => Text::TabBoards,
             Tab::LoadSheet => Text::TabLoadSheet,
             Tab::Machine => Text::TabMachine,
             Tab::Problems => Text::TabProblems,
@@ -67,6 +77,34 @@ pub struct Summary {
     pub tip_changes: usize,
     pub travel_mm: f64,
     pub seconds: f64,
+}
+
+/// What is typed for the measured place of a fiducial, before it is applied.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FidEdit {
+    /// The fiducial was measured and is used in the fit.
+    pub on: bool,
+    pub x: f64,
+    pub y: f64,
+}
+
+/// The measured places typed for the fiducials of the panel, in the order of the design: the ones already measured with their places, the others at the designed place.
+pub fn fid_buffer(ws: &Workspace) -> Vec<FidEdit> {
+    ws.design_fiducials
+        .iter()
+        .map(|(id, x, y)| match ws.measured.iter().find(|m| m.0 == *id) {
+            Some(m) => FidEdit {
+                on: true,
+                x: m.1,
+                y: m.2,
+            },
+            None => FidEdit {
+                on: false,
+                x: *x,
+                y: *y,
+            },
+        })
+        .collect()
 }
 
 /// The state of the window.
@@ -89,6 +127,12 @@ pub struct AppState {
     pub parts_sort: SortState<PartColumn>,
     pub plan_sort: SortState<PlanColumn>,
     pub feeder_sort: SortState<FeederColumn>,
+    /// The measured places typed for the fiducials of the panel.
+    pub fid_edit: Vec<FidEdit>,
+    /// The file picker, when it is open.
+    pub browser: Option<Browser>,
+    /// The name typed for a new package.
+    pub new_package: String,
     /// The paths of the files that were loaded, to keep an output from landing on an input.
     paths: Vec<PathBuf>,
     reported: Option<PnpError>,
@@ -119,6 +163,9 @@ impl AppState {
             parts_sort: SortState::new(PartColumn::Reference),
             plan_sort: SortState::new(PlanColumn::Step),
             feeder_sort: SortState::new(FeederColumn::Id),
+            fid_edit: Vec::new(),
+            browser: None,
+            new_package: String::new(),
             paths: Vec::new(),
             reported: None,
             finish_logged: false,
@@ -170,6 +217,7 @@ impl AppState {
             }
         }
         if loaded > 0 {
+            self.fid_edit = fid_buffer(&self.ws);
             self.changed();
         }
         loaded
@@ -190,6 +238,7 @@ impl AppState {
                 Err(e) => self.log.error(e),
             }
         }
+        self.fid_edit = fid_buffer(&self.ws);
         self.changed();
         loaded
     }
@@ -225,6 +274,15 @@ impl AppState {
 
     /// Makes the plan, the problems and the drawing again.
     pub fn replan(&mut self) {
+        self.replan_with(true);
+    }
+
+    /// The same without a line in the log: for the edits of a table, which plan again at every change.
+    pub fn replan_quiet(&mut self) {
+        self.replan_with(false);
+    }
+
+    fn replan_with(&mut self, say: bool) {
         self.session.reset();
         self.reported = None;
         self.finish_logged = false;
@@ -233,20 +291,24 @@ impl AppState {
                 self.problems = problems::detect(&p);
                 self.scene = Some(Scene::build(&p, &self.ws));
                 let pl = &p.plan.plan;
-                self.log.info(format!(
-                    "{} {}, {} {}, {:.0} mm {}, {:.0} s",
-                    pl.placements.len(),
-                    tr(Text::SumParts, self.ui.lang),
-                    pl.batches,
-                    tr(Text::SumBatches, self.ui.lang),
-                    pl.travel_mm,
-                    tr(Text::SumTravel, self.ui.lang),
-                    pl.seconds
-                ));
+                if say {
+                    self.log.info(format!(
+                        "{} {}, {} {}, {:.0} mm {}, {:.0} s",
+                        pl.placements.len(),
+                        tr(Text::SumParts, self.ui.lang),
+                        pl.batches,
+                        tr(Text::SumBatches, self.ui.lang),
+                        pl.travel_mm,
+                        tr(Text::SumTravel, self.ui.lang),
+                        pl.seconds
+                    ));
+                }
                 self.planned = Some(p);
             }
             Err(e) => {
-                self.log.error(e.localized(self.ui.lang));
+                if say {
+                    self.log.error(e.localized(self.ui.lang));
+                }
                 self.problems = vec![problems::from_error(&e)];
                 self.planned = None;
                 self.scene = None;
@@ -381,11 +443,19 @@ impl AppState {
         if self.session.phase() == Some(Phase::Finished) && !self.finish_logged {
             self.finish_logged = true;
             let (done, total) = self.session.progress();
+            let seconds = self.session.machine_seconds();
+            let per_hour = if seconds > 0.0 {
+                done as f64 * 3600.0 / seconds
+            } else {
+                0.0
+            };
             self.log.info(format!(
-                "{} - {done}/{total}, {:.1} s {}",
+                "{} - {done}/{total}, {:.1} s {}, {:.0} {}",
                 tr(Text::PhaseFinished, self.ui.lang),
-                self.session.machine_seconds(),
-                tr(Text::SumMachineTime, self.ui.lang)
+                seconds,
+                tr(Text::SumMachineTime, self.ui.lang),
+                per_hour,
+                tr(Text::PartsPerHour, self.ui.lang)
             ));
         }
     }
@@ -431,6 +501,185 @@ impl AppState {
         true
     }
 
+    /// Ends the edit of a table that is going on: the next change is a new step for the undo.
+    pub fn end_edit(&mut self) {
+        self.ws.end_edit();
+    }
+
+    /// Changes a feeder (everything but its id) and plans again. Gives whether anything changed.
+    pub fn edit_feeder(&mut self, index: usize, spec: FeederSpec) -> bool {
+        if self.ws.set_feeder(index, spec) {
+            self.replan_quiet();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Adds a feeder and chooses it.
+    pub fn add_feeder(&mut self) {
+        let i = self.ws.add_feeder();
+        let id = self.ws.feeders[i].base.id.clone();
+        self.selection.select_feeder(&id);
+        self.replan_quiet();
+    }
+
+    /// Deletes the feeder at `index`.
+    pub fn delete_feeder(&mut self, index: usize) -> bool {
+        if self.ws.remove_feeder(index) {
+            self.selection.clear();
+            self.replan_quiet();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Gives a package its properties and plans again.
+    pub fn edit_package(&mut self, package: &str, props: PartProps) -> bool {
+        if self.ws.set_package_props(package, props) {
+            self.replan_quiet();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Adds a row for a package that the table does not have yet; it inherits everything until it is edited. The name must be a name that can be used.
+    pub fn add_package(&mut self, name: &str) -> bool {
+        let name = name.trim();
+        if name.is_empty() || name.chars().count() > 64 || name.chars().any(char::is_control) {
+            return false;
+        }
+        if self.ws.catalog.package(name).is_some() {
+            return false;
+        }
+        self.edit_package(name, PartProps::default())
+    }
+
+    /// Takes the row of a package away.
+    pub fn delete_package(&mut self, package: &str) -> bool {
+        if self.ws.remove_package_row(package) {
+            self.replan_quiet();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Uses the measured places typed for the fiducials: the parts of the panel are moved by the fit. A fit that is refused is told in the log and the parts stay where the panel
+    /// puts them. Gives whether the fit was accepted.
+    pub fn apply_fiducials(&mut self) -> bool {
+        let marks: Vec<(String, f64, f64)> = self
+            .ws
+            .design_fiducials
+            .iter()
+            .zip(&self.fid_edit)
+            .filter(|(_, e)| e.on)
+            .map(|(d, e)| (d.0.clone(), e.x, e.y))
+            .collect();
+        if marks.is_empty() {
+            return false;
+        }
+        self.set_marks(marks)
+    }
+
+    /// Takes the correction of the fiducials away.
+    pub fn clear_fiducials(&mut self) {
+        let _ = self.ws.set_measured(Vec::new());
+        self.fid_edit = fid_buffer(&self.ws);
+        self.changed();
+    }
+
+    fn set_marks(&mut self, marks: Vec<(String, f64, f64)>) -> bool {
+        let result = self.ws.set_measured(marks);
+        self.fid_edit = fid_buffer(&self.ws);
+        self.changed();
+        match result {
+            Ok(()) => {
+                if let Some(f) = &self.ws.fit {
+                    self.log.info(format!(
+                        "{}: {}, {} {:.3} mm, {} {:.3} mm, {} {:.3}",
+                        tr(Text::FitSummary, self.ui.lang),
+                        f.mode.name(),
+                        tr(Text::ResidualRms, self.ui.lang),
+                        f.rms,
+                        tr(Text::ResidualMax, self.ui.lang),
+                        f.max,
+                        tr(Text::FitTurn, self.ui.lang),
+                        f.transform.rotation_deg()
+                    ));
+                }
+                true
+            }
+            Err(e) => {
+                self.log.error(e);
+                false
+            }
+        }
+    }
+
+    /// Reads the measured places of the fiducials from a file and uses them.
+    pub fn load_marks_path(&mut self, path: &Path) -> bool {
+        let lang = self.ui.lang;
+        let text = match super::workspace::read_file(path, self.ws.cfg.max_file_bytes) {
+            Ok((text, _)) => text,
+            Err(e) => {
+                self.log.error(e);
+                return false;
+            }
+        };
+        match fiducial::parse_measured(&text) {
+            Ok(marks) => self.set_marks(marks),
+            Err(e) => {
+                self.log.error(e.localized(lang));
+                false
+            }
+        }
+    }
+
+    /// Opens the file picker for a purpose, in the folder it was last in.
+    pub fn open_browser(&mut self, purpose: Purpose) {
+        let last = (!self.ui.browse_dir.is_empty()).then(|| PathBuf::from(&self.ui.browse_dir));
+        let dir = browse::start_dir(last.as_deref());
+        self.browser = Some(Browser::new(purpose, dir));
+    }
+
+    /// Closes the file picker and remembers the folder it was in.
+    pub fn close_browser(&mut self) {
+        if let Some(b) = self.browser.take() {
+            self.ui.browse_dir = b.dir.display().to_string();
+        }
+    }
+
+    /// A file was chosen in the picker. Files are loaded and the picker stays open for the next one; the file of measured marks closes it when it was read.
+    pub fn browser_pick(&mut self, path: PathBuf) {
+        let Some(purpose) = self.browser.as_ref().map(|b| b.purpose) else {
+            return;
+        };
+        match purpose {
+            Purpose::Files => {
+                self.load_paths(std::slice::from_ref(&path));
+            }
+            Purpose::Fiducials => {
+                if self.load_marks_path(&path) {
+                    self.close_browser();
+                }
+            }
+            Purpose::Folder => {}
+        }
+    }
+
+    /// The folder being looked at is the output folder.
+    pub fn browser_use_folder(&mut self) {
+        if let Some(b) = &self.browser {
+            if b.purpose == Purpose::Folder {
+                self.ui.out_dir = b.dir.display().to_string();
+            }
+        }
+        self.close_browser();
+    }
+
     /// Sets the nozzles and the speed of the machine and plans again.
     pub fn set_machine(&mut self, nozzles: usize, speed_mm_s: f64) {
         self.ws.set_nozzles(nozzles);
@@ -470,6 +719,8 @@ impl AppState {
             files.push(("load_sheet.csv", sheet.to_csv()));
             files.push(("load_sheet_feeders.csv", sheet.to_feeders_csv()));
         }
+        let edited = self.ws.edited_files();
+        files.extend(edited.iter().map(|(n, t)| (*n, t.clone())));
         for (name, _) in &files {
             let target = dir.join(name);
             if self.is_input(&target) {

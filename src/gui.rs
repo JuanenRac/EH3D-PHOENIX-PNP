@@ -5,6 +5,7 @@
 //! `gui` feature) draws, and it holds no logic of its own.
 
 pub mod app;
+pub mod browse;
 pub mod log;
 pub mod problems;
 pub mod samples;

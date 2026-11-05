@@ -3,23 +3,26 @@
 //! The drawing of the window. It holds no logic: it shows the state of `AppState` (the plan, the tables, the problems, the log, the simulated job) and passes what the person does
 //! (a click, a path, a dropped file) back to it. Built with the `gui` feature.
 
-use super::app::{AppState, Tab};
+use super::app::{fid_buffer, AppState, Tab};
+use super::browse::{self, Purpose};
 use super::log::diagnostics;
 use super::problems::Fix;
 use super::samples;
 use super::session::Next;
 use super::settings::{self, UiSettings};
 use super::tables::{
-    feeder_rows, kind_rows, part_rows, plan_rows, sort_feeders, sort_parts, sort_plan,
-    FeederColumn, PartColumn, PlanColumn, SortState,
+    board_rows, feeder_rows, fiducial_rows, kind_rows, package_rows, part_rows, plan_rows,
+    sort_feeders, sort_parts, sort_plan, FeederColumn, PartColumn, PlanColumn, SortState,
 };
 use super::texts::{lang_name, tr, Text};
 use super::theme::{Palette, Rgb, ThemeId};
 use super::view::{Point, Transform};
 use super::wizard::Step;
 use super::workspace::FileKind;
+use crate::catalog::PartProps;
 use crate::config::OrderStrategy;
 use crate::error::Lang;
+use crate::feeding::{FeederKind, TrayFill};
 use crate::job::{Phase, Status};
 use crate::parts::Side;
 use crate::preflight::Severity;
@@ -135,13 +138,38 @@ fn cell(ui: &mut egui::Ui, w: f32, text: impl Into<RichText>) {
     ui.add_sized([w, ROW_H - 2.0], egui::Label::new(text.into()).truncate());
 }
 
-/// The head of a table: the names of the columns over the boxes of the cells.
-fn header(ui: &mut egui::Ui, pal: &Palette, widths: &[f32], titles: &[&str]) {
+/// The head of a table: the names of the columns over the boxes of the cells. The right edge of a name can be dragged to change the width of its column; the width is changed in
+/// `widths` at once and the index of the column that was resized is given, for the caller to remember it.
+fn header(
+    ui: &mut egui::Ui,
+    pal: &Palette,
+    id: &str,
+    widths: &mut [f32],
+    titles: &[&str],
+) -> Option<usize> {
+    let mut resized = None;
     ui.horizontal(|ui| {
-        for (w, t) in widths.iter().zip(titles) {
-            cell(ui, *w, RichText::new(*t).strong().color(col(pal.accent)));
+        for (i, t) in titles.iter().enumerate() {
+            let Some(w) = widths.get(i).copied() else {
+                break;
+            };
+            let label = egui::Label::new(RichText::new(*t).strong().color(col(pal.accent)));
+            let r = ui.add_sized([w, ROW_H - 2.0], label.truncate());
+            let edge = Rect::from_min_max(
+                Pos2::new(r.rect.right() - 2.0, r.rect.top()),
+                Pos2::new(r.rect.right() + 6.0, r.rect.bottom()),
+            );
+            let drag = ui.interact(edge, egui::Id::unique(id).with(i), Sense::drag());
+            if drag.hovered() || drag.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
+            }
+            if drag.dragged() {
+                widths[i] = (w + drag.drag_delta().x).clamp(30.0, 600.0);
+                resized = Some(i);
+            }
         }
     });
+    resized
 }
 
 /// A row of a table that can be chosen: the row is painted behind its cells when it is chosen, and the answer says whether it was clicked.
@@ -353,13 +381,16 @@ impl PnpApp {
         egui::Panel::top("paths").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(tr(Text::Load, lang));
-                let width = (ui.available_width() - 520.0).max(120.0);
+                let width = (ui.available_width() - 640.0).max(120.0);
                 let r = ui.add(
                     egui::TextEdit::singleline(&mut self.s.path_text)
                         .desired_width(width)
                         .hint_text(tr(Text::LoadHint, lang)),
                 );
                 let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                if ui.button(tr(Text::Browse, lang)).clicked() {
+                    self.s.open_browser(Purpose::Files);
+                }
                 if ui.button(tr(Text::Load, lang)).clicked() || enter {
                     let paths: Vec<PathBuf> = self
                         .s
@@ -381,6 +412,9 @@ impl PnpApp {
                         .desired_width(160.0)
                         .hint_text("."),
                 );
+                if ui.button(tr(Text::Browse, lang)).clicked() {
+                    self.s.open_browser(Purpose::Folder);
+                }
                 let can_save = self.s.planned.is_some();
                 if ui
                     .add_enabled(can_save, egui::Button::new(tr(Text::SaveFiles, lang)))
@@ -517,6 +551,8 @@ impl PnpApp {
                 Tab::Parts => self.parts_tab(ui),
                 Tab::Packages => self.packages_tab(ui),
                 Tab::Feeders => self.feeders_tab(ui),
+                Tab::Panels => self.panels_tab(ui),
+                Tab::Boards => self.boards_tab(ui),
                 Tab::LoadSheet => self.load_sheet_tab(ui),
                 Tab::Machine => self.machine_tab(ui),
                 Tab::Problems => self.problems_tab(ui),
@@ -592,11 +628,15 @@ impl PnpApp {
         });
         self.s.plan_sort = sort;
         sort_plan(&mut rows, sort);
-        let widths = [44.0, 70.0, 100.0, 70.0, 56.0, 56.0, 80.0, 90.0];
-        header(
+        let mut widths = self
+            .s
+            .ui
+            .column_widths("plan", &[44.0, 70.0, 100.0, 70.0, 56.0, 56.0, 80.0, 90.0]);
+        if let Some(i) = header(
             ui,
             &pal,
-            &widths,
+            "plan_head",
+            &mut widths,
             &[
                 "#",
                 tr(Text::ColRef, lang),
@@ -607,7 +647,9 @@ impl PnpApp {
                 tr(Text::ColTip, lang),
                 tr(Text::ColStatus, lang),
             ],
-        );
+        ) {
+            self.s.ui.set_column_width("plan", i, widths[i]);
+        }
         let mut clicked: Option<String> = None;
         let next = self.s.session.next();
         egui::ScrollArea::vertical()
@@ -883,11 +925,15 @@ impl PnpApp {
         });
         self.s.parts_sort = sort;
         sort_parts(&mut rows, sort);
-        let widths = [70.0, 100.0, 120.0, 70.0, 70.0, 60.0, 70.0, 70.0, 90.0];
-        header(
+        let mut widths = self.s.ui.column_widths(
+            "parts",
+            &[70.0, 100.0, 120.0, 70.0, 70.0, 60.0, 70.0, 70.0, 90.0],
+        );
+        if let Some(i) = header(
             ui,
             &pal,
-            &widths,
+            "parts_head",
+            &mut widths,
             &[
                 tr(Text::ColRef, lang),
                 tr(Text::ColValue, lang),
@@ -899,7 +945,9 @@ impl PnpApp {
                 tr(Text::ColFeeder, lang),
                 tr(Text::ColStatus, lang),
             ],
-        );
+        ) {
+            self.s.ui.set_column_width("parts", i, widths[i]);
+        }
         let mut clicked: Option<String> = None;
         egui::ScrollArea::vertical()
             .id_salt("part_rows")
@@ -957,12 +1005,184 @@ impl PnpApp {
     fn packages_tab(&mut self, ui: &mut egui::Ui) {
         let pal = self.s.ui.theme.palette();
         let lang = self.s.lang();
-        let rows = kind_rows(&self.s.ws);
-        let widths = [110.0, 140.0, 60.0, 80.0, 50.0, 80.0, 80.0, 40.0];
-        header(
+        let rows = package_rows(&self.s.ws);
+        let mut add = false;
+        ui.horizontal(|ui| {
+            ui.label(
+                RichText::new(tr(Text::TabPackages, lang))
+                    .strong()
+                    .color(col(pal.accent)),
+            );
+            ui.add(
+                egui::TextEdit::singleline(&mut self.s.new_package)
+                    .desired_width(160.0)
+                    .hint_text(tr(Text::NewPackageHint, lang)),
+            );
+            add = ui.button(tr(Text::AddPackage, lang)).clicked();
+            if ui
+                .add_enabled(
+                    self.s.ws.can_undo(),
+                    egui::Button::new(tr(Text::Undo, lang)),
+                )
+                .clicked()
+            {
+                self.s.undo();
+            }
+        });
+        if add {
+            let name = self.s.new_package.clone();
+            if self.s.add_package(&name) {
+                self.s.new_package.clear();
+            }
+        }
+        ui.label(RichText::new(tr(Text::EditedNote, lang)).color(col(pal.dim)));
+        let mut widths = self.s.ui.column_widths(
+            "pkgs",
+            &[130.0, 50.0, 80.0, 60.0, 100.0, 80.0, 50.0, 70.0, 30.0],
+        );
+        if let Some(i) = header(
             ui,
             &pal,
-            &widths,
+            "pkgs_head",
+            &mut widths,
+            &[
+                tr(Text::ColPackage, lang),
+                tr(Text::ColKinds, lang),
+                tr(Text::ColHeight, lang),
+                tr(Text::ColRank, lang),
+                tr(Text::ColTip, lang),
+                tr(Text::ColTape, lang),
+                tr(Text::ColBin, lang),
+                tr(Text::ColRetries, lang),
+                "",
+            ],
+        ) {
+            self.s.ui.set_column_width("pkgs", i, widths[i]);
+        }
+        let mut pending: Option<(String, PartProps)> = None;
+        let mut remove: Option<String> = None;
+        let height = (ui.available_height() * 0.55).max(120.0);
+        egui::ScrollArea::vertical()
+            .id_salt("package_rows")
+            .max_height(height)
+            .auto_shrink([false, false])
+            .show_rows(ui, ROW_H, rows.len(), |ui, range| {
+                for i in range {
+                    let r = &rows[i];
+                    let mut props = r.props.clone();
+                    let mut changed = false;
+                    ui.horizontal(|ui| {
+                        let name = if r.defined {
+                            RichText::new(r.name.clone())
+                        } else {
+                            RichText::new(format!("{} !", r.name)).color(col(pal.warn))
+                        };
+                        cell(ui, widths[0], name);
+                        cell(ui, widths[1], r.count.to_string());
+                        let mut h = r.shown.height_mm;
+                        if ui
+                            .add_sized(
+                                [widths[2], ROW_H - 2.0],
+                                egui::DragValue::new(&mut h)
+                                    .range(0.0..=100.0)
+                                    .speed(0.05)
+                                    .max_decimals(2),
+                            )
+                            .changed()
+                        {
+                            props.height_mm = Some(h);
+                            changed = true;
+                        }
+                        let mut rank = r.shown.rank;
+                        if ui
+                            .add_sized(
+                                [widths[3], ROW_H - 2.0],
+                                egui::DragValue::new(&mut rank).range(-1000..=1000),
+                            )
+                            .changed()
+                        {
+                            props.rank = Some(rank);
+                            changed = true;
+                        }
+                        let mut tip = r.shown.nozzle_tip.clone();
+                        if ui
+                            .add_sized(
+                                [widths[4], ROW_H - 2.0],
+                                egui::TextEdit::singleline(&mut tip),
+                            )
+                            .changed()
+                        {
+                            let tip: String = tip.chars().take(64).collect();
+                            props.nozzle_tip = (!tip.is_empty()).then_some(tip);
+                            changed = true;
+                        }
+                        let mut tape = r.shown.tape_mm;
+                        if ui
+                            .add_sized(
+                                [widths[5], ROW_H - 2.0],
+                                egui::DragValue::new(&mut tape)
+                                    .range(1.0..=100.0)
+                                    .speed(0.1)
+                                    .max_decimals(1),
+                            )
+                            .changed()
+                        {
+                            props.tape_mm = Some(tape);
+                            changed = true;
+                        }
+                        let mut bin = r.shown.bin;
+                        if ui
+                            .add_sized(
+                                [widths[6], ROW_H - 2.0],
+                                egui::DragValue::new(&mut bin).range(0..=4),
+                            )
+                            .changed()
+                        {
+                            props.bin = Some(bin);
+                            changed = true;
+                        }
+                        let mut retries = r.shown.pick_retries;
+                        if ui
+                            .add_sized(
+                                [widths[7], ROW_H - 2.0],
+                                egui::DragValue::new(&mut retries).range(0..=10),
+                            )
+                            .changed()
+                        {
+                            props.pick_retries = Some(retries);
+                            changed = true;
+                        }
+                        if r.defined && ui.small_button("x").clicked() {
+                            remove = Some(r.name.clone());
+                        }
+                    });
+                    if changed {
+                        pending = Some((r.name.clone(), props));
+                    }
+                }
+            });
+        if let Some((name, props)) = pending {
+            self.s.edit_package(&name, props);
+        }
+        if let Some(name) = remove {
+            self.s.delete_package(&name);
+        }
+        ui.separator();
+        ui.label(
+            RichText::new(tr(Text::KindsHeading, lang))
+                .strong()
+                .color(col(pal.accent)),
+        );
+        let kinds = kind_rows(&self.s.ws);
+        let mut kw = self
+            .s
+            .ui
+            .column_widths("kinds", &[110.0, 140.0, 60.0, 80.0, 50.0, 80.0, 80.0, 40.0]);
+        if let Some(i) = header(
+            ui,
+            &pal,
+            "kinds_head",
+            &mut kw,
             &[
                 tr(Text::ColValue, lang),
                 tr(Text::ColPackage, lang),
@@ -973,23 +1193,25 @@ impl PnpApp {
                 tr(Text::ColTape, lang),
                 "",
             ],
-        );
+        ) {
+            self.s.ui.set_column_width("kinds", i, kw[i]);
+        }
         egui::ScrollArea::vertical()
             .id_salt("kind_rows")
             .auto_shrink([false, false])
-            .show_rows(ui, ROW_H, rows.len(), |ui, range| {
+            .show_rows(ui, ROW_H, kinds.len(), |ui, range| {
                 for i in range {
-                    let r = &rows[i];
+                    let r = &kinds[i];
                     ui.horizontal(|ui| {
-                        cell(ui, widths[0], r.value.clone());
-                        cell(ui, widths[1], r.package.clone());
-                        cell(ui, widths[2], r.count.to_string());
-                        cell(ui, widths[3], format!("{:.2}", r.height_mm));
-                        cell(ui, widths[4], r.rank.to_string());
-                        cell(ui, widths[5], r.tip.clone());
-                        cell(ui, widths[6], format!("{:.1}", r.tape_mm));
+                        cell(ui, kw[0], r.value.clone());
+                        cell(ui, kw[1], r.package.clone());
+                        cell(ui, kw[2], r.count.to_string());
+                        cell(ui, kw[3], format!("{:.2}", r.height_mm));
+                        cell(ui, kw[4], r.rank.to_string());
+                        cell(ui, kw[5], r.tip.clone());
+                        cell(ui, kw[6], format!("{:.1}", r.tape_mm));
                         if !r.described {
-                            cell(ui, widths[7], RichText::new("!").color(col(pal.warn)));
+                            cell(ui, kw[7], RichText::new("!").color(col(pal.warn)));
                         }
                     });
                 }
@@ -1026,14 +1248,24 @@ impl PnpApp {
             {
                 self.s.undo();
             }
+            if ui.button(tr(Text::AddFeeder, lang)).clicked() {
+                self.s.add_feeder();
+            }
         });
         self.s.feeder_sort = sort;
         sort_feeders(&mut rows, sort);
-        let widths = [60.0, 110.0, 130.0, 60.0, 60.0, 80.0, 80.0, 70.0];
-        header(
+        self.feeder_form(ui);
+        let mut widths = self.s.ui.column_widths(
+            "feeders",
+            &[
+                60.0, 110.0, 130.0, 60.0, 60.0, 80.0, 80.0, 70.0, 60.0, 70.0, 40.0,
+            ],
+        );
+        if let Some(i) = header(
             ui,
             &pal,
-            &widths,
+            "feeders_head",
+            &mut widths,
             &[
                 tr(Text::ColId, lang),
                 tr(Text::ColValue, lang),
@@ -1043,8 +1275,13 @@ impl PnpApp {
                 tr(Text::ColCount, lang),
                 tr(Text::Left, lang),
                 tr(Text::ColSlot, lang),
+                tr(Text::ColKind, lang),
+                tr(Text::ColPriority, lang),
+                tr(Text::ColEnabled, lang),
             ],
-        );
+        ) {
+            self.s.ui.set_column_width("feeders", i, widths[i]);
+        }
         let mut commit = false;
         let mut cancel = false;
         egui::ScrollArea::vertical()
@@ -1095,6 +1332,19 @@ impl PnpApp {
                             };
                             cell(ui, widths[6], left);
                             cell(ui, widths[7], r.slot.clone());
+                            let kind = match r.kind {
+                                "tray" => Text::KindTray,
+                                "strip" => Text::KindStrip,
+                                _ => Text::KindTape,
+                            };
+                            cell(ui, widths[8], tr(kind, lang));
+                            let prio = match r.priority {
+                                p if p < 0 => Text::PrioLow,
+                                0 => Text::PrioNormal,
+                                _ => Text::PrioHigh,
+                            };
+                            cell(ui, widths[9], tr(prio, lang));
+                            cell(ui, widths[10], if r.enabled { "+" } else { "-" });
                         },
                     );
                     if resp.clicked() {
@@ -1123,6 +1373,483 @@ impl PnpApp {
         }
     }
 
+    /// The form of the feeder that is chosen: everything about it that the table does not show, and the ways to change it.
+    fn feeder_form(&mut self, ui: &mut egui::Ui) {
+        let pal = self.s.ui.theme.palette();
+        let lang = self.s.lang();
+        let Some(id) = self.s.selection.feeder.clone() else {
+            return;
+        };
+        let Some(index) = self.s.ws.feeders.iter().position(|f| f.base.id == id) else {
+            return;
+        };
+        let mut spec = self.s.ws.feeders[index].clone();
+        let before = spec.clone();
+        let mut delete = false;
+        ui.group(|ui| {
+            ui.label(
+                RichText::new(format!("{}: {id}", tr(Text::SelectedFeeder, lang)))
+                    .strong()
+                    .color(col(pal.accent)),
+            );
+            ui.horizontal_wrapped(|ui| {
+                ui.label(tr(Text::ColValue, lang));
+                ui.add(egui::TextEdit::singleline(&mut spec.base.value).desired_width(90.0));
+                ui.label(tr(Text::ColPackage, lang));
+                ui.add(egui::TextEdit::singleline(&mut spec.base.package).desired_width(90.0));
+                ui.label(tr(Text::ColX, lang));
+                ui.add(
+                    egui::DragValue::new(&mut spec.base.x)
+                        .speed(0.1)
+                        .max_decimals(3),
+                );
+                ui.label(tr(Text::ColY, lang));
+                ui.add(
+                    egui::DragValue::new(&mut spec.base.y)
+                        .speed(0.1)
+                        .max_decimals(3),
+                );
+                ui.label(tr(Text::ColCount, lang));
+                ui.add(egui::DragValue::new(&mut spec.base.count).range(0..=1_000_000));
+                ui.label(tr(Text::ColWarn, lang));
+                ui.add(egui::DragValue::new(&mut spec.warn_below).range(0..=1_000_000));
+                ui.label(tr(Text::ColSlot, lang));
+                let mut slot = spec.slot.clone().unwrap_or_default();
+                if ui
+                    .add(egui::TextEdit::singleline(&mut slot).desired_width(60.0))
+                    .changed()
+                {
+                    let slot = slot.trim();
+                    spec.slot = (!slot.is_empty()).then(|| slot.chars().take(32).collect());
+                }
+                ui.checkbox(&mut spec.enabled, tr(Text::ColEnabled, lang));
+            });
+            ui.horizontal_wrapped(|ui| {
+                ui.label(tr(Text::ColPriority, lang));
+                let prio_text = match spec.priority {
+                    p if p < 0 => tr(Text::PrioLow, lang),
+                    0 => tr(Text::PrioNormal, lang),
+                    _ => tr(Text::PrioHigh, lang),
+                };
+                egui::ComboBox::from_id_salt("feeder_priority")
+                    .selected_text(prio_text)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut spec.priority, -1, tr(Text::PrioLow, lang));
+                        ui.selectable_value(&mut spec.priority, 0, tr(Text::PrioNormal, lang));
+                        ui.selectable_value(&mut spec.priority, 1, tr(Text::PrioHigh, lang));
+                    });
+                ui.label(tr(Text::ColKind, lang));
+                let mut kind = match spec.kind {
+                    FeederKind::Tape => 0,
+                    FeederKind::Tray { .. } => 1,
+                    FeederKind::Strip { .. } => 2,
+                };
+                let was = kind;
+                let kind_text = [
+                    tr(Text::KindTape, lang),
+                    tr(Text::KindTray, lang),
+                    tr(Text::KindStrip, lang),
+                ];
+                egui::ComboBox::from_id_salt("feeder_kind")
+                    .selected_text(kind_text[kind])
+                    .show_ui(ui, |ui| {
+                        for (n, t) in kind_text.iter().enumerate() {
+                            ui.selectable_value(&mut kind, n, *t);
+                        }
+                    });
+                if kind != was {
+                    spec.kind = match kind {
+                        1 => FeederKind::Tray {
+                            cols: 4,
+                            rows: 4,
+                            pitch_x: 10.0,
+                            pitch_y: 10.0,
+                            rotation: 0.0,
+                        },
+                        2 => FeederKind::Strip {
+                            pitch: 4.0,
+                            rotation: 0.0,
+                        },
+                        _ => FeederKind::Tape,
+                    };
+                }
+                match &mut spec.kind {
+                    FeederKind::Tape => {
+                        ui.label(tr(Text::ColRot, lang));
+                        ui.add(
+                            egui::DragValue::new(&mut spec.tape_rotation)
+                                .range(0.0..=359.0)
+                                .speed(1.0),
+                        );
+                    }
+                    FeederKind::Tray {
+                        cols,
+                        rows,
+                        pitch_x,
+                        pitch_y,
+                        rotation,
+                    } => {
+                        ui.label(tr(Text::ColCols, lang));
+                        ui.add(egui::DragValue::new(cols).range(1..=1000));
+                        ui.label(tr(Text::ColRows, lang));
+                        ui.add(egui::DragValue::new(rows).range(1..=1000));
+                        ui.label(tr(Text::ColPitchX, lang));
+                        ui.add(egui::DragValue::new(pitch_x).speed(0.1).max_decimals(3));
+                        ui.label(tr(Text::ColPitchY, lang));
+                        ui.add(egui::DragValue::new(pitch_y).speed(0.1).max_decimals(3));
+                        ui.label(tr(Text::ColRot, lang));
+                        ui.add(egui::DragValue::new(rotation).range(0.0..=359.0));
+                        ui.label(tr(Text::ColFill, lang));
+                        let fills = [
+                            (TrayFill::Rows, Text::FillRows),
+                            (TrayFill::Columns, Text::FillColumns),
+                            (TrayFill::Snake, Text::FillSnake),
+                        ];
+                        let current = fills
+                            .iter()
+                            .find(|(f, _)| *f == spec.fill)
+                            .map_or("", |(_, t)| tr(*t, lang));
+                        egui::ComboBox::from_id_salt("feeder_fill")
+                            .selected_text(current)
+                            .show_ui(ui, |ui| {
+                                for (f, t) in fills {
+                                    ui.selectable_value(&mut spec.fill, f, tr(t, lang));
+                                }
+                            });
+                    }
+                    FeederKind::Strip { pitch, rotation } => {
+                        ui.label(tr(Text::ColPitch, lang));
+                        ui.add(egui::DragValue::new(pitch).speed(0.1).max_decimals(3));
+                        ui.label(tr(Text::ColRot, lang));
+                        ui.add(egui::DragValue::new(rotation).range(0.0..=359.0));
+                    }
+                }
+                if ui.button(tr(Text::DeleteRow, lang)).clicked() {
+                    delete = true;
+                }
+            });
+        });
+        if delete {
+            self.s.delete_feeder(index);
+        } else if spec != before {
+            self.s.edit_feeder(index, spec);
+        }
+    }
+
+    /// The panels: their children with the places, and the fiducials with the fit that moves the parts to where the panel really is.
+    fn panels_tab(&mut self, ui: &mut egui::Ui) {
+        let pal = self.s.ui.theme.palette();
+        let lang = self.s.lang();
+        let Some(panel) = self.s.ws.panel.clone() else {
+            ui.label(RichText::new(tr(Text::NoPanel, lang)).color(col(pal.dim)));
+            return;
+        };
+        ui.label(
+            RichText::new(tr(Text::PanelChildren, lang))
+                .strong()
+                .color(col(pal.accent)),
+        );
+        let children = panel.children();
+        let mut widths = self
+            .s
+            .ui
+            .column_widths("children", &[90.0, 70.0, 70.0, 100.0, 70.0, 70.0, 60.0]);
+        if let Some(i) = header(
+            ui,
+            &pal,
+            "children_head",
+            &mut widths,
+            &[
+                tr(Text::ColPanel, lang),
+                tr(Text::ColChild, lang),
+                tr(Text::ColKind, lang),
+                tr(Text::ColName, lang),
+                tr(Text::ColX, lang),
+                tr(Text::ColY, lang),
+                tr(Text::ColRot, lang),
+            ],
+        ) {
+            self.s.ui.set_column_width("children", i, widths[i]);
+        }
+        egui::ScrollArea::vertical()
+            .id_salt("child_rows")
+            .max_height(180.0)
+            .show_rows(ui, ROW_H, children.len(), |ui, range| {
+                for i in range {
+                    let c = &children[i];
+                    ui.horizontal(|ui| {
+                        let root = c.panel == panel.root();
+                        let name = if root {
+                            RichText::new(format!("{} *", c.panel))
+                        } else {
+                            RichText::new(c.panel.clone())
+                        };
+                        cell(ui, widths[0], name);
+                        cell(ui, widths[1], c.id.clone());
+                        cell(
+                            ui,
+                            widths[2],
+                            if c.is_board {
+                                tr(Text::SrcBoard, lang)
+                            } else {
+                                tr(Text::KindPanel, lang)
+                            },
+                        );
+                        cell(ui, widths[3], c.target.clone());
+                        cell(ui, widths[4], format!("{:.3}", c.x));
+                        cell(ui, widths[5], format!("{:.3}", c.y));
+                        cell(ui, widths[6], format!("{:.1}", c.rotation));
+                    });
+                }
+            });
+        ui.separator();
+        ui.label(
+            RichText::new(tr(Text::Fiducials, lang))
+                .strong()
+                .color(col(pal.accent)),
+        );
+        if self.s.fid_edit.len() != self.s.ws.design_fiducials.len() {
+            self.s.fid_edit = fid_buffer(&self.s.ws);
+        }
+        ui.horizontal_wrapped(|ui| {
+            if ui.button(tr(Text::LoadMarks, lang)).clicked() {
+                self.s.open_browser(Purpose::Fiducials);
+            }
+            let any_on = self.s.fid_edit.iter().any(|e| e.on);
+            if ui
+                .add_enabled(any_on, egui::Button::new(tr(Text::ApplyFit, lang)))
+                .clicked()
+            {
+                self.s.apply_fiducials();
+            }
+            let has = !self.s.ws.measured.is_empty();
+            if ui
+                .add_enabled(has, egui::Button::new(tr(Text::ClearFit, lang)))
+                .clicked()
+            {
+                self.s.clear_fiducials();
+            }
+        });
+        if let Some(f) = &self.s.ws.fit {
+            ui.label(format!(
+                "{}: {}, {} - {} {:.3} mm - {} {:.3} mm - {} {:.3}",
+                tr(Text::FitSummary, lang),
+                f.mode.name(),
+                f.ids.len(),
+                tr(Text::ResidualRms, lang),
+                f.rms,
+                tr(Text::ResidualMax, lang),
+                f.max,
+                tr(Text::FitTurn, lang),
+                f.transform.rotation_deg()
+            ));
+        } else if let Some(e) = &self.s.ws.fit_error {
+            ui.label(RichText::new(e.as_str()).color(col(pal.danger)));
+        } else {
+            ui.label(RichText::new(tr(Text::FitNone, lang)).color(col(pal.dim)));
+        }
+        let rows = fiducial_rows(&self.s.ws);
+        let mut fw = self
+            .s
+            .ui
+            .column_widths("fids", &[70.0, 80.0, 80.0, 40.0, 110.0, 110.0, 90.0]);
+        if let Some(i) = header(
+            ui,
+            &pal,
+            "fids_head",
+            &mut fw,
+            &[
+                tr(Text::ColId, lang),
+                tr(Text::ColX, lang),
+                tr(Text::ColY, lang),
+                tr(Text::ColUse, lang),
+                tr(Text::ColMeasuredX, lang),
+                tr(Text::ColMeasuredY, lang),
+                tr(Text::ColResidual, lang),
+            ],
+        ) {
+            self.s.ui.set_column_width("fids", i, fw[i]);
+        }
+        let mut edits = self.s.fid_edit.clone();
+        egui::ScrollArea::vertical()
+            .id_salt("fiducial_rows")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                for (r, e) in rows.iter().zip(edits.iter_mut()) {
+                    ui.horizontal(|ui| {
+                        cell(ui, fw[0], r.id.clone());
+                        cell(ui, fw[1], format!("{:.3}", r.x));
+                        cell(ui, fw[2], format!("{:.3}", r.y));
+                        ui.add_sized(
+                            [fw[3], ROW_H - 2.0],
+                            egui::Checkbox::without_text(&mut e.on),
+                        );
+                        ui.add_sized(
+                            [fw[4], ROW_H - 2.0],
+                            egui::DragValue::new(&mut e.x).speed(0.05).max_decimals(3),
+                        );
+                        ui.add_sized(
+                            [fw[5], ROW_H - 2.0],
+                            egui::DragValue::new(&mut e.y).speed(0.05).max_decimals(3),
+                        );
+                        let residual = r.residual.map_or(String::new(), |v| format!("{v:.3}"));
+                        cell(ui, fw[6], residual);
+                    });
+                }
+            });
+        if edits != self.s.fid_edit {
+            self.s.fid_edit = edits;
+        }
+    }
+
+    /// The boards of the panel and how many times it places each one.
+    fn boards_tab(&mut self, ui: &mut egui::Ui) {
+        let pal = self.s.ui.theme.palette();
+        let lang = self.s.lang();
+        let rows = board_rows(&self.s.ws);
+        if self.s.ws.panel.is_none() {
+            ui.label(RichText::new(tr(Text::SingleBoard, lang)).color(col(pal.dim)));
+            let name = self
+                .s
+                .ws
+                .names
+                .get(&FileKind::Parts)
+                .cloned()
+                .unwrap_or_default();
+            ui.label(format!(
+                "{name}: {} {}",
+                self.s.ws.parts.len(),
+                tr(Text::SumParts, lang)
+            ));
+            return;
+        }
+        ui.label(
+            RichText::new(format!(
+                "{} - {} {}",
+                tr(Text::BoardsOfPanel, lang),
+                self.s.ws.parts.len(),
+                tr(Text::SumParts, lang)
+            ))
+            .strong()
+            .color(col(pal.accent)),
+        );
+        let mut widths = self.s.ui.column_widths("boards", &[110.0, 260.0, 70.0]);
+        if let Some(i) = header(
+            ui,
+            &pal,
+            "boards_head",
+            &mut widths,
+            &[
+                tr(Text::ColId, lang),
+                tr(Text::ColFile, lang),
+                tr(Text::ColCopies, lang),
+            ],
+        ) {
+            self.s.ui.set_column_width("boards", i, widths[i]);
+        }
+        egui::ScrollArea::vertical()
+            .id_salt("board_rows")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                for r in &rows {
+                    ui.horizontal(|ui| {
+                        cell(ui, widths[0], r.id.clone());
+                        cell(ui, widths[1], r.file.clone());
+                        cell(ui, widths[2], r.copies.to_string());
+                    });
+                }
+            });
+    }
+
+    /// The window that picks a file or a folder.
+    fn browser_window(&mut self, ctx: &egui::Context) {
+        let Some(mut b) = self.s.browser.take() else {
+            return;
+        };
+        let pal = self.s.ui.theme.palette();
+        let lang = self.s.lang();
+        let title = match b.purpose {
+            Purpose::Files => tr(Text::PickFiles, lang),
+            Purpose::Fiducials => tr(Text::PickMarks, lang),
+            Purpose::Folder => tr(Text::PickFolder, lang),
+        };
+        let mut picked: Option<PathBuf> = None;
+        let mut use_folder = false;
+        let mut close = false;
+        let mut open = true;
+        egui::Window::new(title)
+            .open(&mut open)
+            .collapsible(false)
+            .default_size([620.0, 460.0])
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    if ui.button(tr(Text::UpFolder, lang)).clicked() {
+                        b.up();
+                    }
+                    let edit = ui.add(
+                        egui::TextEdit::singleline(&mut b.path_text)
+                            .desired_width(ui.available_width()),
+                    );
+                    if edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                        if let Some(p) = b.go_typed() {
+                            picked = Some(p);
+                        }
+                    }
+                });
+                if let Some(e) = &b.error {
+                    ui.label(RichText::new(e.as_str()).color(col(pal.danger)));
+                }
+                if b.purpose != Purpose::Folder
+                    && ui
+                        .checkbox(&mut b.show_all, tr(Text::AllFiles, lang))
+                        .changed()
+                {
+                    b.refresh();
+                }
+                egui::ScrollArea::vertical()
+                    .max_height(300.0)
+                    .show(ui, |ui| {
+                        if b.entries.is_empty() {
+                            ui.label(
+                                RichText::new(tr(Text::EmptyFolder, lang)).color(col(pal.dim)),
+                            );
+                        }
+                        for e in b.entries.clone() {
+                            let label = if e.is_dir {
+                                format!("{}/", e.name)
+                            } else {
+                                format!("{}    ({})", e.name, browse::size_text(e.size))
+                            };
+                            if ui.selectable_label(false, label).clicked() {
+                                if let Some(p) = b.enter(&e.name) {
+                                    picked = Some(p);
+                                }
+                            }
+                        }
+                    });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if b.purpose == Purpose::Folder
+                        && ui.button(tr(Text::UseFolder, lang)).clicked()
+                    {
+                        use_folder = true;
+                    }
+                    if ui.button(tr(Text::Close, lang)).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        self.s.browser = Some(b);
+        if let Some(p) = picked {
+            self.s.browser_pick(p);
+        }
+        if use_folder {
+            self.s.browser_use_folder();
+        } else if close || !open {
+            self.s.close_browser();
+        }
+    }
+
     fn load_sheet_tab(&mut self, ui: &mut egui::Ui) {
         let pal = self.s.ui.theme.palette();
         let lang = self.s.lang();
@@ -1130,11 +1857,15 @@ impl PnpApp {
             ui.label(RichText::new(tr(Text::SlotsMissing, lang)).color(col(pal.dim)));
             return;
         };
-        let widths = [60.0, 110.0, 130.0, 60.0, 80.0, 80.0, 60.0, 60.0];
-        header(
+        let mut widths = self
+            .s
+            .ui
+            .column_widths("sheet", &[60.0, 110.0, 130.0, 60.0, 80.0, 80.0, 60.0, 60.0]);
+        if let Some(i) = header(
             ui,
             &pal,
-            &widths,
+            "sheet_head",
+            &mut widths,
             &[
                 tr(Text::ColSlot, lang),
                 tr(Text::ColValue, lang),
@@ -1145,7 +1876,9 @@ impl PnpApp {
                 tr(Text::ColX, lang),
                 tr(Text::ColY, lang),
             ],
-        );
+        ) {
+            self.s.ui.set_column_width("sheet", i, widths[i]);
+        }
         egui::ScrollArea::vertical()
             .id_salt("sheet_rows")
             .auto_shrink([false, false])
@@ -1383,6 +2116,12 @@ impl eframe::App for PnpApp {
         self.status_bar(ui);
         self.side_panel(ui);
         self.center(ui);
+        self.browser_window(&ctx);
+        // an edit of a table ends when nothing is being dragged or typed in
+        let busy = ctx.input(|i| i.pointer.any_down()) || ctx.memory(|m| m.focused().is_some());
+        if !busy {
+            self.s.end_edit();
+        }
         if self.s.ui != self.saved {
             settings::save(&self.s.ui);
             self.saved = self.s.ui.clone();

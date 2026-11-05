@@ -4,6 +4,8 @@
 //! in one place is the part chosen in all of them, and with it the feeder it comes from. A cell is edited with a second click on a row that is already chosen.
 
 use super::workspace::{Planned, Workspace};
+use crate::catalog::{PartProps, Resolved};
+use crate::feeding::FeederKind;
 use crate::job::{Job, Status};
 use crate::parts::Side;
 use std::cmp::Ordering;
@@ -364,6 +366,10 @@ pub struct FeederRow {
     pub left: u32,
     pub slot: String,
     pub enabled: bool,
+    /// `tape`, `tray` or `strip`.
+    pub kind: &'static str,
+    /// -1 low, 0 normal, 1 high.
+    pub priority: i32,
 }
 
 /// The rows of the table of feeders; with a job, how many parts are left in each.
@@ -391,6 +397,12 @@ pub fn feeder_rows(ws: &Workspace, job: Option<&Job>) -> Vec<FeederRow> {
                 left: f.base.count.saturating_sub(taken),
                 slot: f.slot.clone().unwrap_or_default(),
                 enabled: f.enabled,
+                kind: match f.kind {
+                    FeederKind::Tape => "tape",
+                    FeederKind::Tray { .. } => "tray",
+                    FeederKind::Strip { .. } => "strip",
+                },
+                priority: f.priority,
             }
         })
         .collect()
@@ -452,4 +464,121 @@ pub fn kind_rows(ws: &Workspace) -> Vec<KindRow> {
             .then_with(|| natural_cmp(&a.package, &b.package))
     });
     rows
+}
+
+/// A package as a row of the editable table: what its row says and what is used for it once the defaults are put in.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PackageRow {
+    pub name: String,
+    /// Whether the table of packages has a row for it.
+    pub defined: bool,
+    /// How many parts of the board are in this package.
+    pub count: usize,
+    /// What the row says (nothing when it has no row).
+    pub props: PartProps,
+    /// The values in use: the row, else the defaults of the configuration.
+    pub shown: Resolved,
+}
+
+/// The package properties with the defaults put in for those the row leaves empty.
+pub fn with_defaults(p: &PartProps, d: &Resolved) -> Resolved {
+    Resolved {
+        height_mm: p.height_mm.unwrap_or(d.height_mm),
+        through_board_mm: p.through_board_mm.unwrap_or(d.through_board_mm),
+        pick_retries: p.pick_retries.unwrap_or(d.pick_retries),
+        bin: p.bin.unwrap_or(d.bin),
+        nozzle_tip: p.nozzle_tip.clone().unwrap_or_else(|| d.nozzle_tip.clone()),
+        rank: p.rank.unwrap_or(d.rank),
+        origin_dx_mm: p.origin_dx_mm.unwrap_or(d.origin_dx_mm),
+        origin_dy_mm: p.origin_dy_mm.unwrap_or(d.origin_dy_mm),
+        tape_mm: p.tape_mm.unwrap_or(d.tape_mm),
+    }
+}
+
+/// The packages of the board together with those of the table of packages, in natural order of their names (the case of a name does not make two packages).
+pub fn package_rows(ws: &Workspace) -> Vec<PackageRow> {
+    let defaults = ws.cfg.part_defaults();
+    let mut found: BTreeMap<String, (String, usize)> = BTreeMap::new();
+    for p in &ws.parts {
+        let name = p.package.trim();
+        if name.is_empty() {
+            continue;
+        }
+        found
+            .entry(name.to_ascii_lowercase())
+            .and_modify(|e| e.1 += 1)
+            .or_insert((name.to_string(), 1));
+    }
+    for name in ws.catalog.package_names() {
+        found.entry(name.to_ascii_lowercase()).or_insert((name, 0));
+    }
+    let mut rows: Vec<PackageRow> = found
+        .into_values()
+        .map(|(name, count)| {
+            let props = ws.catalog.package(&name).cloned();
+            PackageRow {
+                defined: props.is_some(),
+                shown: with_defaults(&props.clone().unwrap_or_default(), &defaults),
+                props: props.unwrap_or_default(),
+                name,
+                count,
+            }
+        })
+        .collect();
+    rows.sort_by(|a, b| natural_cmp(&a.name, &b.name));
+    rows
+}
+
+/// A fiducial of the panel with the place that was measured for it and how far the fit leaves it from there.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FiducialRow {
+    pub id: String,
+    pub x: f64,
+    pub y: f64,
+    pub measured: Option<(f64, f64)>,
+    pub residual: Option<f64>,
+}
+
+/// The fiducials of the panel, in the order of the design.
+pub fn fiducial_rows(ws: &Workspace) -> Vec<FiducialRow> {
+    ws.design_fiducials
+        .iter()
+        .map(|(id, x, y)| FiducialRow {
+            id: id.clone(),
+            x: *x,
+            y: *y,
+            measured: ws.measured.iter().find(|m| m.0 == *id).map(|m| (m.1, m.2)),
+            residual: ws.fit.as_ref().and_then(|f| {
+                f.ids
+                    .iter()
+                    .position(|i| i == id)
+                    .and_then(|k| f.residuals.get(k).copied())
+            }),
+        })
+        .collect()
+}
+
+/// A board of the panel: its name, its file and how many times the panel places it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BoardRow {
+    pub id: String,
+    pub file: String,
+    pub copies: usize,
+}
+
+/// The boards of the panel that was loaded (nothing without a panel).
+pub fn board_rows(ws: &Workspace) -> Vec<BoardRow> {
+    let Some(panel) = &ws.panel else {
+        return Vec::new();
+    };
+    let counts = panel.board_counts();
+    panel
+        .boards()
+        .into_iter()
+        .map(|(id, file)| BoardRow {
+            copies: counts.get(&id).copied().unwrap_or(0),
+            id,
+            file,
+        })
+        .collect()
 }

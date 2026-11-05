@@ -1,17 +1,21 @@
 //! The window without a screen: the words in eight languages, the colours, the files that are loaded and told apart, the plan and its problems, the fixes, the simulated job that is
 //! paused, resumed and stepped, the geometry of the view, the tables and their selection, the guide, the settings and the whole path from files to a finished job.
 
+use eh3d_phoenix_pnp::catalog::{Catalog, PartProps};
 use eh3d_phoenix_pnp::config::MachineConfig;
 use eh3d_phoenix_pnp::error::{Code, Lang, PnpError};
-use eh3d_phoenix_pnp::gui::app::{AppState, Tab};
+use eh3d_phoenix_pnp::feeding::{self, FeederKind, TrayFill};
+use eh3d_phoenix_pnp::fiducial::FitMode;
+use eh3d_phoenix_pnp::gui::app::{AppState, FidEdit, Tab};
+use eh3d_phoenix_pnp::gui::browse::{self, Browser, Purpose};
 use eh3d_phoenix_pnp::gui::log::{diagnostics, Level, Log, MAX_LINES};
 use eh3d_phoenix_pnp::gui::problems::{self, Fix};
 use eh3d_phoenix_pnp::gui::samples;
 use eh3d_phoenix_pnp::gui::session::{Next, Session};
 use eh3d_phoenix_pnp::gui::settings::{settings_path, Layers, UiSettings};
 use eh3d_phoenix_pnp::gui::tables::{
-    feeder_rows, kind_rows, natural_cmp, part_rows, plan_rows, sort_parts, CellEdit, PartColumn,
-    Selection, SortState,
+    board_rows, feeder_rows, fiducial_rows, kind_rows, natural_cmp, package_rows, part_rows,
+    plan_rows, sort_parts, CellEdit, PartColumn, Selection, SortState,
 };
 use eh3d_phoenix_pnp::gui::texts::{table, tr, Text};
 use eh3d_phoenix_pnp::gui::theme::ThemeId;
@@ -735,6 +739,10 @@ fn the_settings_are_written_and_read_back() {
         },
         out_dir: "out files".to_string(),
         guide_seen: true,
+        browse_dir: "C:\\a folder".to_string(),
+        col_widths: [("parts_0".to_string(), 99), ("plan_7".to_string(), 310)]
+            .into_iter()
+            .collect(),
     };
     assert_eq!(UiSettings::parse(&s.to_text()), s);
 }
@@ -817,7 +825,7 @@ fn the_state_goes_from_files_to_a_finished_job_without_a_window() {
         .log
         .entries()
         .iter()
-        .any(|e| e.text.starts_with("Finished")));
+        .any(|e| e.text.starts_with("Finished") && e.text.contains("parts per hour")));
     a.reset_job();
     assert!(!a.session.has_job());
 }
@@ -993,11 +1001,11 @@ fn the_tabs_have_a_word_each_and_the_window_starts_on_the_job() {
     };
     assert!(!AppState::new(seen).wizard.open);
     let words: Vec<&str> = Tab::ALL.iter().map(|t| tr(t.text(), Lang::En)).collect();
-    assert_eq!(words.len(), 8);
+    assert_eq!(words.len(), 10);
     let mut sorted = words.clone();
     sorted.sort_unstable();
     sorted.dedup();
-    assert_eq!(sorted.len(), 8);
+    assert_eq!(sorted.len(), 10);
 }
 
 #[test]
@@ -1005,4 +1013,729 @@ fn the_icon_of_the_window_is_in_the_repository() {
     let icon = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("images/brand/icon-256.png");
     let bytes = std::fs::read(icon).unwrap();
     assert_eq!(&bytes[1..4], b"PNG");
+}
+
+// ---- the widths of the columns, the file picker, the panels and the editing of the tables
+
+#[test]
+fn the_widths_of_the_columns_are_remembered_in_the_settings_of_the_user() {
+    let text = "col_parts_2 = 140\ncol_plan_0 = 5\ncol_x_99 = 40\ncol_a-b_1 = 80\ncol_parts_1000 = 40\n\
+                col_parts_3 = wide\ncol_parts = 50\ncol_parts_x = 50\ncol__1 = 50\ncol_big_4 = 9000\n";
+    let mut s = UiSettings::parse(text);
+    // 5 is brought up to the narrowest and 9000 down to the widest; the lines that name no column are skipped
+    let kept: Vec<(&str, u16)> = s.col_widths.iter().map(|(k, v)| (k.as_str(), *v)).collect();
+    assert_eq!(
+        kept,
+        [
+            ("big_4", 600),
+            ("parts_2", 140),
+            ("plan_0", 30),
+            ("x_99", 40)
+        ]
+    );
+    // the width a column was given, and the default of those that never were
+    assert_eq!(
+        s.column_widths("parts", &[70.0, 100.0, 120.0]),
+        [70.0, 100.0, 140.0]
+    );
+    assert!(s.column_widths("parts", &[]).is_empty());
+    s.set_column_width("parts", 1, 250.4);
+    assert_eq!(s.column_widths("parts", &[70.0, 100.0]), [70.0, 250.0]);
+    s.set_column_width("parts", 1, 5.0);
+    assert_eq!(s.col_widths["parts_1"], 30);
+    s.set_column_width("parts", 1, 9999.0);
+    assert_eq!(s.col_widths["parts_1"], 600);
+    // a width that is not a number, and a name that is not a table, change nothing
+    let before = s.clone();
+    s.set_column_width("parts", 1, f32::NAN);
+    s.set_column_width("parts", 1, f32::INFINITY);
+    s.set_column_width("Parts", 1, 100.0);
+    s.set_column_width("parts", 100, 100.0);
+    assert_eq!(s, before);
+    // and they are written and read back with the rest
+    s.browse_dir = "C:\\work files".to_string();
+    assert_eq!(UiSettings::parse(&s.to_text()), s);
+    assert!(s.to_text().contains("col_parts_2 = 140\n"));
+}
+
+#[test]
+fn only_so_many_widths_are_kept() {
+    let mut t = UiSettings::default();
+    for table in ["a", "b"] {
+        for n in 0..100 {
+            t.set_column_width(table, n, 100.0);
+        }
+    }
+    assert_eq!(t.col_widths.len(), 200);
+    t.set_column_width("c", 0, 50.0);
+    assert_eq!(t.col_widths.len(), 200);
+    assert!(!t.col_widths.contains_key("c_0"));
+    // one that is already kept can still be changed
+    t.set_column_width("a", 0, 77.0);
+    assert_eq!(t.col_widths["a_0"], 77);
+    // a file with more than that is read up to the limit too
+    let many: String = (0..300).map(|n| format!("col_t_{n} = 90\n")).collect();
+    assert!(UiSettings::parse(&many).col_widths.len() <= 200);
+}
+
+#[test]
+fn the_picker_lists_the_folders_first_and_then_the_files_the_program_reads() {
+    let dir = temp_dir("browse");
+    for d in ["zeta", "Alpha"] {
+        std::fs::create_dir_all(dir.join(d)).unwrap();
+    }
+    for f in [
+        "b.csv",
+        "A.pos",
+        "notes.docx",
+        "c.CSV",
+        ".hidden.csv",
+        "README",
+    ] {
+        std::fs::write(dir.join(f), "x").unwrap();
+    }
+    let names = |b: &Browser| -> Vec<String> { b.entries.iter().map(|e| e.name.clone()).collect() };
+    let mut b = Browser::new(Purpose::Files, dir.clone());
+    assert_eq!(names(&b), ["Alpha", "zeta", "A.pos", "b.csv", "c.CSV"]);
+    b.show_all = true;
+    b.refresh();
+    assert_eq!(
+        names(&b),
+        [
+            "Alpha",
+            "zeta",
+            "A.pos",
+            "b.csv",
+            "c.CSV",
+            "notes.docx",
+            "README"
+        ]
+    );
+    // to choose a folder only the folders are listed
+    let f = Browser::new(Purpose::Folder, dir.clone());
+    assert_eq!(names(&f), ["Alpha", "zeta"]);
+    // a click on a folder goes into it, a click on a file gives its path, "up" comes back
+    let mut b = Browser::new(Purpose::Files, dir.clone());
+    assert_eq!(b.enter("Alpha"), None);
+    assert_eq!(b.dir, dir.join("Alpha"));
+    assert!(b.entries.is_empty());
+    b.up();
+    assert_eq!(b.dir, dir);
+    assert_eq!(b.enter("b.csv"), Some(dir.join("b.csv")));
+    // a typed path: a folder is entered, a file is given (with or without quotes), anything else is an error that names it
+    b.path_text = dir.join("zeta").display().to_string();
+    assert_eq!(b.go_typed(), None);
+    assert_eq!(b.dir, dir.join("zeta"));
+    b.path_text = format!("\"{}\"", dir.join("A.pos").display());
+    assert_eq!(b.go_typed(), Some(dir.join("A.pos")));
+    b.path_text = dir.join("nothing.csv").display().to_string();
+    assert_eq!(b.go_typed(), None);
+    assert!(b.error.as_deref().unwrap().contains("nothing.csv"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_pieces_of_the_picker() {
+    assert!(browse::matches_extension("TOP.CSV", &["csv"]));
+    assert!(browse::matches_extension("top.pos", &["CSV", "pos"]));
+    assert!(!browse::matches_extension("top.txt", &["csv"]));
+    assert!(!browse::matches_extension("csv", &["csv"]));
+    assert!(!browse::matches_extension(".csv", &["csv"]));
+    assert!(browse::matches_extension("anything", &[]));
+    assert_eq!(browse::size_text(0), "0 B");
+    assert_eq!(browse::size_text(1023), "1023 B");
+    assert_eq!(browse::size_text(1024), "1.0 KiB");
+    assert_eq!(browse::size_text(1536), "1.5 KiB");
+    assert_eq!(browse::size_text(1_048_576), "1.0 MiB");
+    let e = browse::list(
+        std::path::Path::new("/no/such/folder/nonexistent"),
+        &[],
+        true,
+    )
+    .unwrap_err();
+    assert!(e.contains("nonexistent"), "{e}");
+    let dir = temp_dir("start");
+    assert_eq!(browse::start_dir(Some(&dir)), dir);
+    assert!(browse::start_dir(Some(&dir.join("missing"))).is_dir());
+    assert!(browse::start_dir(None).is_dir());
+    // a folder that cannot be read leaves an empty list and the reason
+    let b = Browser::new(Purpose::Files, dir.join("missing"));
+    assert!(b.entries.is_empty() && b.error.is_some());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_picker_of_the_window_loads_files_and_remembers_the_folder() {
+    let dir = temp_dir("pick");
+    std::fs::write(dir.join("parts.csv"), PARTS).unwrap();
+    std::fs::write(dir.join("feeders.csv"), FEEDERS).unwrap();
+    let mut a = AppState::new(UiSettings {
+        browse_dir: dir.display().to_string(),
+        ..UiSettings::default()
+    });
+    a.open_browser(Purpose::Files);
+    assert_eq!(a.browser.as_ref().unwrap().dir, dir);
+    a.browser_pick(dir.join("parts.csv"));
+    a.browser_pick(dir.join("feeders.csv"));
+    // the picker stays open for the next file and the plan is made
+    assert!(a.browser.is_some());
+    assert_eq!(a.ws.parts.len(), 6);
+    assert!(a.planned.is_some());
+    // a file that is not a table is told in the log and the picker stays
+    std::fs::write(dir.join("empty.csv"), "").unwrap();
+    a.browser_pick(dir.join("empty.csv"));
+    assert!(a.browser.is_some());
+    assert!(a.log.entries().iter().any(|e| e.level == Level::Error));
+    // closing remembers the folder it was in
+    let parent = dir.parent().unwrap().to_path_buf();
+    a.browser.as_mut().unwrap().up();
+    a.close_browser();
+    assert!(a.browser.is_none());
+    assert_eq!(a.ui.browse_dir, parent.display().to_string());
+    // choosing the output folder
+    a.open_browser(Purpose::Folder);
+    a.browser_pick(dir.join("parts.csv"));
+    assert_eq!(a.ui.out_dir, "");
+    a.browser_use_folder();
+    assert_eq!(a.ui.out_dir, parent.display().to_string());
+    assert!(a.browser.is_none());
+    // the output folder is not set by the picker of files
+    a.ui.out_dir.clear();
+    a.open_browser(Purpose::Files);
+    a.browser_use_folder();
+    assert_eq!(a.ui.out_dir, "");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+const BOARD_OF_PANEL: &str =
+    "ref,val,package,x,y,rot,side\nR1,10k,R,10,20,0,top\nR2,10k,R,15,20,90,top\n";
+const FIDUCIALS_3: &str =
+    r#"{"id":"f1","x":-5,"y":-5},{"id":"f2","x":105,"y":-5},{"id":"f3","x":-5,"y":45}"#;
+const FIDUCIALS_4: &str = r#"{"id":"f1","x":-5,"y":-5},{"id":"f2","x":105,"y":-5},{"id":"f3","x":-5,"y":45},{"id":"f4","x":105,"y":45}"#;
+
+/// A folder with a panel of two boards, at (0, 0) and (60, 0), with the fiducials given, and the file of feeders.
+fn panel_dir(tag: &str, fiducials: &str) -> PathBuf {
+    let dir = temp_dir(tag);
+    std::fs::write(dir.join("board.csv"), BOARD_OF_PANEL).unwrap();
+    std::fs::write(dir.join("feeders.csv"), FEEDERS).unwrap();
+    let panel = format!(
+        r#"{{"boards": {{"main": "board.csv"}},
+            "panels": {{"p": {{"children": [{{"id": "A", "board": "main", "x": 0, "y": 0}},
+                                           {{"id": "B", "board": "main", "x": 60, "y": 0}}],
+                              "fiducials": [{fiducials}]}}}},
+            "root": "p"}}"#
+    );
+    std::fs::write(dir.join("panel.json"), panel).unwrap();
+    dir
+}
+
+fn at(ws: &Workspace, reference: &str) -> (f64, f64, f64) {
+    let p = ws
+        .parts
+        .iter()
+        .find(|p| p.reference == reference)
+        .unwrap_or_else(|| panic!("{reference} is not in the workspace"));
+    (p.x, p.y, p.rotation)
+}
+
+/// Whether two angles are the same angle, whatever turns they are written with.
+fn angle_near(a: f64, b: f64) -> bool {
+    ((a - b + 180.0).rem_euclid(360.0) - 180.0).abs() < 1e-9
+}
+
+fn marks(list: &[(&str, f64, f64)]) -> Vec<(String, f64, f64)> {
+    list.iter()
+        .map(|(i, x, y)| (i.to_string(), *x, *y))
+        .collect()
+}
+
+#[test]
+fn the_measured_fiducials_move_the_parts_of_the_panel_and_turn_them() {
+    let dir = panel_dir("fiducials", FIDUCIALS_3);
+    let mut ws = Workspace::new(Lang::En);
+    assert_eq!(
+        ws.load_path(&dir.join("panel.json")).unwrap(),
+        FileKind::Panel
+    );
+    assert_eq!(ws.parts.len(), 4);
+    assert_eq!(at(&ws, "A/R1"), (10.0, 20.0, 0.0));
+    assert_eq!(at(&ws, "B/R2"), (75.0, 20.0, 90.0));
+    assert_eq!(ws.design_fiducials.len(), 3);
+    assert!(!ws.has_fit() && ws.measured.is_empty());
+    // the panel is one millimetre to the right and two up: three marks fit exactly
+    ws.set_measured(marks(&[
+        ("f1", -4.0, -3.0),
+        ("f2", 106.0, -3.0),
+        ("f3", -4.0, 47.0),
+    ]))
+    .unwrap();
+    assert!(ws.has_fit());
+    assert_eq!(ws.fit.as_ref().unwrap().mode, FitMode::Affine);
+    let (x, y, r) = at(&ws, "A/R1");
+    assert!(near(x, 11.0) && near(y, 22.0) && angle_near(r, 0.0));
+    let (x, y, r) = at(&ws, "B/R2");
+    assert!(near(x, 76.0) && near(y, 22.0) && angle_near(r, 90.0));
+    // the configuration can ask for another kind of fit, and the parts are fitted again
+    ws.load_text("machine.cfg", "fiducial_mode = similarity\n")
+        .unwrap();
+    assert_eq!(ws.fit.as_ref().unwrap().mode, FitMode::Similarity);
+    assert!(near(at(&ws, "A/R1").0, 11.0));
+    ws.load_text("machine.cfg", "").unwrap();
+    // the panel turned a quarter about the origin: x' = -y, y' = x
+    ws.set_measured(marks(&[
+        ("f1", 5.0, -5.0),
+        ("f2", 5.0, 105.0),
+        ("f3", -45.0, -5.0),
+    ]))
+    .unwrap();
+    let (x, y, r) = at(&ws, "A/R1");
+    assert!(
+        near(x, -20.0) && near(y, 10.0) && angle_near(r, 90.0),
+        "{x} {y} {r}"
+    );
+    let (x, y, r) = at(&ws, "A/R2");
+    assert!(
+        near(x, -20.0) && near(y, 15.0) && angle_near(r, 180.0),
+        "{x} {y} {r}"
+    );
+    let (x, y, r) = at(&ws, "B/R1");
+    assert!(
+        near(x, -20.0) && near(y, 70.0) && angle_near(r, 90.0),
+        "{x} {y} {r}"
+    );
+    assert!(near(
+        ws.fit.as_ref().unwrap().transform.rotation_deg(),
+        90.0
+    ));
+    // taking the correction away puts the parts back where the panel puts them
+    ws.set_measured(Vec::new()).unwrap();
+    assert!(!ws.has_fit() && ws.measured.is_empty());
+    assert_eq!(at(&ws, "A/R1"), (10.0, 20.0, 0.0));
+    // a mark the panel does not have, or too few, are told and the parts stay
+    let e = ws
+        .set_measured(marks(&[("f1", 0.0, 0.0), ("zz", 1.0, 1.0)]))
+        .unwrap_err();
+    assert!(e.contains("PHOENIX-PNP-032") && e.contains("'zz'"), "{e}");
+    assert!(!ws.has_fit() && ws.fit_error.is_some());
+    assert_eq!(at(&ws, "A/R1"), (10.0, 20.0, 0.0));
+    assert!(ws.set_measured(marks(&[("f1", 0.0, 0.0)])).is_err());
+    // loading a plain board forgets the panel and its marks
+    ws.load_text("p.csv", PARTS).unwrap();
+    assert!(ws.panel.is_none() && ws.design_fiducials.is_empty() && ws.fit.is_none());
+    assert!(ws.set_measured(marks(&[("f1", 0.0, 0.0)])).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_fit_that_misses_by_more_than_the_limit_is_refused_and_the_residuals_are_listed() {
+    let dir = panel_dir("fiducials_limit", FIDUCIALS_4);
+    let mut ws = Workspace::new(Lang::En);
+    ws.load_path(&dir.join("panel.json")).unwrap();
+    // shifted by (1, 2), but the last mark is four millimetres too high: one millimetre is left on each mark
+    let shifted = marks(&[
+        ("f1", -4.0, -3.0),
+        ("f2", 106.0, -3.0),
+        ("f3", -4.0, 47.0),
+        ("f4", 106.0, 51.0),
+    ]);
+    let e = ws.set_measured(shifted.clone()).unwrap_err();
+    assert!(e.contains("the limit is 0.5 mm"), "{e}");
+    assert!(!ws.has_fit());
+    assert_eq!(at(&ws, "A/R1"), (10.0, 20.0, 0.0));
+    // with a limit of a millimetre and a half the fit is accepted
+    ws.load_text("machine.cfg", "fiducial_max_residual_mm = 1.5\n")
+        .unwrap();
+    assert!(ws.has_fit() && ws.fit_error.is_none());
+    // by hand: x' = x + 1, y' = y / 55 * x + 1.04 y + 71 / 55; the turn is atan(1 / 55)
+    let (x, y, r) = at(&ws, "A/R1");
+    assert!(near(x, 11.0) && near(y, 245.0 / 11.0), "{x} {y}");
+    assert!(angle_near(r, (1.0f64 / 55.0).atan().to_degrees()), "{r}");
+    let rows = fiducial_rows(&ws);
+    assert_eq!(rows.len(), 4);
+    for row in &rows {
+        assert!(near(row.residual.unwrap(), 1.0), "{row:?}");
+    }
+    assert_eq!(rows[3].measured, Some((106.0, 51.0)));
+    assert_eq!((rows[0].x, rows[0].y), (-5.0, -5.0));
+    // the limit is read again with the configuration: a stricter one refuses the fit it had accepted
+    ws.load_text("machine.cfg", "fiducial_max_residual_mm = 0.1\n")
+        .unwrap();
+    assert!(!ws.has_fit() && ws.fit_error.is_some());
+    assert_eq!(at(&ws, "A/R1"), (10.0, 20.0, 0.0));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_boards_and_the_fiducials_of_the_panel_are_rows_of_a_table() {
+    let dir = panel_dir("fiducial_rows", FIDUCIALS_3);
+    let mut ws = Workspace::new(Lang::En);
+    assert!(board_rows(&ws).is_empty() && fiducial_rows(&ws).is_empty());
+    ws.load_path(&dir.join("panel.json")).unwrap();
+    let boards = board_rows(&ws);
+    assert_eq!(boards.len(), 1);
+    assert_eq!(
+        (
+            boards[0].id.as_str(),
+            boards[0].file.as_str(),
+            boards[0].copies
+        ),
+        ("main", "board.csv", 2)
+    );
+    let before = fiducial_rows(&ws);
+    assert_eq!(before.len(), 3);
+    assert!(before
+        .iter()
+        .all(|r| r.measured.is_none() && r.residual.is_none()));
+    ws.set_measured(marks(&[("f2", 106.0, -3.0), ("f1", -4.0, -3.0)]))
+        .unwrap();
+    let after = fiducial_rows(&ws);
+    // in the order of the design; the mark that was not measured has no place and no residual
+    assert_eq!(after[0].id, "f1");
+    assert_eq!(after[0].measured, Some((-4.0, -3.0)));
+    assert!(near(after[0].residual.unwrap(), 0.0));
+    assert_eq!(after[2].id, "f3");
+    assert!(after[2].measured.is_none() && after[2].residual.is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_window_state_applies_the_typed_marks_reads_a_file_of_them_and_takes_them_away() {
+    let dir = panel_dir("fiducial_state", FIDUCIALS_3);
+    let mut a = AppState::new(UiSettings::default());
+    assert_eq!(
+        a.load_paths(&[dir.join("panel.json"), dir.join("feeders.csv")]),
+        2
+    );
+    assert_eq!(a.fid_edit.len(), 3);
+    assert!(a.fid_edit.iter().all(|e| !e.on));
+    assert_eq!((a.fid_edit[1].x, a.fid_edit[1].y), (105.0, -5.0));
+    let x_of = |a: &AppState, r: &str| {
+        a.planned
+            .as_ref()
+            .unwrap()
+            .plan
+            .plan
+            .placements
+            .iter()
+            .find(|p| p.reference == r)
+            .unwrap()
+            .x
+    };
+    assert!(near(x_of(&a, "A/R1"), 10.0));
+    // nothing typed: nothing to fit
+    assert!(!a.apply_fiducials());
+    a.fid_edit[0] = FidEdit {
+        on: true,
+        x: -4.0,
+        y: -3.0,
+    };
+    a.fid_edit[1] = FidEdit {
+        on: true,
+        x: 106.0,
+        y: -3.0,
+    };
+    a.fid_edit[2] = FidEdit {
+        on: true,
+        x: -4.0,
+        y: 47.0,
+    };
+    assert!(a.apply_fiducials());
+    assert!(a.ws.has_fit() && a.planned.is_some());
+    assert!(
+        near(x_of(&a, "A/R1"), 11.0),
+        "the plan is made again with the moved parts"
+    );
+    assert!(a
+        .log
+        .entries()
+        .iter()
+        .any(|e| e.text.starts_with("Fit of the fiducials: affine")));
+    a.clear_fiducials();
+    assert!(!a.ws.has_fit());
+    assert!(near(x_of(&a, "A/R1"), 10.0));
+    assert!(a.fid_edit.iter().all(|e| !e.on));
+    // a file of measured marks
+    let file = dir.join("marks.csv");
+    std::fs::write(&file, "id,x,y\nf1,-4,-3\nf2,106,-3\nf3,-4,47\n").unwrap();
+    assert!(a.load_marks_path(&file));
+    assert!(a.ws.has_fit() && a.fid_edit.iter().all(|e| e.on));
+    assert_eq!(a.fid_edit[2].y, 47.0);
+    // a file with a mark the panel does not have, one that is not a table, and one that is not there
+    std::fs::write(&file, "id,x,y\nzz,1,1\nf1,2,2\n").unwrap();
+    assert!(!a.load_marks_path(&file));
+    assert!(a
+        .log
+        .entries()
+        .iter()
+        .any(|e| e.level == Level::Error && e.text.contains("'zz'")));
+    std::fs::write(&file, "nothing like a table").unwrap();
+    assert!(!a.load_marks_path(&file));
+    assert!(!a.load_marks_path(&dir.join("missing.csv")));
+    // the picker for the marks closes when the file was read
+    std::fs::write(&file, "id,x,y\nf1,-4,-3\nf2,106,-3\n").unwrap();
+    a.open_browser(Purpose::Fiducials);
+    a.browser_pick(file.clone());
+    assert!(a.browser.is_none());
+    assert_eq!(a.ws.fit.as_ref().unwrap().mode, FitMode::Similarity);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---- the tables of feeders and packages are edited
+
+fn state() -> AppState {
+    let mut a = AppState::new(UiSettings::default());
+    assert_eq!(a.load_sample(&sample_pair(PARTS, FEEDERS)), 2);
+    a
+}
+
+#[test]
+fn a_feeder_is_edited_and_the_edit_can_be_taken_back() {
+    let mut a = state();
+    assert!(!a.ws.edited && !a.ws.can_undo());
+    let mut spec = a.ws.feeders[0].clone();
+    assert_eq!(
+        (spec.base.id.as_str(), spec.base.x, spec.base.y),
+        ("F1", -20.0, 10.0)
+    );
+    spec.base.x = -30.0;
+    assert!(a.edit_feeder(0, spec.clone()));
+    assert!(
+        !a.edit_feeder(0, spec.clone()),
+        "the same again changes nothing"
+    );
+    spec.base.y = 15.0;
+    assert!(a.edit_feeder(0, spec.clone()));
+    assert!(a.ws.edited && a.ws.can_undo());
+    // both changes were one edit: one step back puts the feeder as it was
+    assert!(a.undo());
+    assert_eq!(
+        (a.ws.feeders[0].base.x, a.ws.feeders[0].base.y),
+        (-20.0, 10.0)
+    );
+    assert!(!a.ws.edited && !a.ws.can_undo());
+    // once the edit has ended the next change is a step of its own
+    let mut first = a.ws.feeders[0].clone();
+    first.base.x = -31.0;
+    assert!(a.edit_feeder(0, first.clone()));
+    a.end_edit();
+    first.base.x = -32.0;
+    assert!(a.edit_feeder(0, first));
+    assert!(a.undo());
+    assert_eq!(a.ws.feeders[0].base.x, -31.0);
+    assert!(a.undo());
+    assert_eq!(a.ws.feeders[0].base.x, -20.0);
+    assert!(!a.undo());
+    // the id is not edited, an index that is not there changes nothing
+    let mut renamed = a.ws.feeders[0].clone();
+    renamed.base.id = "ZZ".to_string();
+    assert!(!a.edit_feeder(0, renamed.clone()));
+    assert_eq!(a.ws.feeders[0].base.id, "F1");
+    assert!(!a.edit_feeder(9, renamed));
+}
+
+#[test]
+fn a_feeder_that_is_edited_is_brought_back_into_what_the_file_allows() {
+    let mut a = state();
+    let mut spec = a.ws.feeders[0].clone();
+    spec.kind = FeederKind::Tray {
+        cols: 3,
+        rows: 2,
+        pitch_x: 10.0,
+        pitch_y: 0.0,
+        rotation: 0.0,
+    };
+    spec.fill = TrayFill::Snake;
+    assert!(a.edit_feeder(0, spec));
+    // ten parts in a tray of six cells are six; a pitch of zero is the smallest pitch
+    let f = &a.ws.feeders[0];
+    assert_eq!(f.base.count, 6);
+    assert_eq!(f.capacity(), 6);
+    assert!(matches!(f.kind, FeederKind::Tray { pitch_y, .. } if pitch_y == 0.01));
+    assert_eq!(f.fill, TrayFill::Snake);
+    // and it is still a plan: the three resistors come from the tray
+    assert!(a.planned.is_some());
+    assert!(a.undo());
+    assert_eq!(a.ws.feeders[0].kind, FeederKind::Tape);
+    assert_eq!(a.ws.feeders[0].base.count, 10);
+}
+
+#[test]
+fn feeders_are_added_and_deleted_and_every_step_is_taken_back_in_order() {
+    let mut a = state();
+    a.add_feeder();
+    assert_eq!(a.selection.feeder.as_deref(), Some("F4"));
+    a.end_edit();
+    a.add_feeder();
+    a.end_edit();
+    let ids: Vec<&str> = a.ws.feeders.iter().map(|f| f.base.id.as_str()).collect();
+    assert_eq!(ids, ["F1", "F2", "F3", "F4", "F5"]);
+    assert_eq!(a.ws.feeders[4].base.count, 0);
+    assert!(a.delete_feeder(0));
+    assert_eq!(a.ws.feeders[0].base.id, "F2");
+    assert!(a.selection.feeder.is_none());
+    assert!(!a.delete_feeder(99));
+    assert!(a.undo());
+    assert_eq!(a.ws.feeders.len(), 5);
+    assert_eq!(a.ws.feeders[0].base.id, "F1");
+    assert!(a.undo());
+    assert_eq!(a.ws.feeders.len(), 4);
+    assert!(a.undo());
+    assert_eq!(a.ws.feeders.len(), 3);
+    assert!(!a.undo());
+    // a name that is free is taken: with F2 gone the new feeder is F4, not F3 again
+    let mut b = state();
+    assert!(b.delete_feeder(1));
+    b.end_edit();
+    b.add_feeder();
+    let ids: Vec<&str> = b.ws.feeders.iter().map(|f| f.base.id.as_str()).collect();
+    assert_eq!(ids, ["F1", "F3", "F4"]);
+}
+
+#[test]
+fn the_feeders_that_were_edited_are_written_with_the_outputs() {
+    let mut a = state();
+    assert!(a.ws.edited_files().is_empty());
+    let mut spec = a.ws.feeders[1].clone();
+    spec.priority = 1;
+    spec.slot = Some("S9".to_string());
+    assert!(a.edit_feeder(1, spec));
+    let files = a.ws.edited_files();
+    assert_eq!(files.len(), 1);
+    assert_eq!(files[0].0, "feeders_edited.csv");
+    // the file reads back as the feeders of the window
+    assert_eq!(feeding::from_csv(&files[0].1).unwrap(), a.ws.feeders);
+    let out = temp_dir("edited_out");
+    a.ui.out_dir = out.display().to_string();
+    a.save_outputs().unwrap();
+    assert!(out.join("feeders_edited.csv").exists());
+    assert!(!out.join("packages_edited.csv").exists());
+    let text = std::fs::read_to_string(out.join("feeders_edited.csv")).unwrap();
+    assert!(text.contains("F2,100n,C,-20,20,10,high,tape"), "{text}");
+    assert!(text.contains(",S9,rows"), "{text}");
+    let _ = std::fs::remove_dir_all(&out);
+}
+
+#[test]
+fn the_packages_of_the_board_are_rows_that_can_be_given_values() {
+    let mut a = state();
+    let rows = package_rows(&a.ws);
+    let seen: Vec<(&str, usize, bool)> = rows
+        .iter()
+        .map(|r| (r.name.as_str(), r.count, r.defined))
+        .collect();
+    // in natural order of the names: C, Q and R, none of them in a table yet
+    assert_eq!(seen, [("C", 2, false), ("Q", 1, false), ("R", 3, false)]);
+    assert_eq!(rows[0].shown.height_mm, 1.0);
+    assert_eq!(rows[0].props, PartProps::default());
+    // a name that is empty, has a control character or is already there is not a new package
+    assert!(!a.add_package(""));
+    assert!(!a.add_package("   "));
+    assert!(!a.add_package("a\u{7}b"));
+    assert!(!a.add_package(&"x".repeat(65)));
+    assert!(a.add_package("Q"));
+    assert!(!a.add_package("q"));
+    a.end_edit();
+    assert!(package_rows(&a.ws)[1].defined);
+    // R gets a height and a rank; the plan uses them
+    let props = PartProps {
+        height_mm: Some(0.7),
+        rank: Some(3),
+        ..PartProps::default()
+    };
+    assert!(a.edit_package("R", props.clone()));
+    assert!(!a.edit_package("R", props.clone()));
+    a.end_edit();
+    let planned = a.planned.as_ref().unwrap();
+    for (p, d) in planned
+        .plan
+        .plan
+        .placements
+        .iter()
+        .zip(&planned.plan.details)
+    {
+        if p.reference.starts_with('R') {
+            assert_eq!((d.height_mm, d.rank), (0.7, 3), "{}", p.reference);
+        } else {
+            assert_eq!((d.height_mm, d.rank), (1.0, 0), "{}", p.reference);
+        }
+    }
+    let r = &package_rows(&a.ws)[2];
+    assert!(r.defined && r.shown.height_mm == 0.7 && r.shown.rank == 3);
+    // the table as a file: only what the rows say, and it reads back
+    let csv = a.ws.catalog.packages_csv();
+    assert_eq!(
+        csv,
+        "package,height_mm,through_board_mm,pick_retries,bin,nozzle_tip,rank,origin_dx_mm,origin_dy_mm,tape_mm\nQ,,,,,,,,,\nR,0.7,,,,,3,,,\n"
+    );
+    let mut back = Catalog::new();
+    back.add_packages(&csv).unwrap();
+    assert_eq!(back.package("R"), Some(&props));
+    assert_eq!(back.package("q"), Some(&PartProps::default()));
+    let files = a.ws.edited_files();
+    let names: Vec<&str> = files.iter().map(|f| f.0).collect();
+    assert_eq!(names, ["feeders_edited.csv", "packages_edited.csv"]);
+    // a row taken away, and every step back
+    assert!(a.delete_package("R"));
+    assert!(!a.delete_package("R"));
+    let planned = a.planned.as_ref().unwrap();
+    assert!(planned.plan.details.iter().all(|d| d.height_mm == 1.0));
+    assert!(a.undo());
+    assert!(a.ws.catalog.package("R").is_some());
+    assert!(a.undo());
+    assert!(a.ws.catalog.package("R").is_none() && a.ws.catalog.package("Q").is_some());
+    assert!(a.undo());
+    assert!(a.ws.catalog.is_empty() && !a.ws.edited);
+    assert!(!a.undo());
+}
+
+#[test]
+fn a_package_table_that_was_edited_survives_the_loading_of_the_table_of_parts() {
+    let mut a = state();
+    assert!(a.add_package("R"));
+    a.end_edit();
+    let props = PartProps {
+        tape_mm: Some(12.0),
+        ..PartProps::default()
+    };
+    assert!(a.edit_package("R", props.clone()));
+    // the table of parts is loaded after the edit: the rows of the packages are still there
+    a.ws.load_text("catalog.csv", "value,package,rank\n10k,R,4\n")
+        .unwrap();
+    assert_eq!(a.ws.catalog.package("R"), Some(&props));
+    assert!(!a.ws.catalog.is_empty());
+}
+
+#[test]
+fn only_so_many_edits_can_be_taken_back_as_the_configuration_says() {
+    let mut a = state();
+    a.ws.load_text("machine.cfg", "undo_limit = 2\n").unwrap();
+    for x in [-31.0, -32.0, -33.0] {
+        let mut spec = a.ws.feeders[0].clone();
+        spec.base.x = x;
+        assert!(a.edit_feeder(0, spec));
+        a.end_edit();
+    }
+    let mut back = 0;
+    while a.undo() {
+        back += 1;
+    }
+    assert_eq!(back, 2);
+    // the oldest step is gone: the feeder is where it was before the second edit
+    assert_eq!(a.ws.feeders[0].base.x, -31.0);
+}
+
+#[test]
+fn a_tray_takes_the_order_of_the_configuration_when_its_row_says_nothing() {
+    let mut ws = Workspace::new(Lang::En);
+    ws.load_text("machine.cfg", "tray_fill = snake\n").unwrap();
+    ws.load_text(
+        "feeders.csv",
+        "id,value,package,x,y,count,kind,cols,rows,pitch_x,pitch_y,fill\nT1,10k,R,0,0,6,tray,3,2,10,10,\nT2,100n,C,0,0,6,tray,3,2,10,10,rows\n",
+    )
+    .unwrap();
+    assert_eq!(ws.feeders[0].fill, TrayFill::Snake);
+    assert_eq!(ws.feeders[1].fill, TrayFill::Rows);
+    // the fourth cell of a snake is the last of the second row: (20, 10)
+    assert_eq!(ws.feeders[0].pick_point(3), (20.0, 10.0));
+    assert_eq!(ws.feeders[1].pick_point(3), (0.0, 10.0));
 }

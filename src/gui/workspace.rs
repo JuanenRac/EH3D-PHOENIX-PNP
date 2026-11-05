@@ -4,10 +4,12 @@
 //! It holds no window and no clock, so everything here can be tested with text. A file can be given as text with its name, or as a path; the kind of a file is found from its name and
 //! its first line.
 
-use crate::catalog::Catalog;
+use crate::catalog::{Catalog, PartProps};
 use crate::config::{MachineConfig, OrderStrategy};
 use crate::error::{Code, Lang, PnpError};
+use crate::feeders::Feeder;
 use crate::feeding::{self, FeederSpec, Picks};
+use crate::fiducial::{self, Fit};
 use crate::loadsheet::{self, LoadSheet, Slot};
 use crate::panel::Panel;
 use crate::parts::{detect_delimiter, parse_with, Part, Side};
@@ -154,6 +156,9 @@ pub struct Planned {
 struct Snapshot {
     feeders: Vec<FeederSpec>,
     excluded: BTreeSet<String>,
+    catalog: Catalog,
+    packages_text: Option<String>,
+    edited: bool,
 }
 
 /// The files, the settings and the edits of the window.
@@ -170,11 +175,25 @@ pub struct Workspace {
     pub excluded: BTreeSet<String>,
     /// The names (not the folders) of the files that were loaded.
     pub names: BTreeMap<FileKind, String>,
+    /// The panel that was loaded, for the tables of panels and boards.
+    pub panel: Option<Panel>,
+    /// The fiducials of the panel as designed, in the coordinates of the panel.
+    pub design_fiducials: Vec<(String, f64, f64)>,
+    /// The measured places of the fiducials, as they were given.
+    pub measured: Vec<(String, f64, f64)>,
+    /// The fit of the measured fiducials to the designed ones, when it was accepted.
+    pub fit: Option<Fit>,
+    /// Why the fit was refused, in the language of the window.
+    pub fit_error: Option<String>,
     parts_text: Option<String>,
     panel_parts: Option<Vec<Part>>,
     packages_text: Option<String>,
     catalog_text: Option<String>,
     undo: Vec<Snapshot>,
+    /// An edit is going on (a field is being dragged or typed in): the edits that follow are one step to take back.
+    in_edit: bool,
+    /// The tables of feeders or packages were changed in the window.
+    pub edited: bool,
 }
 
 impl Default for Workspace {
@@ -195,11 +214,18 @@ impl Workspace {
             options: Options::default(),
             excluded: BTreeSet::new(),
             names: BTreeMap::new(),
+            panel: None,
+            design_fiducials: Vec::new(),
+            measured: Vec::new(),
+            fit: None,
+            fit_error: None,
             parts_text: None,
             panel_parts: None,
             packages_text: None,
             catalog_text: None,
             undo: Vec::new(),
+            in_edit: false,
+            edited: false,
         }
     }
 
@@ -231,15 +257,18 @@ impl Workspace {
         match kind {
             FileKind::Parts => {
                 let parts = parse_with(text, &self.cfg.profile)?;
-                self.finish_parts(parts)?;
+                self.finish_parts(parts, None)?;
                 self.parts_text = Some(text.to_string());
                 self.panel_parts = None;
+                self.forget_panel();
                 self.names.remove(&FileKind::Panel);
             }
             FileKind::Feeders => {
-                let feeders = feeding::from_csv(text).map_err(|e| self.localize(&e))?;
+                let feeders = feeding::from_csv_with(text, self.cfg.tray_fill)
+                    .map_err(|e| self.localize(&e))?;
                 self.feeders = feeders;
                 self.undo.clear();
+                self.edited = false;
             }
             FileKind::Config => {
                 let cfg = MachineConfig::parse(text).map_err(|e| self.localize(&e))?;
@@ -253,6 +282,7 @@ impl Workspace {
                     self.lang = cfg.language;
                 }
                 self.cfg = cfg;
+                self.refit();
                 self.reparse_parts()?;
             }
             FileKind::Packages => {
@@ -306,20 +336,29 @@ impl Workspace {
         let expanded = panel.expand(&load).map_err(|e| self.localize(&e))?;
         // the panel is kept as it was read, so that a new configuration turns its parts again
         let raw = expanded.parts.clone();
-        self.finish_parts(expanded.parts)?;
+        self.finish_parts(expanded.parts, None)?;
         self.panel_parts = Some(raw);
+        self.panel = Some(panel);
+        self.design_fiducials = expanded.fiducials;
+        self.measured.clear();
+        self.fit = None;
+        self.fit_error = None;
         self.parts_text = None;
         self.names.remove(&FileKind::Parts);
         Ok(())
     }
 
     /// Checks the number of parts, applies the rotation corrections of the configuration and takes the parts.
-    fn finish_parts(&mut self, mut parts: Vec<Part>) -> Result<(), String> {
+    /// `fit` is the correction of the fiducials, for the parts of a panel.
+    fn finish_parts(&mut self, mut parts: Vec<Part>, fit: Option<&Fit>) -> Result<(), String> {
         if parts.len() > self.cfg.max_parts {
             return Err(self.localize(&PnpError::new(
                 Code::TooManyParts,
                 format!("{} parts, the limit is {}", parts.len(), self.cfg.max_parts),
             )));
+        }
+        if let Some(f) = fit {
+            fiducial::correct(&mut parts, &f.transform);
         }
         let table = self.cfg.rotation_table().map_err(|e| self.localize(&e))?;
         table.apply(&mut parts);
@@ -333,11 +372,68 @@ impl Workspace {
     fn reparse_parts(&mut self) -> Result<(), String> {
         if let Some(text) = self.parts_text.clone() {
             let parts = parse_with(&text, &self.cfg.profile)?;
-            self.finish_parts(parts)?;
+            self.finish_parts(parts, None)?;
         } else if let Some(raw) = self.panel_parts.clone() {
-            self.finish_parts(raw)?;
+            let fit = self.fit.clone();
+            self.finish_parts(raw, fit.as_ref())?;
         }
         Ok(())
+    }
+
+    /// Drops everything that belongs to a panel.
+    fn forget_panel(&mut self) {
+        self.panel = None;
+        self.design_fiducials.clear();
+        self.measured.clear();
+        self.fit = None;
+        self.fit_error = None;
+    }
+
+    /// Fits the measured fiducials again with the current configuration.
+    fn refit(&mut self) {
+        if self.measured.is_empty() {
+            self.fit = None;
+            self.fit_error = None;
+            return;
+        }
+        match fiducial::solve(
+            &self.design_fiducials,
+            &self.measured,
+            self.cfg.fiducial_mode,
+            self.cfg.fiducial_max_residual_mm,
+        ) {
+            Ok(f) => {
+                self.fit = Some(f);
+                self.fit_error = None;
+            }
+            Err(e) => {
+                self.fit = None;
+                self.fit_error = Some(self.localize(&e));
+            }
+        }
+    }
+
+    /// Sets the measured places of the fiducials of the panel (an empty list takes the correction away) and moves the parts of the panel with the fit. A fit that is refused leaves the
+    /// parts where the panel puts them and gives the reason.
+    pub fn set_measured(&mut self, marks: Vec<(String, f64, f64)>) -> Result<(), String> {
+        if self.panel_parts.is_none() {
+            return Err(self.localize(&PnpError::new(
+                Code::FiducialBad,
+                "there is no panel: the marks are the ones of a panel",
+            )));
+        }
+        self.measured = marks;
+        self.refit();
+        self.reparse_parts()?;
+        match &self.fit_error {
+            Some(e) => Err(e.clone()),
+            None => Ok(()),
+        }
+    }
+
+    /// Whether the parts are moved by the fiducials.
+    pub fn has_fit(&self) -> bool {
+        self.fit.is_some()
     }
 
     fn rebuild_catalog(&mut self) -> Result<(), String> {
@@ -460,13 +556,115 @@ impl Workspace {
 
     /// Keeps the state before an edit, so that `undo` can come back to it.
     pub fn remember(&mut self) {
-        if self.undo.len() >= 100 {
+        while self.undo.len() >= self.cfg.undo_limit.max(1) {
             self.undo.remove(0);
         }
         self.undo.push(Snapshot {
             feeders: self.feeders.clone(),
             excluded: self.excluded.clone(),
+            catalog: self.catalog.clone(),
+            packages_text: self.packages_text.clone(),
+            edited: self.edited,
         });
+    }
+
+    /// Starts an edit of the tables: the state before it is kept once, however many changes the edit makes before `end_edit`.
+    pub fn begin_edit(&mut self) {
+        if !self.in_edit {
+            self.remember();
+            self.in_edit = true;
+        }
+    }
+
+    /// Ends the edit that `begin_edit` started: the next change is a new step to take back.
+    pub fn end_edit(&mut self) {
+        self.in_edit = false;
+    }
+
+    /// Replaces the feeder at `index` by an edited one. The id cannot be changed. Gives whether anything changed.
+    pub fn set_feeder(&mut self, index: usize, mut spec: FeederSpec) -> bool {
+        let Some(old) = self.feeders.get(index) else {
+            return false;
+        };
+        spec.base.id = old.base.id.clone();
+        feeding::normalize(&mut spec);
+        if *old == spec {
+            return false;
+        }
+        self.begin_edit();
+        self.feeders[index] = spec;
+        self.edited = true;
+        true
+    }
+
+    /// Adds a feeder with a new id and nothing to hold yet. Gives the index of the feeder.
+    pub fn add_feeder(&mut self) -> usize {
+        let mut n = self.feeders.len() + 1;
+        let id = loop {
+            let id = format!("F{n}");
+            if self.feeders.iter().all(|f| f.base.id != id) {
+                break id;
+            }
+            n += 1;
+        };
+        self.begin_edit();
+        self.feeders.push(FeederSpec::from_basic(Feeder {
+            id,
+            value: String::new(),
+            package: String::new(),
+            x: 0.0,
+            y: 0.0,
+            count: 0,
+        }));
+        self.edited = true;
+        self.feeders.len() - 1
+    }
+
+    /// Takes the feeder at `index` away. Gives whether there was one.
+    pub fn remove_feeder(&mut self, index: usize) -> bool {
+        if index >= self.feeders.len() {
+            return false;
+        }
+        self.begin_edit();
+        self.feeders.remove(index);
+        self.edited = true;
+        true
+    }
+
+    /// Gives a package its properties (a row of the table of packages is made if it had none). Gives whether anything changed.
+    pub fn set_package_props(&mut self, package: &str, props: PartProps) -> bool {
+        if self.catalog.package(package) == Some(&props) {
+            return false;
+        }
+        self.begin_edit();
+        self.catalog.set_package(package, props);
+        self.packages_text = Some(self.catalog.packages_csv());
+        self.edited = true;
+        true
+    }
+
+    /// Takes the row of a package away. Gives whether it had one.
+    pub fn remove_package_row(&mut self, package: &str) -> bool {
+        if self.catalog.package(package).is_none() {
+            return false;
+        }
+        self.begin_edit();
+        self.catalog.remove_package(package);
+        self.packages_text = Some(self.catalog.packages_csv());
+        self.edited = true;
+        true
+    }
+
+    /// The tables as they are now, when they were changed in the window: the file names and their texts.
+    pub fn edited_files(&self) -> Vec<(&'static str, String)> {
+        if !self.edited {
+            return Vec::new();
+        }
+        let mut out = vec![("feeders_edited.csv", feeding::to_csv(&self.feeders))];
+        if self.packages_text.is_some() {
+            out.push(("packages_edited.csv", self.catalog.packages_csv()));
+        }
+        out
     }
 
     pub fn can_undo(&self) -> bool {
@@ -479,6 +677,10 @@ impl Workspace {
             Some(s) => {
                 self.feeders = s.feeders;
                 self.excluded = s.excluded;
+                self.catalog = s.catalog;
+                self.packages_text = s.packages_text;
+                self.edited = s.edited;
+                self.in_edit = false;
                 true
             }
             None => false,
