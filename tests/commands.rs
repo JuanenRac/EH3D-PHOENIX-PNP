@@ -519,7 +519,7 @@ fn a_fiducial_fit_that_misses_too_much_is_refused_unless_the_configuration_allow
     // forcing a similarity on four marks leaves 2 mm on the mark that is off (by hand: the turn is -0.01, the scale 1.01) and nothing on the opposite one
     std::fs::write(
         &config,
-        "fiducial_max_residual_mm = 1.5\nfiducial_mode = similarity\n",
+        "fiducial_max_residual_mm = 2.5\nfiducial_mode = similarity\n",
     )
     .unwrap();
     let o = run(&with_config);
