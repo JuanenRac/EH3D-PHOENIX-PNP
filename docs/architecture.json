@@ -90,10 +90,11 @@
       "title": "planner",
       "lines": [
         "ranks, order, nozzle tips,",
-        "angles, time of the moves, panels"
+        "angles, moves, panels, fiducials"
       ],
       "code": [
-        "src/planner.rs::pub fn plan_advanced"
+        "src/planner.rs::pub fn plan_advanced",
+        "src/fiducial.rs::pub fn fit_points"
       ]
     },
     {
@@ -102,7 +103,7 @@
       "level": "tested",
       "title": "simulator and job",
       "lines": [
-        "virtual clock, failures,",
+        "virtual clock, failures by part,",
         "pause, steps, saved state"
       ],
       "code": [
@@ -185,7 +186,7 @@
     }
   ],
   "legend": {
-    "tested": "covered by tests on a computer (248 tests)",
+    "tested": "covered by tests on a computer (298 tests)",
     "config": "planned, not used today",
     "external": "a person, a file or another repository"
   },

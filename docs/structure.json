@@ -56,14 +56,14 @@
         {
           "name": "commands.rs",
           "desc": {
-            "en": "the commands that use the configuration: schedule, preflight, simulate, loadsheet",
-            "es": "las órdenes que usan la configuración: schedule, preflight, simulate, loadsheet",
-            "de": "die Befehle, die die Konfiguration nutzen: schedule, preflight, simulate, loadsheet",
-            "fr": "les commandes qui utilisent la configuration : schedule, preflight, simulate, loadsheet",
-            "it": "i comandi che usano la configurazione: schedule, preflight, simulate, loadsheet",
-            "ja": "設定を使うコマンド：schedule、preflight、simulate、loadsheet",
-            "zh": "使用配置的命令：schedule、preflight、simulate、loadsheet",
-            "pt": "os comandos que usam a configuração: schedule, preflight, simulate, loadsheet"
+            "en": "the commands that use the configuration, and check-bottom",
+            "es": "las órdenes que usan la configuración, y check-bottom",
+            "de": "die Befehle, die die Konfiguration nutzen, und check-bottom",
+            "fr": "les commandes qui utilisent la configuration, et check-bottom",
+            "it": "i comandi che usano la configurazione, e check-bottom",
+            "ja": "設定を使うコマンドと check-bottom",
+            "zh": "使用配置的命令，以及 check-bottom",
+            "pt": "os comandos que usam a configuração, e check-bottom"
           }
         },
         {
@@ -132,6 +132,19 @@
           }
         },
         {
+          "name": "fiducial.rs",
+          "desc": {
+            "en": "fiducials of a panel: the fit of the measured marks and the correction of the parts",
+            "es": "fiduciales de un panel: el ajuste de las marcas medidas y la corrección de las piezas",
+            "de": "Passmarken eines Nutzens: die Anpassung der gemessenen Marken und die Korrektur der Teile",
+            "fr": "repères d'un panneau : l'ajustement des repères mesurés et la correction des pièces",
+            "it": "fiduciali di un pannello: l'adattamento dei fiduciali misurati e la correzione delle parti",
+            "ja": "パネルのフィデューシャル：実測マークの補正計算と部品の位置補正",
+            "zh": "拼板的基准点：测量基准点的拟合与零件的校正",
+            "pt": "fiduciais de um painel: o ajuste das marcas medidas e a correção das peças"
+          }
+        },
+        {
           "name": "gui.rs",
           "desc": {
             "en": "the window: modules that need no screen, and the drawing in window.rs",
@@ -155,6 +168,19 @@
             "ja": "ウィンドウの状態：読み込み、計画、開始、一時停止、ステップ、修正、保存",
             "zh": "窗口的状态：载入、规划、开始、暂停、单步、修复、保存",
             "pt": "o estado da janela: carregar, planear, iniciar, pausar, avançar, corrigir, guardar"
+          }
+        },
+        {
+          "name": "gui/browse.rs",
+          "desc": {
+            "en": "the file picker: folders and files, up, typed paths",
+            "es": "el selector de archivos: carpetas y archivos, subir, rutas escritas",
+            "de": "die Dateiauswahl: Ordner und Dateien, hinauf, eingetippte Pfade",
+            "fr": "le sélecteur de fichiers : dossiers et fichiers, monter, chemins saisis",
+            "it": "il selettore di file: cartelle e file, su, percorsi digitati",
+            "ja": "ファイル選択：フォルダーとファイル、上へ、入力したパス",
+            "zh": "文件选择器：文件夹和文件、上一级、输入的路径",
+            "pt": "o seletor de ficheiros: pastas e ficheiros, subir, caminhos escritos"
           }
         },
         {
@@ -212,14 +238,14 @@
         {
           "name": "gui/settings.rs",
           "desc": {
-            "en": "what the window remembers: language, theme, layers and the output folder",
-            "es": "lo que recuerda la ventana: idioma, tema, capas y carpeta de salida",
-            "de": "was das Fenster sich merkt: Sprache, Design, Ebenen und Ausgabeordner",
-            "fr": "ce dont la fenêtre se souvient : langue, thème, couches et dossier de sortie",
-            "it": "ciò che la finestra ricorda: lingua, tema, livelli e cartella di uscita",
-            "ja": "ウィンドウが記憶するもの：言語、テーマ、レイヤー、出力フォルダー",
-            "zh": "窗口记住的内容：语言、主题、图层和输出文件夹",
-            "pt": "o que a janela memoriza: idioma, tema, camadas e pasta de saída"
+            "en": "what the window remembers: language, theme, layers, folders and the width of the columns",
+            "es": "lo que recuerda la ventana: idioma, tema, capas, carpetas y el ancho de las columnas",
+            "de": "was das Fenster sich merkt: Sprache, Design, Ebenen, Ordner und die Breite der Spalten",
+            "fr": "ce dont la fenêtre se souvient : langue, thème, couches, dossiers et largeur des colonnes",
+            "it": "ciò che la finestra ricorda: lingua, tema, livelli, cartelle e la larghezza delle colonne",
+            "ja": "ウィンドウが記憶するもの：言語、テーマ、レイヤー、フォルダー、列の幅",
+            "zh": "窗口记住的内容：语言、主题、图层、文件夹和列宽",
+            "pt": "o que a janela memoriza: idioma, tema, camadas, pastas e a largura das colunas"
           }
         },
         {
@@ -311,6 +337,19 @@
             "ja": "読み込んだファイル、計画、編集（ウィンドウなし）",
             "zh": "已载入的文件、规划和编辑，无需窗口",
             "pt": "os ficheiros carregados, o plano e as edições, sem janela"
+          }
+        },
+        {
+          "name": "gui_main.rs",
+          "desc": {
+            "en": "the window as a program of its own, without a console on Windows",
+            "es": "la ventana como programa propio, sin consola en Windows",
+            "de": "das Fenster als eigenes Programm, unter Windows ohne Konsole",
+            "fr": "la fenêtre comme programme à part, sans console sous Windows",
+            "it": "la finestra come programma a sé, senza console su Windows",
+            "ja": "独立したウィンドウ用プログラム（Windows ではコンソールなし）",
+            "zh": "作为独立程序的窗口，在 Windows 上没有控制台",
+            "pt": "a janela como programa à parte, sem consola no Windows"
           }
         },
         {
@@ -433,14 +472,14 @@
         {
           "name": "planner.rs",
           "desc": {
-            "en": "the planner that knows the machine: ranks, order, tips, angles and time",
-            "es": "el planificador que conoce la máquina: rangos, orden, puntas, ángulos y tiempo",
-            "de": "der Planer, der die Maschine kennt: Ränge, Reihenfolge, Spitzen, Winkel und Zeit",
-            "fr": "le planificateur qui connaît la machine : rangs, ordre, pointes, angles et temps",
-            "it": "il pianificatore che conosce la macchina: ranghi, ordine, punte, angoli e tempo",
-            "ja": "機械を知るプランナー：ランク、順序、チップ、角度、時間",
-            "zh": "了解机器的规划器：等级、顺序、吸嘴头、角度和时间",
-            "pt": "o planeador que conhece a máquina: níveis, ordem, pontas, ângulos e tempo"
+            "en": "the planner that knows the machine: ranks, order, tips and their search, angles and time",
+            "es": "el planificador que conoce la máquina: rangos, orden, puntas y su búsqueda, ángulos y tiempo",
+            "de": "der Planer, der die Maschine kennt: Ränge, Reihenfolge, Spitzen und ihre Suche, Winkel und Zeit",
+            "fr": "le planificateur qui connaît la machine : rangs, ordre, pointes et leur recherche, angles et temps",
+            "it": "il pianificatore che conosce la macchina: ranghi, ordine, punte e la loro ricerca, angoli e tempo",
+            "ja": "機械を知るプランナー：ランク、順序、チップとその探索、角度、時間",
+            "zh": "了解机器的规划器：等级、顺序、吸嘴头及其搜索、角度和时间",
+            "pt": "o planeador que conhece a máquina: níveis, ordem, pontas e a sua procura, ângulos e tempo"
           }
         },
         {
@@ -596,14 +635,14 @@
         {
           "name": "panel.rs",
           "desc": {
-            "en": "tests of panels",
-            "es": "pruebas de los paneles",
-            "de": "Tests der Panels",
-            "fr": "tests des panneaux",
-            "it": "test dei pannelli",
-            "ja": "パネルのテスト",
-            "zh": "拼板测试",
-            "pt": "testes dos painéis"
+            "en": "tests of panels and of their fiducials",
+            "es": "pruebas de los paneles y de sus fiduciales",
+            "de": "Tests der Panels und ihrer Passmarken",
+            "fr": "tests des panneaux et de leurs repères",
+            "it": "test dei pannelli e dei loro fiduciali",
+            "ja": "パネルとそのフィデューシャルのテスト",
+            "zh": "拼板及其基准点的测试",
+            "pt": "testes dos painéis e dos seus fiduciais"
           }
         },
         {
@@ -744,6 +783,19 @@
           }
         },
         {
+          "name": "marks.csv",
+          "desc": {
+            "en": "the measured places of the fiducials of the panel",
+            "es": "los lugares medidos de los fiduciales del panel",
+            "de": "die gemessenen Lagen der Passmarken des Nutzens",
+            "fr": "les positions mesurées des repères du panneau",
+            "it": "le posizioni misurate dei fiduciali del pannello",
+            "ja": "パネルのフィデューシャルの実測位置",
+            "zh": "拼板基准点的实测位置",
+            "pt": "as posições medidas dos fiduciais do painel"
+          }
+        },
+        {
           "name": "packages.csv",
           "desc": {
             "en": "a table of packages: height, nozzle tip, rank and tape",
@@ -813,6 +865,19 @@
             "ja": "構成図のデータ",
             "zh": "结构图数据",
             "pt": "dados da imagem de Estrutura"
+          }
+        },
+        {
+          "name": "windows-console.md",
+          "desc": {
+            "en": "why the window is a program of its own on Windows",
+            "es": "por qué la ventana es un programa propio en Windows",
+            "de": "warum das Fenster unter Windows ein eigenes Programm ist",
+            "fr": "pourquoi la fenêtre est un programme à part sous Windows",
+            "it": "perché la finestra è un programma a sé su Windows",
+            "ja": "Windows でウィンドウが独立したプログラムである理由",
+            "zh": "在 Windows 上窗口为何是独立程序",
+            "pt": "porque é que a janela é um programa à parte no Windows"
           }
         }
       ]

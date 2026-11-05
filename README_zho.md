@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 248 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内，也没有在屏幕上检查过。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 298 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内，也没有在屏幕上检查过。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.0.4` |
 | 成熟度 | 脚手架 |
-| 测试 | 248 |
+| 测试 | 298 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -46,12 +46,12 @@
 | 领域 | 状态 | 在这里的含义 |
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
-| 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 248 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
+| 测试 | 🟡 | 298 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
-| 窗口 | 🟠 | 一个 egui 窗口（用 `--features gui` 构建；不带命令运行 `phoenix-pnp` 即可打开）：作业、零件、封装、供料器、上料表、机器、问题和日志等页面，显示贴装头路径、极性标记和下一个零件的工作台地图，五步向导，带可撤销修复的问题列表，可暂停、继续和单步的模拟作业，以及八种语言。其逻辑在没有屏幕的情况下经过测试；绘制不在测试范围内，也没有在屏幕上检查过。 |
+| 窗口 | 🟠 | 一个 egui 窗口（用 `--features gui` 构建；不带命令运行 `phoenix-pnp` 即可打开）：作业、零件、封装、供料器、上料表、机器、问题和日志等页面，显示贴装头路径、极性标记和下一个零件的工作台地图，五步向导，带可撤销修复的问题列表，可暂停、继续和单步的模拟作业，以及八种语言。其逻辑在没有屏幕的情况下经过测试；绘制不在测试范围内，也没有在屏幕上检查过。还有拼板页（含基准点和移动零件的拟合）和电路板页、文件选择器、可撤销编辑的供料器与封装表、会记住的列宽，以及在 Windows 上无控制台打开的独立程序（`phoenix-pnp-gui`）。 |
 | 真实硬件 | 🔴 | 未试过：这里的任何内容都没有在机器上运行过。 |
 | 文档 | 🟡 | 八种语言的 README、更新日志，以及由 `docs/` 绘制的两张图。 |
 
@@ -64,6 +64,8 @@
 * **不止料带的供料器**（`src/feeding.rs`）：优先级、托盘、料带和被停用的供料器；无论文件顺序如何，元件的供料器选择都相同。
 * **机器的规划器**（`src/planner.rs`、`src/motion.rs`）：等级（依次贴装的块）、顺序策略、吸嘴头及其更换、吸嘴角度的限制、含加速度和加加速度的移动时间、更短的路径（2-opt）以及元件原点的修正。
 * **拼板、上料表与导出**（`src/panel.rs`、`src/loadsheet.rs`、`src/export.rs`）：拼板中的电路板和拼板、每种料带的槽位、报告、缺料清单，以及只移动贴装头的 G 代码。
+* **拼板的基准点**（`src/fiducial.rs`）：把基准点的实测位置拟合到设计位置（两个点用相似变换，三个及以上用仿射拟合），拼板的零件按拟合移动并旋转；每个点都有残差，某点偏离超过 `fiducial_max_residual_mm` 的拟合会被拒绝（`--fiducials 文件` 配合 `--panel`，或窗口的拼板页）。
+* **规划器和模拟器的更多功能：** 托盘单元格被取空的顺序（按行、按列或蛇形）、同时计入路程和去换头位置往返的吸嘴头顺序搜索（`tip_strategy = optimize`，受 `tip_opt_max_evals` 和 `tip_opt_time_limit_s` 限制）、按封装和按供料器设置的故障概率（`sim_part_fail`、`sim_feeder_fail`）及其统计和每小时零件数，以及显示底面各规则所得角度的 `check-bottom`。
 * **模拟器与作业**（`src/sim.rs`、`src/job.rs`、`src/preflight.rs`、`src/model.rs`）：作业前的检查、带虚拟时钟和可注入故障的机器，以及可暂停、单步执行、保存并恢复的作业。
 * **窗口**（`src/gui.rs`、`src/gui/`）：窗口除绘制之外的工作都不需要屏幕（已载入的文件、规划及其问题与修复、模拟作业、地图的几何、共享选择的表格、五步向导和八种语言的文字），并经过测试；只有用 `--features gui` 构建的 `src/gui/window.rs` 用 egui 绘制。模拟速度、主题以及为未知封装的零件绘制的大小是 `machine.cfg` 的键（`gui_steps_per_s`、`gui_theme`、`gui_part_size_mm`）。
 
@@ -108,19 +110,21 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               零件表和封装表及其属性的继承
 │   ├── cli_args.rs                              命令行参数，严格：未知选项即错误
-│   ├── commands.rs                              使用配置的命令：schedule、preflight、simulate、loadsheet
+│   ├── commands.rs                              使用配置的命令，以及 check-bottom
 │   ├── config.rs                                机器的配置文件：键、范围和安全限制
 │   ├── error.rs                                 错误代码 PHOENIX-PNP-NNN 及其八种语言的含义
 │   ├── export.rs                                报告、缺料清单和移动的 G 代码
 │   ├── feeders.rs                               逻辑的一部分
 │   ├── feeding.rs                               带优先级、托盘和料带的供料器，以及元件供料器的选择
+│   ├── fiducial.rs                              拼板的基准点：测量基准点的拟合与零件的校正
 │   ├── gui.rs                                   窗口：无需屏幕的模块，以及 window.rs 中的绘制
 │   ├── gui/app.rs                               窗口的状态：载入、规划、开始、暂停、单步、修复、保存
+│   ├── gui/browse.rs                            文件选择器：文件夹和文件、上一级、输入的路径
 │   ├── gui/log.rs                               带级别的日志，以及可复制的诊断文本
 │   ├── gui/problems.rs                          作业的问题及解决它们的修复
 │   ├── gui/samples.rs                           示例，从小型电路板到大型电路板
 │   ├── gui/session.rs                           可开始、暂停、继续和单步的模拟作业
-│   ├── gui/settings.rs                          窗口记住的内容：语言、主题、图层和输出文件夹
+│   ├── gui/settings.rs                          窗口记住的内容：语言、主题、图层、文件夹和列宽
 │   ├── gui/tables.rs                            表格的行、排序和共享的选择
 │   ├── gui/texts.rs                             窗口的每个词（八种语言）
 │   ├── gui/theme.rs                             配色：凤凰绿、浅色和高对比度
@@ -128,6 +132,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui/window.rs                            用 egui 绘制（用 gui 特性构建）：页面、地图和表格
 │   ├── gui/wizard.rs                            从零到模拟作业的五步向导
 │   ├── gui/workspace.rs                         已载入的文件、规划和编辑，无需窗口
+│   ├── gui_main.rs                              作为独立程序的窗口，在 Windows 上没有控制台
 │   ├── job.rs                                   作业：步骤、暂停、重试、策略、统计和已保存状态
 │   ├── lib.rs                                   库：每个命令所使用的部分
 │   ├── loadsheet.rs                             上料表：每种料带的槽位
@@ -137,7 +142,7 @@ EH3D-PHOENIX-PNP/
 │   ├── panel.rs                                 拼板：拼板中的电路板和拼板，各在其位
 │   ├── parts.rs                                 逻辑的一部分
 │   ├── plan.rs                                  逻辑的一部分
-│   ├── planner.rs                               了解机器的规划器：等级、顺序、吸嘴头、角度和时间
+│   ├── planner.rs                               了解机器的规划器：等级、顺序、吸嘴头及其搜索、角度和时间
 │   ├── preflight.rs                             作业前的检查，含严重程度及其所指对象
 │   ├── rotation.rs                              按封装的旋转修正，以及受限吸嘴如何转动
 │   ├── sim.rs                                   模拟机器：虚拟时钟和可注入的故障
@@ -150,7 +155,7 @@ EH3D-PHOENIX-PNP/
 │   ├── loadsheet.rs                             上料表和导出的测试
 │   ├── model.rs                                 数据模型测试：代码、长度、配置和表格
 │   ├── more.rs                                  库和命令行的更多测试
-│   ├── panel.rs                                 拼板测试
+│   ├── panel.rs                                 拼板及其基准点的测试
 │   ├── planner.rs                               移动时间和规划器的测试
 │   ├── pnp.rs                                   库和命令行的测试
 │   ├── preflight.rs                             作业前检查的测试
@@ -162,12 +167,14 @@ EH3D-PHOENIX-PNP/
 │   ├── catalog.csv                              零件表：等级和高度
 │   ├── feeders.csv                              试用的示例
 │   ├── machine.cfg                              机器设置，每个键均有说明
+│   ├── marks.csv                                拼板基准点的实测位置
 │   ├── packages.csv                             封装表：高度、吸嘴头、等级和料带
 │   ├── panel.json                               由两块板组成的拼板
 │   └── slots.csv                                机器的槽位
 ├── docs/
 │   ├── architecture.json                        架构图数据
-│   └── structure.json                           结构图数据
+│   ├── structure.json                           结构图数据
+│   └── windows-console.md                       在 Windows 上窗口为何是独立程序
 ├── tools/                                       CI 和 README 检查及绘图工具
 ├── images/                                      横幅图以及架构和仓库结构图片
 ├── .github/                                     CI 与发布工作流、Issue 和 PR 模板
@@ -218,6 +225,7 @@ EH3D-PHOENIX-PNP/
 | `PHOENIX-PNP-029` | 长度或角度无效 |
 | `PHOENIX-PNP-030` | 驱动程序未接受该命令 |
 | `PHOENIX-PNP-031` | 模拟器注入了故障 |
+| `PHOENIX-PNP-032` | 基准点无效，或无法确定位置 |
 
 ## 🚀 快速开始
 
@@ -230,14 +238,16 @@ cargo run --release -- plan examples/board.pos examples/feeders.csv examples/pla
 cargo run --release -- schedule examples/board.pos examples/feeders.csv examples/schedule.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
 cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
+cargo run --release -- check-bottom examples/board.pos
+cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
 cargo run --release --features gui
 ```
 
-最后一行会打开窗口；用 `--features gui` 构建时，不带命令运行 `phoenix-pnp` 也会打开（在 Linux 上，窗口需要 X11 或 Wayland 以及 OpenGL 的开发文件）。带上命令时，程序仍是命令行。
+最后一行会打开窗口；用 `--features gui` 构建时，不带命令运行 `phoenix-pnp` 也会打开（在 Linux 上，窗口需要 X11 或 Wayland 以及 OpenGL 的开发文件）。带上命令时，程序仍是命令行。在 Windows 上，`phoenix-pnp-gui`（用同一特性构建）会在没有控制台的情况下打开窗口；见 `docs/windows-console.md`。
 
 ## 🧪 测试
 
-测试套件共有 248 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 298 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -257,22 +267,39 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               零件表和封装表及其属性的继承
 │   ├── cli_args.rs                              命令行参数，严格：未知选项即错误
-│   ├── commands.rs                              使用配置的命令：schedule、preflight、simulate、loadsheet
+│   ├── commands.rs                              使用配置的命令，以及 check-bottom
 │   ├── config.rs                                机器的配置文件：键、范围和安全限制
 │   ├── error.rs                                 错误代码 PHOENIX-PNP-NNN 及其八种语言的含义
 │   ├── export.rs                                报告、缺料清单和移动的 G 代码
 │   ├── feeders.rs                               逻辑的一部分
 │   ├── feeding.rs                               带优先级、托盘和料带的供料器，以及元件供料器的选择
+│   ├── fiducial.rs                              拼板的基准点：测量基准点的拟合与零件的校正
+│   ├── gui.rs                                   窗口：无需屏幕的模块，以及 window.rs 中的绘制
+│   ├── gui/app.rs                               窗口的状态：载入、规划、开始、暂停、单步、修复、保存
+│   ├── gui/browse.rs                            文件选择器：文件夹和文件、上一级、输入的路径
+│   ├── gui/log.rs                               带级别的日志，以及可复制的诊断文本
+│   ├── gui/problems.rs                          作业的问题及解决它们的修复
+│   ├── gui/samples.rs                           示例，从小型电路板到大型电路板
+│   ├── gui/session.rs                           可开始、暂停、继续和单步的模拟作业
+│   ├── gui/settings.rs                          窗口记住的内容：语言、主题、图层、文件夹和列宽
+│   ├── gui/tables.rs                            表格的行、排序和共享的选择
+│   ├── gui/texts.rs                             窗口的每个词（八种语言）
+│   ├── gui/theme.rs                             配色：凤凰绿、浅色和高对比度
+│   ├── gui/view.rs                              地图的几何：元件外形、极性标记、适应、缩放和点选
+│   ├── gui/window.rs                            用 egui 绘制（用 gui 特性构建）：页面、地图和表格
+│   ├── gui/wizard.rs                            从零到模拟作业的五步向导
+│   ├── gui/workspace.rs                         已载入的文件、规划和编辑，无需窗口
+│   ├── gui_main.rs                              作为独立程序的窗口，在 Windows 上没有控制台
 │   ├── job.rs                                   作业：步骤、暂停、重试、策略、统计和已保存状态
 │   ├── lib.rs                                   库：每个命令所使用的部分
 │   ├── loadsheet.rs                             上料表：每种料带的槽位
-│   ├── main.rs                                  命令行
+│   ├── main.rs                                  命令行，以及不带命令运行时窗口的入口
 │   ├── model.rs                                 以 trait 表示的机器部件：机器、吸嘴、供料器、执行器、相机、驱动
 │   ├── motion.rs                                包含加速度和加加速度的移动时间
 │   ├── panel.rs                                 拼板：拼板中的电路板和拼板，各在其位
 │   ├── parts.rs                                 逻辑的一部分
 │   ├── plan.rs                                  逻辑的一部分
-│   ├── planner.rs                               了解机器的规划器：等级、顺序、吸嘴头、角度和时间
+│   ├── planner.rs                               了解机器的规划器：等级、顺序、吸嘴头及其搜索、角度和时间
 │   ├── preflight.rs                             作业前的检查，含严重程度及其所指对象
 │   ├── rotation.rs                              按封装的旋转修正，以及受限吸嘴如何转动
 │   ├── sim.rs                                   模拟机器：虚拟时钟和可注入的故障
@@ -280,11 +307,12 @@ EH3D-PHOENIX-PNP/
 ├── tests/
 │   ├── commands.rs                              使用配置的命令的测试
 │   ├── feeding.rs                               供料器测试：优先级、托盘和料带
+│   ├── gui.rs                                   无屏幕的窗口测试：状态、规划、作业、地图、表格和向导
 │   ├── job.rs                                   作业测试：步骤、重试和已保存状态
 │   ├── loadsheet.rs                             上料表和导出的测试
 │   ├── model.rs                                 数据模型测试：代码、长度、配置和表格
 │   ├── more.rs                                  库和命令行的更多测试
-│   ├── panel.rs                                 拼板测试
+│   ├── panel.rs                                 拼板及其基准点的测试
 │   ├── planner.rs                               移动时间和规划器的测试
 │   ├── pnp.rs                                   库和命令行的测试
 │   ├── preflight.rs                             作业前检查的测试
@@ -296,12 +324,14 @@ EH3D-PHOENIX-PNP/
 │   ├── catalog.csv                              零件表：等级和高度
 │   ├── feeders.csv                              试用的示例
 │   ├── machine.cfg                              机器设置，每个键均有说明
+│   ├── marks.csv                                拼板基准点的实测位置
 │   ├── packages.csv                             封装表：高度、吸嘴头、等级和料带
 │   ├── panel.json                               由两块板组成的拼板
 │   └── slots.csv                                机器的槽位
 ├── docs/
 │   ├── architecture.json                        架构图数据
-│   └── structure.json                           结构图数据
+│   ├── structure.json                           结构图数据
+│   └── windows-console.md                       在 Windows 上窗口为何是独立程序
 ├── tools/                                       CI 和 README 检查及绘图工具
 ├── images/                                      横幅图以及架构和仓库结构图片
 ├── .github/                                     CI 与发布工作流、Issue 和 PR 模板

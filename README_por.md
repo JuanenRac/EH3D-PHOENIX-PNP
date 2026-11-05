@@ -18,7 +18,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 248 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e não foi verificado num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
+**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 298 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e não foi verificado num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versão | `0.0.4` |
 | Maturidade | Estrutura inicial |
-| Testes | 248 |
+| Testes | 298 |
 | Tecnologias | Rust |
 | Em hardware real | Não experimentado: nada disto correu numa máquina |
 
@@ -46,12 +46,12 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 | Área | Estado | O que significa aqui |
 |---|---|---|
 | Núcleo | 🟡 | lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (prioridade, tabuleiro, tira), planeia a ordem de colocação para uma cabeça de até seis bicos com níveis, pontas de bico, limites de ângulo e o tempo dos movimentos, planeia painéis e escreve a folha de carga; testado num computador com entradas normais e danificadas, não com uma coleção de ficheiros reais. |
-| Linha de comandos | 🟡 | `phoenix-pnp` executa as mesmas funções da biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`) e imprime o resultado; cada erro volta como uma mensagem com o seu código `PHOENIX-PNP-NNN` e um código de saída diferente de zero. |
-| Testes | 🟡 | 248 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
+| Linha de comandos | 🟡 | `phoenix-pnp` executa as mesmas funções da biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`) e imprime o resultado; cada erro volta como uma mensagem com o seu código `PHOENIX-PNP-NNN` e um código de saída diferente de zero. |
+| Testes | 🟡 | 298 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
 | Configuração da máquina | 🟡 | um ficheiro `chave = valor` com versão, um validador que indica a linha e os limites de segurança (curso de Z, limites de X e Y, repetições, ângulos do bico); os valores não foram comparados com uma máquina real. |
 | Simulador e trabalho | 🟡 | um relógio virtual, falhas injetadas ao acaso (com semente) ou num sítio escolhido, repetições, as políticas alerta e adiar, alimentadores que se desligam após falhas repetidas, pausa, passo a passo e um estado guardado para retomar; apenas simula, nada moveu uma máquina. |
 | Segurança | 🟡 | Rust seguro e simples (`forbid(unsafe_code)`): nada entra em pânico com os ficheiros recebidos e um valor mau é um erro com o seu motivo; sem revisão independente. |
-| Janela | 🟠 | Uma janela egui (compila-se com `--features gui`; `phoenix-pnp` sem comando abre-a): separadores de trabalho, peças, encapsulamentos, alimentadores, folha de carga, máquina, problemas e registo, um mapa da mesa de trabalho com o percurso da cabeça, marcas de polaridade e a peça seguinte, um assistente de cinco passos, problemas com correções que se podem anular, um trabalho simulado que se pode pausar, retomar e avançar passo a passo, e os oito idiomas. A sua lógica é testada sem ecrã; o desenho não está coberto por testes e não foi verificado num ecrã. |
+| Janela | 🟠 | Uma janela egui (compila-se com `--features gui`; `phoenix-pnp` sem comando abre-a): separadores de trabalho, peças, encapsulamentos, alimentadores, folha de carga, máquina, problemas e registo, um mapa da mesa de trabalho com o percurso da cabeça, marcas de polaridade e a peça seguinte, um assistente de cinco passos, problemas com correções que se podem anular, um trabalho simulado que se pode pausar, retomar e avançar passo a passo, e os oito idiomas. A sua lógica é testada sem ecrã; o desenho não está coberto por testes e não foi verificado num ecrã. Tem ainda separadores de painéis (com os fiduciais e o ajuste que move as peças) e de placas, um seletor de ficheiros, tabelas de alimentadores e de encapsulamentos que se podem editar com anular, larguras de coluna memorizadas e um programa à parte (`phoenix-pnp-gui`) que abre sem consola no Windows. |
 | Hardware real | 🔴 | Não experimentado: nada disto foi executado numa máquina. |
 | Documentação | 🟡 | README em oito idiomas, o registo de alterações e as duas imagens desenhadas a partir de `docs/`. |
 
@@ -64,6 +64,8 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 * **Os alimentadores com mais do que uma fita** (`src/feeding.rs`): prioridade, tabuleiros, tiras e alimentadores desligados; o alimentador de um componente escolhe-se da mesma maneira, seja qual for a ordem dos ficheiros.
 * **O planeador da máquina** (`src/planner.rs`, `src/motion.rs`): níveis (blocos colocados um a seguir ao outro), estratégias de ordem, pontas de bico e as suas trocas, os limites do ângulo do bico, o tempo dos movimentos com aceleração e arranque brusco, percursos mais curtos (2-opt) e a correção da origem de um componente.
 * **Painéis, folha de carga e exportações** (`src/panel.rs`, `src/loadsheet.rs`, `src/export.rs`): placas e painéis dentro de painéis, a ranhura de cada tipo de fita, um relatório, a lista do que falta e um G-code que só move a cabeça.
+* **Fiduciais de um painel** (`src/fiducial.rs`): os lugares medidos das marcas são ajustados aos desenhados (uma semelhança com duas marcas, um ajuste afim com três ou mais) e as peças do painel são movidas e rodadas pelo ajuste; cada marca tem o seu resíduo, e um ajuste que falha uma marca em mais de `fiducial_max_residual_mm` é recusado (`--fiducials FICHEIRO` com `--panel`, ou o separador Painéis da janela).
+* **Mais do planeador e do simulador:** a ordem em que as células de um tabuleiro são esvaziadas (linhas, colunas ou serpente), uma procura da ordem das pontas do bico que conta o percurso e a viagem ao trocador (`tip_strategy = optimize`, limitada por `tip_opt_max_evals` e `tip_opt_time_limit_s`), probabilidades de falha por encapsulamento e por alimentador (`sim_part_fail`, `sim_feeder_fail`) com estatísticas por encapsulamento e por alimentador e as peças por hora, e `check-bottom`, que mostra o ângulo que cada regra da face inferior dá.
 * **O simulador e o trabalho** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): as verificações antes de um trabalho, uma máquina com relógio virtual e falhas que se podem injetar, e um trabalho que se pode pôr em pausa, executar passo a passo, guardar e retomar.
 * **A janela** (`src/gui.rs`, `src/gui/`): o que a janela faz além de desenhar não precisa de ecrã (os ficheiros carregados, o plano e os seus problemas com correções, o trabalho simulado, a geometria do mapa, as tabelas com seleção partilhada, o assistente de cinco passos e os textos em oito idiomas) e é testado; só `src/gui/window.rs`, compilado com `--features gui`, a desenha com egui. A velocidade da simulação, o tema e o tamanho desenhado para uma peça de encapsulamento desconhecido são chaves de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -108,19 +110,21 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               as tabelas de peças e de encapsulamentos e a herança das suas propriedades
 │   ├── cli_args.rs                              os argumentos da linha de comandos, estritos: uma opção desconhecida é um erro
-│   ├── commands.rs                              os comandos que usam a configuração: schedule, preflight, simulate, loadsheet
+│   ├── commands.rs                              os comandos que usam a configuração, e check-bottom
 │   ├── config.rs                                o ficheiro de configuração da máquina: chaves, intervalos e limites de segurança
 │   ├── error.rs                                 os códigos de erro PHOENIX-PNP-NNN e o seu significado em oito idiomas
 │   ├── export.rs                                o relatório, a lista do que falta e o G-code dos movimentos
 │   ├── feeders.rs                               uma parte da lógica
 │   ├── feeding.rs                               alimentadores com prioridade, tabuleiros e tiras, e a escolha do alimentador de um componente
+│   ├── fiducial.rs                              fiduciais de um painel: o ajuste das marcas medidas e a correção das peças
 │   ├── gui.rs                                   a janela: módulos que não precisam de ecrã e o desenho em window.rs
 │   ├── gui/app.rs                               o estado da janela: carregar, planear, iniciar, pausar, avançar, corrigir, guardar
+│   ├── gui/browse.rs                            o seletor de ficheiros: pastas e ficheiros, subir, caminhos escritos
 │   ├── gui/log.rs                               o registo com níveis e o texto do diagnóstico que se pode copiar
 │   ├── gui/problems.rs                          os problemas de um trabalho e as correções que os resolvem
 │   ├── gui/samples.rs                           exemplos, da placa pequena à grande
 │   ├── gui/session.rs                           o trabalho simulado que se inicia, pausa, retoma e avança passo a passo
-│   ├── gui/settings.rs                          o que a janela memoriza: idioma, tema, camadas e pasta de saída
+│   ├── gui/settings.rs                          o que a janela memoriza: idioma, tema, camadas, pastas e a largura das colunas
 │   ├── gui/tables.rs                            as linhas, a ordenação e a seleção partilhada pelas tabelas
 │   ├── gui/texts.rs                             cada palavra da janela nos oito idiomas
 │   ├── gui/theme.rs                             as cores: verde fénix, claro e alto contraste
@@ -128,6 +132,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui/window.rs                            o desenho com egui, compilado com a funcionalidade gui: separadores, mapa e tabelas
 │   ├── gui/wizard.rs                            o assistente de cinco passos, do nada a um trabalho simulado
 │   ├── gui/workspace.rs                         os ficheiros carregados, o plano e as edições, sem janela
+│   ├── gui_main.rs                              a janela como programa à parte, sem consola no Windows
 │   ├── job.rs                                   o trabalho: passos, pausa, repetições, políticas, estatísticas e estado guardado
 │   ├── lib.rs                                   a biblioteca: o que cada comando usa
 │   ├── loadsheet.rs                             a folha de carga: a ranhura de cada tipo de fita
@@ -137,7 +142,7 @@ EH3D-PHOENIX-PNP/
 │   ├── panel.rs                                 painéis: placas e painéis dentro de painéis, cada um no seu lugar
 │   ├── parts.rs                                 uma parte da lógica
 │   ├── plan.rs                                  uma parte da lógica
-│   ├── planner.rs                               o planeador que conhece a máquina: níveis, ordem, pontas, ângulos e tempo
+│   ├── planner.rs                               o planeador que conhece a máquina: níveis, ordem, pontas e a sua procura, ângulos e tempo
 │   ├── preflight.rs                             as verificações antes de um trabalho, com gravidade e aquilo a que apontam
 │   ├── rotation.rs                              correções da rotação por encapsulamento, e como roda um bico limitado
 │   ├── sim.rs                                   a máquina simulada: relógio virtual e falhas que se podem injetar
@@ -150,7 +155,7 @@ EH3D-PHOENIX-PNP/
 │   ├── loadsheet.rs                             testes da folha de carga e das exportações
 │   ├── model.rs                                 testes do modelo de dados: códigos, comprimentos, configuração e tabelas
 │   ├── more.rs                                  mais testes da biblioteca e da linha de comandos
-│   ├── panel.rs                                 testes dos painéis
+│   ├── panel.rs                                 testes dos painéis e dos seus fiduciais
 │   ├── planner.rs                               testes do tempo dos movimentos e do planeador
 │   ├── pnp.rs                                   testes da biblioteca e da linha de comandos
 │   ├── preflight.rs                             testes das verificações antes de um trabalho
@@ -162,12 +167,14 @@ EH3D-PHOENIX-PNP/
 │   ├── catalog.csv                              uma tabela de peças: nível e altura
 │   ├── feeders.csv                              um exemplo para experimentar o programa
 │   ├── machine.cfg                              as definições da máquina, cada chave explicada
+│   ├── marks.csv                                as posições medidas dos fiduciais do painel
 │   ├── packages.csv                             uma tabela de encapsulamentos: altura, ponta, nível e fita
 │   ├── panel.json                               um painel de duas placas
 │   └── slots.csv                                as ranhuras da máquina
 ├── docs/
 │   ├── architecture.json                        dados da imagem de Arquitetura
-│   └── structure.json                           dados da imagem de Estrutura
+│   ├── structure.json                           dados da imagem de Estrutura
+│   └── windows-console.md                       porque é que a janela é um programa à parte no Windows
 ├── tools/                                       verificação da CI e do README e ferramentas de imagens
 ├── images/                                      banner e as imagens de Arquitetura e Estrutura do repositório
 ├── .github/                                     fluxos de CI e de publicação, modelos de issues e pull requests
@@ -218,6 +225,7 @@ As tabelas de encapsulamentos e de peças (`--packages`, `--catalog`) são fiche
 | `PHOENIX-PNP-029` | Um comprimento ou um ângulo não é válido |
 | `PHOENIX-PNP-030` | O controlador não aceitou o comando |
 | `PHOENIX-PNP-031` | O simulador injetou uma falha |
+| `PHOENIX-PNP-032` | Os fiduciais não são válidos ou não dão uma posição |
 
 ## 🚀 Início rápido
 
@@ -230,14 +238,16 @@ cargo run --release -- plan examples/board.pos examples/feeders.csv examples/pla
 cargo run --release -- schedule examples/board.pos examples/feeders.csv examples/schedule.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
 cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
+cargo run --release -- check-bottom examples/board.pos
+cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
 cargo run --release --features gui
 ```
 
-A última linha abre a janela; `phoenix-pnp` sem comando também a abre se foi compilado com `--features gui` (em Linux a janela precisa dos ficheiros de desenvolvimento de X11 ou Wayland e de OpenGL). Com um comando, o programa continua a ser uma linha de comandos.
+A última linha abre a janela; `phoenix-pnp` sem comando também a abre se foi compilado com `--features gui` (em Linux a janela precisa dos ficheiros de desenvolvimento de X11 ou Wayland e de OpenGL). Com um comando, o programa continua a ser uma linha de comandos. No Windows, `phoenix-pnp-gui` (compilado com a mesma funcionalidade) abre a janela sem consola; veja `docs/windows-console.md`.
 
 ## 🧪 Testes
 
-O conjunto tem 248 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
+O conjunto tem 298 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilação e publicação
 
@@ -257,22 +267,39 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               as tabelas de peças e de encapsulamentos e a herança das suas propriedades
 │   ├── cli_args.rs                              os argumentos da linha de comandos, estritos: uma opção desconhecida é um erro
-│   ├── commands.rs                              os comandos que usam a configuração: schedule, preflight, simulate, loadsheet
+│   ├── commands.rs                              os comandos que usam a configuração, e check-bottom
 │   ├── config.rs                                o ficheiro de configuração da máquina: chaves, intervalos e limites de segurança
 │   ├── error.rs                                 os códigos de erro PHOENIX-PNP-NNN e o seu significado em oito idiomas
 │   ├── export.rs                                o relatório, a lista do que falta e o G-code dos movimentos
 │   ├── feeders.rs                               uma parte da lógica
 │   ├── feeding.rs                               alimentadores com prioridade, tabuleiros e tiras, e a escolha do alimentador de um componente
+│   ├── fiducial.rs                              fiduciais de um painel: o ajuste das marcas medidas e a correção das peças
+│   ├── gui.rs                                   a janela: módulos que não precisam de ecrã e o desenho em window.rs
+│   ├── gui/app.rs                               o estado da janela: carregar, planear, iniciar, pausar, avançar, corrigir, guardar
+│   ├── gui/browse.rs                            o seletor de ficheiros: pastas e ficheiros, subir, caminhos escritos
+│   ├── gui/log.rs                               o registo com níveis e o texto do diagnóstico que se pode copiar
+│   ├── gui/problems.rs                          os problemas de um trabalho e as correções que os resolvem
+│   ├── gui/samples.rs                           exemplos, da placa pequena à grande
+│   ├── gui/session.rs                           o trabalho simulado que se inicia, pausa, retoma e avança passo a passo
+│   ├── gui/settings.rs                          o que a janela memoriza: idioma, tema, camadas, pastas e a largura das colunas
+│   ├── gui/tables.rs                            as linhas, a ordenação e a seleção partilhada pelas tabelas
+│   ├── gui/texts.rs                             cada palavra da janela nos oito idiomas
+│   ├── gui/theme.rs                             as cores: verde fénix, claro e alto contraste
+│   ├── gui/view.rs                              a geometria do mapa: corpos, marcas de polaridade, ajuste, zoom e seleção
+│   ├── gui/window.rs                            o desenho com egui, compilado com a funcionalidade gui: separadores, mapa e tabelas
+│   ├── gui/wizard.rs                            o assistente de cinco passos, do nada a um trabalho simulado
+│   ├── gui/workspace.rs                         os ficheiros carregados, o plano e as edições, sem janela
+│   ├── gui_main.rs                              a janela como programa à parte, sem consola no Windows
 │   ├── job.rs                                   o trabalho: passos, pausa, repetições, políticas, estatísticas e estado guardado
 │   ├── lib.rs                                   a biblioteca: o que cada comando usa
 │   ├── loadsheet.rs                             a folha de carga: a ranhura de cada tipo de fita
-│   ├── main.rs                                  a linha de comandos
+│   ├── main.rs                                  a linha de comandos e a entrada da janela quando corre sem comando
 │   ├── model.rs                                 as partes de uma máquina como traits: máquina, bico, alimentador, atuador, câmara, controlador
 │   ├── motion.rs                                o tempo de um movimento, com aceleração e arranque brusco
 │   ├── panel.rs                                 painéis: placas e painéis dentro de painéis, cada um no seu lugar
 │   ├── parts.rs                                 uma parte da lógica
 │   ├── plan.rs                                  uma parte da lógica
-│   ├── planner.rs                               o planeador que conhece a máquina: níveis, ordem, pontas, ângulos e tempo
+│   ├── planner.rs                               o planeador que conhece a máquina: níveis, ordem, pontas e a sua procura, ângulos e tempo
 │   ├── preflight.rs                             as verificações antes de um trabalho, com gravidade e aquilo a que apontam
 │   ├── rotation.rs                              correções da rotação por encapsulamento, e como roda um bico limitado
 │   ├── sim.rs                                   a máquina simulada: relógio virtual e falhas que se podem injetar
@@ -280,11 +307,12 @@ EH3D-PHOENIX-PNP/
 ├── tests/
 │   ├── commands.rs                              testes dos comandos que usam a configuração
 │   ├── feeding.rs                               testes dos alimentadores: prioridade, tabuleiros e tiras
+│   ├── gui.rs                                   testes da janela sem ecrã: estado, plano, trabalho, mapa, tabelas e assistente
 │   ├── job.rs                                   testes do trabalho: passos, repetições e estado guardado
 │   ├── loadsheet.rs                             testes da folha de carga e das exportações
 │   ├── model.rs                                 testes do modelo de dados: códigos, comprimentos, configuração e tabelas
 │   ├── more.rs                                  mais testes da biblioteca e da linha de comandos
-│   ├── panel.rs                                 testes dos painéis
+│   ├── panel.rs                                 testes dos painéis e dos seus fiduciais
 │   ├── planner.rs                               testes do tempo dos movimentos e do planeador
 │   ├── pnp.rs                                   testes da biblioteca e da linha de comandos
 │   ├── preflight.rs                             testes das verificações antes de um trabalho
@@ -296,12 +324,14 @@ EH3D-PHOENIX-PNP/
 │   ├── catalog.csv                              uma tabela de peças: nível e altura
 │   ├── feeders.csv                              um exemplo para experimentar o programa
 │   ├── machine.cfg                              as definições da máquina, cada chave explicada
+│   ├── marks.csv                                as posições medidas dos fiduciais do painel
 │   ├── packages.csv                             uma tabela de encapsulamentos: altura, ponta, nível e fita
 │   ├── panel.json                               um painel de duas placas
 │   └── slots.csv                                as ranhuras da máquina
 ├── docs/
 │   ├── architecture.json                        dados da imagem de Arquitetura
-│   └── structure.json                           dados da imagem de Estrutura
+│   ├── structure.json                           dados da imagem de Estrutura
+│   └── windows-console.md                       porque é que a janela é um programa à parte no Windows
 ├── tools/                                       verificação da CI e do README e ferramentas de imagens
 ├── images/                                      banner e as imagens de Arquitetura e Estrutura do repositório
 ├── .github/                                     fluxos de CI e de publicação, modelos de issues e pull requests

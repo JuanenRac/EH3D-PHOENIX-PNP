@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 248 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests and has not been checked on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 298 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests and has not been checked on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.4` |
 | Maturity | Scaffolding |
-| Tests | 248 |
+| Tests | 298 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,12 +46,12 @@ Each line is one part of this repository and the light says how far it is today.
 | Area | State | What it means here |
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder (priority, tray, strip), plans the order of the placements for a head with up to six nozzles with ranks, nozzle tips, angle limits and the time of the moves, plans panels and writes the load sheet; tested on a computer with normal and damaged input, not with a collection of real files. |
-| Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
-| Tests | 🟡 | 248 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
+| Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
+| Tests | 🟡 | 298 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
 | Machine configuration | 🟡 | a `key = value` file with a version, a validator that names the line, and the safety limits (travel of Z, limits of X and Y, retries, nozzle angles); the values have not been compared with a real machine. |
 | Simulator and job | 🟡 | a virtual clock, failures injected by chance (with a seed) or at a chosen place, retries, the policies alert and defer, feeders that switch off after repeated faults, pause, step by step, and a saved state to resume from; it only simulates, nothing has driven a machine. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
-| Window | 🟠 | An egui window (build it with `--features gui`; `phoenix-pnp` with no command opens it): tabs for the job, parts, packages, feeders, load sheet, machine, problems and log, a map of the work table with the path of the head, polarity marks and the part that is next, a guide of five steps, problems with fixes that can be undone, a simulated job that can be paused, resumed and stepped, and the eight languages. Its logic is tested without a screen; the drawing is not covered by tests and has not been checked on a screen. |
+| Window | 🟠 | An egui window (build it with `--features gui`; `phoenix-pnp` with no command opens it): tabs for the job, parts, packages, feeders, load sheet, machine, problems and log, a map of the work table with the path of the head, polarity marks and the part that is next, a guide of five steps, problems with fixes that can be undone, a simulated job that can be paused, resumed and stepped, and the eight languages. Its logic is tested without a screen; the drawing is not covered by tests and has not been checked on a screen. It also has tabs for panels (with the fiducials and the fit that moves the parts) and boards, a file picker, tables of feeders and packages that can be edited with undo, column widths that are remembered, and a program of its own (`phoenix-pnp-gui`) that opens without a console on Windows. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
 | Documentation | 🟡 | README in eight languages, the changelog and the two pictures drawn from `docs/`. |
 
@@ -64,6 +64,8 @@ Each line is one part of this repository and the light says how far it is today.
 * **The feeders with more than a tape** (`src/feeding.rs`): priority, trays, strips and feeders that are switched off; the feeder of a part is chosen the same whatever the order of the files.
 * **The planner of the machine** (`src/planner.rs`, `src/motion.rs`): ranks (blocks that are placed one after the other), strategies of order, nozzle tips and their changes, the limits of the angle of the nozzle, the time of the moves with acceleration and jerk, shorter walks (2-opt) and the correction of the origin of a part.
 * **Panels, load sheet and exports** (`src/panel.rs`, `src/loadsheet.rs`, `src/export.rs`): boards and panels inside panels, the slot of each kind of tape, a report, the list of what is missing and a G-code that only moves the head.
+* **Fiducials of a panel** (`src/fiducial.rs`): the measured places of the marks are fitted to the designed ones (a similarity with two marks, an affine fit with three or more) and the parts of the panel are moved and turned by the fit; each mark has its residual, and a fit that misses a mark by more than `fiducial_max_residual_mm` is refused (`--fiducials FILE` with `--panel`, or the Panels tab of the window).
+* **More from the planner and the simulator:** the order in which the cells of a tray are emptied (rows, columns or a snake), a search for the order of the nozzle tips that counts the way and the trip to the changer (`tip_strategy = optimize`, limited by `tip_opt_max_evals` and `tip_opt_time_limit_s`), chances of failure by package and by feeder (`sim_part_fail`, `sim_feeder_fail`) with statistics by package and by feeder and the parts per hour, and `check-bottom`, which shows the angle that each rule of the bottom side gives.
 * **The simulator and the job** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): the checks before a job, a machine with a virtual clock and failures that can be injected, and a job that can be paused, taken step by step, saved and resumed.
 * **The window** (`src/gui.rs`, `src/gui/`): what the window does besides drawing needs no screen (the files that were loaded, the plan and its problems with fixes, the simulated job, the geometry of the map, the tables with a shared selection, the guide of five steps and the words in eight languages) and is tested; only `src/gui/window.rs`, built with `--features gui`, draws it with egui. The speed of the simulation, the theme and the size drawn for a part of an unknown package are keys of `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -108,19 +110,21 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               the tables of parts and packages and the inheritance of their properties
 │   ├── cli_args.rs                              the arguments of the command line, strict: an unknown option is an error
-│   ├── commands.rs                              the commands that use the configuration: schedule, preflight, simulate, loadsheet
+│   ├── commands.rs                              the commands that use the configuration, and check-bottom
 │   ├── config.rs                                the configuration file of the machine: keys, ranges and safety limits
 │   ├── error.rs                                 the error codes PHOENIX-PNP-NNN and their meaning in eight languages
 │   ├── export.rs                                the report, the list of what is missing and the G-code of the movements
 │   ├── feeders.rs                               a part of the logic
 │   ├── feeding.rs                               feeders with priority, trays and strips, and the choice of the feeder for a part
+│   ├── fiducial.rs                              fiducials of a panel: the fit of the measured marks and the correction of the parts
 │   ├── gui.rs                                   the window: modules that need no screen, and the drawing in window.rs
 │   ├── gui/app.rs                               the state of the window: load, plan, start, pause, step, fix, save
+│   ├── gui/browse.rs                            the file picker: folders and files, up, typed paths
 │   ├── gui/log.rs                               the log with levels, and the text of the diagnostic that can be copied
 │   ├── gui/problems.rs                          the problems of a job and the fixes that put them right
 │   ├── gui/samples.rs                           samples, from a small board to a large one
 │   ├── gui/session.rs                           the simulated job that is started, paused, resumed and stepped
-│   ├── gui/settings.rs                          what the window remembers: language, theme, layers and the output folder
+│   ├── gui/settings.rs                          what the window remembers: language, theme, layers, folders and the width of the columns
 │   ├── gui/tables.rs                            the rows, the sorting and the selection shared by the tables
 │   ├── gui/texts.rs                             every word of the window in the eight languages
 │   ├── gui/theme.rs                             the colours: phoenix green, light and high contrast
@@ -128,6 +132,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui/window.rs                            the drawing with egui, built with the gui feature: tabs, map and tables
 │   ├── gui/wizard.rs                            the guide of five steps from nothing to a simulated job
 │   ├── gui/workspace.rs                         the files that were loaded, the plan and the edits, without a window
+│   ├── gui_main.rs                              the window as a program of its own, without a console on Windows
 │   ├── job.rs                                   the job: steps, pause, retries, policies, statistics and saved state
 │   ├── lib.rs                                   the library: what every command uses
 │   ├── loadsheet.rs                             the load sheet: the slot of each kind of tape
@@ -137,7 +142,7 @@ EH3D-PHOENIX-PNP/
 │   ├── panel.rs                                 panels: boards and panels inside panels, each in its place
 │   ├── parts.rs                                 a part of the logic
 │   ├── plan.rs                                  a part of the logic
-│   ├── planner.rs                               the planner that knows the machine: ranks, order, tips, angles and time
+│   ├── planner.rs                               the planner that knows the machine: ranks, order, tips and their search, angles and time
 │   ├── preflight.rs                             the checks before a job, with a severity and what they point at
 │   ├── rotation.rs                              corrections of the rotation by package, and how a limited nozzle turns
 │   ├── sim.rs                                   the simulated machine: virtual clock and failures that can be injected
@@ -150,7 +155,7 @@ EH3D-PHOENIX-PNP/
 │   ├── loadsheet.rs                             tests of the load sheet and the exports
 │   ├── model.rs                                 tests of the data model: codes, lengths, configuration and tables
 │   ├── more.rs                                  more tests of the library and the command line
-│   ├── panel.rs                                 tests of panels
+│   ├── panel.rs                                 tests of panels and of their fiducials
 │   ├── planner.rs                               tests of the time of the moves and of the planner
 │   ├── pnp.rs                                   tests of the library and the command line
 │   ├── preflight.rs                             tests of the checks before a job
@@ -162,12 +167,14 @@ EH3D-PHOENIX-PNP/
 │   ├── catalog.csv                              a table of parts: rank and height
 │   ├── feeders.csv                              a sample to try the program with
 │   ├── machine.cfg                              the settings of the machine, every key explained
+│   ├── marks.csv                                the measured places of the fiducials of the panel
 │   ├── packages.csv                             a table of packages: height, nozzle tip, rank and tape
 │   ├── panel.json                               a panel of two boards
 │   └── slots.csv                                the slots of the machine
 ├── docs/
 │   ├── architecture.json                        data of the Architecture picture
-│   └── structure.json                           data of the Repository Structure picture
+│   ├── structure.json                           data of the Repository Structure picture
+│   └── windows-console.md                       why the window is a program of its own on Windows
 ├── tools/                                       CI check, README check and the picture tools
 ├── images/                                      banner and the Architecture and Repository Structure pictures
 ├── .github/                                     CI and release workflows, issue and pull-request templates
@@ -218,6 +225,7 @@ The tables of packages and parts (`--packages`, `--catalog`) are CSV files in wh
 | `PHOENIX-PNP-029` | A length or an angle is not valid |
 | `PHOENIX-PNP-030` | The driver did not accept the command |
 | `PHOENIX-PNP-031` | The simulator injected a fault |
+| `PHOENIX-PNP-032` | The fiducials are not valid or do not give a position |
 
 ## 🚀 Quick start
 
@@ -230,14 +238,16 @@ cargo run --release -- plan examples/board.pos examples/feeders.csv examples/pla
 cargo run --release -- schedule examples/board.pos examples/feeders.csv examples/schedule.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
 cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
+cargo run --release -- check-bottom examples/board.pos
+cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
 cargo run --release --features gui
 ```
 
-The last line opens the window; so does `phoenix-pnp` with no command when it was built with `--features gui` (on Linux the window needs the development files of X11 or Wayland and OpenGL). With a command, the program stays a command line.
+The last line opens the window; so does `phoenix-pnp` with no command when it was built with `--features gui` (on Linux the window needs the development files of X11 or Wayland and OpenGL). With a command, the program stays a command line. On Windows `phoenix-pnp-gui` (built with the same feature) opens the window without a console; see `docs/windows-console.md`.
 
 ## 🧪 Testing
 
-The suite has 248 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 298 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -257,22 +267,39 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               the tables of parts and packages and the inheritance of their properties
 │   ├── cli_args.rs                              the arguments of the command line, strict: an unknown option is an error
-│   ├── commands.rs                              the commands that use the configuration: schedule, preflight, simulate, loadsheet
+│   ├── commands.rs                              the commands that use the configuration, and check-bottom
 │   ├── config.rs                                the configuration file of the machine: keys, ranges and safety limits
 │   ├── error.rs                                 the error codes PHOENIX-PNP-NNN and their meaning in eight languages
 │   ├── export.rs                                the report, the list of what is missing and the G-code of the movements
 │   ├── feeders.rs                               a part of the logic
 │   ├── feeding.rs                               feeders with priority, trays and strips, and the choice of the feeder for a part
+│   ├── fiducial.rs                              fiducials of a panel: the fit of the measured marks and the correction of the parts
+│   ├── gui.rs                                   the window: modules that need no screen, and the drawing in window.rs
+│   ├── gui/app.rs                               the state of the window: load, plan, start, pause, step, fix, save
+│   ├── gui/browse.rs                            the file picker: folders and files, up, typed paths
+│   ├── gui/log.rs                               the log with levels, and the text of the diagnostic that can be copied
+│   ├── gui/problems.rs                          the problems of a job and the fixes that put them right
+│   ├── gui/samples.rs                           samples, from a small board to a large one
+│   ├── gui/session.rs                           the simulated job that is started, paused, resumed and stepped
+│   ├── gui/settings.rs                          what the window remembers: language, theme, layers, folders and the width of the columns
+│   ├── gui/tables.rs                            the rows, the sorting and the selection shared by the tables
+│   ├── gui/texts.rs                             every word of the window in the eight languages
+│   ├── gui/theme.rs                             the colours: phoenix green, light and high contrast
+│   ├── gui/view.rs                              the geometry of the map: bodies, polarity marks, fit, zoom and hit
+│   ├── gui/window.rs                            the drawing with egui, built with the gui feature: tabs, map and tables
+│   ├── gui/wizard.rs                            the guide of five steps from nothing to a simulated job
+│   ├── gui/workspace.rs                         the files that were loaded, the plan and the edits, without a window
+│   ├── gui_main.rs                              the window as a program of its own, without a console on Windows
 │   ├── job.rs                                   the job: steps, pause, retries, policies, statistics and saved state
 │   ├── lib.rs                                   the library: what every command uses
 │   ├── loadsheet.rs                             the load sheet: the slot of each kind of tape
-│   ├── main.rs                                  the command line
+│   ├── main.rs                                  the command line, and the entry of the window when it runs with no command
 │   ├── model.rs                                 the parts of a machine as traits: machine, nozzle, feeder, actuator, camera, driver
 │   ├── motion.rs                                the time a move takes, with acceleration and jerk
 │   ├── panel.rs                                 panels: boards and panels inside panels, each in its place
 │   ├── parts.rs                                 a part of the logic
 │   ├── plan.rs                                  a part of the logic
-│   ├── planner.rs                               the planner that knows the machine: ranks, order, tips, angles and time
+│   ├── planner.rs                               the planner that knows the machine: ranks, order, tips and their search, angles and time
 │   ├── preflight.rs                             the checks before a job, with a severity and what they point at
 │   ├── rotation.rs                              corrections of the rotation by package, and how a limited nozzle turns
 │   ├── sim.rs                                   the simulated machine: virtual clock and failures that can be injected
@@ -280,11 +307,12 @@ EH3D-PHOENIX-PNP/
 ├── tests/
 │   ├── commands.rs                              tests of the commands that use the configuration
 │   ├── feeding.rs                               tests of the feeders: priority, trays and strips
+│   ├── gui.rs                                   tests of the window without a screen: state, plan, job, map, tables and guide
 │   ├── job.rs                                   tests of the job: steps, retries and saved state
 │   ├── loadsheet.rs                             tests of the load sheet and the exports
 │   ├── model.rs                                 tests of the data model: codes, lengths, configuration and tables
 │   ├── more.rs                                  more tests of the library and the command line
-│   ├── panel.rs                                 tests of panels
+│   ├── panel.rs                                 tests of panels and of their fiducials
 │   ├── planner.rs                               tests of the time of the moves and of the planner
 │   ├── pnp.rs                                   tests of the library and the command line
 │   ├── preflight.rs                             tests of the checks before a job
@@ -296,12 +324,14 @@ EH3D-PHOENIX-PNP/
 │   ├── catalog.csv                              a table of parts: rank and height
 │   ├── feeders.csv                              a sample to try the program with
 │   ├── machine.cfg                              the settings of the machine, every key explained
+│   ├── marks.csv                                the measured places of the fiducials of the panel
 │   ├── packages.csv                             a table of packages: height, nozzle tip, rank and tape
 │   ├── panel.json                               a panel of two boards
 │   └── slots.csv                                the slots of the machine
 ├── docs/
 │   ├── architecture.json                        data of the Architecture picture
-│   └── structure.json                           data of the Repository Structure picture
+│   ├── structure.json                           data of the Repository Structure picture
+│   └── windows-console.md                       why the window is a program of its own on Windows
 ├── tools/                                       CI check, README check and the picture tools
 ├── images/                                      banner and the Architecture and Repository Structure pictures
 ├── .github/                                     CI and release workflows, issue and pull-request templates

@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **Panels and boards tabs, with the fiducials of the panel:** the measured places of the marks are fitted to the designed ones (a similarity with two marks, an affine fit with three or more, as `fiducial_mode` says), the parts of the panel are moved and turned by the fit, every mark shows its residual, and a fit that misses a mark by more than `fiducial_max_residual_mm` is refused; the same from the command line with `--fiducials FILE` (a CSV `id,x,y`) next to `--panel`. New error code `PHOENIX-PNP-032`.
+- **The widths of the columns are remembered** between runs, in the settings file of the user (drag the edge of a column head).
+- **A file picker inside the window,** also to choose the output folder and the file of measured marks, besides typing the path.
+- **The tables of feeders and packages can be edited in the window** (value, package, place, count, warning level, slot, priority, kind, the cells of a tray, the pitch of a strip, and the properties of a package), every edit can be taken back (`undo_limit` steps), and the tables that were edited are written with the outputs.
+- **Trays are emptied by rows, by columns or in a snake** (the `fill` column of the feeders, `tray_fill` for those that say nothing).
+- **`tip_strategy = optimize`:** the parts are brought together by nozzle tip and the order of the tips is searched for the shortest way and time, counting the trip to the tip changer and the tip already on the nozzle when a block of ranks starts; the search stops at `tip_opt_max_evals` orders or `tip_opt_time_limit_s` seconds.
+- **`phoenix-pnp check-bottom`** shows, for the parts of the bottom side of a position file, the angle that each rule (`keep`, `mirror`, `half_turn`) gives and the one in use, to compare with a real file.
+- **Failures by package and by feeder in the simulator** (`sim_part_fail`, `sim_feeder_fail`), statistics by package and by feeder, and the parts per hour of the simulated job (in `simulate`, its report and the log of the window).
+- **`phoenix-pnp-gui`,** the window as a program of its own that opens without a console on Windows; `phoenix-pnp` keeps its console (the reasons are in `docs/windows-console.md`).
 - **The Windows executable carries the icon of the program:** the file shows it in the explorer and the taskbar, together with the name, the description and the version, embedded by `build.rs`; other systems are not affected.
 - **Error codes:** every error of the new code has a code `PHOENIX-PNP-NNN` with its short meaning in the eight languages, and the eight READMEs list them (a test checks it).
 - **Typed lengths and places:** built once from millimetres, mils or inches, so units cannot be mixed.
