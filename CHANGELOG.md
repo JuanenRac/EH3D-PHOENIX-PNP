@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **The Windows executable carries the icon of the program:** the file shows it in the explorer and the taskbar, together with the name, the description and the version, embedded by `build.rs`; other systems are not affected.
 - **Error codes:** every error of the new code has a code `PHOENIX-PNP-NNN` with its short meaning in the eight languages, and the eight READMEs list them (a test checks it).
 - **Typed lengths and places:** built once from millimetres, mils or inches, so units cannot be mixed.
 - **Machine configuration file:** `key = value` lines with a schema version, a validator that names the line, safety limits, and `examples/machine.cfg` documenting every key; the options of the command line win over it.
