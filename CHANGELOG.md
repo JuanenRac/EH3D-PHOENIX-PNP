@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **The validation job is the shared one of the documentation hub:** the checks of the manifest, the documents and the pictures run through the reusable workflow, fixed to a full commit of EH3D-DOCS whose actions are pinned by commit.
 - **Panels and boards tabs, with the fiducials of the panel:** the measured places of the marks are fitted to the designed ones (a similarity with two marks, an affine fit with three or more, as `fiducial_mode` says), the parts of the panel are moved and turned by the fit, every mark shows its residual, and a fit that misses a mark by more than `fiducial_max_residual_mm` is refused; the same from the command line with `--fiducials FILE` (a CSV `id,x,y`) next to `--panel`. New error code `PHOENIX-PNP-032`.
 - **The widths of the columns are remembered** between runs, in the settings file of the user (drag the edge of a column head).
 - **A file picker inside the window,** also to choose the output folder and the file of measured marks, besides typing the path.
