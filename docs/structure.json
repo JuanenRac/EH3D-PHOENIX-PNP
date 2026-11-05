@@ -3,6 +3,7 @@
   "ecosystem": "eh3d",
   "svg": "en",
   "exempt": [
+    "build.rs",
     "build.bat",
     "build.sh",
     "run.bat",
