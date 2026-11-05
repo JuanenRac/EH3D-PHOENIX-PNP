@@ -4,7 +4,7 @@
 //! A part on a board whose kind is in neither table is not an error: it is listed as undefined, so a bill of materials with parts that are not described yet can be read and completed later.
 
 use crate::error::{Code, PnpError};
-use crate::parts::{detect_delimiter, read_records, Part};
+use crate::parts::{csv_field, detect_delimiter, read_records, Part};
 use std::collections::{BTreeMap, HashMap};
 
 pub const MAX_ROWS: usize = 100_000;
@@ -74,6 +74,8 @@ impl Default for Resolved {
 pub struct Catalog {
     packages: HashMap<String, PartProps>,
     parts: HashMap<String, PartProps>,
+    /// The name of each package as it was written (the keys are in lower case).
+    package_names: HashMap<String, String>,
 }
 
 fn err(message: String) -> PnpError {
@@ -188,6 +190,24 @@ fn read_table(text: &str, key_cols: &[&str], what: &str) -> Result<Vec<Row>, Pnp
     Ok(out)
 }
 
+/// The cells of the property columns of a row, in the order of `PROP_COLUMNS`; an empty cell for a property the row does not set.
+fn props_cells(p: &PartProps) -> Vec<String> {
+    fn cell<T: std::fmt::Display>(v: &Option<T>) -> String {
+        v.as_ref().map_or(String::new(), ToString::to_string)
+    }
+    vec![
+        cell(&p.height_mm),
+        cell(&p.through_board_mm),
+        cell(&p.pick_retries),
+        cell(&p.bin),
+        csv_field(p.nozzle_tip.as_deref().unwrap_or("")),
+        cell(&p.rank),
+        cell(&p.origin_dx_mm),
+        cell(&p.origin_dy_mm),
+        cell(&p.tape_mm),
+    ]
+}
+
 fn part_key(value: &str, package: &str) -> String {
     format!(
         "{}|{}",
@@ -205,6 +225,8 @@ impl Catalog {
     pub fn add_packages(&mut self, text: &str) -> Result<(), PnpError> {
         for (keys, props) in read_table(text, &["package"], "packages")? {
             let key = keys[0].trim().to_ascii_lowercase();
+            self.package_names
+                .insert(key.clone(), keys[0].trim().to_string());
             if self.packages.insert(key, props).is_some() {
                 return Err(PnpError::new(
                     Code::CatalogDuplicate,
@@ -230,6 +252,50 @@ impl Catalog {
             }
         }
         Ok(())
+    }
+
+    /// What a package says about itself, if it has a row.
+    pub fn package(&self, name: &str) -> Option<&PartProps> {
+        self.packages.get(&name.trim().to_ascii_lowercase())
+    }
+
+    /// Gives a package a row, or replaces its row. The name is kept as it is written.
+    pub fn set_package(&mut self, name: &str, props: PartProps) {
+        let key = name.trim().to_ascii_lowercase();
+        self.package_names
+            .insert(key.clone(), name.trim().to_string());
+        self.packages.insert(key, props);
+    }
+
+    /// Takes the row of a package away; false when it had none.
+    pub fn remove_package(&mut self, name: &str) -> bool {
+        let key = name.trim().to_ascii_lowercase();
+        self.package_names.remove(&key);
+        self.packages.remove(&key).is_some()
+    }
+
+    /// The names of the packages that have a row, as written, in alphabetical order without regard to case.
+    pub fn package_names(&self) -> Vec<String> {
+        let mut keys: Vec<&String> = self.packages.keys().collect();
+        keys.sort();
+        keys.into_iter()
+            .map(|k| self.package_names.get(k).unwrap_or(k).clone())
+            .collect()
+    }
+
+    /// The table of packages as a CSV that `add_packages` reads back.
+    pub fn packages_csv(&self) -> String {
+        let mut out = format!("package,{}\n", PROP_COLUMNS.join(","));
+        for name in self.package_names() {
+            if let Some(p) = self.package(&name) {
+                out.push_str(&format!(
+                    "{},{}\n",
+                    csv_field(&name),
+                    props_cells(p).join(",")
+                ));
+            }
+        }
+        out
     }
 
     pub fn is_empty(&self) -> bool {

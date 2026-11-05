@@ -75,6 +75,47 @@ fn angle(text: &str) -> Result<f64, String> {
     Ok(v.rem_euclid(360.0))
 }
 
+/// A table of the parts of the bottom side with the angle each rule of the configuration (`bottom_rotation`) gives them, to compare with the angles of the real files: the angle
+/// as the file has it (the rule `keep`), the angle `mirror` and `half_turn` make of it, and the one of the rule in use.
+pub fn bottom_table(parts: &[Part], current: BottomRotation) -> String {
+    let bottom: Vec<&Part> = parts.iter().filter(|p| p.side == Side::Bottom).collect();
+    let mut out = format!(
+        "{} of {} parts are on the bottom side; the rule in use is {}\n",
+        bottom.len(),
+        parts.len(),
+        current.name()
+    );
+    if bottom.is_empty() {
+        return out;
+    }
+    out.push_str(&format!(
+        "{:<10} {:<12} {:<16} {:>8} {:>8} {:>9} {:>8}\n",
+        "reference", "value", "package", "keep", "mirror", "half_turn", "used"
+    ));
+    for p in bottom {
+        out.push_str(&format!(
+            "{:<10} {:<12} {:<16} {:>8.2} {:>8.2} {:>9.2} {:>8.2}\n",
+            p.reference,
+            p.value,
+            p.package,
+            BottomRotation::Keep.apply(p.rotation),
+            BottomRotation::Mirror.apply(p.rotation),
+            BottomRotation::HalfTurn.apply(p.rotation),
+            current.apply(p.rotation)
+        ));
+    }
+    out
+}
+
+/// A field of a CSV as it is written: in quotes, with the quotes doubled, when it holds a delimiter, a quote or a line break.
+pub fn csv_field(text: &str) -> String {
+    if text.contains([',', ';', '"', '\n', '\r']) {
+        format!("\"{}\"", text.replace('"', "\"\""))
+    } else {
+        text.to_string()
+    }
+}
+
 /// The delimiter of a table, told by its header row: a semicolon when it has more semicolons than commas.
 pub fn detect_delimiter(head_line: &str) -> char {
     if head_line.matches(';').count() > head_line.matches(',').count() {
@@ -163,6 +204,32 @@ pub enum BottomRotation {
     Mirror,
     /// The angle plus a half turn.
     HalfTurn,
+}
+
+impl BottomRotation {
+    pub const ALL: [BottomRotation; 3] = [
+        BottomRotation::Keep,
+        BottomRotation::Mirror,
+        BottomRotation::HalfTurn,
+    ];
+
+    /// The name the configuration uses.
+    pub fn name(self) -> &'static str {
+        match self {
+            BottomRotation::Keep => "keep",
+            BottomRotation::Mirror => "mirror",
+            BottomRotation::HalfTurn => "half_turn",
+        }
+    }
+
+    /// The angle of a part of the bottom side, from 0 to 360, once the rule is applied to the angle the file gives.
+    pub fn apply(self, rotation: f64) -> f64 {
+        match self {
+            BottomRotation::Keep => rotation,
+            BottomRotation::Mirror => (360.0 - rotation).rem_euclid(360.0),
+            BottomRotation::HalfTurn => (rotation + 180.0).rem_euclid(360.0),
+        }
+    }
 }
 
 fn names_of(base: &[&str], extra: &[String]) -> Vec<String> {
@@ -336,11 +403,7 @@ pub fn from_csv_with(text: &str, profile: &Profile) -> Result<Vec<Part>, String>
             side: side_of(at(c_side).map_err(row)?).map_err(row)?,
         };
         if part.side == Side::Bottom {
-            part.rotation = match profile.bottom_rotation {
-                BottomRotation::Keep => part.rotation,
-                BottomRotation::Mirror => (360.0 - part.rotation).rem_euclid(360.0),
-                BottomRotation::HalfTurn => (part.rotation + 180.0).rem_euclid(360.0),
-            };
+            part.rotation = profile.bottom_rotation.apply(part.rotation);
         }
         parts.push(part);
     }

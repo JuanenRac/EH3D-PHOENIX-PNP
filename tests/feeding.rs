@@ -2,7 +2,9 @@
 
 use eh3d_phoenix_pnp::error::Code;
 use eh3d_phoenix_pnp::feeders::Feeder;
-use eh3d_phoenix_pnp::feeding::{assign, choose, from_csv, FeederKind, FeederSpec};
+use eh3d_phoenix_pnp::feeding::{
+    assign, choose, from_csv, from_csv_with, normalize, to_csv, FeederKind, FeederSpec, TrayFill,
+};
 use eh3d_phoenix_pnp::parts::{Part, Side};
 use std::collections::BTreeMap;
 
@@ -351,4 +353,152 @@ fn every_part_gets_at_most_one_feeder_and_no_feeder_gives_more_than_it_holds() {
         let short: u32 = picks.short.iter().map(|s| s.1).sum();
         assert_eq!(picks.picks.len() as u32 + short, parts.len() as u32);
     }
+}
+// ---- the order of the cells of a tray, the file written back and the feeders that were edited
+
+const TRAY: &str = "id,value,package,x,y,count,kind,cols,rows,pitch_x,pitch_y,fill\nT1,IC,QFN,100,50,6,tray,3,2,10,-5,";
+
+fn cells(fill: &str) -> Vec<(f64, f64)> {
+    let f = from_csv(&format!("{TRAY}{fill}\n")).unwrap();
+    (0..6).map(|k| f[0].pick_point(k)).collect()
+}
+
+#[test]
+fn the_cells_of_a_tray_are_emptied_in_the_order_it_says() {
+    // 3 columns and 2 rows, 10 mm apart along X and 5 mm downwards, from the cell at (100, 50)
+    assert_eq!(
+        cells("rows"),
+        [
+            (100.0, 50.0),
+            (110.0, 50.0),
+            (120.0, 50.0),
+            (100.0, 45.0),
+            (110.0, 45.0),
+            (120.0, 45.0)
+        ]
+    );
+    assert_eq!(
+        cells("columns"),
+        [
+            (100.0, 50.0),
+            (100.0, 45.0),
+            (110.0, 50.0),
+            (110.0, 45.0),
+            (120.0, 50.0),
+            (120.0, 45.0)
+        ]
+    );
+    // along the first row and back along the second
+    assert_eq!(
+        cells("snake"),
+        [
+            (100.0, 50.0),
+            (110.0, 50.0),
+            (120.0, 50.0),
+            (120.0, 45.0),
+            (110.0, 45.0),
+            (100.0, 45.0)
+        ]
+    );
+    // the cell number counts from the cells already used: 4 parts left of 6 means 2 are gone
+    let f = from_csv(&format!(
+        "{}\n",
+        TRAY.replace(",6,tray", ",4,tray") + "snake"
+    ))
+    .unwrap();
+    assert_eq!(f[0].pick_point(0), (120.0, 50.0));
+    assert_eq!(f[0].pick_point(1), (120.0, 45.0));
+    assert_eq!(TrayFill::Snake.cell(4, 3, 2), (1, 1));
+    assert_eq!(TrayFill::Columns.cell(3, 3, 2), (1, 1));
+    assert_eq!(TrayFill::Rows.cell(3, 3, 2), (0, 1));
+    // no cell of 0 columns or rows: the cell is taken as if there were one
+    assert_eq!(TrayFill::Rows.cell(5, 0, 0), (0, 5));
+}
+
+#[test]
+fn a_tray_without_a_fill_takes_the_one_of_the_configuration() {
+    let no_fill = "id,value,package,x,y,count,kind,cols,rows,pitch_x,pitch_y\nT1,IC,QFN,0,0,6,tray,3,2,10,10\n";
+    assert_eq!(from_csv(no_fill).unwrap()[0].fill, TrayFill::Rows);
+    assert_eq!(
+        from_csv_with(no_fill, TrayFill::Snake).unwrap()[0].fill,
+        TrayFill::Snake
+    );
+    // what the row says wins
+    assert_eq!(
+        from_csv_with(&format!("{TRAY}Columns\n"), TrayFill::Snake).unwrap()[0].fill,
+        TrayFill::Columns
+    );
+    let e = from_csv(&format!("{TRAY}zigzag\n")).unwrap_err();
+    assert_eq!(e.code, Code::FeederBadRow);
+    assert!(e.detail.contains("zigzag"), "{}", e.detail);
+    assert_eq!(TrayFill::parse("snake"), Some(TrayFill::Snake));
+    assert_eq!(TrayFill::parse("Snake"), None);
+    assert_eq!(TrayFill::Columns.name(), "columns");
+}
+
+#[test]
+fn the_feeders_are_written_back_as_the_same_feeders() {
+    let f = from_csv(ALL_COLUMNS).unwrap();
+    let text = to_csv(&f);
+    assert!(
+        text.starts_with("id,value,package,x,y,count,priority,kind,"),
+        "{text}"
+    );
+    assert_eq!(from_csv(&text).unwrap(), f);
+    // a tray in the order of a snake, a name with a comma and a slot with a quote
+    let mut g = from_csv(&format!("{TRAY}snake\n")).unwrap();
+    g[0].base.value = "10k, 1%".to_string();
+    g[0].slot = Some("A\"1".to_string());
+    assert_eq!(from_csv(&to_csv(&g)).unwrap(), g);
+    assert!(to_csv(&g).contains("\"10k, 1%\""));
+    assert_eq!(to_csv(&[]).lines().count(), 1);
+}
+
+#[test]
+fn an_edited_feeder_is_brought_back_into_what_the_file_format_allows() {
+    let mut f = from_csv(&format!("{TRAY}rows\n")).unwrap().remove(0);
+    f.kind = FeederKind::Tray {
+        cols: 0,
+        rows: 5000,
+        pitch_x: 0.0,
+        pitch_y: -0.001,
+        rotation: 450.0,
+    };
+    f.base.count = 9_000_000;
+    f.base.x = 1e9;
+    f.base.y = f64::NAN;
+    f.priority = 7;
+    normalize(&mut f);
+    // 1 column of 1000 rows: 1000 cells, so 1000 parts at most
+    assert_eq!(
+        f.kind,
+        FeederKind::Tray {
+            cols: 1,
+            rows: 1000,
+            pitch_x: 0.01,
+            pitch_y: -0.01,
+            rotation: 90.0
+        }
+    );
+    assert_eq!(f.base.count, 1000);
+    assert_eq!((f.base.x, f.base.y), (10_000.0, 0.0));
+    assert_eq!(f.priority, 1);
+    let mut strip = from_csv(ALL_COLUMNS).unwrap().remove(2);
+    strip.kind = FeederKind::Strip {
+        pitch: 0.0,
+        rotation: -90.0,
+    };
+    normalize(&mut strip);
+    assert_eq!(
+        strip.kind,
+        FeederKind::Strip {
+            pitch: 0.01,
+            rotation: 270.0
+        }
+    );
+    // a feeder that was fine stays as it is
+    let mut ok = from_csv(ALL_COLUMNS).unwrap().remove(1);
+    let before = ok.clone();
+    normalize(&mut ok);
+    assert_eq!(ok, before);
 }
