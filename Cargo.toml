@@ -21,6 +21,12 @@ path = "src/lib.rs"
 name = "phoenix-pnp"
 path = "src/main.rs"
 
+# the window as a program of its own: on Windows it opens without the black console window that the command line keeps (see docs/windows-console.md)
+[[bin]]
+name = "phoenix-pnp-gui"
+path = "src/gui_main.rs"
+required-features = ["gui"]
+
 [dependencies]
 serde_json = "1"
 eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts", "clipboard"], optional = true }
