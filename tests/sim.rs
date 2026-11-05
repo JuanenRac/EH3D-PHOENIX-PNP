@@ -281,3 +281,53 @@ fn the_actuator_the_camera_and_the_driver_of_the_simulator_behave() {
     }
     assert_eq!(d.sent.len(), 1);
 }
+
+#[test]
+fn an_extra_chance_of_failure_is_added_to_the_general_one_and_taken_away_again() {
+    // a chance of one: nothing is picked and the nozzle stays empty, then the chance is taken away
+    let mut m = machine("nozzles = 1");
+    m.set_extra_fail(SimOp::Pick, 1.0);
+    for _ in 0..20 {
+        assert_eq!(m.pick(0, "R1").unwrap_err().code, Code::SimFault);
+        assert!(m.holding(0).is_none());
+    }
+    m.set_extra_fail(SimOp::Pick, 0.0);
+    m.pick(0, "R1").unwrap();
+    // the same for a place: the part stays on the nozzle until it is placed
+    m.set_extra_fail(SimOp::Place, 1.0);
+    assert_eq!(m.place(0).unwrap_err().code, Code::SimFault);
+    assert_eq!(m.holding(0), Some("R1"));
+    m.set_extra_fail(SimOp::Place, 0.0);
+    assert_eq!(m.place(0).unwrap(), "R1");
+    // a number that is not a number is no chance at all
+    m.set_extra_fail(SimOp::Pick, f64::NAN);
+    m.pick(0, "R2").unwrap();
+}
+
+#[test]
+fn an_extra_chance_of_zero_leaves_the_failures_where_they_were_and_a_greater_one_adds_failures() {
+    let cfg = "sim_pick_fail_rate = 0.5\nsim_seed = 3\nnozzles = 1";
+    let picks = |m: &mut SimMachine| -> Vec<bool> {
+        (0..400)
+            .map(|_| {
+                let ok = m.pick(0, "R").is_ok();
+                m.discard(0);
+                ok
+            })
+            .collect()
+    };
+    let (mut plain, mut zero, mut extra) = (machine(cfg), machine(cfg), machine(cfg));
+    zero.set_extra_fail(SimOp::Pick, 0.0);
+    extra.set_extra_fail(SimOp::Pick, 0.5);
+    let (a, b, c) = (picks(&mut plain), picks(&mut zero), picks(&mut extra));
+    assert_eq!(a, b);
+    // the same numbers are drawn, so every pick that failed still fails when the chance is higher (0.75 against 0.5)
+    for (x, y) in a.iter().zip(&c) {
+        assert!(
+            *x || !*y,
+            "a pick that failed succeeded with a higher chance"
+        );
+    }
+    let failed = |v: &[bool]| v.iter().filter(|ok| !**ok).count();
+    assert!(failed(&c) > failed(&a));
+}

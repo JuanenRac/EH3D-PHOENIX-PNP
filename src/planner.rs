@@ -192,6 +192,162 @@ fn regroup_by_tip(seq: &mut [usize], items: &[Item]) {
     seq.copy_from_slice(&out);
 }
 
+/// The parts of a block that need one nozzle tip, in the order they have in the sequence.
+struct TipGroup {
+    tip: String,
+    items: Vec<usize>,
+    first: (f64, f64),
+    last: (f64, f64),
+    /// The length of the way through the group.
+    inner: f64,
+}
+
+fn tip_groups(seq: &[usize], items: &[Item]) -> Vec<TipGroup> {
+    let mut groups: Vec<TipGroup> = Vec::new();
+    for &k in seq {
+        match groups.iter().position(|g| g.tip == items[k].tip) {
+            Some(g) => {
+                let group = &mut groups[g];
+                group.inner += dist(group.last, items[k].at);
+                group.last = items[k].at;
+                group.items.push(k);
+            }
+            None => groups.push(TipGroup {
+                tip: items[k].tip.clone(),
+                items: vec![k],
+                first: items[k].at,
+                last: items[k].at,
+                inner: 0.0,
+            }),
+        }
+    }
+    groups
+}
+
+/// The seconds that visiting the groups in `order` takes, from `start` with the tip `mounted` on the nozzle: the way at the speed of the head, and the change of the tip with its trip to
+/// the changer.
+fn order_cost(
+    groups: &[TipGroup],
+    order: &[usize],
+    start: (f64, f64),
+    mounted: Option<&str>,
+    cfg: &MachineConfig,
+) -> f64 {
+    let per_mm = 2.0 / (cfg.x_speed_mm_s + cfg.y_speed_mm_s);
+    let mut at = start;
+    let mut tip = mounted;
+    let mut cost = 0.0;
+    for &g in order {
+        let group = &groups[g];
+        let change = tip.is_some_and(|t| t != group.tip);
+        let to_first = match cfg.tip_changer {
+            Some(changer) if change => dist(at, changer) + dist(changer, group.first),
+            _ => dist(at, group.first),
+        };
+        cost += (to_first + group.inner) * per_mm;
+        if change {
+            cost += cfg.tip_change_s;
+        }
+        at = group.last;
+        tip = Some(group.tip.as_str());
+    }
+    cost
+}
+
+/// The next order of `order` in alphabetical order; false when it was the last.
+fn next_permutation(order: &mut [usize]) -> bool {
+    let n = order.len();
+    if n < 2 {
+        return false;
+    }
+    let mut i = n - 1;
+    while i > 0 && order[i - 1] >= order[i] {
+        i -= 1;
+    }
+    if i == 0 {
+        return false;
+    }
+    let mut j = n - 1;
+    while order[j] <= order[i - 1] {
+        j -= 1;
+    }
+    order.swap(i - 1, j);
+    order[i..].reverse();
+    true
+}
+
+/// The order of the groups with the lowest cost that the search finds within its limits. The first order tried is the order in which the tips appear, and an order replaces the best
+/// only when it is cheaper, so the result is never worse than that one.
+fn best_group_order(
+    groups: &[TipGroup],
+    start: (f64, f64),
+    mounted: Option<&str>,
+    cfg: &MachineConfig,
+) -> Vec<usize> {
+    let n = groups.len();
+    let mut best: Vec<usize> = (0..n).collect();
+    if n < 2 {
+        return best;
+    }
+    if n > 8 {
+        // too many orders to try: the group that is cheapest to go to next, again and again
+        let mut order: Vec<usize> = Vec::with_capacity(n);
+        let mut left: Vec<usize> = (0..n).collect();
+        while !left.is_empty() {
+            let mut pick = 0;
+            let mut pick_cost = f64::MAX;
+            for (m, &g) in left.iter().enumerate() {
+                order.push(g);
+                let c = order_cost(groups, &order, start, mounted, cfg);
+                order.pop();
+                if c < pick_cost {
+                    pick = m;
+                    pick_cost = c;
+                }
+            }
+            order.push(left.remove(pick));
+        }
+        return order;
+    }
+    let started = std::time::Instant::now();
+    let mut best_cost = order_cost(groups, &best, start, mounted, cfg);
+    let mut order: Vec<usize> = best.clone();
+    let mut tried = 1usize;
+    while tried < cfg.tip_opt_max_evals && next_permutation(&mut order) {
+        tried += 1;
+        let c = order_cost(groups, &order, start, mounted, cfg);
+        if c + 1e-9 < best_cost {
+            best_cost = c;
+            best.clone_from(&order);
+        }
+        if tried.is_multiple_of(256) && started.elapsed().as_secs_f64() >= cfg.tip_opt_time_limit_s
+        {
+            break;
+        }
+    }
+    best
+}
+
+/// Brings the parts of one tip together like `regroup_by_tip` and puts the tips in the order that is cheapest.
+fn regroup_optimized(
+    seq: &mut [usize],
+    items: &[Item],
+    start: (f64, f64),
+    mounted: Option<&str>,
+    cfg: &MachineConfig,
+) {
+    let groups = tip_groups(seq, items);
+    if groups.len() < 2 {
+        return;
+    }
+    let order = best_group_order(&groups, start, mounted, cfg);
+    let mut out: Vec<usize> = Vec::with_capacity(seq.len());
+    for g in order {
+        out.extend(groups[g].items.iter().copied());
+    }
+    seq.copy_from_slice(&out);
+}
+
 /// One leg of the way: the distance, the seconds it takes (the nozzle turns `turn_deg` meanwhile, or after the move when the configuration says so) and the seconds of turning.
 fn leg(
     from: (f64, f64),
@@ -303,10 +459,12 @@ pub fn plan_advanced(
     let mut sequence: Vec<usize> = Vec::with_capacity(items.len());
     let mut tier_ranges: Vec<(usize, usize)> = Vec::new();
     let mut at = (0.0, 0.0);
+    let mut mounted: Option<String> = None;
     let mut i = 0;
     while i < sorted.len() {
         let tier = items[sorted[i]].tier;
         let tier_start = sequence.len();
+        let tier_entry = at;
         while i < sorted.len() && items[sorted[i]].tier == tier {
             let rank = items[sorted[i]].rank;
             let mut j = i;
@@ -321,8 +479,23 @@ pub fn plan_advanced(
             sequence.extend(ordered);
             i = j;
         }
-        if cfg.tip_strategy == TipStrategy::Minimize {
-            regroup_by_tip(&mut sequence[tier_start..], &items);
+        match cfg.tip_strategy {
+            TipStrategy::Minimize => regroup_by_tip(&mut sequence[tier_start..], &items),
+            TipStrategy::Optimize => {
+                regroup_optimized(
+                    &mut sequence[tier_start..],
+                    &items,
+                    tier_entry,
+                    mounted.as_deref(),
+                    cfg,
+                );
+                // the next block starts where this one ends, with the tip that is on the nozzle then
+                if let Some(&last) = sequence[tier_start..].last() {
+                    at = items[last].at;
+                    mounted = Some(items[last].tip.clone());
+                }
+            }
+            TipStrategy::AsPlanned => {}
         }
         tier_ranges.push((tier_start, sequence.len()));
     }

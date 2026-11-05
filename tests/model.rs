@@ -5,6 +5,8 @@ use eh3d_phoenix_pnp::config::{
     ComponentOrigin, ErrorPolicy, MachineConfig, OrderStrategy, TipStrategy, KEYS, SCHEMA_VERSION,
 };
 use eh3d_phoenix_pnp::error::{Code, Lang, PnpError};
+use eh3d_phoenix_pnp::feeding::TrayFill;
+use eh3d_phoenix_pnp::fiducial::FitMode;
 use eh3d_phoenix_pnp::parts::{
     from_csv, from_csv_with, BottomRotation, Part, PositionColumns, Profile, Side,
 };
@@ -609,4 +611,127 @@ fn spaces_around_the_names_are_never_part_of_them() {
     assert_eq!(parts[0].value, "10k");
     assert_eq!(parts[0].package, "R_0603");
     assert_eq!(parts[0].key(), "10k|r_0603");
+}
+// ---- the keys of the fiducials, the trays, the undo, the search for the order of the tips and the failures by package
+
+#[test]
+fn the_new_keys_are_read_and_checked() {
+    let d = MachineConfig::default();
+    assert_eq!(d.fiducial_mode, FitMode::Auto);
+    assert_eq!(d.fiducial_max_residual_mm, 0.5);
+    assert_eq!(d.tray_fill, TrayFill::Rows);
+    assert_eq!(d.undo_limit, 100);
+    assert_eq!(d.tip_opt_max_evals, 20_000);
+    assert_eq!(d.tip_opt_time_limit_s, 1.0);
+    assert!(d.sim_part_fail.is_empty() && d.sim_feeder_fail.is_empty());
+    let c = MachineConfig::parse(
+        "fiducial_mode = Affine\nfiducial_max_residual_mm = 0.25\ntray_fill = SNAKE\nundo_limit = 5\n\
+         tip_strategy = optimize\ntip_opt_max_evals = 10\ntip_opt_time_limit_s = 0.5\n\
+         sim_part_fail = QFN-* : 0.1 : 0.05\nsim_part_fail = R* : 0 : 1\nsim_feeder_fail = F2 : 0.25\nsim_feeder_fail = F9 : 1",
+    )
+    .unwrap();
+    assert_eq!(c.fiducial_mode, FitMode::Affine);
+    assert_eq!(c.fiducial_max_residual_mm, 0.25);
+    assert_eq!(c.tray_fill, TrayFill::Snake);
+    assert_eq!(c.undo_limit, 5);
+    assert_eq!(c.tip_strategy, TipStrategy::Optimize);
+    assert_eq!((c.tip_opt_max_evals, c.tip_opt_time_limit_s), (10, 0.5));
+    // the rules keep the order of the file and may be written more than once
+    assert_eq!(
+        c.sim_part_fail,
+        vec![
+            ("QFN-*".to_string(), 0.1, 0.05),
+            ("R*".to_string(), 0.0, 1.0)
+        ]
+    );
+    assert_eq!(
+        c.sim_feeder_fail,
+        vec![("F2".to_string(), 0.25), ("F9".to_string(), 1.0)]
+    );
+    for (text, code) in [
+        ("fiducial_mode = loose", Code::ConfigBadValue),
+        ("fiducial_max_residual_mm = 0", Code::ConfigOutOfRange),
+        ("fiducial_max_residual_mm = 101", Code::ConfigOutOfRange),
+        ("tray_fill = diagonal", Code::ConfigBadValue),
+        ("undo_limit = 0", Code::ConfigOutOfRange),
+        ("undo_limit = 1001", Code::ConfigOutOfRange),
+        ("tip_strategy = best", Code::ConfigBadValue),
+        ("tip_opt_max_evals = 0", Code::ConfigOutOfRange),
+        ("tip_opt_time_limit_s = 100", Code::ConfigOutOfRange),
+        ("tip_opt_time_limit_s = 0", Code::ConfigOutOfRange),
+        ("sim_part_fail = QFN", Code::ConfigBadValue),
+        ("sim_part_fail = QFN : 0.1", Code::ConfigBadValue),
+        ("sim_part_fail = : 0.1 : 0.1", Code::ConfigBadValue),
+        ("sim_part_fail = QFN : 2 : 0", Code::ConfigOutOfRange),
+        ("sim_part_fail = QFN : 0 : -0.1", Code::ConfigOutOfRange),
+        ("sim_part_fail = QFN : x : 0", Code::ConfigBadValue),
+        ("sim_feeder_fail = F1", Code::ConfigBadValue),
+        ("sim_feeder_fail = F1 : 0.1 : 0.1", Code::ConfigBadValue),
+        ("sim_feeder_fail = F1 : 1.5", Code::ConfigOutOfRange),
+        (
+            "fiducial_mode = auto\nfiducial_mode = auto",
+            Code::ConfigDuplicateKey,
+        ),
+    ] {
+        assert_eq!(code_of(text), code, "{text}");
+    }
+}
+
+#[test]
+fn the_rules_of_the_bottom_side_give_the_angles_worked_out_by_hand() {
+    // (angle in the file, mirror, half turn)
+    let cases = [
+        (0.0, 0.0, 180.0),
+        (30.0, 330.0, 210.0),
+        (180.0, 180.0, 0.0),
+        (270.0, 90.0, 90.0),
+        (359.0, 1.0, 179.0),
+    ];
+    for (file, mirror, half) in cases {
+        assert_eq!(BottomRotation::Keep.apply(file), file);
+        assert_eq!(BottomRotation::Mirror.apply(file), mirror, "mirror {file}");
+        assert_eq!(
+            BottomRotation::HalfTurn.apply(file),
+            half,
+            "half turn {file}"
+        );
+    }
+    let names: Vec<&str> = BottomRotation::ALL.iter().map(|r| r.name()).collect();
+    assert_eq!(names, ["keep", "mirror", "half_turn"]);
+    // the reader of a CSV applies the rule of its profile to the bottom side and to nothing else
+    let csv = "ref,val,package,x,y,rot,side\nC5,100n,C,1,2,30,bottom\nR1,10k,R,3,4,30,top\n";
+    for (rule, expected) in [
+        (BottomRotation::Keep, 30.0),
+        (BottomRotation::Mirror, 330.0),
+        (BottomRotation::HalfTurn, 210.0),
+    ] {
+        let profile = Profile {
+            bottom_rotation: rule,
+            ..Profile::default()
+        };
+        let parts = from_csv_with(csv, &profile).unwrap();
+        assert_eq!(parts[0].rotation, expected, "{}", rule.name());
+        assert_eq!(parts[1].rotation, 30.0);
+    }
+    // the table of the parts of the bottom side
+    use eh3d_phoenix_pnp::parts::bottom_table;
+    assert_eq!(
+        bottom_table(&[], BottomRotation::Keep),
+        "0 of 0 parts are on the bottom side; the rule in use is keep\n"
+    );
+    let parts = from_csv(csv).unwrap();
+    let table = bottom_table(&parts, BottomRotation::HalfTurn);
+    assert_eq!(
+        table.lines().count(),
+        3,
+        "the summary, the head and the one part of the bottom"
+    );
+    assert!(
+        table.starts_with("1 of 2 parts are on the bottom side; the rule in use is half_turn\n")
+    );
+    let row: Vec<&str> = table.lines().last().unwrap().split_whitespace().collect();
+    assert_eq!(
+        row,
+        ["C5", "100n", "C", "30.00", "330.00", "210.00", "210.00"]
+    );
 }

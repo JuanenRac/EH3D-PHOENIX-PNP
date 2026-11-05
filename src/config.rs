@@ -4,6 +4,8 @@
 
 use crate::catalog::Defaults;
 use crate::error::{Code, Lang, PnpError};
+use crate::feeding::TrayFill;
+use crate::fiducial::FitMode;
 use crate::parts::{BottomRotation, PositionColumns, Profile};
 use std::collections::HashSet;
 
@@ -13,7 +15,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 67] = [
+pub const KEYS: [&str; 75] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -81,6 +83,14 @@ pub const KEYS: [&str; 67] = [
     "gui_steps_per_s",
     "gui_theme",
     "gui_part_size_mm",
+    "fiducial_mode",
+    "fiducial_max_residual_mm",
+    "tray_fill",
+    "undo_limit",
+    "tip_opt_max_evals",
+    "tip_opt_time_limit_s",
+    "sim_part_fail",
+    "sim_feeder_fail",
 ];
 
 /// The order in which the places are visited.
@@ -134,6 +144,8 @@ pub enum TipStrategy {
     Minimize,
     /// The tips are changed whenever the planned order asks for another one.
     AsPlanned,
+    /// The parts are brought together by tip, and the order of the tips is searched for the shortest way and time, counting the trip to the tip changer.
+    Optimize,
 }
 
 /// What the job does when a part cannot be picked or placed after all the retries.
@@ -218,7 +230,26 @@ pub struct MachineConfig {
     pub gui_theme: String,
     /// The window: the side of the square drawn for a part whose package is not known, in millimetres.
     pub gui_part_size_mm: f64,
+    /// The fit of the fiducials of a panel: a similarity, an affine fit, or the one that fits the number of marks.
+    pub fiducial_mode: FitMode,
+    /// A fiducial that is further than this from where the fit puts it makes the fit refused, in millimetres.
+    pub fiducial_max_residual_mm: f64,
+    /// The order of the cells of a tray whose row says nothing about it.
+    pub tray_fill: TrayFill,
+    /// The window: how many edits of the tables can be taken back.
+    pub undo_limit: usize,
+    /// The search for the best order of the nozzle tips stops after this many orders have been tried.
+    pub tip_opt_max_evals: usize,
+    /// ... or after this many seconds of the clock, whichever comes first (only the number of orders tried gives the same plan on every computer).
+    pub tip_opt_time_limit_s: f64,
+    /// Chances of failure by package: `(pattern, pick, place)`; the first rule that matches the package of a part is the one used. They add to the general chances.
+    pub sim_part_fail: Vec<(String, f64, f64)>,
+    /// Chances that a pick from a feeder fails: `(feeder id, pick)`. They add to the general chances.
+    pub sim_feeder_fail: Vec<(String, f64)>,
 }
+
+/// The most rules of failure by package or by feeder.
+pub const MAX_FAIL_RULES: usize = 1000;
 
 impl Default for MachineConfig {
     fn default() -> Self {
@@ -280,6 +311,14 @@ impl Default for MachineConfig {
             gui_steps_per_s: 4.0,
             gui_theme: "phoenix".to_string(),
             gui_part_size_mm: 2.0,
+            fiducial_mode: FitMode::Auto,
+            fiducial_max_residual_mm: 0.5,
+            tray_fill: TrayFill::Rows,
+            undo_limit: 100,
+            tip_opt_max_evals: 20_000,
+            tip_opt_time_limit_s: 1.0,
+            sim_part_fail: Vec::new(),
+            sim_feeder_fail: Vec::new(),
         }
     }
 }
@@ -373,7 +412,8 @@ impl MachineConfig {
                 ));
             };
             let (key, value) = (k.trim().to_ascii_lowercase(), v.trim());
-            if key != "rotation" && !seen.insert(key.clone()) {
+            let repeats = ["rotation", "sim_part_fail", "sim_feeder_fail"];
+            if !repeats.contains(&key.as_str()) && !seen.insert(key.clone()) {
                 return Err(PnpError::new(
                     Code::ConfigDuplicateKey,
                     format!("line {line}: '{key}' is written twice"),
@@ -465,7 +505,8 @@ impl MachineConfig {
                 self.tip_strategy = match v.to_ascii_lowercase().as_str() {
                     "minimize" => TipStrategy::Minimize,
                     "as_planned" => TipStrategy::AsPlanned,
-                    _ => return Err(bad(line, key, v, "minimize or as_planned")),
+                    "optimize" => TipStrategy::Optimize,
+                    _ => return Err(bad(line, key, v, "minimize, as_planned or optimize")),
                 }
             }
             "two_opt" => self.two_opt = flag(line, key, v)?,
@@ -557,6 +598,44 @@ impl MachineConfig {
                 self.gui_theme = name;
             }
             "gui_part_size_mm" => self.gui_part_size_mm = n(0.2, 50.0)?,
+            "fiducial_mode" => {
+                self.fiducial_mode = FitMode::parse(&v.to_ascii_lowercase())
+                    .ok_or_else(|| bad(line, key, v, "auto, similarity or affine"))?
+            }
+            "fiducial_max_residual_mm" => self.fiducial_max_residual_mm = n(0.001, 100.0)?,
+            "undo_limit" => self.undo_limit = int(line, key, v, 1, 1000)? as usize,
+            "tip_opt_max_evals" => {
+                self.tip_opt_max_evals = int(line, key, v, 1, 1_000_000)? as usize
+            }
+            "tip_opt_time_limit_s" => self.tip_opt_time_limit_s = n(0.01, 60.0)?,
+            "sim_part_fail" => {
+                let fields: Vec<&str> = v.split(':').map(str::trim).collect();
+                if fields.len() != 3 || fields[0].is_empty() || fields[0].chars().count() > 128 {
+                    return Err(bad(line, key, v, "PATTERN : PICK : PLACE"));
+                }
+                let pick = num(line, key, fields[1], 0.0, 1.0)?;
+                let place = num(line, key, fields[2], 0.0, 1.0)?;
+                if self.sim_part_fail.len() >= MAX_FAIL_RULES {
+                    return Err(bad(line, key, v, "one of at most 1000 rules"));
+                }
+                self.sim_part_fail
+                    .push((fields[0].to_string(), pick, place));
+            }
+            "sim_feeder_fail" => {
+                let fields: Vec<&str> = v.split(':').map(str::trim).collect();
+                if fields.len() != 2 || fields[0].is_empty() || fields[0].chars().count() > 64 {
+                    return Err(bad(line, key, v, "FEEDER : PICK"));
+                }
+                let pick = num(line, key, fields[1], 0.0, 1.0)?;
+                if self.sim_feeder_fail.len() >= MAX_FAIL_RULES {
+                    return Err(bad(line, key, v, "one of at most 1000 rules"));
+                }
+                self.sim_feeder_fail.push((fields[0].to_string(), pick));
+            }
+            "tray_fill" => {
+                self.tray_fill = TrayFill::parse(&v.to_ascii_lowercase())
+                    .ok_or_else(|| bad(line, key, v, "rows, columns or snake"))?
+            }
             other => {
                 return Err(PnpError::new(
                     Code::ConfigUnknownKey,

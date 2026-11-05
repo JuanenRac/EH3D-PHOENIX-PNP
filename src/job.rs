@@ -14,7 +14,8 @@ use crate::error::{Code, PnpError};
 use crate::feeding::{choose, FeederSpec};
 use crate::model::{FeederDevice, Machine, Nozzle};
 use crate::planner::AdvancedPlan;
-use crate::sim::{SimFeeder, SimMachine};
+use crate::rotation::glob_match;
+use crate::sim::{SimFeeder, SimMachine, SimOp};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
@@ -69,6 +70,23 @@ pub struct FeederStats {
     pub picked: u32,
     pub faults: u32,
     pub disabled: bool,
+    /// Every pick from this feeder that failed, also those that a retry put right.
+    pub pick_failures: u32,
+}
+
+/// What happened with the parts of one package.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct KindStats {
+    pub package: String,
+    pub picked: u32,
+    pub pick_failures: u32,
+    pub placed: u32,
+    pub place_failures: u32,
+}
+
+/// The chance that one action fails when it is done on a part in a package and, for a pick, from a feeder: the failure of the package or of the feeder, whichever comes first.
+pub fn combined_chance(a: f64, b: f64) -> f64 {
+    1.0 - (1.0 - a) * (1.0 - b)
 }
 
 /// The statistics of the job.
@@ -82,6 +100,8 @@ pub struct Stats {
     pub place_failures: u64,
     pub tip_changes: usize,
     pub feeders: Vec<FeederStats>,
+    /// By package, in the order of the first feeder that holds it.
+    pub kinds: Vec<KindStats>,
 }
 
 #[derive(Debug, Clone)]
@@ -180,7 +200,18 @@ impl Job {
             })
             .collect();
         let count = plan.plan.placements.len();
+        let mut kinds: Vec<KindStats> = Vec::new();
+        for f in &feeders {
+            let key = f.base.package.trim();
+            if !kinds.iter().any(|k| k.package.eq_ignore_ascii_case(key)) {
+                kinds.push(KindStats {
+                    package: key.to_string(),
+                    ..KindStats::default()
+                });
+            }
+        }
         let stats = Stats {
+            kinds,
             feeders: feeders
                 .iter()
                 .map(|f| FeederStats {
@@ -214,6 +245,46 @@ impl Job {
             mounted: false,
             stats,
         })
+    }
+
+    /// The index in the statistics of the package of the feeder `f`.
+    fn kind_of(&self, f: usize) -> usize {
+        let package = self.feeders[f].base.package.trim();
+        self.stats
+            .kinds
+            .iter()
+            .position(|k| k.package.eq_ignore_ascii_case(package))
+            .unwrap_or(0)
+    }
+
+    /// The chances of failure that the configuration gives to the package of a feeder: `(pick, place)`.
+    fn part_chances(&self, f: usize) -> (f64, f64) {
+        let package = self.feeders[f].base.package.trim();
+        self.cfg
+            .sim_part_fail
+            .iter()
+            .find(|(pattern, _, _)| glob_match(pattern, package))
+            .map_or((0.0, 0.0), |(_, pick, place)| (*pick, *place))
+    }
+
+    /// The chance that a pick from the feeder `f` fails because of the feeder.
+    fn feeder_chance(&self, f: usize) -> f64 {
+        let id = &self.feeders[f].base.id;
+        self.cfg
+            .sim_feeder_fail
+            .iter()
+            .find(|(feeder, _)| feeder == id)
+            .map_or(0.0, |(_, pick)| *pick)
+    }
+
+    /// How many parts the simulated job places in an hour of machine time, from what it has placed so far. 0 before the machine has spent any time.
+    pub fn parts_per_hour(&self) -> f64 {
+        let seconds = self.machine.now_us() as f64 / 1e6;
+        if seconds > 0.0 {
+            self.stats.placed as f64 * 3600.0 / seconds
+        } else {
+            0.0
+        }
     }
 
     /// The simulated machine, for tests that make it fail at a chosen place.
@@ -474,6 +545,9 @@ impl Job {
             return self.give_up(idx, nozzle, e);
         }
         let mut picked = false;
+        let kind = self.kind_of(f);
+        let chance = combined_chance(self.part_chances(f).0, self.feeder_chance(f));
+        self.machine.set_extra_fail(SimOp::Pick, chance);
         for _ in 0..=det.pick_retries {
             self.stats.pick_attempts += 1;
             match self.machine.pick(nozzle, &pl.reference) {
@@ -481,10 +555,15 @@ impl Job {
                     picked = true;
                     break;
                 }
-                Err(e) if e.code == Code::SimFault => self.stats.pick_failures += 1,
+                Err(e) if e.code == Code::SimFault => {
+                    self.stats.pick_failures += 1;
+                    self.stats.kinds[kind].pick_failures += 1;
+                    self.stats.feeders[f].pick_failures += 1;
+                }
                 Err(e) => return Err(e),
             }
         }
+        self.machine.set_extra_fail(SimOp::Pick, 0.0);
         self.record(f, !picked);
         if !picked {
             let e = PnpError::new(
@@ -496,6 +575,7 @@ impl Job {
         self.devices[f].take();
         self.taken[f] += 1;
         self.stats.feeders[f].picked += 1;
+        self.stats.kinds[kind].picked += 1;
         Ok(())
     }
 
@@ -526,17 +606,27 @@ impl Job {
             Some(_) => {}
         }
         self.machine.move_to((pl.x, pl.y))?;
+        let source = self.index[&pl.feeder];
+        let kind = self.kind_of(source);
+        let place_chance = self.part_chances(source).1;
+        self.machine.set_extra_fail(SimOp::Place, place_chance);
         for _ in 0..=self.cfg.place_retries {
             match self.machine.place(nozzle) {
                 Ok(_) => {
+                    self.machine.set_extra_fail(SimOp::Place, 0.0);
                     self.status[idx] = Status::Placed;
                     self.stats.placed += 1;
+                    self.stats.kinds[kind].placed += 1;
                     return Ok(());
                 }
-                Err(e) if e.code == Code::SimFault => self.stats.place_failures += 1,
+                Err(e) if e.code == Code::SimFault => {
+                    self.stats.place_failures += 1;
+                    self.stats.kinds[kind].place_failures += 1;
+                }
                 Err(e) => return Err(e),
             }
         }
+        self.machine.set_extra_fail(SimOp::Place, 0.0);
         // with `alert` the part stays on the nozzle, so that the step can be tried again after the cause is put right
         let e = PnpError::new(Code::PlaceFailed, pl.reference.clone());
         self.give_up(idx, nozzle, e)
@@ -549,7 +639,12 @@ impl Job {
         let feeders: Vec<Value> = s
             .feeders
             .iter()
-            .map(|f| json!({"id": f.id, "picked": f.picked, "faults": f.faults, "disabled": f.disabled}))
+            .map(|f| json!({"id": f.id, "picked": f.picked, "faults": f.faults, "disabled": f.disabled, "pick_failures": f.pick_failures}))
+            .collect();
+        let kinds: Vec<Value> = s
+            .kinds
+            .iter()
+            .map(|k| json!({"package": k.package, "picked": k.picked, "pick_failures": k.pick_failures, "placed": k.placed, "place_failures": k.place_failures}))
             .collect();
         let deferred: Vec<Value> = self
             .deferred()
@@ -563,12 +658,14 @@ impl Job {
             "of": self.status.len(),
             "seconds": seconds,
             "seconds_per_part": if s.placed > 0 { seconds / s.placed as f64 } else { 0.0 },
+            "parts_per_hour": self.parts_per_hour(),
             "feed_failures": s.feed_failures,
             "pick_attempts": s.pick_attempts,
             "pick_failures": s.pick_failures,
             "place_failures": s.place_failures,
             "tip_changes": s.tip_changes,
             "feeders": feeders,
+            "kinds": kinds,
             "deferred_parts": deferred
         }))
         .unwrap_or_default()
@@ -606,7 +703,12 @@ impl Job {
         let feeders: Vec<Value> = s
             .feeders
             .iter()
-            .map(|f| json!({"picked": f.picked, "faults": f.faults, "disabled": f.disabled}))
+            .map(|f| json!({"picked": f.picked, "faults": f.faults, "disabled": f.disabled, "pick_failures": f.pick_failures}))
+            .collect();
+        let kinds: Vec<Value> = s
+            .kinds
+            .iter()
+            .map(|k| json!({"picked": k.picked, "pick_failures": k.pick_failures, "placed": k.placed, "place_failures": k.place_failures}))
             .collect();
         let error = self
             .error
@@ -633,7 +735,8 @@ impl Job {
             "pick_failures": s.pick_failures,
             "place_failures": s.place_failures,
             "tip_changes": s.tip_changes,
-            "feeders": feeders
+            "feeders": feeders,
+            "kinds": kinds
         });
         serde_json::to_string_pretty(&json!({
             "schema_version": 1,
@@ -804,6 +907,21 @@ impl Job {
                 .get("disabled")
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
+            f.pick_failures = saved
+                .get("pick_failures")
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as u32;
+        }
+        // a state saved before the statistics by package are kept has none: they start again from zero
+        if let Some(sk) = s.get("kinds").and_then(Value::as_array) {
+            if sk.len() == stats.kinds.len() {
+                for (k, saved) in stats.kinds.iter_mut().zip(sk) {
+                    k.picked = int(saved, "picked")? as u32;
+                    k.pick_failures = int(saved, "pick_failures")? as u32;
+                    k.placed = int(saved, "placed")? as u32;
+                    k.place_failures = int(saved, "place_failures")? as u32;
+                }
+            }
         }
         let error = match v.get("error") {
             Some(Value::Object(e)) => {

@@ -653,3 +653,123 @@ fn the_plan_does_not_depend_on_the_order_of_the_files_and_keeps_its_promises() {
         assert_eq!(plan.to_json(), again.to_json(), "round {round}");
     }
 }
+// ---- the search for the order of the nozzle tips
+
+const TIP_TABLES: &str = "package,nozzle_tip\nPA,TA\nPB,TB\n";
+
+#[test]
+fn the_order_of_the_tips_is_searched_for_the_shortest_way() {
+    // B1 is met first (40 mm), then A1 and A2 (50 and 60 mm), and B2 last (500 mm). Bringing the tips together in the order in which they appear gives B1 B2 A1 A2:
+    // 40 + 460 to go through B, 450 back to A and 10 through A, 960 mm in all; A1 A2 B1 B2 is 50 + 10 + 20 + 460 = 540 mm
+    let parts = [
+        part("B1", "vb", "PB", 40.0, 0.0, 0.0),
+        part("A1", "va", "PA", 50.0, 0.0, 0.0),
+        part("A2", "va", "PA", 60.0, 0.0, 0.0),
+        part("B2", "vb", "PB", 500.0, 0.0, 0.0),
+    ];
+    let feeders = [
+        feeder("FA", "va", "PA", -20.0, 0.0, 5),
+        feeder("FB", "vb", "PB", -20.0, 10.0, 5),
+    ];
+    let run = |extra: &str| {
+        make(
+            &parts,
+            &feeders,
+            TIP_TABLES,
+            &format!("nozzles = 1\ntwo_opt = no\n{extra}"),
+            Options::default(),
+        )
+        .unwrap()
+    };
+    let grouped = run("tip_strategy = minimize");
+    assert_eq!(refs(&grouped), ["B1", "B2", "A1", "A2"]);
+    let best = run("tip_strategy = optimize");
+    assert_eq!(refs(&best), ["A1", "A2", "B1", "B2"]);
+    assert_eq!(best.tip_changes, 1);
+    assert_eq!(grouped.tip_changes, 1);
+    // one order tried is the order of appearance: the same as grouping
+    let one = run("tip_strategy = optimize\ntip_opt_max_evals = 1");
+    assert_eq!(refs(&one), refs(&grouped));
+    // a search that is told to stop at once (the clock is read every 256 orders, so two tips are searched whole)
+    let quick = run("tip_strategy = optimize\ntip_opt_time_limit_s = 0.01");
+    assert_eq!(refs(&quick), refs(&best));
+}
+
+#[test]
+fn the_tip_that_is_on_the_nozzle_when_a_block_of_ranks_starts_is_used_first() {
+    // R1 (tip A) is alone in the block of rank 0; the block of rank 10 has R2 (tip B) at 10 mm and R3 (tip A) at 20 mm.
+    // Grouping goes B then A: A -> B -> A, two changes. Starting with A saves one: A -> A -> B
+    let tables = "package,rank,nozzle_tip\nPA,0,A\nPB,10,B\nPC,10,A\n";
+    let parts = [
+        part("R1", "v1", "PA", 0.0, 0.0, 0.0),
+        part("R2", "v2", "PB", 10.0, 0.0, 0.0),
+        part("R3", "v3", "PC", 20.0, 0.0, 0.0),
+    ];
+    let feeders = [
+        feeder("F1", "v1", "PA", -20.0, 0.0, 5),
+        feeder("F2", "v2", "PB", -20.0, 10.0, 5),
+        feeder("F3", "v3", "PC", -20.0, 20.0, 5),
+    ];
+    let run = |strategy: &str| {
+        make(
+            &parts,
+            &feeders,
+            tables,
+            &format!("nozzles = 1\ntwo_opt = no\ntip_strategy = {strategy}"),
+            Options::default(),
+        )
+        .unwrap()
+    };
+    let grouped = run("minimize");
+    assert_eq!(refs(&grouped), ["R1", "R2", "R3"]);
+    assert_eq!(grouped.tip_changes, 2);
+    let best = run("optimize");
+    assert_eq!(refs(&best), ["R1", "R3", "R2"]);
+    assert_eq!(best.tip_changes, 1);
+    // one change less is three seconds less in the time of the plan, and the walk is not longer by more than the way it takes
+    assert!(best.plan.seconds < grouped.plan.seconds);
+}
+
+#[test]
+fn more_than_eight_tips_are_ordered_by_the_nearest_first_and_every_part_is_placed() {
+    let mut parts = Vec::new();
+    let mut feeders = Vec::new();
+    let mut tables = String::from("package,nozzle_tip\n");
+    for k in 0..9 {
+        // the tips are met from the far end to the near one
+        let x = 100.0 - 10.0 * k as f64;
+        parts.push(part(
+            &format!("P{k}"),
+            &format!("v{k}"),
+            &format!("K{k}"),
+            x,
+            0.0,
+            0.0,
+        ));
+        feeders.push(feeder(
+            &format!("F{k}"),
+            &format!("v{k}"),
+            &format!("K{k}"),
+            -20.0,
+            k as f64,
+            3,
+        ));
+        tables.push_str(&format!("K{k},T{k}\n"));
+    }
+    let plan = make(
+        &parts,
+        &feeders,
+        &tables,
+        "nozzles = 1\ntwo_opt = no\ntip_strategy = optimize",
+        Options::default(),
+    )
+    .unwrap();
+    assert_eq!(plan.plan.placements.len(), 9);
+    // nine different tips: eight changes, whatever the order
+    assert_eq!(plan.tip_changes, 8);
+    // from the origin, the nearest part is P8 (x = 20) and the walk goes on towards the far end
+    assert_eq!(
+        refs(&plan),
+        ["P8", "P7", "P6", "P5", "P4", "P3", "P2", "P1", "P0"]
+    );
+}

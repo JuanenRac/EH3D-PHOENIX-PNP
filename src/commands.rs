@@ -9,11 +9,12 @@ use eh3d_phoenix_pnp::config::{MachineConfig, OrderStrategy, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Code, Lang, PnpError};
 use eh3d_phoenix_pnp::export;
 use eh3d_phoenix_pnp::feeding::{self, FeederSpec, Picks};
+use eh3d_phoenix_pnp::fiducial;
 use eh3d_phoenix_pnp::job::{Job, Phase};
 use eh3d_phoenix_pnp::loadsheet;
 use eh3d_phoenix_pnp::model::Machine;
 use eh3d_phoenix_pnp::panel::Panel;
-use eh3d_phoenix_pnp::parts::{parse_with, Part, Side};
+use eh3d_phoenix_pnp::parts::{bottom_table, parse_with, BottomRotation, Part, Side};
 use eh3d_phoenix_pnp::planner::{plan_advanced, AdvancedPlan, Options};
 use eh3d_phoenix_pnp::preflight::{has_errors, preflight, to_text, Check};
 use std::fs;
@@ -72,6 +73,8 @@ pub struct Common {
     pub opts: Options,
     pub lang: Lang,
     pub panel: Option<String>,
+    /// The file with the measured places of the fiducials of the panel.
+    pub fiducials: Option<String>,
     pub inputs: Vec<String>,
 }
 
@@ -147,12 +150,20 @@ pub fn common(args: &mut Vec<String>) -> Result<Common, String> {
     if let Some(p) = &panel {
         inputs.push(p.clone());
     }
+    let fiducials = flag(args, "--fiducials")?;
+    if let Some(p) = &fiducials {
+        if panel.is_none() {
+            return Err("--fiducials needs --panel: the marks are the ones of the panel".into());
+        }
+        inputs.push(p.clone());
+    }
     Ok(Common {
         cfg,
         catalog,
         opts,
         lang,
         panel,
+        fiducials,
         inputs,
     })
 }
@@ -173,7 +184,28 @@ fn load_parts(args: &[String], c: &Common) -> Result<(Vec<Part>, usize), String>
             let text = read_text(&base.join(file).to_string_lossy(), max)?;
             parse_with(&text, profile)
         };
-        (panel.expand(&load).map_err(l)?.parts, 0)
+        let expanded = panel.expand(&load).map_err(l)?;
+        let mut parts = expanded.parts;
+        if let Some(path) = &c.fiducials {
+            let measured = fiducial::parse_measured(&read_text(path, max)?).map_err(l)?;
+            let fit = fiducial::solve(
+                &expanded.fiducials,
+                &measured,
+                c.cfg.fiducial_mode,
+                c.cfg.fiducial_max_residual_mm,
+            )
+            .map_err(l)?;
+            fiducial::correct(&mut parts, &fit.transform);
+            println!(
+                "fiducials: {} marks, {} fit, turn {:.3} degrees, residual {:.3} mm (largest {:.3} mm)",
+                fit.ids.len(),
+                fit.mode.name(),
+                fit.transform.rotation_deg(),
+                fit.rms,
+                fit.max
+            );
+        }
+        (parts, 0)
     } else {
         let path = args.first().ok_or("a file of parts is needed")?;
         (parse_with(&read_text(path, max)?, profile)?, 1)
@@ -207,8 +239,11 @@ fn prepare(mut args: Vec<String>, extra: usize) -> Result<Prepared, String> {
     let (parts, used) = load_parts(&args, &c)?;
     let lang = c.lang;
     let feeders_path = args.get(used).ok_or("a file of feeders is needed")?;
-    let feeders = feeding::from_csv(&read_text(feeders_path, c.cfg.max_file_bytes)?)
-        .map_err(|e| e.localized(lang))?;
+    let feeders = feeding::from_csv_with(
+        &read_text(feeders_path, c.cfg.max_file_bytes)?,
+        c.cfg.tray_fill,
+    )
+    .map_err(|e| e.localized(lang))?;
     let picks = feeding::assign(&parts, &feeders, Some(c.opts.side));
     let mut inputs = c.inputs.clone();
     if c.panel.is_none() {
@@ -396,6 +431,22 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
         job.machine().now_us() as f64 / 1e6,
         phase_name(phase)
     );
+    println!("{:.0} parts per hour (simulated)", job.parts_per_hour());
+    for k in &s.kinds {
+        println!(
+            "package {}: {} picked ({} failed), {} placed ({} failed)",
+            k.package, k.picked, k.pick_failures, k.placed, k.place_failures
+        );
+    }
+    for f in &s.feeders {
+        println!(
+            "feeder {}: {} picked, {} failed picks{}",
+            f.id,
+            f.picked,
+            f.pick_failures,
+            if f.disabled { ", switched off" } else { "" }
+        );
+    }
     for (r, why) in job.deferred() {
         println!("put aside: {r}: {why}");
     }
@@ -463,5 +514,29 @@ pub fn config_check(mut args: Vec<String>) -> Result<(), String> {
         cfg.order.name(),
         cfg.rotation_rules.len()
     );
+    Ok(())
+}
+
+/// `check-bottom`: the angles that the rules of the bottom side give to the parts of a position file, to compare with the real files.
+pub fn check_bottom(mut args: Vec<String>) -> Result<(), String> {
+    let lang = match flag(&mut args, "--lang")? {
+        Some(l) => Lang::from_code(&l)
+            .ok_or_else(|| format!("--lang '{l}' is not one of en es de fr it ja zh pt"))?,
+        None => Lang::En,
+    };
+    let cfg = match flag(&mut args, "--config")? {
+        Some(p) => MachineConfig::parse(&read_text(&p, MAX_CONFIG_BYTES as u64)?)
+            .map_err(|e| e.localized(lang))?,
+        None => MachineConfig::default(),
+    };
+    finish(&args, 1)?;
+    let path = args
+        .first()
+        .ok_or("check-bottom needs a file of positions")?;
+    // the file is read with the rule `keep`, so that the angles are the ones the file gives
+    let mut profile = cfg.profile.clone();
+    profile.bottom_rotation = BottomRotation::Keep;
+    let parts = parse_with(&read_text(path, cfg.max_file_bytes)?, &profile)?;
+    print!("{}", bottom_table(&parts, cfg.profile.bottom_rotation));
     Ok(())
 }

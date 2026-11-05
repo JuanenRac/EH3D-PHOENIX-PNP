@@ -4,7 +4,7 @@ use eh3d_phoenix_pnp::catalog::Catalog;
 use eh3d_phoenix_pnp::config::MachineConfig;
 use eh3d_phoenix_pnp::error::Code;
 use eh3d_phoenix_pnp::feeding::{self, assign};
-use eh3d_phoenix_pnp::job::{Cursor, Job, Phase, Status};
+use eh3d_phoenix_pnp::job::{combined_chance, Cursor, Job, Phase, Status};
 use eh3d_phoenix_pnp::model::{FeederDevice, Machine, Nozzle};
 use eh3d_phoenix_pnp::panel::Panel;
 use eh3d_phoenix_pnp::parts::{from_csv, Part, Side};
@@ -540,4 +540,144 @@ fn the_machine_time_never_goes_back_in_a_job_that_fails() {
     assert!(t.windows(2).all(|w| w[0] <= w[1]));
     assert!(*t.last().unwrap() <= j.machine().now_us());
     assert!(!j.hash().is_empty());
+}
+// ---- the failures by package and by feeder, and the statistics
+
+const NO_RETRIES: &str =
+    "error_policy = defer\npick_retries = 0\nplace_retries = 0\nfault_limit = 0\n";
+
+fn kind<'a>(j: &'a Job, package: &str) -> &'a eh3d_phoenix_pnp::job::KindStats {
+    j.stats()
+        .kinds
+        .iter()
+        .find(|k| k.package == package)
+        .unwrap_or_else(|| panic!("no statistics for {package}"))
+}
+
+#[test]
+fn a_package_that_always_fails_to_be_picked_is_set_aside_and_counted() {
+    // every C pick fails: the two capacitors are put aside, the rest of the board is placed
+    let mut j = job(&format!("{NO_RETRIES}sim_part_fail = C : 1 : 0"));
+    assert_eq!(j.run(None).unwrap(), Phase::Finished);
+    assert_eq!((j.stats().placed, j.stats().deferred), (4, 2));
+    let c = kind(&j, "C");
+    assert_eq!(
+        (c.picked, c.pick_failures, c.placed, c.place_failures),
+        (0, 2, 0, 0)
+    );
+    let r = kind(&j, "R");
+    assert_eq!(
+        (r.picked, r.pick_failures, r.placed, r.place_failures),
+        (3, 0, 3, 0)
+    );
+    let q = kind(&j, "Q");
+    assert_eq!((q.picked, q.placed), (1, 1));
+    // the kinds are in the order of the first feeder that holds them, the failures of each feeder are counted too
+    let packages: Vec<&str> = j.stats().kinds.iter().map(|k| k.package.as_str()).collect();
+    assert_eq!(packages, ["R", "C", "Q"]);
+    let failures: Vec<u32> = j.stats().feeders.iter().map(|f| f.pick_failures).collect();
+    assert_eq!(failures, [0, 2, 0]);
+    let s = stats(&j);
+    assert_eq!(s["kinds"].as_array().unwrap().len(), 3);
+    assert_eq!(s["kinds"][1]["package"], "C");
+    assert_eq!(s["kinds"][1]["pick_failures"], 2);
+}
+
+#[test]
+fn a_feeder_that_always_fails_and_a_package_that_fails_to_be_placed() {
+    let mut j = job(&format!("{NO_RETRIES}sim_feeder_fail = F1 : 1"));
+    j.run(None).unwrap();
+    // the three resistors come from F1
+    assert_eq!((j.stats().placed, j.stats().deferred), (3, 3));
+    assert_eq!(j.stats().feeders[0].pick_failures, 3);
+    assert_eq!(kind(&j, "R").pick_failures, 3);
+    assert_eq!(kind(&j, "R").picked, 0);
+    assert_eq!(kind(&j, "C").placed, 2);
+    // the microcontroller is picked and then never placed: one attempt, one failure
+    let mut j = job(&format!("{NO_RETRIES}sim_part_fail = Q : 0 : 1"));
+    j.run(None).unwrap();
+    assert_eq!((j.stats().placed, j.stats().deferred), (5, 1));
+    let q = kind(&j, "Q");
+    assert_eq!((q.picked, q.placed, q.place_failures), (1, 0, 1));
+    assert_eq!(j.stats().place_failures, 1);
+    assert!(
+        j.machine().holding(0).is_none(),
+        "the part put aside is not left on the nozzle"
+    );
+}
+
+#[test]
+fn the_first_rule_that_matches_the_package_is_the_one_used() {
+    // everything fails to be picked, but the rule for C comes first and says it never does
+    let mut j = job(&format!(
+        "{NO_RETRIES}sim_part_fail = C : 0 : 0\nsim_part_fail = * : 1 : 0"
+    ));
+    j.run(None).unwrap();
+    assert_eq!(j.stats().placed, 2);
+    assert_eq!(kind(&j, "C").placed, 2);
+    // the other way round the star takes all of them
+    let mut j = job(&format!(
+        "{NO_RETRIES}sim_part_fail = * : 1 : 0\nsim_part_fail = C : 0 : 0"
+    ));
+    j.run(None).unwrap();
+    assert_eq!(j.stats().placed, 0);
+    assert_eq!(j.stats().deferred, 6);
+}
+
+#[test]
+fn the_chances_of_the_package_and_of_the_feeder_are_added_as_independent_causes() {
+    assert!((combined_chance(0.5, 0.5) - 0.75).abs() < 1e-12);
+    assert!((combined_chance(0.0, 0.2) - 0.2).abs() < 1e-12);
+    assert!((combined_chance(1.0, 0.3) - 1.0).abs() < 1e-12);
+    assert_eq!(combined_chance(0.0, 0.0), 0.0);
+    // with a chance of zero everywhere the job is the one it was before: no failures at all
+    let mut j = job(&format!(
+        "{NO_RETRIES}sim_part_fail = * : 0 : 0\nsim_feeder_fail = F2 : 0"
+    ));
+    j.run(None).unwrap();
+    assert_eq!(
+        (
+            j.stats().placed,
+            j.stats().pick_failures,
+            j.stats().place_failures
+        ),
+        (6, 0, 0)
+    );
+}
+
+#[test]
+fn the_parts_per_hour_follow_the_machine_time() {
+    let mut j = job("");
+    assert_eq!(j.parts_per_hour(), 0.0);
+    j.run(None).unwrap();
+    let seconds = j.machine().now_us() as f64 / 1e6;
+    assert!((j.parts_per_hour() - 6.0 * 3600.0 / seconds).abs() < 1e-6);
+    // six parts take at least the eight tenths of a second of a pick and a place each, so at most 4500 an hour
+    assert!(j.parts_per_hour() < 4500.0 && j.parts_per_hour() > 100.0);
+    assert!((stats(&j)["parts_per_hour"].as_f64().unwrap() - j.parts_per_hour()).abs() < 1e-9);
+    // a part set aside is not a part placed
+    let mut k = job(&format!("{NO_RETRIES}sim_part_fail = * : 1 : 0"));
+    k.run(None).unwrap();
+    assert_eq!(k.parts_per_hour(), 0.0);
+}
+
+#[test]
+fn a_saved_job_with_failures_by_package_resumes_with_the_same_statistics() {
+    let cfg = format!("{FAILING}\nsim_part_fail = R : 0.5 : 0.3\nsim_feeder_fail = F2 : 0.4");
+    let mut whole = job(&cfg);
+    whole.run(None).unwrap();
+    for stop in 0..=12 {
+        let mut first = job(&cfg);
+        first.run(Some(stop)).unwrap();
+        let mut second = job(&cfg);
+        second.restore_state(&first.save_state()).unwrap();
+        second.resume();
+        second.run(None).unwrap();
+        assert_eq!(second.stats(), whole.stats(), "stop {stop}");
+        assert_eq!(second.stats_json(), whole.stats_json(), "stop {stop}");
+    }
+    // the same settings fail in the same places
+    let mut again = job(&cfg);
+    again.run(None).unwrap();
+    assert_eq!(again.stats_json(), whole.stats_json());
 }

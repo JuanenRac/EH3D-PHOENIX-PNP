@@ -409,3 +409,298 @@ fn the_options_of_the_command_line_win_over_the_configuration() {
     assert_eq!(v["batches"], 6, "one nozzle: one part in each batch");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+// ---- the fiducials of a panel and the angles of the bottom side
+
+fn placement<'a>(v: &'a serde_json::Value, reference: &str) -> &'a serde_json::Value {
+    v["placements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["reference"] == reference)
+        .unwrap_or_else(|| panic!("{reference} is not in the plan"))
+}
+
+fn plan_of(path: &str) -> serde_json::Value {
+    serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+}
+
+#[test]
+fn the_measured_fiducials_move_the_parts_of_the_panel_in_the_plan() {
+    let dir = scratch("fiducials");
+    // the panel has f1 at (-5, -5) and f2 at (105, -5): measured one millimetre to the right and two up
+    let marks = path(&dir, "marks.csv");
+    std::fs::write(&marks, "id,x,y\nf1,-4,-3\nf2,106,-3\n").unwrap();
+    let (plain, moved) = (path(&dir, "plain.json"), path(&dir, "moved.json"));
+    let (panel, feeders, config) = (
+        example("panel.json"),
+        example("feeders.csv"),
+        example("machine.cfg"),
+    );
+    let o = run(&[
+        "schedule", &feeders, &plain, "--panel", &panel, "--config", &config,
+    ]);
+    assert!(o.status.success(), "{}", err(&o));
+    let o = run(&[
+        "schedule",
+        &feeders,
+        &moved,
+        "--panel",
+        &panel,
+        "--config",
+        &config,
+        "--fiducials",
+        &marks,
+    ]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(
+        out(&o).contains("fiducials: 2 marks, similarity fit"),
+        "{}",
+        out(&o)
+    );
+    let (a, b) = (plan_of(&plain), plan_of(&moved));
+    for reference in ["A/R1", "B/R1", "A/U1"] {
+        let (p, q) = (
+            &placement(&a, reference)["place"],
+            &placement(&b, reference)["place"],
+        );
+        let d = |k: &str| q[k].as_f64().unwrap() - p[k].as_f64().unwrap();
+        assert!((d("x") - 1.0).abs() < 1e-9, "{reference}: {}", d("x"));
+        assert!((d("y") - 2.0).abs() < 1e-9, "{reference}: {}", d("y"));
+        assert!(d("rotation").abs() < 1e-9, "{reference}: {}", d("rotation"));
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_fiducial_fit_that_misses_too_much_is_refused_unless_the_configuration_allows_it() {
+    let dir = scratch("fiducials_limit");
+    std::fs::copy(example("board.pos"), path(&dir, "board.pos")).unwrap();
+    let panel = path(&dir, "panel.json");
+    std::fs::write(
+        &panel,
+        r#"{"boards": {"main": "board.pos"},
+            "panels": {"p": {"children": [{"id": "A", "board": "main"}],
+              "fiducials": [{"id": "f1", "x": 0, "y": 0}, {"id": "f2", "x": 100, "y": 0},
+                            {"id": "f3", "x": 100, "y": 100}, {"id": "f4", "x": 0, "y": 100}]}},
+            "root": "p"}"#,
+    )
+    .unwrap();
+    // the last mark is four millimetres off: the fit leaves one millimetre on each mark
+    let marks = path(&dir, "marks.csv");
+    std::fs::write(&marks, "id,x,y\nf1,0,0\nf2,100,0\nf3,100,100\nf4,0,104\n").unwrap();
+    let plan = path(&dir, "plan.json");
+    let args: [&str; 7] = [
+        "schedule",
+        &example("feeders.csv"),
+        &plan,
+        "--panel",
+        &panel,
+        "--fiducials",
+        &marks,
+    ];
+    let o = run(&args);
+    assert_eq!(o.status.code(), Some(1));
+    assert!(err(&o).contains("PHOENIX-PNP-032"), "{}", err(&o));
+    assert!(err(&o).contains("the limit is 0.5 mm"), "{}", err(&o));
+    assert!(!std::path::Path::new(&plan).exists());
+    let config = path(&dir, "machine.cfg");
+    std::fs::write(&config, "fiducial_max_residual_mm = 1.5\n").unwrap();
+    let mut with_config = args.to_vec();
+    with_config.extend(["--config", config.as_str()]);
+    let o = run(&with_config);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(
+        out(&o).contains("fiducials: 4 marks, affine fit"),
+        "{}",
+        out(&o)
+    );
+    assert!(out(&o).contains("(largest 1.000 mm)"), "{}", out(&o));
+    // forcing a similarity on four marks leaves 2 mm on the mark that is off (by hand: the turn is -0.01, the scale 1.01) and nothing on the opposite one
+    std::fs::write(
+        &config,
+        "fiducial_max_residual_mm = 1.5\nfiducial_mode = similarity\n",
+    )
+    .unwrap();
+    let o = run(&with_config);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(out(&o).contains("4 marks, similarity fit"), "{}", out(&o));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn fiducials_need_a_panel_and_a_file_that_is_valid() {
+    let dir = scratch("fiducials_bad");
+    let marks = path(&dir, "marks.csv");
+    std::fs::write(&marks, "id,x,y\nf1,0,0\nf2,1,1\n").unwrap();
+    let plan = path(&dir, "plan.json");
+    let o = run(&[
+        "schedule",
+        &example("board.pos"),
+        &example("feeders.csv"),
+        &plan,
+        "--fiducials",
+        &marks,
+    ]);
+    assert_eq!(o.status.code(), Some(1));
+    assert!(err(&o).contains("--panel"), "{}", err(&o));
+    // a mark the panel does not have
+    std::fs::write(
+        &marks,
+        "id,x,y
+zz,0,0
+f2,1,1
+",
+    )
+    .unwrap();
+    let o = run(&[
+        "schedule",
+        &example("feeders.csv"),
+        &plan,
+        "--panel",
+        &example("panel.json"),
+        "--fiducials",
+        &marks,
+    ]);
+    assert_eq!(o.status.code(), Some(1));
+    assert!(
+        err(&o).contains("the mark 'zz' is not in the panel"),
+        "{}",
+        err(&o)
+    );
+    assert!(!std::path::Path::new(&plan).exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+fn tokens(text: &str, first: &str) -> Vec<String> {
+    text.lines()
+        .find(|l| l.split_whitespace().next() == Some(first))
+        .unwrap_or_else(|| panic!("no line for {first} in {text}"))
+        .split_whitespace()
+        .map(str::to_string)
+        .collect()
+}
+
+#[test]
+fn check_bottom_shows_the_angle_each_rule_gives() {
+    // the example board has one part on the bottom side, D1 at 0 degrees
+    let o = run(&["check-bottom", &example("board.pos")]);
+    assert!(o.status.success(), "{}", err(&o));
+    let text = out(&o);
+    assert!(
+        text.starts_with("1 of 7 parts are on the bottom side; the rule in use is keep\n"),
+        "{text}"
+    );
+    assert_eq!(
+        tokens(&text, "D1"),
+        ["D1", "LED", "LED_0603", "0.00", "0.00", "180.00", "0.00"]
+    );
+    assert!(tokens(&text, "reference").contains(&"half_turn".to_string()));
+    // a file of the own: the angles 30 and 270, a part on the top that is not listed, and the rule mirror in the configuration
+    let dir = scratch("check_bottom");
+    let positions = path(&dir, "bottom.csv");
+    std::fs::write(
+        &positions,
+        "ref,val,package,x,y,rot,side\nC5,100n,C_0603,10,10,30,bottom\nC6,100n,C_0603,20,10,270,bottom\nR1,10k,R,5,5,45,top\n",
+    )
+    .unwrap();
+    let o = run(&["check-bottom", &positions]);
+    assert!(o.status.success(), "{}", err(&o));
+    let text = out(&o);
+    assert!(text.starts_with("2 of 3 parts are on the bottom side; the rule in use is keep\n"));
+    assert_eq!(
+        tokens(&text, "C5"),
+        ["C5", "100n", "C_0603", "30.00", "330.00", "210.00", "30.00"]
+    );
+    assert_eq!(
+        tokens(&text, "C6"),
+        ["C6", "100n", "C_0603", "270.00", "90.00", "90.00", "270.00"]
+    );
+    assert!(!text.contains("R1"));
+    let config = path(&dir, "machine.cfg");
+    std::fs::write(&config, "bottom_rotation = mirror\n").unwrap();
+    let o = run(&["check-bottom", &positions, "--config", &config]);
+    assert!(o.status.success(), "{}", err(&o));
+    let text = out(&o);
+    assert!(text.contains("the rule in use is mirror"));
+    // the first columns are still the angles of the file, whatever the rule in use: only the last column follows the rule
+    assert_eq!(
+        tokens(&text, "C5"),
+        ["C5", "100n", "C_0603", "30.00", "330.00", "210.00", "330.00"]
+    );
+    assert_eq!(
+        tokens(&text, "C6"),
+        ["C6", "100n", "C_0603", "270.00", "90.00", "90.00", "90.00"]
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn check_bottom_with_no_part_on_the_bottom_and_with_bad_arguments() {
+    let dir = scratch("check_bottom_none");
+    let top = path(&dir, "top.csv");
+    std::fs::write(&top, "ref,val,package,x,y,rot,side\nR1,10k,R,5,5,45,top\n").unwrap();
+    let o = run(&["check-bottom", &top]);
+    assert!(o.status.success());
+    assert_eq!(
+        out(&o),
+        "0 of 1 parts are on the bottom side; the rule in use is keep\n"
+    );
+    assert_eq!(run(&["check-bottom"]).status.code(), Some(1));
+    assert_eq!(run(&["check-bottom", &top, "extra"]).status.code(), Some(1));
+    assert_eq!(
+        run(&["check-bottom", &top, "--rule", "mirror"])
+            .status
+            .code(),
+        Some(1)
+    );
+    assert_eq!(
+        run(&["check-bottom", "/no/such/file.csv"]).status.code(),
+        Some(1)
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn simulate_lists_the_failures_by_package_and_by_feeder_and_the_parts_per_hour() {
+    let dir = scratch("sim_stats");
+    let config = path(&dir, "machine.cfg");
+    // every pick of the package C_0603 and every pick from the feeder F3 fails, and the parts that fail are put aside
+    std::fs::write(
+        &config,
+        "sim_part_fail = C_0603 : 1 : 0\nsim_feeder_fail = F3 : 1\nerror_policy = defer\npick_retries = 0\nfault_limit = 0\n",
+    )
+    .unwrap();
+    let report = path(&dir, "report.json");
+    let o = run(&[
+        "simulate",
+        &example("board.pos"),
+        &example("feeders.csv"),
+        "--config",
+        &config,
+        "--report",
+        &report,
+    ]);
+    assert!(o.status.success(), "{}", err(&o));
+    let text = out(&o);
+    // the top side has R1 R2 R3 (R_0603), C1 C2 (C_0603) and U1 (QFN-32): only the three resistors are placed
+    assert!(text.contains("placed 3 of 6, 3 put aside"), "{text}");
+    assert!(text.contains("parts per hour (simulated)"), "{text}");
+    assert!(
+        text.contains("package C_0603: 0 picked (2 failed), 0 placed (0 failed)"),
+        "{text}"
+    );
+    assert!(
+        text.contains("package R_0603: 3 picked (0 failed), 3 placed (0 failed)"),
+        "{text}"
+    );
+    assert!(
+        text.contains("feeder F3: 0 picked, 1 failed picks"),
+        "{text}"
+    );
+    let v = plan_of(&report);
+    assert_eq!(v["placed"], 3);
+    assert!(v["parts_per_hour"].as_f64().unwrap() > 0.0);
+    assert_eq!(v["kinds"].as_array().unwrap().len(), 4);
+    let _ = std::fs::remove_dir_all(&dir);
+}

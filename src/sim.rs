@@ -94,6 +94,8 @@ pub struct SimMachine {
     clock_us: u64,
     rng: Rng,
     rates: [f64; 3],
+    /// A further, independent chance of failure for the next actions of each kind (set by the job from the kind of part and the feeder).
+    extra: [f64; 3],
     force: Vec<(SimOp, u64)>,
     counts: [u64; 3],
     motion: (AxisMotion, AxisMotion),
@@ -113,6 +115,7 @@ impl SimMachine {
             clock_us: 0,
             rng: Rng::new(cfg.sim_seed),
             rates: [0.0, cfg.sim_pick_fail_rate, cfg.sim_place_fail_rate],
+            extra: [0.0; 3],
             force: Vec::new(),
             counts: [0; 3],
             motion: (
@@ -140,6 +143,16 @@ impl SimMachine {
         self.force.push((op, nth));
     }
 
+    /// Sets a further chance (0 to 1), independent of the general one, that the next actions of that kind fail: the chance of failing is then one minus the chance that neither
+    /// fails. The job sets it before each pick and each place from the kind of part and the feeder; 0 takes it away.
+    pub fn set_extra_fail(&mut self, op: SimOp, rate: f64) {
+        self.extra[op.index()] = if rate.is_finite() {
+            rate.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+    }
+
     pub fn note(&mut self, text: impl Into<String>) {
         if self.events.len() < MAX_EVENTS {
             self.events.push(Event {
@@ -161,7 +174,12 @@ impl SimMachine {
         self.counts[i] += 1;
         let n = self.counts[i];
         let r = self.rng.next_f64();
-        if self.force.contains(&(op, n)) || r < self.rates[i] {
+        let rate = if self.extra[i] > 0.0 {
+            1.0 - (1.0 - self.rates[i]) * (1.0 - self.extra[i])
+        } else {
+            self.rates[i]
+        };
+        if self.force.contains(&(op, n)) || r < rate {
             Some(fault(op, n))
         } else {
             None
