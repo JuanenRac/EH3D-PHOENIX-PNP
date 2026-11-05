@@ -1,6 +1,6 @@
 [package]
 name = "eh3d-phoenix-pnp"
-version = "0.0.4"
+version = "0.0.5"
 edition = "2021"
 rust-version = "1.95"
 description = "Pick and place assembly: the position files of the CAD programs, the feeders of the machine and the order in which the parts are placed"
