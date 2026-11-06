@@ -2,10 +2,11 @@
 //! always gives the same times; and it can fail: each action fails with a chance taken from the configuration, from a generator with a seed, or at the place in the sequence that a
 //! test chooses. The same seed and the same actions give the same failures, always.
 
-use crate::config::MachineConfig;
+use crate::config::{MachineConfig, VisionMode};
 use crate::error::{Code, PnpError};
 use crate::model::{Actuator, Camera, Driver, FeederDevice, Machine, Nozzle, Offset};
 use crate::motion::{move_time, AxisMotion};
+use crate::vision::{measure_image, render, VisionConfig};
 
 pub const MAX_EVENTS: usize = 1_000_000;
 
@@ -429,7 +430,9 @@ impl Actuator for SimActuator {
 }
 
 /// A camera that sees every part displaced by the same offset (zero by default), less what has been corrected already, plus a random error of each reading; it can fail to give a
-/// reading, by chance (with a generator of its own, so that nothing else in the simulation moves when it is used) or at a look that a test chooses.
+/// reading, by chance (with a generator of its own, so that nothing else in the simulation moves when it is used) or at a look that a test chooses. With `vision = pipeline` it does not
+/// report the offset: it draws the picture of the part where the part is (`vision::render`, with a noise that depends on the seed and the number of the look) and measures that picture
+/// with the vision pipeline, so a look can also fail because the pipeline finds no part, a spot of a wrong area or several spots (`PHOENIX-PNP-037` to `039`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct SimCamera {
     /// How far, and how much turned, every part is from the nozzle before any correction.
@@ -442,6 +445,10 @@ pub struct SimCamera {
     rng: Rng,
     looks: u64,
     force: Vec<u64>,
+    /// The settings of the vision pipeline when the camera measures a picture; `None` when it reports the offset directly.
+    vision: Option<VisionConfig>,
+    /// The seed of the noise of the pictures; the picture of a look is drawn from this and the number of the look.
+    image_seed: u64,
 }
 
 impl Default for SimCamera {
@@ -454,6 +461,8 @@ impl Default for SimCamera {
             rng: Rng::new(1),
             looks: 0,
             force: Vec::new(),
+            vision: None,
+            image_seed: 1,
         }
     }
 }
@@ -478,8 +487,22 @@ impl SimCamera {
             noise_mm: cfg.sim_align_noise_mm,
             fail_rate: cfg.sim_camera_fail_rate,
             rng: Rng::new(cfg.sim_seed ^ 0xA11C_E5ED_0000_0001),
+            vision: (cfg.vision == VisionMode::Pipeline).then(VisionConfig::default),
+            image_seed: cfg.sim_seed ^ 0x51CA_7E57_0000_0002,
             ..SimCamera::default()
         }
+    }
+
+    /// Gives the pipeline its settings. A camera that reports the offset directly (`vision = off`) is not changed.
+    pub fn set_vision(&mut self, settings: VisionConfig) {
+        if self.vision.is_some() {
+            self.vision = Some(settings);
+        }
+    }
+
+    /// Whether the camera measures a picture.
+    pub fn uses_vision(&self) -> bool {
+        self.vision.is_some()
     }
 
     /// Makes the `nth` look (counted from 1) give no reading.
@@ -525,6 +548,18 @@ impl Camera for SimCamera {
                 Code::SimFault,
                 format!("the camera look number {} was made to fail", self.looks),
             ));
+        }
+        if let Some(settings) = &self.vision {
+            // the picture is of the part where it is now: where it was, less what has been corrected
+            let truth = Offset {
+                dx_mm: self.bias.dx_mm - self.applied.dx_mm,
+                dy_mm: self.bias.dy_mm - self.applied.dy_mm,
+                rotation_deg: self.bias.rotation_deg - self.applied.rotation_deg,
+            };
+            let mut noise_rng =
+                Rng::new(self.image_seed ^ self.looks.wrapping_mul(0x9E37_79B9_7F4A_7C15));
+            let picture = render(settings, truth, &mut noise_rng);
+            return measure_image(settings, &picture).map(|reading| reading.offset);
         }
         let spread = |r: f64| (2.0 * r - 1.0) * self.noise_mm;
         Ok(Offset {

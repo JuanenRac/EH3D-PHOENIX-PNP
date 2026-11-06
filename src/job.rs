@@ -16,6 +16,7 @@ use crate::model::{Camera, FeederDevice, Machine, Nozzle, Offset};
 use crate::planner::AdvancedPlan;
 use crate::rotation::glob_match;
 use crate::sim::{SimCamera, SimFeeder, SimMachine, SimOp};
+use crate::vision::VisionConfig;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
@@ -346,6 +347,11 @@ impl Job {
     /// The simulated camera, for tests that make a look fail at a chosen place.
     pub fn camera_mut(&mut self) -> &mut SimCamera {
         &mut self.camera
+    }
+
+    /// The settings of the vision pipeline for the simulated camera. They count only when the configuration says `vision = pipeline`; otherwise the camera reports its offset directly.
+    pub fn set_vision(&mut self, settings: VisionConfig) {
+        self.camera.set_vision(settings);
     }
 
     /// The simulated feeders, in the order of the list.
@@ -680,6 +686,23 @@ impl Job {
                         nozzle + 1
                     ));
                     return Err(PnpError::new(Code::AlignFailed, e.detail));
+                }
+                // the pipeline of the vision found no part in the picture: a look without a reading, with the code that says why
+                Err(e)
+                    if matches!(
+                        e.code,
+                        Code::VisionNotFound
+                            | Code::VisionAreaOutOfRange
+                            | Code::VisionSeveralSpots
+                    ) =>
+                {
+                    self.stats.align.camera_failures += 1;
+                    self.machine.note(format!(
+                        "the vision found no part on nozzle {}: {}",
+                        nozzle + 1,
+                        e.code.label()
+                    ));
+                    return Err(e);
                 }
                 Err(e) => return Err(e),
             };
