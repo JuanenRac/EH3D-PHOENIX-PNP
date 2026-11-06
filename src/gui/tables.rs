@@ -210,6 +210,7 @@ fn status_order(s: Option<Status>) -> u8 {
         Some(Status::Pending) => 1,
         Some(Status::Deferred) => 2,
         Some(Status::Placed) => 3,
+        Some(Status::Skipped) => 4,
     }
 }
 
@@ -328,19 +329,28 @@ pub fn plan_rows(planned: &Planned, job: Option<&Job>) -> Vec<PlanRow> {
     out
 }
 
+/// How two rows of the plan compare in a column.
+pub fn compare_plan(a: &PlanRow, b: &PlanRow, column: PlanColumn) -> Ordering {
+    match column {
+        PlanColumn::Step => a.step.cmp(&b.step),
+        PlanColumn::Reference => natural_cmp(&a.reference, &b.reference),
+        PlanColumn::Value => natural_cmp(&a.value, &b.value),
+        PlanColumn::Feeder => natural_cmp(&a.feeder, &b.feeder),
+        PlanColumn::Nozzle => a.nozzle.cmp(&b.nozzle),
+        PlanColumn::Batch => a.batch.cmp(&b.batch),
+        PlanColumn::Tip => natural_cmp(&a.tip, &b.tip),
+        PlanColumn::Status => status_order(a.status).cmp(&status_order(b.status)),
+    }
+}
+
+/// An order turned round when the sort is descending.
+pub fn directed_order(order: Ordering, ascending: bool) -> Ordering {
+    directed(order, ascending)
+}
+
 pub fn sort_plan(rows: &mut [PlanRow], by: SortState<PlanColumn>) {
     rows.sort_by(|a, b| {
-        let order = match by.column {
-            PlanColumn::Step => a.step.cmp(&b.step),
-            PlanColumn::Reference => natural_cmp(&a.reference, &b.reference),
-            PlanColumn::Value => natural_cmp(&a.value, &b.value),
-            PlanColumn::Feeder => natural_cmp(&a.feeder, &b.feeder),
-            PlanColumn::Nozzle => a.nozzle.cmp(&b.nozzle),
-            PlanColumn::Batch => a.batch.cmp(&b.batch),
-            PlanColumn::Tip => natural_cmp(&a.tip, &b.tip),
-            PlanColumn::Status => status_order(a.status).cmp(&status_order(b.status)),
-        };
-        directed(order, by.ascending).then_with(|| a.step.cmp(&b.step))
+        directed(compare_plan(a, b, by.column), by.ascending).then_with(|| a.step.cmp(&b.step))
     });
 }
 

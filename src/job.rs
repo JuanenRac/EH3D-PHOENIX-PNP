@@ -18,13 +18,16 @@ use crate::rotation::glob_match;
 use crate::sim::{SimCamera, SimFeeder, SimMachine, SimOp};
 use crate::vision::VisionConfig;
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
     Pending,
     Placed,
+    /// Put aside: the policy `defer` did it, or the person did it from the error dialog.
     Deferred,
+    /// Left out by the person from the error dialog.
+    Skipped,
 }
 
 impl Status {
@@ -33,6 +36,7 @@ impl Status {
             Status::Pending => "pending",
             Status::Placed => "placed",
             Status::Deferred => "deferred",
+            Status::Skipped => "skipped",
         }
     }
 
@@ -41,8 +45,102 @@ impl Status {
             "pending" => Some(Status::Pending),
             "placed" => Some(Status::Placed),
             "deferred" => Some(Status::Deferred),
+            "skipped" => Some(Status::Skipped),
             _ => None,
         }
+    }
+}
+
+/// What the person can do with a job that an error stopped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Action {
+    /// Try the step that failed again.
+    Retry,
+    /// Leave the part out of the job.
+    Skip,
+    /// Put the part aside, to be placed by hand later.
+    Defer,
+    /// Switch the feeder of the failed step off, and try the step again with another one.
+    SwitchOffFeeder,
+}
+
+impl Action {
+    pub const ALL: [Action; 4] = [
+        Action::Retry,
+        Action::Skip,
+        Action::Defer,
+        Action::SwitchOffFeeder,
+    ];
+
+    /// The name used in the reports.
+    pub fn name(self) -> &'static str {
+        match self {
+            Action::Retry => "retry",
+            Action::Skip => "skip",
+            Action::Defer => "defer",
+            Action::SwitchOffFeeder => "switch_off_feeder",
+        }
+    }
+
+    fn slot(self) -> usize {
+        match self {
+            Action::Retry => 0,
+            Action::Skip => 1,
+            Action::Defer => 2,
+            Action::SwitchOffFeeder => 3,
+        }
+    }
+}
+
+/// The step that an error stopped.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Failure {
+    /// The index of the placement in the plan.
+    pub index: usize,
+    pub reference: String,
+    /// The feeder the part comes from (the one that was in use, when the stop was in a pick).
+    pub feeder: String,
+    pub nozzle: usize,
+    /// True when the stop was in the pick, false when it was in the place.
+    pub at_pick: bool,
+    pub error: PnpError,
+}
+
+/// What the job keeps for its report besides the statistics: where the time went, how the picks went at the first try, what the camera read and which errors came.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Trace {
+    /// Microseconds of the machine clock spent in the feed and the pick of the parts (without the moves, the looks of the camera and the change of tip).
+    pub pick_us: u64,
+    /// ... in the looks of the camera after the picks.
+    pub align_us: u64,
+    /// ... in the places (without the moves).
+    pub place_us: u64,
+    /// ... in the moves of the head.
+    pub travel_us: u64,
+    /// ... in the changes of the nozzle tip.
+    pub tip_us: u64,
+    /// Parts picked at the first attempt.
+    pub first_try: u32,
+    /// Parts picked after one or more attempts that failed.
+    pub retried: u32,
+    /// Parts that were never picked: the feed or every attempt failed, or no feeder was left.
+    pub lost: u32,
+    /// What the camera read first on each corrected part, in the order of the picks.
+    pub readings: Vec<Offset>,
+    /// How many times each error was raised, by the number of its code.
+    pub codes: BTreeMap<u16, u32>,
+    /// How many times the person did each of the actions of [`Action::ALL`].
+    pub actions: [u32; 4],
+}
+
+impl Trace {
+    /// The microseconds that the phases add up to.
+    pub fn total_us(&self) -> u64 {
+        self.pick_us + self.align_us + self.place_us + self.travel_us + self.tip_us
+    }
+
+    fn count(&mut self, code: Code) {
+        *self.codes.entry(code.number()).or_insert(0) += 1;
     }
 }
 
@@ -130,6 +228,8 @@ type AlignState = (AlignStats, (u64, u64), Vec<Option<Offset>>);
 pub struct Stats {
     pub placed: usize,
     pub deferred: usize,
+    /// Parts the person left out from the error dialog.
+    pub skipped: usize,
     pub feed_failures: u64,
     pub pick_attempts: u64,
     pub pick_failures: u64,
@@ -163,6 +263,11 @@ pub struct Job {
     camera: SimCamera,
     /// What the camera found on the part that each nozzle holds, to be corrected in the place.
     corrections: Vec<Option<Offset>>,
+    trace: Trace,
+    /// The feeder that served the last pick, to be switched off when that pick stops the job.
+    last_feeder: Option<usize>,
+    /// The part whose pick an error stopped, so that the pick tried again is not counted as one at the first attempt.
+    stopped_pick: Option<usize>,
 }
 
 fn fnv1a(text: &str) -> u64 {
@@ -292,6 +397,9 @@ impl Job {
             stats,
             camera,
             corrections,
+            trace: Trace::default(),
+            last_feeder: None,
+            stopped_pick: None,
         })
     }
 
@@ -379,6 +487,120 @@ impl Job {
         &self.stats
     }
 
+    /// Where the time went, how the picks went at the first try, the readings of the camera and the errors raised.
+    pub fn trace(&self) -> &Trace {
+        &self.trace
+    }
+
+    /// The settings the job runs with.
+    pub fn config(&self) -> &MachineConfig {
+        &self.cfg
+    }
+
+    /// The reason a part was put aside or left out (empty for the others).
+    pub fn reason(&self, index: usize) -> &str {
+        self.reasons.get(index).map_or("", String::as_str)
+    }
+
+    /// The part on each nozzle that the camera has already looked at, with what it found: the head is on its way to place it.
+    pub fn correction(&self, nozzle: usize) -> Option<Offset> {
+        self.corrections.get(nozzle).copied().flatten()
+    }
+
+    /// The step that an error stopped, when one did.
+    pub fn failure(&self) -> Option<Failure> {
+        let error = self.error.clone()?;
+        let (batch, k, at_pick) = match self.cursor {
+            Cursor::Pick { batch, k } => (batch, k, true),
+            Cursor::Place { batch, k } => (batch, k, false),
+            Cursor::Finished => return None,
+        };
+        let index = *self.batches.get(batch)?.get(k)?;
+        let pl = self.plan.plan.placements.get(index)?;
+        let planned = *self.index.get(&pl.feeder)?;
+        let used = if at_pick {
+            self.last_feeder.unwrap_or(planned)
+        } else {
+            planned
+        };
+        Some(Failure {
+            index,
+            reference: pl.reference.clone(),
+            feeder: self.feeders[used].base.id.clone(),
+            nozzle: pl.nozzle,
+            at_pick,
+            error,
+        })
+    }
+
+    /// What the person decides for a job that an error stopped. `Retry` clears the error and the step is tried again; `Skip` and `Defer` take the part out of the job (left out, or
+    /// put aside to be placed by hand) and the job goes on with the next step; `SwitchOffFeeder` switches the feeder of the failed step off and tries the step again, so that another
+    /// feeder of the same kind takes over. A job that is not stopped by an error refuses all of them.
+    pub fn act(&mut self, action: Action) -> Result<(), PnpError> {
+        let Some(failure) = self.failure() else {
+            return Err(PnpError::new(
+                Code::JobActionBad,
+                "the job is not stopped by an error",
+            ));
+        };
+        match action {
+            Action::Retry => self.resume(),
+            Action::Skip | Action::Defer => {
+                let (idx, nozzle) = (failure.index, failure.nozzle);
+                if self.machine.holding(nozzle) == Some(failure.reference.as_str()) {
+                    self.machine.discard(nozzle);
+                }
+                self.corrections[nozzle] = None;
+                if failure.at_pick {
+                    self.trace.lost += 1;
+                }
+                if self.status[idx] == Status::Pending {
+                    if action == Action::Skip {
+                        self.status[idx] = Status::Skipped;
+                        self.stats.skipped += 1;
+                    } else {
+                        self.status[idx] = Status::Deferred;
+                        self.stats.deferred += 1;
+                    }
+                    self.reasons[idx] = format!("by the person, after: {}", failure.error);
+                }
+                self.machine.note(format!(
+                    "{} {} by the person",
+                    failure.reference,
+                    if action == Action::Skip {
+                        "left out"
+                    } else {
+                        "put aside"
+                    }
+                ));
+                self.cursor = self.next_cursor(self.cursor);
+                self.paused = false;
+                self.error = None;
+            }
+            Action::SwitchOffFeeder => {
+                let f =
+                    self.index.get(&failure.feeder).copied().ok_or_else(|| {
+                        PnpError::new(Code::JobActionBad, "the feeder is not known")
+                    })?;
+                if !self.devices[f].is_enabled() {
+                    return Err(PnpError::new(
+                        Code::JobActionBad,
+                        format!("the feeder '{}' is already switched off", failure.feeder),
+                    ));
+                }
+                self.devices[f].set_enabled(false);
+                self.stats.feeders[f].disabled = true;
+                self.machine.note(format!(
+                    "feeder {} switched off by the person",
+                    failure.feeder
+                ));
+                self.resume();
+            }
+        }
+        self.trace.actions[action.slot()] += 1;
+        Ok(())
+    }
+
     pub fn plan(&self) -> &AdvancedPlan {
         &self.plan
     }
@@ -450,21 +672,47 @@ impl Job {
                 "the job is finished or stopped by an error",
             ));
         }
+        let started = self.machine.now_us();
+        let inside = self.trace.travel_us + self.trace.align_us + self.trace.tip_us;
+        let at_pick = matches!(self.cursor, Cursor::Pick { .. });
+        let picking = match self.cursor {
+            Cursor::Pick { batch, k } => Some(self.batches[batch][k]),
+            _ => None,
+        };
         let done = match self.cursor {
             Cursor::Pick { batch, k } => self.do_pick(batch, k),
             Cursor::Place { batch, k } => self.do_place(batch, k),
             Cursor::Finished => Ok(()),
         };
+        // the time of the step that the moves, the looks and the change of tip did not take is the time of the pick or of the place itself
+        let spent = self.machine.now_us().saturating_sub(started);
+        let counted =
+            (self.trace.travel_us + self.trace.align_us + self.trace.tip_us).saturating_sub(inside);
+        if at_pick {
+            self.trace.pick_us += spent.saturating_sub(counted);
+        } else {
+            self.trace.place_us += spent.saturating_sub(counted);
+        }
         match done {
             Ok(()) => {
                 self.cursor = self.next_cursor(self.cursor);
                 Ok(())
             }
             Err(e) => {
+                self.trace.count(e.code);
+                self.stopped_pick = picking;
                 self.error = Some(e.clone());
                 Err(e)
             }
         }
+    }
+
+    /// Moves the head, counting the time of the move.
+    fn travel(&mut self, to: (f64, f64)) -> Result<(), PnpError> {
+        let started = self.machine.now_us();
+        let moved = self.machine.move_to(to);
+        self.trace.travel_us += self.machine.now_us().saturating_sub(started);
+        moved
     }
 
     /// Runs steps until the job finishes, is paused or is stopped by an error (returned as an error), or until `max_steps` steps have been done, when the job is paused.
@@ -509,6 +757,7 @@ impl Job {
         match self.cfg.error_policy {
             ErrorPolicy::Alert => Err(e),
             ErrorPolicy::Defer => {
+                self.trace.count(e.code);
                 self.machine.discard(nozzle);
                 self.status[idx] = Status::Deferred;
                 self.reasons[idx] = e.to_string();
@@ -528,6 +777,8 @@ impl Job {
         if self.status[idx] != Status::Pending {
             return Ok(());
         }
+        let earlier = self.stopped_pick == Some(idx);
+        self.stopped_pick = None;
         let pl = self.plan.plan.placements[idx].clone();
         let det = self.plan.details[idx].clone();
         let nozzle = pl.nozzle;
@@ -547,9 +798,11 @@ impl Job {
                 self.mounted = true;
             } else if self.machine.tip() != det.tip {
                 if let Some(changer) = self.cfg.tip_changer {
-                    self.machine.move_to(changer)?;
+                    self.travel(changer)?;
                 }
+                let started = self.machine.now_us();
                 self.machine.change_tip(&det.tip);
+                self.trace.tip_us += self.machine.now_us().saturating_sub(started);
                 self.stats.tip_changes += 1;
             }
         }
@@ -578,19 +831,28 @@ impl Job {
                     pl.reference, pl.feeder
                 ),
             );
+            if self.cfg.error_policy == ErrorPolicy::Defer {
+                self.trace.lost += 1;
+            }
             return self.give_up(idx, nozzle, e);
         };
+        self.last_feeder = Some(f);
         let at = self.feeders[f].pick_point(self.taken[f]);
-        self.machine.move_to(at)?;
+        self.travel(at)?;
         if !self.feed_part(f)? {
             self.record(f, true);
             let e = PnpError::new(
                 Code::FeedFailed,
                 format!("feeder '{}' for {}", self.feeders[f].base.id, pl.reference),
             );
+            if self.cfg.error_policy == ErrorPolicy::Defer {
+                self.trace.lost += 1;
+            }
             return self.give_up(idx, nozzle, e);
         }
         let mut picked = false;
+        // the attempt that picked the part (0 is the first)
+        let mut won_at = 0u32;
         // why the last attempt was lost, when the camera was the cause
         let mut align_error: Option<PnpError> = None;
         self.corrections[nozzle] = None;
@@ -602,12 +864,14 @@ impl Job {
             match self.machine.pick(nozzle, &pl.reference) {
                 Ok(()) if !self.cfg.align => {
                     picked = true;
+                    won_at = attempt;
                     break;
                 }
                 Ok(()) => match self.align_part(nozzle) {
                     Ok(correction) => {
                         self.corrections[nozzle] = Some(correction);
                         picked = true;
+                        won_at = attempt;
                         break;
                     }
                     Err(e) => {
@@ -621,7 +885,7 @@ impl Job {
                                 break;
                             }
                             let at = self.feeders[f].pick_point(self.taken[f]);
-                            self.machine.move_to(at)?;
+                            self.travel(at)?;
                             if !self.feed_part(f)? {
                                 break;
                             }
@@ -630,6 +894,7 @@ impl Job {
                 },
                 Err(e) if e.code == Code::SimFault => {
                     align_error = None;
+                    self.trace.count(e.code);
                     self.stats.pick_failures += 1;
                     self.stats.kinds[kind].pick_failures += 1;
                     self.stats.feeders[f].pick_failures += 1;
@@ -639,6 +904,15 @@ impl Job {
         }
         self.machine.set_extra_fail(SimOp::Pick, 0.0);
         self.record(f, !picked);
+        if picked {
+            if won_at == 0 && !earlier {
+                self.trace.first_try += 1;
+            } else {
+                self.trace.retried += 1;
+            }
+        } else if self.cfg.error_policy == ErrorPolicy::Defer {
+            self.trace.lost += 1;
+        }
         if !picked {
             let e = align_error.unwrap_or_else(|| {
                 PnpError::new(
@@ -661,7 +935,10 @@ impl Job {
             self.machine.wait(self.cfg.feed_s);
             match self.devices[f].feed() {
                 Ok(()) => return Ok(true),
-                Err(e) if e.code == Code::SimFault => self.stats.feed_failures += 1,
+                Err(e) if e.code == Code::SimFault => {
+                    self.trace.count(e.code);
+                    self.stats.feed_failures += 1;
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -672,8 +949,19 @@ impl Job {
     /// is corrected each time. The first reading decides whether the part is good enough (it is not when it is further from the nozzle than `pick_tolerance_mm`). Gives the sum of the
     /// corrections, which the place applies.
     fn align_part(&mut self, nozzle: usize) -> Result<Offset, PnpError> {
+        let started = self.machine.now_us();
+        let looked = self.align_looks(nozzle);
+        self.trace.align_us += self.machine.now_us().saturating_sub(started);
+        if let Err(e) = &looked {
+            self.trace.count(e.code);
+        }
+        looked
+    }
+
+    fn align_looks(&mut self, nozzle: usize) -> Result<Offset, PnpError> {
         self.camera.clear();
         let mut total = Offset::default();
+        let mut first = Offset::default();
         let mut first_mm: f64 = 0.0;
         for pass in 0..self.cfg.align_passes {
             self.machine.wait(self.cfg.align_settle_s);
@@ -708,6 +996,7 @@ impl Job {
             };
             let away_mm: f64 = seen.dx_mm.hypot(seen.dy_mm);
             if pass == 0 {
+                first = seen;
                 first_mm = away_mm;
                 if away_mm > self.cfg.pick_tolerance_mm {
                     self.stats.align.rejected += 1;
@@ -743,6 +1032,7 @@ impl Job {
         a.sum_mm += first_mm;
         a.max_mm = a.max_mm.max(first_mm);
         a.max_deg = a.max_deg.max(total.rotation_deg.abs());
+        self.trace.readings.push(first);
         Ok(total)
     }
 
@@ -778,7 +1068,7 @@ impl Job {
             Some(c) => (pl.x - c.dx_mm, pl.y - c.dy_mm),
             None => (pl.x, pl.y),
         };
-        self.machine.move_to(target)?;
+        self.travel(target)?;
         if let Some(c) = correction {
             self.machine.note(format!(
                 "nozzle {} places {} turned {:.3} degrees",
@@ -802,6 +1092,7 @@ impl Job {
                     return Ok(());
                 }
                 Err(e) if e.code == Code::SimFault => {
+                    self.trace.count(e.code);
                     self.stats.place_failures += 1;
                     self.stats.kinds[kind].place_failures += 1;
                 }
@@ -854,6 +1145,10 @@ impl Job {
             "kinds": kinds,
             "deferred_parts": deferred
         });
+        // only a job where the person left a part out reports it: the report of any other job is the one it always was
+        if s.skipped > 0 {
+            doc["skipped"] = json!(s.skipped);
+        }
         // only a job with the align step reports it: the report of a job without it is the one it always was
         if self.cfg.align {
             doc["align"] = json!({
@@ -999,6 +1294,7 @@ impl Job {
         let stats = json!({
             "placed": s.placed,
             "deferred": s.deferred,
+            "skipped": s.skipped,
             "feed_failures": s.feed_failures,
             "pick_attempts": s.pick_attempts,
             "pick_failures": s.pick_failures,
@@ -1021,6 +1317,27 @@ impl Job {
             "stats": stats
         });
         // the numbers are kept as the bits of the float, in a text, so that they come back exactly
+        let bits_of = |x: f64| x.to_bits().to_string();
+        let t = &self.trace;
+        let readings: Vec<Value> = t
+            .readings
+            .iter()
+            .map(|o| json!([bits_of(o.dx_mm), bits_of(o.dy_mm), bits_of(o.rotation_deg)]))
+            .collect();
+        let codes: Vec<Value> = t.codes.iter().map(|(c, n)| json!([c, n])).collect();
+        doc["trace"] = json!({
+            "pick_us": t.pick_us.to_string(),
+            "look_us": t.align_us.to_string(),
+            "place_us": t.place_us.to_string(),
+            "travel_us": t.travel_us.to_string(),
+            "tip_us": t.tip_us.to_string(),
+            "first_try": t.first_try,
+            "retried": t.retried,
+            "lost": t.lost,
+            "actions": t.actions,
+            "codes": codes,
+            "readings": readings
+        });
         if self.cfg.align {
             let (rng, looks) = self.camera.save();
             let bits = |x: f64| x.to_bits().to_string();
@@ -1105,7 +1422,7 @@ impl Job {
             .iter()
             .map(|s| s.as_str().and_then(Status::parse))
             .collect::<Option<Vec<_>>>()
-            .ok_or_else(|| state_bad("a status is not pending, placed or deferred"))?;
+            .ok_or_else(|| state_bad("a status is not pending, placed, deferred or skipped"))?;
         let reasons: Vec<String> = list("reasons")?
             .iter()
             .map(|s| s.as_str().map(str::to_string))
@@ -1203,6 +1520,73 @@ impl Job {
                 .get("pick_failures")
                 .and_then(Value::as_u64)
                 .unwrap_or(0) as u32;
+        }
+        stats.skipped = s.get("skipped").and_then(Value::as_u64).unwrap_or(0) as usize;
+        // a state saved before the report was kept has no trace: it starts again from zero
+        let mut trace = Trace::default();
+        if let Some(t) = v.get("trace") {
+            let count = |key: &str| -> Result<u32, PnpError> { Ok(int(t, key)? as u32) };
+            trace.pick_us = text_u64(t, "pick_us")?;
+            trace.align_us = text_u64(t, "look_us")?;
+            trace.place_us = text_u64(t, "place_us")?;
+            trace.travel_us = text_u64(t, "travel_us")?;
+            trace.tip_us = text_u64(t, "tip_us")?;
+            trace.first_try = count("first_try")?;
+            trace.retried = count("retried")?;
+            trace.lost = count("lost")?;
+            let actions = t
+                .get("actions")
+                .and_then(Value::as_array)
+                .filter(|a| a.len() == trace.actions.len())
+                .ok_or_else(|| state_bad("the actions of the person are not four numbers"))?;
+            for (slot, a) in trace.actions.iter_mut().zip(actions) {
+                *slot = a
+                    .as_u64()
+                    .and_then(|n| u32::try_from(n).ok())
+                    .ok_or_else(|| state_bad("an action of the person is not a number"))?;
+            }
+            let codes = t
+                .get("codes")
+                .and_then(Value::as_array)
+                .ok_or_else(|| state_bad("no codes in the trace"))?;
+            for c in codes {
+                let pair = c
+                    .as_array()
+                    .filter(|p| p.len() == 2)
+                    .ok_or_else(|| state_bad("a code of the trace is not a pair"))?;
+                let number = pair[0].as_u64().and_then(|n| u16::try_from(n).ok());
+                let times = pair[1].as_u64().and_then(|n| u32::try_from(n).ok());
+                match (number, times) {
+                    (Some(number), Some(times)) => {
+                        trace.codes.insert(number, times);
+                    }
+                    _ => return Err(state_bad("a code of the trace is not two numbers")),
+                }
+            }
+            let readings = t
+                .get("readings")
+                .and_then(Value::as_array)
+                .ok_or_else(|| state_bad("no readings in the trace"))?;
+            for r in readings {
+                let three = r
+                    .as_array()
+                    .filter(|p| p.len() == 3)
+                    .ok_or_else(|| state_bad("a reading is not three numbers"))?;
+                let mut n = [0.0f64; 3];
+                for (slot, item) in n.iter_mut().zip(three) {
+                    *slot = item
+                        .as_str()
+                        .and_then(|t| t.parse::<u64>().ok())
+                        .map(f64::from_bits)
+                        .filter(|x| x.is_finite())
+                        .ok_or_else(|| state_bad("a reading is not a number"))?;
+                }
+                trace.readings.push(Offset {
+                    dx_mm: n[0],
+                    dy_mm: n[1],
+                    rotation_deg: n[2],
+                });
+            }
         }
         // a state saved before the statistics by package are kept has none: they start again from zero
         if let Some(sk) = s.get("kinds").and_then(Value::as_array) {
@@ -1316,6 +1700,8 @@ impl Job {
         self.taken = taken;
         self.windows = windows;
         self.stats = stats;
+        self.trace = trace;
+        self.last_feeder = None;
         Ok(())
     }
 }
