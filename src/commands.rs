@@ -20,6 +20,7 @@ use eh3d_phoenix_pnp::parts::{
 };
 use eh3d_phoenix_pnp::planner::{plan_advanced, AdvancedPlan, Options};
 use eh3d_phoenix_pnp::preflight::{has_errors, preflight, to_text, Check, Severity, Source};
+use eh3d_phoenix_pnp::report::{self, ReportCheck, ReportInput};
 use eh3d_phoenix_pnp::sim::Rng;
 use eh3d_phoenix_pnp::vision::{measure_image, render, wrap, VisionConfig, MAX_VISION_BYTES};
 use std::cell::RefCell;
@@ -425,6 +426,8 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let state_path = flag(&mut args, "--state")?;
     let report_path = flag(&mut args, "--report")?;
     let csv_path = flag(&mut args, "--report-csv")?;
+    let text_path = flag(&mut args, "--report-text")?;
+    let html_path = flag(&mut args, "--report-html")?;
     let vision_path = flag(&mut args, "--vision")?;
     let steps = match flag(&mut args, "--steps")? {
         Some(v) => {
@@ -450,11 +453,40 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
         }
         None => None,
     };
-    for r in [&report_path, &csv_path].into_iter().flatten() {
+    for r in [&report_path, &csv_path, &text_path, &html_path]
+        .into_iter()
+        .flatten()
+    {
         refuse_same_file(&inputs, r)?;
+    }
+    // the page is never written over a file: that is told before the job runs, not after
+    if let Some(h) = &html_path {
+        if Path::new(h).exists() {
+            return Err(PnpError::new(Code::ReportExists, h.as_str()).localized(lang));
+        }
     }
     let planned = make_plan(&p)?;
     stop_on_errors(&p, &planned, partial)?;
+    let input = ReportInput {
+        dnp: p
+            .dnp
+            .iter()
+            .filter(|d| d.side == p.c.opts.side)
+            .map(|d| d.reference.clone())
+            .collect(),
+        checks: planned
+            .checks
+            .iter()
+            .map(|c| ReportCheck {
+                severity: c.severity.name().to_string(),
+                source: match &c.source {
+                    Source::Part(x) | Source::Feeder(x) | Source::Setting(x) => x.clone(),
+                    Source::Board => "board".to_string(),
+                },
+                message: c.message.clone(),
+            })
+            .collect(),
+    };
     let mut job = Job::new(planned.plan, p.feeders.clone(), p.c.cfg.clone()).map_err(l)?;
     if let Some(settings) = vision {
         job.set_vision(settings);
@@ -473,10 +505,19 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
         write_atomic(sp, &job.save_state())?;
     }
     if let Some(rp) = &report_path {
-        write_atomic(rp, &job.stats_json())?;
+        write_atomic(rp, &report::json(&job, &input))?;
     }
     if let Some(cp) = &csv_path {
-        write_atomic(cp, &job.stats_csv())?;
+        write_atomic(cp, &report::csv(&job, &input))?;
+    }
+    if text_path.is_some() || html_path.is_some() {
+        let work = report::build(&job, &input);
+        if let Some(tp) = &text_path {
+            write_atomic(tp, &work.text(lang))?;
+        }
+        if let Some(hp) = &html_path {
+            report::write_new(hp, &work.html(lang)).map_err(l)?;
+        }
     }
     let phase = outcome.map_err(l)?;
     let s = job.stats();
