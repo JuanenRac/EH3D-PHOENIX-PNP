@@ -249,6 +249,19 @@
           }
         },
         {
+          "name": "gui/shot.rs",
+          "desc": {
+            "en": "the picture mode of the window (--shot): its arguments",
+            "es": "el modo de captura de la ventana (--shot): sus argumentos",
+            "de": "der Bildmodus des Fensters (--shot): seine Argumente",
+            "fr": "le mode capture de la fenêtre (--shot) : ses arguments",
+            "it": "la modalità immagine della finestra (--shot): i suoi argomenti",
+            "ja": "ウィンドウの画像モード（--shot）：その引数",
+            "zh": "窗口的截图模式（--shot）：其参数",
+            "pt": "o modo de captura da janela (--shot): os seus argumentos"
+          }
+        },
+        {
           "name": "gui/tables.rs",
           "desc": {
             "en": "the rows, the sorting and the selection shared by the tables",

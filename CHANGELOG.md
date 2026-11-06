@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A picture mode for the window:** `--shot FILE.png` (built with `--features gui`, with the command line as `phoenix-pnp --shot FILE.png FILES...` or with `phoenix-pnp-gui`) opens the window at the size of `--size WxH` (320 to 8192, 1180x760 by default) with the files given (bare names or `--open FILE`) loaded, in the theme of `--theme phoenix|light|contrast` and the language of `--lang CODE` (English by default), waits `--wait N` frames (0 to 3600, 6 by default), saves what it drew as a PNG file and closes by itself. An existing file is never replaced unless `--replace` is given; in this mode the window reads and writes no settings (not even the file of the window or `last_error.txt`), the guide is not shown, the exit code is 0 when the file was written, 1 when it was not (also when the picture does not come back within 600 frames) and 2 for wrong arguments, and a build without the window says so. The arguments are read by plain code with its tests.
+
 ## [0.0.5] - Fiducials of panels, tip order search, editable tables, failure statistics and the window without a console
 
 - **The validation job is the shared one of the documentation hub:** the checks of the manifest, the documents and the pictures run through the reusable workflow, fixed to a full commit of EH3D-DOCS whose actions are pinned by commit.

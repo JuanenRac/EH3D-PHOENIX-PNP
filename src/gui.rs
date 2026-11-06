@@ -11,6 +11,7 @@ pub mod problems;
 pub mod samples;
 pub mod session;
 pub mod settings;
+pub mod shot;
 pub mod tables;
 pub mod texts;
 pub mod theme;

@@ -10,6 +10,7 @@ use super::problems::Fix;
 use super::samples;
 use super::session::Next;
 use super::settings::{self, UiSettings};
+use super::shot::{self, ShotRequest, PATIENCE_FRAMES};
 use super::tables::{
     board_rows, feeder_rows, fiducial_rows, kind_rows, package_rows, part_rows, plan_rows,
     sort_feeders, sort_parts, sort_plan, FeederColumn, PartColumn, PlanColumn, SortState,
@@ -30,8 +31,8 @@ use eframe::egui::{
     self, Align2, Color32, FontData, FontDefinitions, FontFamily, FontId, Pos2, Rect, RichText,
     Sense, Stroke, StrokeKind, Vec2,
 };
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 const ORDERS: [OrderStrategy; 6] = [
     OrderStrategy::Nearest,
@@ -254,6 +255,8 @@ pub struct PnpApp {
     s: AppState,
     visuals_for: Option<ThemeId>,
     saved: UiSettings,
+    /// The picture mode, while the window is there only to be photographed.
+    shot: Option<ShotState>,
 }
 
 impl PnpApp {
@@ -267,6 +270,7 @@ impl PnpApp {
             s,
             visuals_for: None,
             saved,
+            shot: None,
         }
     }
 
@@ -2122,10 +2126,12 @@ impl eframe::App for PnpApp {
         if !busy {
             self.s.end_edit();
         }
-        if self.s.ui != self.saved {
+        // in the picture mode nothing of the person is written
+        if self.shot.is_none() && self.s.ui != self.saved {
             settings::save(&self.s.ui);
             self.saved = self.s.ui.clone();
         }
+        self.shot_tick(&ctx);
     }
 }
 
@@ -2152,4 +2158,167 @@ pub fn run(paths: &[PathBuf]) -> eframe::Result {
             Ok(Box::new(PnpApp::new(ui_settings, &paths)))
         }),
     )
+}
+
+/// How the picture mode ended: nothing yet, the file was written, or the reason it was not.
+type ShotOutcome = Arc<Mutex<Option<Result<(), String>>>>;
+
+/// The picture being taken.
+struct ShotState {
+    request: ShotRequest,
+    frame: u32,
+    outcome: ShotOutcome,
+}
+
+impl PnpApp {
+    /// Counts the frames, asks for the picture after the frames waited, writes it and closes the window when it is written or when it does not come.
+    fn shot_tick(&mut self, ctx: &egui::Context) {
+        let Some(shot) = self.shot.as_mut() else {
+            return;
+        };
+        shot.frame += 1;
+        ctx.request_repaint();
+        let due = 3 + shot.request.wait;
+        let finished = match shot.outcome.lock() {
+            Ok(slot) => slot.is_some(),
+            Err(_) => true,
+        };
+        if finished {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        } else if shot.frame == due {
+            let (output, replace) = (shot.request.output.clone(), shot.request.replace);
+            let (outcome, repaint) = (shot.outcome.clone(), ctx.clone());
+            ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(
+                egui::ScreenshotCallback::new(move |image| {
+                    let result = save_shot_png(&image, &output, replace);
+                    if let Ok(mut slot) = outcome.lock() {
+                        *slot = Some(result);
+                    }
+                    repaint.request_repaint();
+                }),
+            ));
+        } else if shot.frame > due + PATIENCE_FRAMES {
+            if let Ok(mut slot) = shot.outcome.lock() {
+                *slot = Some(Err(
+                    "the picture did not come back from the window".to_owned()
+                ));
+            }
+        }
+    }
+}
+
+/// Writes the picture the window gave back as a PNG file, a new file unless `replace` is true.
+fn save_shot_png(image: &egui::ColorImage, path: &Path, replace: bool) -> Result<(), String> {
+    let mut open = std::fs::OpenOptions::new();
+    open.write(true);
+    if replace {
+        open.create(true).truncate(true);
+    } else {
+        open.create_new(true);
+    }
+    let file = open
+        .open(path)
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut encoder = png::Encoder::new(
+        std::io::BufWriter::new(file),
+        image.size[0] as u32,
+        image.size[1] as u32,
+    );
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    let mut writer = encoder.write_header().map_err(|e| e.to_string())?;
+    let data: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_array()).collect();
+    writer.write_image_data(&data).map_err(|e| e.to_string())?;
+    // the end of the file is written here, so that a failure is reported and not lost in a drop
+    writer.finish().map_err(|e| e.to_string())
+}
+
+/// The most files the picture mode loads.
+const SHOT_MAX_FILES: usize = 64;
+
+/// Opens the window at the size asked with the files loaded, in the language and the theme asked, saves the picture as the request says and closes by itself. The window reads and
+/// writes no settings (the guide is not shown). The answer is the reason when the picture could not be written.
+pub fn run_shot(files: &[PathBuf], lang: Lang, request: ShotRequest) -> Result<(), String> {
+    if !request.replace && request.output.exists() {
+        return Err(format!(
+            "{} exists; give --replace to write over it",
+            request.output.display()
+        ));
+    }
+    let folder = request
+        .output
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .map(Path::to_path_buf);
+    if folder.is_some_and(|dir| !dir.is_dir()) {
+        return Err(format!(
+            "the folder of {} does not exist",
+            request.output.display()
+        ));
+    }
+    if let Some(missing) = files.iter().find(|f| !f.is_file()) {
+        return Err(format!("{} is not a file", missing.display()));
+    }
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_inner_size(Vec2::new(request.size.0 as f32, request.size.1 as f32))
+        .with_title("EH3D-PHOENIX-PNP");
+    if let Some(icon) = icon() {
+        viewport = viewport.with_icon(icon);
+    }
+    let options = eframe::NativeOptions {
+        viewport,
+        ..Default::default()
+    };
+    let ui_settings = UiSettings {
+        lang,
+        theme: request.theme,
+        guide_seen: true,
+        ..UiSettings::default()
+    };
+    let paths = files.to_vec();
+    let outcome: ShotOutcome = Arc::new(Mutex::new(None));
+    let outcome_for_app = outcome.clone();
+    eframe::run_native(
+        "EH3D-PHOENIX-PNP",
+        options,
+        Box::new(move |cc| {
+            install_fonts(&cc.egui_ctx);
+            let mut app = PnpApp::new(ui_settings, &paths);
+            app.shot = Some(ShotState {
+                request,
+                frame: 0,
+                outcome: outcome_for_app,
+            });
+            Ok(Box::new(app))
+        }),
+    )
+    .map_err(|e| e.to_string())?;
+    let taken = outcome.lock().map_err(|e| e.to_string())?.take();
+    match taken {
+        Some(result) => result,
+        None => Err("the window closed before the picture was taken".to_owned()),
+    }
+}
+
+/// The picture mode as the program runs it: reads the arguments (`--shot FILE.png` and the options of [`shot::parse_window_args`]), takes the picture and gives the exit code: 0 when
+/// the file was written, 1 when it was not and 2 when the arguments are wrong. Nothing is written beside the picture.
+pub fn take_picture(args: &[String]) -> u8 {
+    let parsed = match shot::parse_window_args(args, SHOT_MAX_FILES) {
+        Ok(parsed) => parsed,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let Some(request) = parsed.shot else {
+        eprintln!("error: --shot needs a file to write");
+        return 2;
+    };
+    match run_shot(&parsed.files, parsed.lang.unwrap_or(Lang::En), request) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("error: the picture could not be taken: {e}");
+            1
+        }
+    }
 }

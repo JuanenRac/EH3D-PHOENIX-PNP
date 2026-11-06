@@ -17,6 +17,7 @@ use std::process::ExitCode;
 const HELP: &str = "phoenix-pnp: pick and place assembly
 
   phoenix-pnp [gui [FILES...]]                 the window, with the files loaded (built with --features gui; run with no command it opens too)
+  phoenix-pnp gui [FILES...] --shot OUT.png [--size WxH] [--theme phoenix|light|contrast] [--wait N] [--lang CODE] [--replace]   a picture of the window with the files loaded (built with --features gui)
   phoenix-pnp parts PARTS                      the parts of a position file (KiCad .pos or CSV) in millimetres
   phoenix-pnp check PARTS FEEDERS              which parts have no feeder and which feeders will run out
   phoenix-pnp plan PARTS FEEDERS OUT.json [--nozzles 2] [--side top|bottom] [--board-width MM] [--origin-x MM] [--speed MM_S] [--partial]
@@ -183,7 +184,17 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
 }
 
 fn main() -> ExitCode {
-    match run(env::args().skip(1).collect()) {
+    let args: Vec<String> = env::args().skip(1).collect();
+    if eh3d_phoenix_pnp::gui::shot::wants_picture(&args) {
+        #[cfg(feature = "gui")]
+        return ExitCode::from(eh3d_phoenix_pnp::gui::window::take_picture(&args));
+        #[cfg(not(feature = "gui"))]
+        {
+            eprintln!("error: this build has no window; build it with --features gui");
+            return ExitCode::from(1);
+        }
+    }
+    match run(args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("error: {e}");

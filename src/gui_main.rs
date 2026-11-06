@@ -6,11 +6,16 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
-use eh3d_phoenix_pnp::gui::{settings, window};
+use eh3d_phoenix_pnp::gui::{settings, shot, window};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    // the picture mode writes nothing beside the picture, so nothing goes to the folder of the settings
+    if shot::wants_picture(&args) {
+        return ExitCode::from(window::take_picture(&args));
+    }
     let files: Vec<PathBuf> = std::env::args_os().skip(1).map(PathBuf::from).collect();
     match window::run(&files) {
         Ok(()) => ExitCode::SUCCESS,
