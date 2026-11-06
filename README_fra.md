@@ -18,7 +18,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 344 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il a aussi une fenêtre (construite avec `--features gui`) dont la logique est testée sans écran ; le dessin lui-même n'est pas couvert par des tests et n'a pas été vérifié sur un écran. Il ne pilote aucune machine : il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 391 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il a aussi une fenêtre (construite avec `--features gui`) dont la logique est testée sans écran ; le dessin lui-même n'est pas couvert par des tests et n'a pas été vérifié sur un écran. Il ne pilote aucune machine : il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.5` |
 | Maturité | Échafaudage |
-| Tests | 344 |
+| Tests | 391 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -46,8 +46,8 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 | Domaine | État | Ce que cela veut dire ici |
 |---|---|---|
 | Cœur | 🟡 | lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (priorité, plateau, bande), planifie l'ordre de pose pour une tête de jusqu'à six buses avec des rangs, des pointes de buse, des limites d'angle et le temps des déplacements, planifie des panneaux et écrit la feuille de chargement ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
-| Ligne de commande | 🟡 | `phoenix-pnp` exécute les mêmes fonctions que la bibliothèque (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`) et affiche le résultat ; chaque erreur revient comme un message avec son code `PHOENIX-PNP-NNN` et un code de sortie non nul. |
-| Tests | 🟡 | 344 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
+| Ligne de commande | 🟡 | `phoenix-pnp` exécute les mêmes fonctions que la bibliothèque (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `vision-test`) et affiche le résultat ; chaque erreur revient comme un message avec son code `PHOENIX-PNP-NNN` et un code de sortie non nul. |
+| Tests | 🟡 | 391 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
 | Configuration de la machine | 🟡 | un fichier `clé = valeur` avec une version, un validateur qui nomme la ligne et les limites de sécurité (course de Z, limites de X et Y, nouvelles tentatives, angles de buse) ; les valeurs n'ont pas été comparées à une machine réelle. |
 | Simulateur et travail | 🟡 | une horloge virtuelle, des pannes injectées au hasard (avec une graine) ou à un endroit choisi, des nouvelles tentatives, les politiques alerte et report, des alimentateurs qui s'éteignent après des pannes répétées, pause, pas à pas et un état enregistré pour reprendre ; il ne fait que simuler, rien n'a piloté une machine. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
@@ -68,6 +68,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 * **Repères d'un panneau** (`src/fiducial.rs`) : les positions mesurées des repères sont ajustées aux positions prévues (une similitude avec deux repères, un ajustement affine avec trois ou plus) et les pièces du panneau sont déplacées et tournées par l'ajustement ; chaque repère a son résidu, et un ajustement qui manque un repère de plus de `fiducial_max_residual_mm` est refusé (`--fiducials FICHIER` avec `--panel`, ou l'onglet Panneaux de la fenêtre).
 * **Plus du planificateur et du simulateur :** l'ordre dans lequel les cellules d'un plateau sont vidées (lignes, colonnes ou serpentin), une recherche de l'ordre des pointes de buse qui compte le trajet et le déplacement vers le changeur (`tip_strategy = optimize`, limitée par `tip_opt_max_evals` et `tip_opt_time_limit_s`), des probabilités de panne par boîtier et par alimentateur (`sim_part_fail`, `sim_feeder_fail`) avec des statistiques par boîtier et par alimentateur et les pièces par heure, et `check-bottom`, qui montre l'angle que donne chaque règle de la face inférieure.
 * **L'étape d'alignement** (`src/job.rs`, `src/sim.rs`, `src/model.rs`) : avec `align = on`, le travail regarde chaque pièce avec la caméra après la prise et corrige le placement d'après ce qu'elle voit (la tête va à la place moins le décalage de la pièce, et la buse tourne de la rotation de la pièce en moins) ; `pick_tolerance_mm` jette une pièce plus décalée, qui est reprise comme le dit `error_policy` ; `align_passes` (de 1 à 5) et `align_settle_s` fixent les regards et l'attente avant chacun, qui s'ajoutent au temps du plan ; la caméra simulée a un décalage, une erreur et des pannes injectables (`sim_align_*`, `sim_camera_fail_rate`) ; et la correction (moyenne, plus grande, pièces jetées) figure dans le texte, dans le rapport JSON et dans les lignes `align` de `--report-csv`. Désactivée par défaut : un travail est alors celui de toujours. Non essayée sur une machine.
+* **La chaîne de vision** (`src/vision.rs`, `src/sim.rs`, `examples/vision.cfg`) : avec `vision = pipeline`, la caméra simulée dessine en mémoire une image de la pièce (sa taille, sa rotation et sa distance à la buse, avec un bruit tiré de `sim_seed`) et la mesure avec les étapes d'un fichier de réglages (`--vision FILE`) : un masque, un filtre médian, un seuil fixe ou d'Otsu, une plage d'aire pour la tache et le plus petit rectangle tourné, dont le centre et l'angle sont le décalage que corrige l'étape d'alignement. Une pièce introuvable, une tache d'aire erronée et plusieurs taches sont des regards sans mesure, chacun avec son code (`PHOENIX-PNP-037` à `PHOENIX-PNP-039`). `phoenix-pnp vision-test` dessine une pièce à partir de la taille, de la rotation, du décalage et du bruit donnés et affiche ce qui a été mesuré avec son erreur. Désactivé par défaut : un travail est alors celui d'avant. Non essayé avec une vraie caméra.
 * **Le simulateur et le travail** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`) : les vérifications avant un travail, une machine à horloge virtuelle et pannes injectables, et un travail qu'on peut mettre en pause, exécuter pas à pas, enregistrer et reprendre.
 * **La fenêtre** (`src/gui.rs`, `src/gui/`) : ce que la fenêtre fait en dehors du dessin n'a pas besoin d'écran (les fichiers chargés, le plan et ses problèmes avec corrections, le travail simulé, la géométrie de la carte, les tableaux à sélection partagée, l'assistant en cinq étapes et les textes en huit langues) et est testé ; seul `src/gui/window.rs`, construit avec `--features gui`, le dessine avec egui. La vitesse de la simulation, le thème et la taille dessinée pour une pièce de boîtier inconnu sont des clés de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -149,7 +150,8 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             les vérifications avant un travail, avec une gravité et ce qu'elles désignent
 │   ├── rotation.rs                              corrections de rotation par boîtier, et comment tourne une buse limitée
 │   ├── sim.rs                                   la machine simulée : horloge virtuelle et pannes injectables
-│   └── units.rs                                 longueurs et lieux qui portent leur unité
+│   ├── units.rs                                 longueurs et lieux qui portent leur unité
+│   └── vision.rs                                la chaîne de vision : filtre, seuil, taches, plus petit rectangle tourné
 ├── tests/
 │   ├── align.rs                                 tests de l'étape d'alignement : caméra, place corrigée, tolérance et temps
 │   ├── commands.rs                              tests des commandes qui utilisent la configuration
@@ -166,7 +168,9 @@ EH3D-PHOENIX-PNP/
 │   ├── readme.rs                                tests que le README est exécutable et complet
 │   ├── sim.rs                                   tests de la machine simulée
 │   ├── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
-│   └── tables.rs                                tests des pièces à ne pas monter, de tables-check et du rapport d'un travail en CSV
+│   ├── tables.rs                                tests des pièces à ne pas monter, de tables-check et du rapport d'un travail en CSV
+│   ├── vision.rs                                tests de la vision : images calculées à la main, échecs, réglages
+│   └── vision_job.rs                            tests de la vision dans le travail, vision-test : mesures, échecs, état
 ├── examples/
 │   ├── board.pos                                un exemple pour essayer le programme
 │   ├── board_dnp.csv                            une carte avec une colonne dnp : deux de ses pièces ne sont pas montées
@@ -178,7 +182,8 @@ EH3D-PHOENIX-PNP/
 │   ├── packages.csv                             une table de boîtiers : hauteur, pointe, rang et bande
 │   ├── packages_common.csv                      une table de boîtiers courants, des résistances 0201 aux QFN, à ajuster à vos pièces
 │   ├── panel.json                               un panneau de deux cartes
-│   └── slots.csv                                les emplacements de la machine
+│   ├── slots.csv                                les emplacements de la machine
+│   └── vision.cfg                               les réglages de la chaîne de vision, chaque clé expliquée
 ├── docs/
 │   ├── architecture.json                        données de l'image d'Architecture
 │   ├── structure.json                           données de l'image de Structure
@@ -240,6 +245,9 @@ Les tables de boîtiers et de pièces (`--packages`, `--catalog`) sont des fichi
 | `PHOENIX-PNP-034` | Le fichier des positions n'est pas valide |
 | `PHOENIX-PNP-035` | La caméra a trouvé la pièce plus décalée que la tolérance ne l'autorise |
 | `PHOENIX-PNP-036` | La caméra n'a donné aucune mesure de la pièce |
+| `PHOENIX-PNP-037` | La vision n'a pas trouvé la pièce dans l'image |
+| `PHOENIX-PNP-038` | La tache trouvée dans l'image a une aire hors de la plage autorisée |
+| `PHOENIX-PNP-039` | La vision a trouvé plus d'une tache pouvant être la pièce |
 
 ## 🚀 Démarrage rapide
 
@@ -257,6 +265,7 @@ cargo run --release -- schedule examples/board_dnp.csv examples/feeders.csv exam
 cargo run --release -- tables-check --parts examples/board_dnp.csv --packages examples/packages_common.csv --feeders examples/feeders_kinds.csv --slots examples/slots.csv --config examples/machine.cfg
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-csv examples/job_report.csv
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
+cargo run --release -- vision-test --vision examples/vision.cfg --turn 30 --dx 0.5 --dy -0.3
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
 cargo run --release --features gui
 ```
@@ -267,7 +276,7 @@ La dernière ligne ouvre la fenêtre ; `phoenix-pnp` sans commande le fait aussi
 
 ## 🧪 Tests
 
-La suite compte 344 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
+La suite compte 391 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
@@ -324,7 +333,8 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             les vérifications avant un travail, avec une gravité et ce qu'elles désignent
 │   ├── rotation.rs                              corrections de rotation par boîtier, et comment tourne une buse limitée
 │   ├── sim.rs                                   la machine simulée : horloge virtuelle et pannes injectables
-│   └── units.rs                                 longueurs et lieux qui portent leur unité
+│   ├── units.rs                                 longueurs et lieux qui portent leur unité
+│   └── vision.rs                                la chaîne de vision : filtre, seuil, taches, plus petit rectangle tourné
 ├── tests/
 │   ├── align.rs                                 tests de l'étape d'alignement : caméra, place corrigée, tolérance et temps
 │   ├── commands.rs                              tests des commandes qui utilisent la configuration
@@ -341,7 +351,9 @@ EH3D-PHOENIX-PNP/
 │   ├── readme.rs                                tests que le README est exécutable et complet
 │   ├── sim.rs                                   tests de la machine simulée
 │   ├── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
-│   └── tables.rs                                tests des pièces à ne pas monter, de tables-check et du rapport d'un travail en CSV
+│   ├── tables.rs                                tests des pièces à ne pas monter, de tables-check et du rapport d'un travail en CSV
+│   ├── vision.rs                                tests de la vision : images calculées à la main, échecs, réglages
+│   └── vision_job.rs                            tests de la vision dans le travail, vision-test : mesures, échecs, état
 ├── examples/
 │   ├── board.pos                                un exemple pour essayer le programme
 │   ├── board_dnp.csv                            une carte avec une colonne dnp : deux de ses pièces ne sont pas montées
@@ -353,7 +365,8 @@ EH3D-PHOENIX-PNP/
 │   ├── packages.csv                             une table de boîtiers : hauteur, pointe, rang et bande
 │   ├── packages_common.csv                      une table de boîtiers courants, des résistances 0201 aux QFN, à ajuster à vos pièces
 │   ├── panel.json                               un panneau de deux cartes
-│   └── slots.csv                                les emplacements de la machine
+│   ├── slots.csv                                les emplacements de la machine
+│   └── vision.cfg                               les réglages de la chaîne de vision, chaque clé expliquée
 ├── docs/
 │   ├── architecture.json                        données de l'image d'Architecture
 │   ├── structure.json                           données de l'image de Structure

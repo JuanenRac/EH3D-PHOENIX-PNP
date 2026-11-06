@@ -103,7 +103,7 @@
       "level": "tested",
       "title": "simulator and job",
       "lines": [
-        "virtual clock, failures by part,",
+        "virtual clock, failures, vision,",
         "pause, steps, align, saved state"
       ],
       "code": [
@@ -186,7 +186,7 @@
     }
   ],
   "legend": {
-    "tested": "covered by tests on a computer (344 tests)",
+    "tested": "covered by tests on a computer (391 tests)",
     "config": "planned, not used today",
     "external": "a person, a file or another repository"
   },

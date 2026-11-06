@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 344 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内，也没有在屏幕上检查过。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 391 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内，也没有在屏幕上检查过。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.0.5` |
 | 成熟度 | 脚手架 |
-| 测试 | 344 |
+| 测试 | 391 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -46,8 +46,8 @@
 | 领域 | 状态 | 在这里的含义 |
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
-| 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 344 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
+| 测试 | 🟡 | 391 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -68,6 +68,7 @@
 * **拼板的基准点**（`src/fiducial.rs`）：把基准点的实测位置拟合到设计位置（两个点用相似变换，三个及以上用仿射拟合），拼板的零件按拟合移动并旋转；每个点都有残差，某点偏离超过 `fiducial_max_residual_mm` 的拟合会被拒绝（`--fiducials 文件` 配合 `--panel`，或窗口的拼板页）。
 * **规划器和模拟器的更多功能：** 托盘单元格被取空的顺序（按行、按列或蛇形）、同时计入路程和去换头位置往返的吸嘴头顺序搜索（`tip_strategy = optimize`，受 `tip_opt_max_evals` 和 `tip_opt_time_limit_s` 限制）、按封装和按供料器设置的故障概率（`sim_part_fail`、`sim_feeder_fail`）及其统计和每小时零件数，以及显示底面各规则所得角度的 `check-bottom`。
 * **对位步骤** (`src/job.rs`, `src/sim.rs`, `src/model.rs`)：`align = on` 时，作业在吸取零件后用相机查看，并按所见修正贴装（贴装头移到目标位置减去零件的偏移，吸嘴少转零件的旋转量）；`pick_tolerance_mm` 会丢弃偏移更大的零件，并按 `error_policy` 重新吸取；`align_passes`（1 到 5）和 `align_settle_s` 设定查看次数和每次之前的等待，它们计入计划时间；模拟相机有偏移、误差和可注入的故障 (`sim_align_*`, `sim_camera_fail_rate`)；修正量（平均值、最大值、丢弃的零件）出现在文本、JSON 报告和 `--report-csv` 的 `align` 行中。默认关闭：此时作业与以往完全一样。未在机器上试过。
+* **视觉处理流程**（`src/vision.rs`、`src/sim.rs`、`examples/vision.cfg`）：设置 `vision = pipeline` 后，模拟相机在内存中画出零件的图像（大小、旋转以及与吸嘴的偏差，噪声取自 `sim_seed`），并用设置文件（`--vision FILE`）中的步骤测量：掩膜、中值滤波、固定阈值或 Otsu 阈值、斑块的面积范围和最小旋转矩形，其中心和角度就是对位步骤所修正的偏差。找不到零件、斑块面积不符和出现多个斑块，都是没有读数的查看，各有自己的代码（`PHOENIX-PNP-037` 至 `PHOENIX-PNP-039`）。`phoenix-pnp vision-test` 按给定的大小、旋转、偏差和噪声画出零件，并打印测量结果及其误差。默认关闭：此时作业与以前完全相同。未在真实相机上试过。
 * **模拟器与作业**（`src/sim.rs`、`src/job.rs`、`src/preflight.rs`、`src/model.rs`）：作业前的检查、带虚拟时钟和可注入故障的机器，以及可暂停、单步执行、保存并恢复的作业。
 * **窗口**（`src/gui.rs`、`src/gui/`）：窗口除绘制之外的工作都不需要屏幕（已载入的文件、规划及其问题与修复、模拟作业、地图的几何、共享选择的表格、五步向导和八种语言的文字），并经过测试；只有用 `--features gui` 构建的 `src/gui/window.rs` 用 egui 绘制。模拟速度、主题以及为未知封装的零件绘制的大小是 `machine.cfg` 的键（`gui_steps_per_s`、`gui_theme`、`gui_part_size_mm`）。
 
@@ -149,7 +150,8 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             作业前的检查，含严重程度及其所指对象
 │   ├── rotation.rs                              按封装的旋转修正，以及受限吸嘴如何转动
 │   ├── sim.rs                                   模拟机器：虚拟时钟和可注入的故障
-│   └── units.rs                                 带单位的长度和位置
+│   ├── units.rs                                 带单位的长度和位置
+│   └── vision.rs                                视觉处理：滤波、阈值、斑块、最小旋转矩形
 ├── tests/
 │   ├── align.rs                                 对位步骤的测试：相机、修正后的位置、容差和时间
 │   ├── commands.rs                              使用配置的命令的测试
@@ -166,7 +168,9 @@ EH3D-PHOENIX-PNP/
 │   ├── readme.rs                                验证 README 可运行且完整的测试
 │   ├── sim.rs                                   模拟机器的测试
 │   ├── strict.rs                                命令行测试：它不认识的选项和词
-│   └── tables.rs                                不贴装零件、tables-check 以及作业 CSV 报告的测试
+│   ├── tables.rs                                不贴装零件、tables-check 以及作业 CSV 报告的测试
+│   ├── vision.rs                                视觉处理测试：手算图像、失败和设置
+│   └── vision_job.rs                            作业与 vision-test 的视觉测试：读数、失败、已保存状态
 ├── examples/
 │   ├── board.pos                                试用的示例
 │   ├── board_dnp.csv                            带 dnp 列的电路板：其中两个零件不贴装
@@ -178,7 +182,8 @@ EH3D-PHOENIX-PNP/
 │   ├── packages.csv                             封装表：高度、吸嘴头、等级和料带
 │   ├── packages_common.csv                      常见封装表（从 0201 电阻到 QFN），请按自己的零件调整
 │   ├── panel.json                               由两块板组成的拼板
-│   └── slots.csv                                机器的槽位
+│   ├── slots.csv                                机器的槽位
+│   └── vision.cfg                               视觉处理设置，每个键均有说明
 ├── docs/
 │   ├── architecture.json                        架构图数据
 │   ├── structure.json                           结构图数据
@@ -240,6 +245,9 @@ EH3D-PHOENIX-PNP/
 | `PHOENIX-PNP-034` | 位置文件无效 |
 | `PHOENIX-PNP-035` | 相机发现零件的偏移超过了容差 |
 | `PHOENIX-PNP-036` | 相机没有给出零件的测量值 |
+| `PHOENIX-PNP-037` | 在图像中没有找到零件 |
+| `PHOENIX-PNP-038` | 图像中找到的斑块面积超出允许范围 |
+| `PHOENIX-PNP-039` | 找到了不止一个可能是零件的斑块 |
 
 ## 🚀 快速开始
 
@@ -257,6 +265,7 @@ cargo run --release -- schedule examples/board_dnp.csv examples/feeders.csv exam
 cargo run --release -- tables-check --parts examples/board_dnp.csv --packages examples/packages_common.csv --feeders examples/feeders_kinds.csv --slots examples/slots.csv --config examples/machine.cfg
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-csv examples/job_report.csv
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
+cargo run --release -- vision-test --vision examples/vision.cfg --turn 30 --dx 0.5 --dy -0.3
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
 cargo run --release --features gui
 ```
@@ -267,7 +276,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 344 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 391 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -324,7 +333,8 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             作业前的检查，含严重程度及其所指对象
 │   ├── rotation.rs                              按封装的旋转修正，以及受限吸嘴如何转动
 │   ├── sim.rs                                   模拟机器：虚拟时钟和可注入的故障
-│   └── units.rs                                 带单位的长度和位置
+│   ├── units.rs                                 带单位的长度和位置
+│   └── vision.rs                                视觉处理：滤波、阈值、斑块、最小旋转矩形
 ├── tests/
 │   ├── align.rs                                 对位步骤的测试：相机、修正后的位置、容差和时间
 │   ├── commands.rs                              使用配置的命令的测试
@@ -341,7 +351,9 @@ EH3D-PHOENIX-PNP/
 │   ├── readme.rs                                验证 README 可运行且完整的测试
 │   ├── sim.rs                                   模拟机器的测试
 │   ├── strict.rs                                命令行测试：它不认识的选项和词
-│   └── tables.rs                                不贴装零件、tables-check 以及作业 CSV 报告的测试
+│   ├── tables.rs                                不贴装零件、tables-check 以及作业 CSV 报告的测试
+│   ├── vision.rs                                视觉处理测试：手算图像、失败和设置
+│   └── vision_job.rs                            作业与 vision-test 的视觉测试：读数、失败、已保存状态
 ├── examples/
 │   ├── board.pos                                试用的示例
 │   ├── board_dnp.csv                            带 dnp 列的电路板：其中两个零件不贴装
@@ -353,7 +365,8 @@ EH3D-PHOENIX-PNP/
 │   ├── packages.csv                             封装表：高度、吸嘴头、等级和料带
 │   ├── packages_common.csv                      常见封装表（从 0201 电阻到 QFN），请按自己的零件调整
 │   ├── panel.json                               由两块板组成的拼板
-│   └── slots.csv                                机器的槽位
+│   ├── slots.csv                                机器的槽位
+│   └── vision.cfg                               视觉处理设置，每个键均有说明
 ├── docs/
 │   ├── architecture.json                        架构图数据
 │   ├── structure.json                           结构图数据

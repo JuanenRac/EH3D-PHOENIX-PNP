@@ -18,7 +18,7 @@
 
 ---
 
-**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 344 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、画面での確認はまだです。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
+**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 391 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、画面での確認はまだです。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | バージョン | `0.0.5` |
 | 成熟度 | 足場 |
-| テスト | 344 |
+| テスト | 391 |
 | 技術スタック | Rust |
 | 実機での動作 | 未試験：ここにあるものは機械で動かしたことがありません |
 
@@ -46,8 +46,8 @@
 | 領域 | 状態 | ここでの意味 |
 |---|---|---|
 | コア | 🟡 | 基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップ）、最大6本のノズルを持つヘッドの配置順をランク、ノズルチップ、角度の制限、移動時間とともに計画し、パネルを計画し、搭載シートを書き出します。通常の入力と壊れた入力でコンピューター上でテスト済みですが、実際のファイル群ではありません。 |
-| コマンドライン | 🟡 | `phoenix-pnp` はライブラリと同じ関数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`）を実行して結果を表示します。エラーはすべて `PHOENIX-PNP-NNN` のコード付きメッセージと0以外の終了コードで返ります。 |
-| テスト | 🟡 | 344 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
+| コマンドライン | 🟡 | `phoenix-pnp` はライブラリと同じ関数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `vision-test`）を実行して結果を表示します。エラーはすべて `PHOENIX-PNP-NNN` のコード付きメッセージと0以外の終了コードで返ります。 |
+| テスト | 🟡 | 391 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
 | 機械の設定 | 🟡 | バージョン付きの `キー = 値` ファイル、行を示す検証、安全限界（Z の行程、X と Y の限界、再試行、ノズルの角度）。値は実機とは比較していません。 |
 | シミュレーターとジョブ | 🟡 | 仮想時計、確率（シード付き）または指定した場所で注入する故障、再試行、警告と保留の方針、故障が続くと止まるフィーダー、一時停止、一手ずつの実行、再開用に保存する状態。模擬のみで、実機は動かしていません。 |
 | セキュリティ | 🟡 | 安全な Rust のみ（`forbid(unsafe_code)`）。受け取ったファイルでパニックせず、不正な値は理由付きのエラーになります。独立したレビューはありません。 |
@@ -68,6 +68,7 @@
 * **パネルのフィデューシャル**（`src/fiducial.rs`）：マークの実測位置を設計位置に合わせ込み（マーク2個なら相似変換、3個以上ならアフィン変換）、パネルの部品をその補正で移動・回転します。マークごとに残差があり、マークが `fiducial_max_residual_mm` を超えて外れる補正は拒否されます（`--panel` と一緒に `--fiducials ファイル`、またはウィンドウのパネルタブ）。
 * **プランナーとシミュレーターの追加機能：** トレイのセルを空にする順序（行、列、蛇行）、移動距離とチップ交換場所への往復を数えるノズルチップの順序探索（`tip_strategy = optimize`、`tip_opt_max_evals` と `tip_opt_time_limit_s` で制限）、パッケージごと・フィーダーごとの故障確率（`sim_part_fail`、`sim_feeder_fail`）とそれらの統計および1時間あたりの部品数、そして裏面の各規則が与える角度を表示する `check-bottom`。
 * **アライメント工程** (`src/job.rs`, `src/sim.rs`, `src/model.rs`)：`align = on` のとき、ジョブは部品を吸着した後にカメラで確認し、見えたとおりに配置を補正します（ヘッドは部品のずれの分だけ手前の位置へ行き、ノズルは部品の回転の分だけ回転を減らします）。`pick_tolerance_mm` を超えてずれた部品は捨てられ、`error_policy` に従って吸着し直します。`align_passes`（1〜5）と `align_settle_s` は確認の回数と各回の前の待ち時間を決め、プランの時間に加算されます。模擬カメラには、ずれ、誤差、注入できる故障があります (`sim_align_*`, `sim_camera_fail_rate`)。補正量（平均、最大、捨てた部品）は、テキスト、JSON レポート、`--report-csv` の `align` 行に出ます。既定ではオフで、その場合ジョブは従来どおりです。実機では試していません。
+* **画像処理パイプライン**（`src/vision.rs`、`src/sim.rs`、`examples/vision.cfg`）：`vision = pipeline` のとき、模擬カメラは部品の画像をメモリ上に描き（大きさ、回転、ノズルからのずれ、`sim_seed` から得たノイズ付き）、設定ファイル（`--vision FILE`）の手順で測定します：マスク、メディアンフィルタ、固定またはOtsuのしきい値、領域の面積範囲、最小の回転した矩形。その中心と角度が、アライメント工程が補正するずれになります。部品が見つからない、領域の面積が不適切、領域が複数ある場合は、測定値のない確認となり、それぞれ固有のコード（`PHOENIX-PNP-037` から `PHOENIX-PNP-039`）が付きます。`phoenix-pnp vision-test` は、与えた大きさ・回転・ずれ・ノイズで部品を描き、測定値とその誤差を表示します。既定ではオフで、その場合ジョブは従来どおりです。実際のカメラでは試していません。
 * **シミュレーターとジョブ**（`src/sim.rs`、`src/job.rs`、`src/preflight.rs`、`src/model.rs`）：ジョブ前の確認、仮想時計と注入できる故障を持つ機械、一時停止・一手ずつの実行・保存・再開ができるジョブ。
 * **ウィンドウ**（`src/gui.rs`、`src/gui/`）：描画以外の処理は画面を必要とせず（読み込んだファイル、計画とその問題・修正、模擬ジョブ、地図の幾何、選択を共有する表、5ステップのガイド、8言語の文言）、テストされています。`--features gui` でビルドする `src/gui/window.rs` だけが egui で描画します。シミュレーションの速さ、テーマ、未知のパッケージの部品に描くサイズは `machine.cfg` のキー（`gui_steps_per_s`、`gui_theme`、`gui_part_size_mm`）です。
 
@@ -149,7 +150,8 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             ジョブ前の確認（重大度と対象つき）
 │   ├── rotation.rs                              パッケージ別の回転補正と、制限付きノズルの回し方
 │   ├── sim.rs                                   模擬機械：仮想時計と注入できる故障
-│   └── units.rs                                 単位を持つ長さと位置
+│   ├── units.rs                                 単位を持つ長さと位置
+│   └── vision.rs                                画像処理：フィルタ、しきい値、領域、最小の回転矩形
 ├── tests/
 │   ├── align.rs                                 アライメント工程のテスト：カメラ、補正した位置、許容差、時間
 │   ├── commands.rs                              設定を使うコマンドのテスト
@@ -166,7 +168,9 @@ EH3D-PHOENIX-PNP/
 │   ├── readme.rs                                README が実行でき、漏れがないことのテスト
 │   ├── sim.rs                                   模擬機械のテスト
 │   ├── strict.rs                                コマンドラインのテスト：知らないオプションと語
-│   └── tables.rs                                実装しない部品、tables-check、ジョブのCSVレポートのテスト
+│   ├── tables.rs                                実装しない部品、tables-check、ジョブのCSVレポートのテスト
+│   ├── vision.rs                                画像処理のテスト：手計算の画像、失敗、設定
+│   └── vision_job.rs                            ジョブと vision-test の画像処理テスト：測定値、失敗、保存状態
 ├── examples/
 │   ├── board.pos                                試すためのサンプル
 │   ├── board_dnp.csv                            dnp 列を持つ基板：2つの部品は実装しない
@@ -178,7 +182,8 @@ EH3D-PHOENIX-PNP/
 │   ├── packages.csv                             パッケージの表：高さ、チップ、ランク、テープ
 │   ├── packages_common.csv                      一般的なパッケージの表（0201抵抗からQFNまで）。自分の部品に合わせて調整する
 │   ├── panel.json                               2枚の基板のパネル
-│   └── slots.csv                                機械のスロット
+│   ├── slots.csv                                機械のスロット
+│   └── vision.cfg                               画像処理の設定（すべてのキーを説明）
 ├── docs/
 │   ├── architecture.json                        アーキテクチャ図のデータ
 │   ├── structure.json                           構成図のデータ
@@ -240,6 +245,9 @@ EH3D-PHOENIX-PNP/
 | `PHOENIX-PNP-034` | 位置ファイルが無効です |
 | `PHOENIX-PNP-035` | カメラが検出した部品のずれが許容差を超えています |
 | `PHOENIX-PNP-036` | カメラが部品の測定値を返しませんでした |
+| `PHOENIX-PNP-037` | 画像の中に部品が見つかりませんでした |
+| `PHOENIX-PNP-038` | 画像で見つかった領域の面積が許容範囲外です |
+| `PHOENIX-PNP-039` | 部品の可能性がある領域が複数見つかりました |
 
 ## 🚀 クイックスタート
 
@@ -257,6 +265,7 @@ cargo run --release -- schedule examples/board_dnp.csv examples/feeders.csv exam
 cargo run --release -- tables-check --parts examples/board_dnp.csv --packages examples/packages_common.csv --feeders examples/feeders_kinds.csv --slots examples/slots.csv --config examples/machine.cfg
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-csv examples/job_report.csv
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
+cargo run --release -- vision-test --vision examples/vision.cfg --turn 30 --dx 0.5 --dy -0.3
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
 cargo run --release --features gui
 ```
@@ -267,7 +276,7 @@ cargo run --release --features gui
 
 ## 🧪 テスト
 
-テストは 344 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
+テストは 391 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
 
 ## 🏗️ ビルドとリリース
 
@@ -324,7 +333,8 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             ジョブ前の確認（重大度と対象つき）
 │   ├── rotation.rs                              パッケージ別の回転補正と、制限付きノズルの回し方
 │   ├── sim.rs                                   模擬機械：仮想時計と注入できる故障
-│   └── units.rs                                 単位を持つ長さと位置
+│   ├── units.rs                                 単位を持つ長さと位置
+│   └── vision.rs                                画像処理：フィルタ、しきい値、領域、最小の回転矩形
 ├── tests/
 │   ├── align.rs                                 アライメント工程のテスト：カメラ、補正した位置、許容差、時間
 │   ├── commands.rs                              設定を使うコマンドのテスト
@@ -341,7 +351,9 @@ EH3D-PHOENIX-PNP/
 │   ├── readme.rs                                README が実行でき、漏れがないことのテスト
 │   ├── sim.rs                                   模擬機械のテスト
 │   ├── strict.rs                                コマンドラインのテスト：知らないオプションと語
-│   └── tables.rs                                実装しない部品、tables-check、ジョブのCSVレポートのテスト
+│   ├── tables.rs                                実装しない部品、tables-check、ジョブのCSVレポートのテスト
+│   ├── vision.rs                                画像処理のテスト：手計算の画像、失敗、設定
+│   └── vision_job.rs                            ジョブと vision-test の画像処理テスト：測定値、失敗、保存状態
 ├── examples/
 │   ├── board.pos                                試すためのサンプル
 │   ├── board_dnp.csv                            dnp 列を持つ基板：2つの部品は実装しない
@@ -353,7 +365,8 @@ EH3D-PHOENIX-PNP/
 │   ├── packages.csv                             パッケージの表：高さ、チップ、ランク、テープ
 │   ├── packages_common.csv                      一般的なパッケージの表（0201抵抗からQFNまで）。自分の部品に合わせて調整する
 │   ├── panel.json                               2枚の基板のパネル
-│   └── slots.csv                                機械のスロット
+│   ├── slots.csv                                機械のスロット
+│   └── vision.cfg                               画像処理の設定（すべてのキーを説明）
 ├── docs/
 │   ├── architecture.json                        アーキテクチャ図のデータ
 │   ├── structure.json                           構成図のデータ

@@ -546,6 +546,19 @@
             "zh": "带单位的长度和位置",
             "pt": "comprimentos e lugares que levam a sua unidade"
           }
+        },
+        {
+          "name": "vision.rs",
+          "desc": {
+            "en": "the vision pipeline: filter, threshold, spots and the smallest turned rectangle",
+            "es": "la tubería de visión: filtro, umbral, manchas y el menor rectángulo girado",
+            "de": "die Bildverarbeitung: Filter, Schwelle, Flecken, kleinstes gedrehtes Rechteck",
+            "fr": "la chaîne de vision : filtre, seuil, taches, plus petit rectangle tourné",
+            "it": "la catena di visione: filtro, soglia, macchie, rettangolo ruotato minimo",
+            "ja": "画像処理：フィルタ、しきい値、領域、最小の回転矩形",
+            "zh": "视觉处理：滤波、阈值、斑块、最小旋转矩形",
+            "pt": "a cadeia de visão: filtro, limiar, manchas, menor retângulo rodado"
+          }
         }
       ]
     },
@@ -761,6 +774,32 @@
             "zh": "不贴装零件、tables-check 以及作业 CSV 报告的测试",
             "pt": "testes das peças que não se montam, de tables-check e do relatório de um trabalho em CSV"
           }
+        },
+        {
+          "name": "vision.rs",
+          "desc": {
+            "en": "tests of the vision pipeline: pictures checked by hand, failures, settings",
+            "es": "pruebas de la visión: imágenes calculadas a mano, fallos y ajustes",
+            "de": "Tests der Bildverarbeitung: von Hand geprüfte Bilder, Fehler, Einstellungen",
+            "fr": "tests de la vision : images calculées à la main, échecs, réglages",
+            "it": "test della visione: immagini calcolate a mano, errori, impostazioni",
+            "ja": "画像処理のテスト：手計算の画像、失敗、設定",
+            "zh": "视觉处理测试：手算图像、失败和设置",
+            "pt": "testes da visão: imagens calculadas à mão, falhas, definições"
+          }
+        },
+        {
+          "name": "vision_job.rs",
+          "desc": {
+            "en": "tests of the vision in the job and vision-test: readings, failures, saved state",
+            "es": "pruebas de la visión en el trabajo y vision-test: lecturas, fallos, estado",
+            "de": "Tests der Bildverarbeitung im Auftrag, vision-test: Messungen, Fehler, Zustand",
+            "fr": "tests de la vision dans le travail, vision-test : mesures, échecs, état",
+            "it": "test della visione nel lavoro, vision-test: misure, errori, stato salvato",
+            "ja": "ジョブと vision-test の画像処理テスト：測定値、失敗、保存状態",
+            "zh": "作业与 vision-test 的视觉测试：读数、失败、已保存状态",
+            "pt": "testes da visão no trabalho e vision-test: leituras, falhas, estado guardado"
+          }
         }
       ]
     },
@@ -910,6 +949,19 @@
             "ja": "機械のスロット",
             "zh": "机器的槽位",
             "pt": "as ranhuras da máquina"
+          }
+        },
+        {
+          "name": "vision.cfg",
+          "desc": {
+            "en": "the settings of the vision pipeline, every key explained",
+            "es": "los ajustes de la tubería de visión, cada clave explicada",
+            "de": "die Einstellungen der Bildverarbeitung, jeder Schlüssel erklärt",
+            "fr": "les réglages de la chaîne de vision, chaque clé expliquée",
+            "it": "le impostazioni della catena di visione, ogni chiave spiegata",
+            "ja": "画像処理の設定（すべてのキーを説明）",
+            "zh": "视觉处理设置，每个键均有说明",
+            "pt": "as definições da cadeia de visão, cada chave explicada"
           }
         }
       ]
