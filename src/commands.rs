@@ -13,12 +13,15 @@ use eh3d_phoenix_pnp::fiducial;
 use eh3d_phoenix_pnp::job::{Job, Phase};
 use eh3d_phoenix_pnp::loadsheet;
 use eh3d_phoenix_pnp::model::Machine;
+use eh3d_phoenix_pnp::model::Offset;
 use eh3d_phoenix_pnp::panel::Panel;
 use eh3d_phoenix_pnp::parts::{
     bottom_table, parse_all, parse_with, take_references, BottomRotation, Part, Side,
 };
 use eh3d_phoenix_pnp::planner::{plan_advanced, AdvancedPlan, Options};
 use eh3d_phoenix_pnp::preflight::{has_errors, preflight, to_text, Check, Severity, Source};
+use eh3d_phoenix_pnp::sim::Rng;
+use eh3d_phoenix_pnp::vision::{measure_image, render, wrap, VisionConfig, MAX_VISION_BYTES};
 use std::cell::RefCell;
 use std::fs;
 use std::path::Path;
@@ -422,6 +425,7 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let state_path = flag(&mut args, "--state")?;
     let report_path = flag(&mut args, "--report")?;
     let csv_path = flag(&mut args, "--report-csv")?;
+    let vision_path = flag(&mut args, "--vision")?;
     let steps = match flag(&mut args, "--steps")? {
         Some(v) => {
             let n = num(&v, "--steps")?;
@@ -436,12 +440,25 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let p = prepare(args, 0)?;
     let lang = p.c.lang;
     let l = move |e: PnpError| e.localized(lang);
+    let mut inputs = p.inputs.clone();
+    let vision = match &vision_path {
+        Some(vp) => {
+            let settings =
+                VisionConfig::parse(&read_text(vp, MAX_VISION_BYTES as u64)?).map_err(l)?;
+            inputs.push(vp.clone());
+            Some(settings)
+        }
+        None => None,
+    };
     for r in [&report_path, &csv_path].into_iter().flatten() {
-        refuse_same_file(&p.inputs, r)?;
+        refuse_same_file(&inputs, r)?;
     }
     let planned = make_plan(&p)?;
     stop_on_errors(&p, &planned, partial)?;
     let mut job = Job::new(planned.plan, p.feeders.clone(), p.c.cfg.clone()).map_err(l)?;
+    if let Some(settings) = vision {
+        job.set_vision(settings);
+    }
     if let Some(sp) = &state_path {
         if Path::new(sp).exists() {
             job.restore_state(&read_text(sp, p.c.cfg.max_file_bytes)?)
@@ -628,6 +645,133 @@ pub fn tables_check(mut args: Vec<String>) -> Result<(), String> {
     if bad > 0 {
         return Err(format!("{bad} of {} tables are not valid", named.len()));
     }
+    Ok(())
+}
+
+/// Two positive numbers written as `AxB` (a size in pixels or in millimetres).
+fn pair(text: &str, what: &str) -> Result<(f64, f64), String> {
+    let (a, b) = text
+        .split_once(['x', 'X'])
+        .ok_or_else(|| format!("{what} '{text}' is not two numbers written as AxB"))?;
+    Ok((num(a, what)?, num(b, what)?))
+}
+
+/// A whole number from `lo` to `hi` given to an option.
+fn whole(text: &str, what: &str, lo: f64, hi: f64) -> Result<u64, String> {
+    let n = num(text, what)?;
+    if n.fract() != 0.0 || n < lo || n > hi {
+        return Err(format!(
+            "{what} {text} is not a whole number from {lo} to {hi}"
+        ));
+    }
+    Ok(n as u64)
+}
+
+/// `vision-test`: draws the picture of a part from the size, the turn, the offset and the noise that the options say, measures it with the pipeline of the vision settings
+/// (`--vision FILE`, else the defaults) and prints what was measured with its error against what was true. The exit code is 1 when the pipeline finds no part.
+pub fn vision_test(mut args: Vec<String>) -> Result<(), String> {
+    let lang = match flag(&mut args, "--lang")? {
+        Some(l) => Lang::from_code(&l)
+            .ok_or_else(|| format!("--lang '{l}' is not one of en es de fr it ja zh pt"))?,
+        None => Lang::En,
+    };
+    let mut cfg = match flag(&mut args, "--vision")? {
+        Some(p) => VisionConfig::parse(&read_text(&p, MAX_VISION_BYTES as u64)?)
+            .map_err(|e| e.localized(lang))?,
+        None => VisionConfig::default(),
+    };
+    if let Some(v) = flag(&mut args, "--size")? {
+        let (w, h) = pair(&v, "--size")?;
+        for side in [w, h] {
+            if side.fract() != 0.0 || !(16.0..=1024.0).contains(&side) {
+                return Err(format!(
+                    "--size {v} is not two whole numbers from 16 to 1024"
+                ));
+            }
+        }
+        cfg.image_width = w as usize;
+        cfg.image_height = h as usize;
+    }
+    if let Some(v) = flag(&mut args, "--part")? {
+        let (long, short) = pair(&v, "--part")?;
+        cfg.sim_part_long_mm = long;
+        cfg.sim_part_short_mm = short;
+    }
+    if let Some(v) = flag(&mut args, "--mm-per-px")? {
+        cfg.mm_per_px = num(&v, "--mm-per-px")?;
+    }
+    if let Some(v) = flag(&mut args, "--noise")? {
+        cfg.sim_noise_levels = whole(&v, "--noise", 0.0, 127.0)? as u32;
+    }
+    let seed = match flag(&mut args, "--seed")? {
+        Some(v) => whole(&v, "--seed", 0.0, 9_007_199_254_740_991.0)?,
+        None => 1,
+    };
+    let mut truth = Offset::default();
+    if let Some(v) = flag(&mut args, "--dx")? {
+        truth.dx_mm = num(&v, "--dx")?;
+    }
+    if let Some(v) = flag(&mut args, "--dy")? {
+        truth.dy_mm = num(&v, "--dy")?;
+    }
+    if let Some(v) = flag(&mut args, "--turn")? {
+        truth.rotation_deg = num(&v, "--turn")?;
+    }
+    finish(&args, 0)?;
+    if !(0.001..=10.0).contains(&cfg.mm_per_px) {
+        return Err(format!(
+            "--mm-per-px {} is not from 0.001 to 10",
+            cfg.mm_per_px
+        ));
+    }
+    if !(0.05..=50.0).contains(&cfg.sim_part_long_mm)
+        || !(0.05..=50.0).contains(&cfg.sim_part_short_mm)
+    {
+        return Err("--part wants sides from 0.05 to 50 millimetres".into());
+    }
+    cfg.validate().map_err(|e| e.localized(lang))?;
+    let picture = render(&cfg, truth, &mut Rng::new(seed));
+    let reading = measure_image(&cfg, &picture).map_err(|e| e.localized(lang))?;
+    // a number that is a hair below zero must not print as -0.000
+    let tidy = |x: f64| -> f64 { (x * 1000.0).round() / 1000.0 + 0.0 };
+    let seen = Offset {
+        dx_mm: tidy(reading.offset.dx_mm),
+        dy_mm: tidy(reading.offset.dy_mm),
+        rotation_deg: tidy(reading.offset.rotation_deg),
+    };
+    // a part that is nearly a square is known up to a quarter turn, any other up to a half turn
+    let period = if cfg.sim_part_long_mm / cfg.sim_part_short_mm < cfg.square_ratio {
+        90.0
+    } else {
+        180.0
+    };
+    let (ex, ey, et): (f64, f64, f64) = (
+        tidy(reading.offset.dx_mm - truth.dx_mm),
+        tidy(reading.offset.dy_mm - truth.dy_mm),
+        tidy(wrap(
+            reading.offset.rotation_deg - truth.rotation_deg,
+            period,
+        )),
+    );
+    println!(
+        "picture {}x{} pixels, {:.3} mm per pixel, threshold {}",
+        cfg.image_width, cfg.image_height, cfg.mm_per_px, reading.threshold
+    );
+    println!(
+        "true:     dx {:.3} mm, dy {:.3} mm, turn {:.2} degrees",
+        truth.dx_mm, truth.dy_mm, truth.rotation_deg
+    );
+    println!(
+        "measured: dx {:.3} mm, dy {:.3} mm, turn {:.2} degrees (spot of {} pixels, rectangle of {:.1} x {:.1} pixels)",
+        seen.dx_mm, seen.dy_mm, seen.rotation_deg, reading.area_px, reading.long_px, reading.short_px
+    );
+    println!(
+        "error:    dx {:+.3} mm, dy {:+.3} mm, turn {:+.2} degrees, distance {:.3} mm",
+        ex,
+        ey,
+        et,
+        ex.hypot(ey)
+    );
     Ok(())
 }
 
