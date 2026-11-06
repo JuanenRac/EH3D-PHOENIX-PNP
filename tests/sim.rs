@@ -263,13 +263,11 @@ fn the_actuator_the_camera_and_the_driver_of_the_simulator_behave() {
     assert!(!a.is_on());
     a.set(true).unwrap();
     assert!(a.is_on());
-    let mut cam = SimCamera {
-        bias: Offset {
-            dx_mm: 0.1,
-            dy_mm: -0.2,
-            rotation_deg: 1.5,
-        },
-    };
+    let mut cam = SimCamera::new(Offset {
+        dx_mm: 0.1,
+        dy_mm: -0.2,
+        rotation_deg: 1.5,
+    });
     assert_eq!(cam.measure(0).unwrap().dx_mm, 0.1);
     assert_eq!(SimCamera::default().measure(3).unwrap(), Offset::default());
     let mut d = SimDriver::default();

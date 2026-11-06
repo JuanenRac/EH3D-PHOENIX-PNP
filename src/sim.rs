@@ -428,15 +428,110 @@ impl Actuator for SimActuator {
     }
 }
 
-/// A camera that always sees the part displaced by the same offset (zero by default), to test the correction of the position.
-#[derive(Debug, Clone, PartialEq, Default)]
+/// A camera that sees every part displaced by the same offset (zero by default), less what has been corrected already, plus a random error of each reading; it can fail to give a
+/// reading, by chance (with a generator of its own, so that nothing else in the simulation moves when it is used) or at a look that a test chooses.
+#[derive(Debug, Clone, PartialEq)]
 pub struct SimCamera {
+    /// How far, and how much turned, every part is from the nozzle before any correction.
     pub bias: Offset,
+    /// The random error of a reading, from minus to plus this on each axis (millimetres) and, in degrees, on the turn.
+    pub noise_mm: f64,
+    /// The chance (0 to 1) that a look gives no reading.
+    pub fail_rate: f64,
+    applied: Offset,
+    rng: Rng,
+    looks: u64,
+    force: Vec<u64>,
+}
+
+impl Default for SimCamera {
+    fn default() -> SimCamera {
+        SimCamera {
+            bias: Offset::default(),
+            noise_mm: 0.0,
+            fail_rate: 0.0,
+            applied: Offset::default(),
+            rng: Rng::new(1),
+            looks: 0,
+            force: Vec::new(),
+        }
+    }
+}
+
+impl SimCamera {
+    /// A camera that sees every part displaced by `bias`, with no error in its readings and no failure.
+    pub fn new(bias: Offset) -> SimCamera {
+        SimCamera {
+            bias,
+            ..SimCamera::default()
+        }
+    }
+
+    /// The camera that the configuration describes.
+    pub fn from_config(cfg: &MachineConfig) -> SimCamera {
+        SimCamera {
+            bias: Offset {
+                dx_mm: cfg.sim_align_dx_mm,
+                dy_mm: cfg.sim_align_dy_mm,
+                rotation_deg: cfg.sim_align_deg,
+            },
+            noise_mm: cfg.sim_align_noise_mm,
+            fail_rate: cfg.sim_camera_fail_rate,
+            rng: Rng::new(cfg.sim_seed ^ 0xA11C_E5ED_0000_0001),
+            ..SimCamera::default()
+        }
+    }
+
+    /// Makes the `nth` look (counted from 1) give no reading.
+    pub fn force_fail(&mut self, nth: u64) {
+        self.force.push(nth);
+    }
+
+    /// A new part is under the camera: nothing has been corrected yet.
+    pub fn clear(&mut self) {
+        self.applied = Offset::default();
+    }
+
+    /// The machine has corrected the part by `correction`: the next look finds that much less.
+    pub fn apply(&mut self, correction: Offset) {
+        self.applied.dx_mm += correction.dx_mm;
+        self.applied.dy_mm += correction.dy_mm;
+        self.applied.rotation_deg += correction.rotation_deg;
+    }
+
+    /// The state that a saved job keeps: the generator and the number of looks.
+    pub fn save(&self) -> (u64, u64) {
+        (self.rng.state(), self.looks)
+    }
+
+    pub fn restore(&mut self, saved: (u64, u64)) {
+        self.rng = Rng::from_state(saved.0);
+        self.looks = saved.1;
+    }
 }
 
 impl Camera for SimCamera {
     fn measure(&mut self, _nozzle: usize) -> Result<Offset, PnpError> {
-        Ok(self.bias)
+        self.looks += 1;
+        // four numbers are drawn at every look, so that the chance of failing does not move the errors of the readings
+        let chance = self.rng.next_f64();
+        let noise = [
+            self.rng.next_f64(),
+            self.rng.next_f64(),
+            self.rng.next_f64(),
+        ];
+        if self.force.contains(&self.looks) || chance < self.fail_rate {
+            return Err(PnpError::new(
+                Code::SimFault,
+                format!("the camera look number {} was made to fail", self.looks),
+            ));
+        }
+        let spread = |r: f64| (2.0 * r - 1.0) * self.noise_mm;
+        Ok(Offset {
+            dx_mm: self.bias.dx_mm - self.applied.dx_mm + spread(noise[0]),
+            dy_mm: self.bias.dy_mm - self.applied.dy_mm + spread(noise[1]),
+            rotation_deg: self.bias.rotation_deg - self.applied.rotation_deg + spread(noise[2]),
+        })
     }
 }
 
