@@ -4,9 +4,9 @@
 //! of the configuration (`gui_steps_per_s`). Nothing here waits or draws, so a test can run a whole job in a loop.
 
 use crate::config::MachineConfig;
-use crate::error::PnpError;
+use crate::error::{Code, PnpError};
 use crate::feeding::FeederSpec;
-use crate::job::{Cursor, Job, Phase, Status};
+use crate::job::{Action, Cursor, Job, Phase, Status};
 use crate::model::Machine;
 use crate::planner::AdvancedPlan;
 use std::collections::BTreeMap;
@@ -117,6 +117,18 @@ impl Session {
             self.last_error = None;
             self.running = true;
         }
+    }
+
+    /// What the person decides for a job that an error stopped (see [`Job::act`]): the job then goes on at once. Gives the error when the action does not fit the job.
+    pub fn decide(&mut self, action: Action) -> Result<(), PnpError> {
+        let job = self
+            .job
+            .as_mut()
+            .ok_or_else(|| PnpError::new(Code::JobActionBad, "there is no job"))?;
+        job.act(action)?;
+        self.last_error = None;
+        self.running = true;
+        Ok(())
     }
 
     /// Pauses the job at the end of the step it is on.

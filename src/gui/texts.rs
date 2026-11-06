@@ -183,11 +183,33 @@ pub enum Text {
     KindsHeading,
     ColName,
     EditedNote,
+    StatePicked,
+    StateAligned,
+    StateSkipped,
+    StateDnp,
+    StateFailed,
+    FilterAllStates,
+    FilterHint,
+    HideDone,
+    ClearFilter,
+    ErrorTitle,
+    ActionRetry,
+    ActionSkip,
+    ActionDefer,
+    ActionSwitchOff,
+    RemainingLabel,
+    CopyReport,
+    NoJobYet,
+    ShownOf,
+    ProgressLabel,
+    FailedStep,
+    StepPick,
+    StepPlace,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::EditedNote as usize + 1;
+    pub const COUNT: usize = Text::StepPlace as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -473,4 +495,26 @@ static TABLE: &[[&str; 8]] = &[
     ["Kinds of part", "Tipos de pieza", "Teilearten", "Types de pièces", "Tipi di parti", "部品の種類", "零件种类", "Tipos de peça"],
     ["Name", "Nombre", "Name", "Nom", "Nome", "名前", "名称", "Nome"],
     ["Edited tables are saved as feeders_edited.csv and packages_edited.csv", "Las tablas editadas se guardan como feeders_edited.csv y packages_edited.csv", "Bearbeitete Tabellen werden als feeders_edited.csv und packages_edited.csv gespeichert", "Les tables modifiées sont enregistrées en feeders_edited.csv et packages_edited.csv", "Le tabelle modificate vengono salvate come feeders_edited.csv e packages_edited.csv", "編集した表は feeders_edited.csv と packages_edited.csv として保存されます", "编辑后的表保存为 feeders_edited.csv 和 packages_edited.csv", "As tabelas editadas são guardadas como feeders_edited.csv e packages_edited.csv"],
+    ["picked", "recogida", "aufgenommen", "prélevée", "prelevata", "ピック済み", "已拾取", "recolhida"],
+    ["aligned", "alineada", "ausgerichtet", "alignée", "allineata", "整列済み", "已对位", "alinhada"],
+    ["left out", "saltada", "ausgelassen", "ignorée", "saltata", "スキップ", "已跳过", "saltada"],
+    ["not mounted (DNP)", "no montar (DNP)", "nicht bestücken (DNP)", "ne pas monter (DNP)", "non montare (DNP)", "実装しない (DNP)", "不贴装 (DNP)", "não montar (DNP)"],
+    ["failed", "fallo", "fehlgeschlagen", "échec", "fallita", "失敗", "失败", "falha"],
+    ["All states", "Todos los estados", "Alle Zustände", "Tous les états", "Tutti gli stati", "すべての状態", "所有状态", "Todos os estados"],
+    ["Filter: reference, value or feeder", "Filtro: referencia, valor o alimentador", "Filter: Referenz, Wert oder Zuführung", "Filtre : référence, valeur ou alimentateur", "Filtro: riferimento, valore o alimentatore", "フィルター: 参照、値、フィーダー", "筛选：位号、值或供料器", "Filtro: referência, valor ou alimentador"],
+    ["Hide the ones that are done", "Ocultar las terminadas", "Erledigte ausblenden", "Masquer les terminées", "Nascondi quelle completate", "完了を隠す", "隐藏已完成", "Ocultar as concluídas"],
+    ["Clear the filter", "Quitar el filtro", "Filter zurücksetzen", "Effacer le filtre", "Cancella il filtro", "フィルターを解除", "清除筛选", "Limpar o filtro"],
+    ["The job stopped", "El trabajo se detuvo", "Der Auftrag wurde angehalten", "Le travail s'est arrêté", "Il lavoro si è fermato", "ジョブが停止しました", "作业已停止", "O trabalho parou"],
+    ["Retry", "Reintentar", "Wiederholen", "Réessayer", "Riprova", "再試行", "重试", "Tentar de novo"],
+    ["Skip the part", "Saltar la pieza", "Teil auslassen", "Ignorer la pièce", "Salta la parte", "部品をスキップ", "跳过该零件", "Saltar a peça"],
+    ["Put the part aside", "Aplazar la pieza", "Teil zurückstellen", "Mettre la pièce de côté", "Metti da parte la parte", "部品を保留", "搁置该零件", "Adiar a peça"],
+    ["Switch the feeder off", "Apagar el alimentador", "Zuführung abschalten", "Éteindre l'alimentateur", "Spegni l'alimentatore", "フィーダーを停止", "关闭供料器", "Desligar o alimentador"],
+    ["left (estimated)", "restantes (estimado)", "übrig (geschätzt)", "restant (estimé)", "rimanenti (stimato)", "残り（推定）", "剩余（估计）", "restantes (estimado)"],
+    ["Copy the work report", "Copiar el informe de trabajo", "Arbeitsbericht kopieren", "Copier le rapport de travail", "Copia il rapporto di lavoro", "作業レポートをコピー", "复制作业报告", "Copiar o relatório de trabalho"],
+    ["Start or step the job to see the state of each part", "Inicia o avanza el trabajo para ver el estado de cada pieza", "Starte den Auftrag oder gehe einen Schritt, um den Zustand jedes Teils zu sehen", "Démarrez le travail ou faites un pas pour voir l'état de chaque pièce", "Avvia il lavoro o fai un passo per vedere lo stato di ogni parte", "ジョブを開始またはステップ実行すると各部品の状態が表示されます", "启动作业或单步执行后可查看每个零件的状态", "Inicie o trabalho ou avance um passo para ver o estado de cada peça"],
+    ["shown", "mostradas", "angezeigt", "affichées", "mostrate", "表示中", "显示", "mostradas"],
+    ["Progress", "Progreso", "Fortschritt", "Progression", "Avanzamento", "進捗", "进度", "Progresso"],
+    ["Step that failed", "Paso que falló", "Fehlgeschlagener Schritt", "Étape en échec", "Passo fallito", "失敗した工程", "失败的步骤", "Passo que falhou"],
+    ["pick", "recoger", "Aufnehmen", "prélèvement", "prelievo", "ピック", "拾取", "recolha"],
+    ["place", "colocar", "Bestücken", "placement", "posizionamento", "搭載", "贴装", "colocação"],
 ];

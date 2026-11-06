@@ -6,6 +6,7 @@
 
 pub mod app;
 pub mod browse;
+pub mod jobtab;
 pub mod log;
 pub mod problems;
 pub mod samples;

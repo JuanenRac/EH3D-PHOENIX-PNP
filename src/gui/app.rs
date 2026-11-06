@@ -4,6 +4,7 @@
 //! outputs. The window calls these and shows the result, so all of it can be tested without a screen.
 
 use super::browse::{self, Browser, Purpose};
+use super::jobtab::JobFilter;
 use super::log::{Level, Log};
 use super::problems::{self, Fix, Problem};
 use super::samples::SampleFile;
@@ -20,8 +21,9 @@ use crate::error::{Code, Lang, PnpError};
 use crate::export;
 use crate::feeding::FeederSpec;
 use crate::fiducial;
-use crate::job::Phase;
+use crate::job::{Action, Phase};
 use crate::preflight::Severity;
+use crate::report::{self, ReportCheck, ReportInput};
 use std::path::{Path, PathBuf};
 
 /// The tabs of the window.
@@ -40,6 +42,28 @@ pub enum Tab {
 }
 
 impl Tab {
+    /// The name of the tab on the command line.
+    pub fn key(self) -> &'static str {
+        match self {
+            Tab::Job => "job",
+            Tab::Parts => "parts",
+            Tab::Packages => "packages",
+            Tab::Feeders => "feeders",
+            Tab::Panels => "panels",
+            Tab::Boards => "boards",
+            Tab::LoadSheet => "loadsheet",
+            Tab::Machine => "machine",
+            Tab::Problems => "problems",
+            Tab::Log => "log",
+        }
+    }
+
+    /// The tab that a name on the command line stands for, without regard to case.
+    pub fn from_key(text: &str) -> Option<Tab> {
+        let t = text.trim().to_ascii_lowercase();
+        Tab::ALL.into_iter().find(|tab| tab.key() == t)
+    }
+
     pub const ALL: [Tab; 10] = [
         Tab::Job,
         Tab::Parts,
@@ -127,6 +151,8 @@ pub struct AppState {
     pub parts_sort: SortState<PartColumn>,
     pub plan_sort: SortState<PlanColumn>,
     pub feeder_sort: SortState<FeederColumn>,
+    /// What the table of the Job tab is limited to.
+    pub job_filter: JobFilter,
     /// The measured places typed for the fiducials of the panel.
     pub fid_edit: Vec<FidEdit>,
     /// The file picker, when it is open.
@@ -163,6 +189,7 @@ impl AppState {
             parts_sort: SortState::new(PartColumn::Reference),
             plan_sort: SortState::new(PlanColumn::Step),
             feeder_sort: SortState::new(FeederColumn::Id),
+            job_filter: JobFilter::default(),
             fid_edit: Vec::new(),
             browser: None,
             new_package: String::new(),
@@ -405,6 +432,72 @@ impl AppState {
         }
         self.drain_events();
         self.note_finish();
+    }
+
+    /// What the person decides for the job that an error stopped: the job goes on at once. The decision is told in the log; an action that does not fit is told as an error.
+    pub fn decide(&mut self, action: Action) -> bool {
+        let lang = self.ui.lang;
+        match self.session.decide(action) {
+            Ok(()) => {
+                self.reported = None;
+                self.log.info(format!(
+                    "{} - {}",
+                    tr(Text::ErrorTitle, lang),
+                    action.name()
+                ));
+                self.drain_events();
+                true
+            }
+            Err(e) => {
+                self.log.error(e.localized(lang));
+                false
+            }
+        }
+    }
+
+    /// The findings of the plan and the parts not to be mounted, as the report of a job needs them.
+    pub fn report_input(&self) -> ReportInput {
+        let side = self.ws.options.side;
+        ReportInput {
+            dnp: self
+                .ws
+                .dnp
+                .iter()
+                .filter(|d| d.side == side)
+                .map(|d| d.reference.clone())
+                .collect(),
+            checks: self
+                .problems
+                .iter()
+                .map(|p| ReportCheck {
+                    severity: p.severity.name().to_string(),
+                    source: p.about(Lang::En),
+                    message: p.line(Lang::En),
+                })
+                .collect(),
+        }
+    }
+
+    /// The work report of the job in the language of the window, for the clipboard; none while there is no job.
+    pub fn report_text(&self) -> Option<String> {
+        let job = self.session.job()?;
+        Some(report::build(job, &self.report_input()).text(self.ui.lang))
+    }
+
+    /// Makes up to `n` steps of the job, one after the other (the job is made if there is none), and stops early when it finishes or an error stops it. Gives how many were made.
+    pub fn run_steps(&mut self, n: u32) -> u32 {
+        let mut made = 0;
+        for _ in 0..n {
+            if matches!(self.session.phase(), Some(Phase::Finished | Phase::Stopped)) {
+                break;
+            }
+            self.step();
+            if !self.session.has_job() {
+                break;
+            }
+            made += 1;
+        }
+        made
     }
 
     /// Drops the job; the plan stays.

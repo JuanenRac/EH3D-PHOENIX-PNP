@@ -4,6 +4,7 @@
 //! waits a number of frames so that the drawing is complete, saves what it drew as a PNG file and closes by itself. In this mode the window keeps no settings, so a run leaves
 //! nothing of the person's changed.
 
+use super::app::Tab;
 use super::theme::ThemeId;
 use crate::error::Lang;
 use std::path::PathBuf;
@@ -16,6 +17,8 @@ pub const SIZE_MAX: u32 = 8192;
 pub const DEFAULT_SIZE: (u32, u32) = (1180, 760);
 /// The frames drawn before the picture is taken when `--wait` is not given.
 pub const DEFAULT_WAIT: u32 = 6;
+/// The most steps `--steps` may ask for.
+pub const STEPS_MAX: u32 = 100_000;
 /// The most frames `--wait` may ask for.
 pub const WAIT_MAX: u32 = 3600;
 /// The frames after the one asked for in which the picture may still come back; after them the run fails.
@@ -45,6 +48,10 @@ pub struct WindowArgs {
     pub lang: Option<Lang>,
     /// The picture mode: the window opens, saves a PNG file and closes by itself.
     pub shot: Option<ShotRequest>,
+    /// The tab the picture shows (`--window NAME`); none leaves the window on the tab it opens on.
+    pub window: Option<Tab>,
+    /// The steps of the simulated job that are made before the picture (`--steps N`); none makes none.
+    pub steps: Option<u32>,
 }
 
 /// Reads a size written `WIDTHxHEIGHT` (`1280x720`, also with a capital X), each side between [`SIZE_MIN`] and [`SIZE_MAX`].
@@ -70,8 +77,8 @@ struct PictureOptions {
     replace: bool,
 }
 
-/// Reads the arguments of the window (after an optional leading `gui`): `--shot FILE.png`, `--size WxH`, `--theme`, `--wait N`, `--replace`, `--lang CODE`, `--open FILE` and bare
-/// file names, of which at most `max_files` are accepted. The answer for a mistake is the reason.
+/// Reads the arguments of the window (after an optional leading `gui`): `--shot FILE.png`, `--size WxH`, `--theme`, `--wait N`, `--replace`, `--window TAB`, `--steps N`,
+/// `--lang CODE`, `--open FILE` and bare file names, of which at most `max_files` are accepted. The answer for a mistake is the reason.
 pub fn parse_window_args(args: &[String], max_files: usize) -> Result<WindowArgs, String> {
     let args = if args.first().is_some_and(|a| a == "gui") {
         &args[1..]
@@ -117,6 +124,21 @@ pub fn parse_window_args(args: &[String], max_files: usize) -> Result<WindowArgs
                 let tag = iter.next().ok_or("--lang needs a language code")?;
                 parsed.lang = Some(Lang::from_code(tag).ok_or("unknown language code")?);
             }
+            "--window" => {
+                let text = iter.next().ok_or("--window needs the name of a tab")?;
+                parsed.window = Some(Tab::from_key(text).ok_or(
+                    "--window is job, parts, packages, feeders, panels, boards, loadsheet, machine, problems or log",
+                )?);
+            }
+            "--steps" => {
+                let text = iter.next().ok_or("--steps needs a number of steps")?;
+                parsed.steps = Some(
+                    text.parse::<u32>()
+                        .ok()
+                        .filter(|n| *n <= STEPS_MAX)
+                        .ok_or("--steps is a number of steps from 0 to 100000")?,
+                );
+            }
             "--replace" => picture.replace = true,
             "--open" => {
                 let path = iter.next().ok_or("--open needs a file")?;
@@ -145,6 +167,9 @@ pub fn parse_window_args(args: &[String], max_files: usize) -> Result<WindowArgs
             None
         }
     };
+    if parsed.shot.is_none() && (parsed.window.is_some() || parsed.steps.is_some()) {
+        return Err("--window and --steps need --shot".to_owned());
+    }
     Ok(parsed)
 }
 
