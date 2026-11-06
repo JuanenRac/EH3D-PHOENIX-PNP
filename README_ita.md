@@ -18,7 +18,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 324 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e non è stato verificato su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 344 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e non è stato verificato su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versione | `0.0.5` |
 | Maturità | Impalcatura |
-| Test | 324 |
+| Test | 344 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -47,7 +47,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (priorità, vassoio, striscia), pianifica l'ordine di posizionamento per una testa fino a sei ugelli con ranghi, punte degli ugelli, limiti d'angolo e il tempo dei movimenti, pianifica pannelli e scrive il foglio di carico; provato su un computer con ingressi normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `phoenix-pnp` esegue le stesse funzioni della libreria (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`) e stampa il risultato; ogni errore torna come messaggio con il suo codice `PHOENIX-PNP-NNN` e un codice di uscita diverso da zero. |
-| Test | 🟡 | 324 test passano (`cargo test`), con casi normali, casi limite, ingressi danneggiati e piccoli casi generati. |
+| Test | 🟡 | 344 test passano (`cargo test`), con casi normali, casi limite, ingressi danneggiati e piccoli casi generati. |
 | Configurazione della macchina | 🟡 | un file `chiave = valore` con versione, un validatore che nomina la riga e i limiti di sicurezza (corsa di Z, limiti di X e Y, nuovi tentativi, angoli dell'ugello); i valori non sono stati confrontati con una macchina reale. |
 | Simulatore e lavoro | 🟡 | un orologio virtuale, guasti iniettati a caso (con un seme) o in un punto scelto, nuovi tentativi, le politiche allerta e rinvio, alimentatori che si spengono dopo guasti ripetuti, pausa, passo dopo passo e uno stato salvato da cui riprendere; simula soltanto, nulla ha mosso una macchina. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
@@ -67,6 +67,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Pannelli, foglio di carico ed esportazioni** (`src/panel.rs`, `src/loadsheet.rs`, `src/export.rs`): schede e pannelli dentro pannelli, lo slot di ogni tipo di nastro, un rapporto, l'elenco di ciò che manca e un G-code che sposta solo la testa.
 * **Fiduciali di un pannello** (`src/fiducial.rs`): le posizioni misurate dei segni vengono adattate a quelle progettate (una similitudine con due segni, un adattamento affine con tre o più) e le parti del pannello vengono spostate e ruotate dall'adattamento; ogni segno ha il suo residuo, e un adattamento che manca un segno di più di `fiducial_max_residual_mm` viene rifiutato (`--fiducials FILE` con `--panel`, o la scheda Pannelli della finestra).
 * **Altro dal pianificatore e dal simulatore:** l'ordine in cui si svuotano le celle di un vassoio (righe, colonne o serpentina), una ricerca dell'ordine delle punte dell'ugello che conta il percorso e il viaggio al cambio punta (`tip_strategy = optimize`, limitata da `tip_opt_max_evals` e `tip_opt_time_limit_s`), probabilità di guasto per package e per alimentatore (`sim_part_fail`, `sim_feeder_fail`) con statistiche per package e per alimentatore e le parti all'ora, e `check-bottom`, che mostra l'angolo che dà ogni regola del lato inferiore.
+* **Il passo di allineamento** (`src/job.rs`, `src/sim.rs`, `src/model.rs`): con `align = on` il lavoro guarda ogni componente con la telecamera dopo il prelievo e corregge il posizionamento in base a ciò che vede (la testa va al punto meno lo scostamento del componente, e l'ugello ruota meno della rotazione del componente); `pick_tolerance_mm` scarta un componente più fuori posto, che viene prelevato di nuovo come dice `error_policy`; `align_passes` (da 1 a 5) e `align_settle_s` fissano gli sguardi e l'attesa prima di ciascuno, che si sommano al tempo del piano; la telecamera simulata ha uno scostamento, un errore e guasti iniettabili (`sim_align_*`, `sim_camera_fail_rate`); e la correzione (media, massima, componenti scartati) compare nel testo, nel rapporto JSON e nelle righe `align` di `--report-csv`. Spento per impostazione predefinita: un lavoro è allora quello di sempre. Non provato su una macchina.
 * **Il simulatore e il lavoro** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): i controlli prima di un lavoro, una macchina con orologio virtuale e guasti iniettabili, e un lavoro che si può mettere in pausa, eseguire passo dopo passo, salvare e riprendere.
 * **La finestra** (`src/gui.rs`, `src/gui/`): ciò che la finestra fa oltre a disegnare non ha bisogno di schermo (i file caricati, il piano e i suoi problemi con correzioni, il lavoro simulato, la geometria della mappa, le tabelle con selezione condivisa, la guida in cinque passi e i testi in otto lingue) ed è testato; solo `src/gui/window.rs`, compilato con `--features gui`, lo disegna con egui. La velocità della simulazione, il tema e la dimensione disegnata per una parte di package sconosciuto sono chiavi di `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -150,6 +151,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   la macchina simulata: orologio virtuale e guasti iniettabili
 │   └── units.rs                                 lunghezze e posizioni che portano la loro unità
 ├── tests/
+│   ├── align.rs                                 test del passo di allineamento: telecamera, posizione corretta, tolleranza e tempo
 │   ├── commands.rs                              test dei comandi che usano la configurazione
 │   ├── feeding.rs                               test degli alimentatori: priorità, vassoi e strisce
 │   ├── gui.rs                                   test della finestra senza schermo: stato, piano, lavoro, mappa, tabelle e guida
@@ -236,6 +238,8 @@ Le tabelle di package e parti (`--packages`, `--catalog`) sono file CSV in cui u
 | `PHOENIX-PNP-032` | I fiduciali non sono validi o non danno una posizione |
 | `PHOENIX-PNP-033` | Un segno di montaggio non è né sì né no, oppure un riferimento da escludere non è noto |
 | `PHOENIX-PNP-034` | Il file delle posizioni non è valido |
+| `PHOENIX-PNP-035` | La telecamera ha trovato il componente più spostato di quanto consenta la tolleranza |
+| `PHOENIX-PNP-036` | La telecamera non ha fornito alcuna misura del componente |
 
 ## 🚀 Avvio rapido
 
@@ -263,7 +267,7 @@ L'ultima riga apre la finestra; lo fa anche `phoenix-pnp` senza comando se è st
 
 ## 🧪 Test
 
-La suite ha 324 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli ingressi danneggiati: file vuoti, spazzatura e file tagliati non provocano mai un panic. Piccoli casi generati (da un seme fisso, quindi con gli stessi numeri a ogni esecuzione) verificano che il piano non dipenda dall'ordine dei file, che un percorso non si allunghi mai, che un lavoro salvato e ripreso in qualsiasi punto finisca come quello che non si è mai fermato, e che lunghezze e angoli si convertano avanti e indietro. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 344 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli ingressi danneggiati: file vuoti, spazzatura e file tagliati non provocano mai un panic. Piccoli casi generati (da un seme fisso, quindi con gli stessi numeri a ogni esecuzione) verificano che il piano non dipenda dall'ordine dei file, che un percorso non si allunghi mai, che un lavoro salvato e ripreso in qualsiasi punto finisca come quello che non si è mai fermato, e che lunghezze e angoli si convertano avanti e indietro. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -322,6 +326,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   la macchina simulata: orologio virtuale e guasti iniettabili
 │   └── units.rs                                 lunghezze e posizioni che portano la loro unità
 ├── tests/
+│   ├── align.rs                                 test del passo di allineamento: telecamera, posizione corretta, tolleranza e tempo
 │   ├── commands.rs                              test dei comandi che usano la configurazione
 │   ├── feeding.rs                               test degli alimentatori: priorità, vassoi e strisce
 │   ├── gui.rs                                   test della finestra senza schermo: stato, piano, lavoro, mappa, tabelle e guida

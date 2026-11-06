@@ -18,7 +18,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 324 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e não foi verificado num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
+**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 344 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e não foi verificado num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versão | `0.0.5` |
 | Maturidade | Estrutura inicial |
-| Testes | 324 |
+| Testes | 344 |
 | Tecnologias | Rust |
 | Em hardware real | Não experimentado: nada disto correu numa máquina |
 
@@ -47,7 +47,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 |---|---|---|
 | Núcleo | 🟡 | lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (prioridade, tabuleiro, tira), planeia a ordem de colocação para uma cabeça de até seis bicos com níveis, pontas de bico, limites de ângulo e o tempo dos movimentos, planeia painéis e escreve a folha de carga; testado num computador com entradas normais e danificadas, não com uma coleção de ficheiros reais. |
 | Linha de comandos | 🟡 | `phoenix-pnp` executa as mesmas funções da biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`) e imprime o resultado; cada erro volta como uma mensagem com o seu código `PHOENIX-PNP-NNN` e um código de saída diferente de zero. |
-| Testes | 🟡 | 324 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
+| Testes | 🟡 | 344 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
 | Configuração da máquina | 🟡 | um ficheiro `chave = valor` com versão, um validador que indica a linha e os limites de segurança (curso de Z, limites de X e Y, repetições, ângulos do bico); os valores não foram comparados com uma máquina real. |
 | Simulador e trabalho | 🟡 | um relógio virtual, falhas injetadas ao acaso (com semente) ou num sítio escolhido, repetições, as políticas alerta e adiar, alimentadores que se desligam após falhas repetidas, pausa, passo a passo e um estado guardado para retomar; apenas simula, nada moveu uma máquina. |
 | Segurança | 🟡 | Rust seguro e simples (`forbid(unsafe_code)`): nada entra em pânico com os ficheiros recebidos e um valor mau é um erro com o seu motivo; sem revisão independente. |
@@ -67,6 +67,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 * **Painéis, folha de carga e exportações** (`src/panel.rs`, `src/loadsheet.rs`, `src/export.rs`): placas e painéis dentro de painéis, a ranhura de cada tipo de fita, um relatório, a lista do que falta e um G-code que só move a cabeça.
 * **Fiduciais de um painel** (`src/fiducial.rs`): os lugares medidos das marcas são ajustados aos desenhados (uma semelhança com duas marcas, um ajuste afim com três ou mais) e as peças do painel são movidas e rodadas pelo ajuste; cada marca tem o seu resíduo, e um ajuste que falha uma marca em mais de `fiducial_max_residual_mm` é recusado (`--fiducials FICHEIRO` com `--panel`, ou o separador Painéis da janela).
 * **Mais do planeador e do simulador:** a ordem em que as células de um tabuleiro são esvaziadas (linhas, colunas ou serpente), uma procura da ordem das pontas do bico que conta o percurso e a viagem ao trocador (`tip_strategy = optimize`, limitada por `tip_opt_max_evals` e `tip_opt_time_limit_s`), probabilidades de falha por encapsulamento e por alimentador (`sim_part_fail`, `sim_feeder_fail`) com estatísticas por encapsulamento e por alimentador e as peças por hora, e `check-bottom`, que mostra o ângulo que cada regra da face inferior dá.
+* **O passo de alinhamento** (`src/job.rs`, `src/sim.rs`, `src/model.rs`): com `align = on` o trabalho olha para cada peça com a câmara depois de a recolher e corrige a colocação pelo que vê (a cabeça vai ao lugar menos o desvio da peça e o bocal roda menos a rotação da peça); `pick_tolerance_mm` deita fora uma peça mais desviada, que é recolhida de novo como diz `error_policy`; `align_passes` (de 1 a 5) e `align_settle_s` definem os olhares e a espera antes de cada um, que se somam ao tempo do plano; a câmara simulada tem um desvio, um erro e falhas que se podem injetar (`sim_align_*`, `sim_camera_fail_rate`); e a correção (média, maior, peças deitadas fora) aparece no texto, no relatório JSON e nas linhas `align` de `--report-csv`. Desligado por defeito: um trabalho é então o de sempre. Não testado numa máquina.
 * **O simulador e o trabalho** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): as verificações antes de um trabalho, uma máquina com relógio virtual e falhas que se podem injetar, e um trabalho que se pode pôr em pausa, executar passo a passo, guardar e retomar.
 * **A janela** (`src/gui.rs`, `src/gui/`): o que a janela faz além de desenhar não precisa de ecrã (os ficheiros carregados, o plano e os seus problemas com correções, o trabalho simulado, a geometria do mapa, as tabelas com seleção partilhada, o assistente de cinco passos e os textos em oito idiomas) e é testado; só `src/gui/window.rs`, compilado com `--features gui`, a desenha com egui. A velocidade da simulação, o tema e o tamanho desenhado para uma peça de encapsulamento desconhecido são chaves de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -150,6 +151,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   a máquina simulada: relógio virtual e falhas que se podem injetar
 │   └── units.rs                                 comprimentos e lugares que levam a sua unidade
 ├── tests/
+│   ├── align.rs                                 testes do passo de alinhamento: câmara, lugar corrigido, tolerância e tempo
 │   ├── commands.rs                              testes dos comandos que usam a configuração
 │   ├── feeding.rs                               testes dos alimentadores: prioridade, tabuleiros e tiras
 │   ├── gui.rs                                   testes da janela sem ecrã: estado, plano, trabalho, mapa, tabelas e assistente
@@ -236,6 +238,8 @@ As tabelas de encapsulamentos e de peças (`--packages`, `--catalog`) são fiche
 | `PHOENIX-PNP-032` | Os fiduciais não são válidos ou não dão uma posição |
 | `PHOENIX-PNP-033` | Uma marca de montagem não é sim nem não, ou uma referência a omitir não é conhecida |
 | `PHOENIX-PNP-034` | O ficheiro de posições não é válido |
+| `PHOENIX-PNP-035` | A câmara encontrou a peça mais deslocada do que a tolerância permite |
+| `PHOENIX-PNP-036` | A câmara não deu nenhuma leitura da peça |
 
 ## 🚀 Início rápido
 
@@ -263,7 +267,7 @@ A última linha abre a janela; `phoenix-pnp` sem comando também a abre se foi c
 
 ## 🧪 Testes
 
-O conjunto tem 324 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
+O conjunto tem 344 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilação e publicação
 
@@ -322,6 +326,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   a máquina simulada: relógio virtual e falhas que se podem injetar
 │   └── units.rs                                 comprimentos e lugares que levam a sua unidade
 ├── tests/
+│   ├── align.rs                                 testes do passo de alinhamento: câmara, lugar corrigido, tolerância e tempo
 │   ├── commands.rs                              testes dos comandos que usam a configuração
 │   ├── feeding.rs                               testes dos alimentadores: prioridade, tabuleiros e tiras
 │   ├── gui.rs                                   testes da janela sem ecrã: estado, plano, trabalho, mapa, tabelas e assistente

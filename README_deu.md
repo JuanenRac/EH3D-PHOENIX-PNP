@@ -18,7 +18,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 324 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt und wurde nicht auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 344 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt und wurde nicht auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.5` |
 | Reifegrad | Gerüst |
-| Tests | 324 |
+| Tests | 344 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -47,7 +47,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (Priorität, Tray, Streifen), plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen mit Rängen, Düsenspitzen, Winkelgrenzen und der Zeit der Bewegungen, plant Panels und schreibt die Ladeliste; auf einem Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `phoenix-pnp` führt dieselben Funktionen wie die Bibliothek aus (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`) und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit seinem Code `PHOENIX-PNP-NNN` und einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 324 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen, beschädigten Eingaben und kleinen erzeugten Fällen. |
+| Tests | 🟡 | 344 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen, beschädigten Eingaben und kleinen erzeugten Fällen. |
 | Maschinenkonfiguration | 🟡 | eine Datei `Schlüssel = Wert` mit Version, ein Prüfer, der die Zeile nennt, und die Sicherheitsgrenzen (Z-Weg, Grenzen von X und Y, Wiederholungen, Düsenwinkel); die Werte wurden nicht mit einer echten Maschine verglichen. |
 | Simulator und Auftrag | 🟡 | eine virtuelle Uhr, zufällig (mit Startwert) oder an gewählter Stelle eingespeiste Fehler, Wiederholungen, die Richtlinien Alarm und Aufschieben, Zuführer, die nach wiederholten Fehlern abschalten, Pause, Einzelschritte und ein gespeicherter Zustand zum Fortsetzen; es simuliert nur, nichts hat eine Maschine bewegt. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
@@ -67,6 +67,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 * **Panels, Ladeliste und Exporte** (`src/panel.rs`, `src/loadsheet.rs`, `src/export.rs`): Platinen und Panels in Panels, der Platz jeder Gurtart, ein Bericht, die Liste des Fehlenden und ein G-Code, der nur den Kopf bewegt.
 * **Passmarken eines Nutzens** (`src/fiducial.rs`): die gemessenen Lagen der Marken werden an die entworfenen angepasst (eine Ähnlichkeitsabbildung mit zwei Marken, eine affine Anpassung mit drei oder mehr), und die Teile des Nutzens werden mit der Anpassung verschoben und gedreht; jede Marke hat ihren Restfehler, und eine Anpassung, die eine Marke um mehr als `fiducial_max_residual_mm` verfehlt, wird abgelehnt (`--fiducials DATEI` mit `--panel` oder der Reiter Nutzen des Fensters).
 * **Mehr vom Planer und vom Simulator:** die Reihenfolge, in der die Zellen eines Trays geleert werden (Zeilen, Spalten oder Schlangenlinie), eine Suche nach der Reihenfolge der Düsenspitzen, die den Weg und die Fahrt zum Wechsler zählt (`tip_strategy = optimize`, begrenzt durch `tip_opt_max_evals` und `tip_opt_time_limit_s`), Ausfallwahrscheinlichkeiten je Gehäuse und je Zuführer (`sim_part_fail`, `sim_feeder_fail`) mit Statistiken je Gehäuse und je Zuführer und den Teilen pro Stunde sowie `check-bottom`, das den Winkel zeigt, den jede Regel der Unterseite ergibt.
+* **Der Ausrichtschritt** (`src/job.rs`, `src/sim.rs`, `src/model.rs`): Mit `align = on` sieht sich der Auftrag jedes Teil nach dem Aufnehmen mit der Kamera an und korrigiert die Platzierung nach dem Gesehenen (der Kopf fährt zum Platz abzüglich des Versatzes des Teils, und die Düse dreht um dessen Drehung weniger); `pick_tolerance_mm` wirft ein Teil weg, das weiter daneben liegt, und es wird so neu aufgenommen, wie `error_policy` es sagt; `align_passes` (1 bis 5) und `align_settle_s` legen die Blicke und das Warten vor jedem fest und zählen zur Zeit des Plans; die simulierte Kamera hat einen Versatz, einen Fehler und einspeisbare Ausfälle (`sim_align_*`, `sim_camera_fail_rate`); und die Korrektur (Mittel, größte, weggeworfene Teile) steht im Text, im JSON-Bericht und in den `align`-Zeilen von `--report-csv`. Standardmäßig aus: Ein Auftrag ist dann derselbe wie immer. Nicht an einer Maschine erprobt.
 * **Der Simulator und der Auftrag** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): die Prüfungen vor einem Auftrag, eine Maschine mit virtueller Uhr und einspeisbaren Fehlern und ein Auftrag, der pausiert, Schritt für Schritt ausgeführt, gespeichert und fortgesetzt werden kann.
 * **Das Fenster** (`src/gui.rs`, `src/gui/`): was das Fenster außer dem Zeichnen tut, braucht keinen Bildschirm (die geladenen Dateien, der Plan und seine Probleme mit Lösungen, der simulierte Auftrag, die Geometrie der Karte, die Tabellen mit gemeinsamer Auswahl, der Assistent in fünf Schritten und die Texte in acht Sprachen) und wird getestet; nur `src/gui/window.rs`, gebaut mit `--features gui`, zeichnet es mit egui. Die Geschwindigkeit der Simulation, das Design und die Größe, die für ein Teil mit unbekanntem Gehäuse gezeichnet wird, sind Schlüssel von `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -150,6 +151,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   die simulierte Maschine: virtuelle Uhr und einspeisbare Fehler
 │   └── units.rs                                 Längen und Orte, die ihre Einheit tragen
 ├── tests/
+│   ├── align.rs                                 Tests des Ausrichtschritts: Kamera, korrigierter Platz, Toleranz und Zeit
 │   ├── commands.rs                              Tests der Befehle, die die Konfiguration nutzen
 │   ├── feeding.rs                               Tests der Zuführer: Priorität, Trays und Streifen
 │   ├── gui.rs                                   Tests des Fensters ohne Bildschirm: Zustand, Plan, Auftrag, Karte, Tabellen und Assistent
@@ -236,6 +238,8 @@ Die Tabellen der Gehäuse und Teile (`--packages`, `--catalog`) sind CSV-Dateien
 | `PHOENIX-PNP-032` | Die Passmarken sind ungültig oder ergeben keine Lage |
 | `PHOENIX-PNP-033` | Eine Bestückungsmarkierung ist weder ja noch nein, oder eine auszulassende Referenz ist unbekannt |
 | `PHOENIX-PNP-034` | Die Positionsdatei ist ungültig |
+| `PHOENIX-PNP-035` | Die Kamera fand das Teil weiter verschoben, als die Toleranz erlaubt |
+| `PHOENIX-PNP-036` | Die Kamera lieferte keine Messung des Teils |
 
 ## 🚀 Schnellstart
 
@@ -263,7 +267,7 @@ Die letzte Zeile öffnet das Fenster; das tut auch `phoenix-pnp` ohne Befehl, we
 
 ## 🧪 Tests
 
-Die Suite hat 324 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt). Sie prüfen die Normalfälle, die Grenzfälle und beschädigte Eingaben: leere Dateien, Müll und abgeschnittene Dateien führen nie zu einer Panik. Kleine erzeugte Fälle (aus einem festen Startwert, also mit denselben Zahlen bei jedem Lauf) prüfen, dass der Plan nicht von der Reihenfolge der Dateien abhängt, dass ein Weg nie länger wird, dass ein irgendwo gespeicherter und fortgesetzter Auftrag genauso endet wie einer, der nie angehalten wurde, und dass sich Längen und Winkel hin und zurück umrechnen lassen. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 344 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt). Sie prüfen die Normalfälle, die Grenzfälle und beschädigte Eingaben: leere Dateien, Müll und abgeschnittene Dateien führen nie zu einer Panik. Kleine erzeugte Fälle (aus einem festen Startwert, also mit denselben Zahlen bei jedem Lauf) prüfen, dass der Plan nicht von der Reihenfolge der Dateien abhängt, dass ein Weg nie länger wird, dass ein irgendwo gespeicherter und fortgesetzter Auftrag genauso endet wie einer, der nie angehalten wurde, und dass sich Längen und Winkel hin und zurück umrechnen lassen. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 
@@ -322,6 +326,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   die simulierte Maschine: virtuelle Uhr und einspeisbare Fehler
 │   └── units.rs                                 Längen und Orte, die ihre Einheit tragen
 ├── tests/
+│   ├── align.rs                                 Tests des Ausrichtschritts: Kamera, korrigierter Platz, Toleranz und Zeit
 │   ├── commands.rs                              Tests der Befehle, die die Konfiguration nutzen
 │   ├── feeding.rs                               Tests der Zuführer: Priorität, Trays und Streifen
 │   ├── gui.rs                                   Tests des Fensters ohne Bildschirm: Zustand, Plan, Auftrag, Karte, Tabellen und Assistent

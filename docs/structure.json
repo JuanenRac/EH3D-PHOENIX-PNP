@@ -555,6 +555,19 @@
       "accent": "d",
       "rows": [
         {
+          "name": "align.rs",
+          "desc": {
+            "en": "tests of the align step: camera, corrected place, tolerance and time",
+            "es": "pruebas del paso de alineación: cámara, colocación corregida, tolerancia y tiempo",
+            "de": "Tests des Ausrichtschritts: Kamera, korrigierter Platz, Toleranz und Zeit",
+            "fr": "tests de l'étape d'alignement : caméra, place corrigée, tolérance et temps",
+            "it": "test del passo di allineamento: telecamera, posizione corretta, tolleranza e tempo",
+            "ja": "アライメント工程のテスト：カメラ、補正した位置、許容差、時間",
+            "zh": "对位步骤的测试：相机、修正后的位置、容差和时间",
+            "pt": "testes do passo de alinhamento: câmara, lugar corrigido, tolerância e tempo"
+          }
+        },
+        {
           "name": "commands.rs",
           "desc": {
             "en": "tests of the commands that use the configuration",
