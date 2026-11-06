@@ -24,3 +24,4 @@ pub mod preflight;
 pub mod rotation;
 pub mod sim;
 pub mod units;
+pub mod vision;
