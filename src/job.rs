@@ -89,6 +89,10 @@ pub fn combined_chance(a: f64, b: f64) -> f64 {
     1.0 - (1.0 - a) * (1.0 - b)
 }
 
+/// The header of `Job::stats_csv`: it never changes, so a sheet that reads the report keeps working.
+pub const STATS_CSV_HEADER: &str =
+    "section,name,value,picked,pick_failures,placed,place_failures,faults,disabled";
+
 /// The statistics of the job.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Stats {
@@ -670,6 +674,57 @@ impl Job {
         }))
         .unwrap_or_default()
             + "\n"
+    }
+
+    /// The report of the job as a CSV with the header `STATS_CSV_HEADER`: the `total` rows (name and value), a row for each package and each feeder, and a row for each part put aside
+    /// with the reason in `value`.
+    pub fn stats_csv(&self) -> String {
+        let s = &self.stats;
+        let seconds = self.machine.now_us() as f64 / 1e6;
+        let mut out = format!("{STATS_CSV_HEADER}\n");
+        let totals: [(&str, String); 10] = [
+            ("placed", s.placed.to_string()),
+            ("deferred", s.deferred.to_string()),
+            ("of", self.status.len().to_string()),
+            ("seconds", format!("{seconds:.3}")),
+            ("parts_per_hour", format!("{:.1}", self.parts_per_hour())),
+            ("feed_failures", s.feed_failures.to_string()),
+            ("pick_attempts", s.pick_attempts.to_string()),
+            ("pick_failures", s.pick_failures.to_string()),
+            ("place_failures", s.place_failures.to_string()),
+            ("tip_changes", s.tip_changes.to_string()),
+        ];
+        for (name, value) in totals {
+            out.push_str(&format!("total,{name},{value},,,,,,\n"));
+        }
+        for k in &s.kinds {
+            out.push_str(&format!(
+                "package,{},,{},{},{},{},,\n",
+                crate::parts::csv_field(&k.package),
+                k.picked,
+                k.pick_failures,
+                k.placed,
+                k.place_failures
+            ));
+        }
+        for f in &s.feeders {
+            out.push_str(&format!(
+                "feeder,{},,{},{},,,{},{}\n",
+                crate::parts::csv_field(&f.id),
+                f.picked,
+                f.pick_failures,
+                f.faults,
+                if f.disabled { "yes" } else { "no" }
+            ));
+        }
+        for (reference, why) in self.deferred() {
+            out.push_str(&format!(
+                "deferred,{},{},,,,,,\n",
+                crate::parts::csv_field(&reference),
+                crate::parts::csv_field(&why)
+            ));
+        }
+        out
     }
 
     /// The state of the job as JSON, to resume it later: where it is, what each part is, what is left in each feeder, and the generators of the simulator.
