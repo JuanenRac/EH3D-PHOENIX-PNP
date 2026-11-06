@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 308 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内，也没有在屏幕上检查过。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 324 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内，也没有在屏幕上检查过。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.0.5` |
 | 成熟度 | 脚手架 |
-| 测试 | 308 |
+| 测试 | 324 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -46,8 +46,8 @@
 | 领域 | 状态 | 在这里的含义 |
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
-| 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 308 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
+| 测试 | 🟡 | 324 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -58,6 +58,7 @@
 ## 🎯 概述
 
 * **元件**（`src/parts.rs`）：KiCad 的 `.pos` 文件或 CSV（逗号或分号、引号、按名称查找表头），位置单位可为 mm、mil 或英寸，角度归一到 0-360，面为顶面或底面；每个不合理的行都会带行号被拒绝，重复的位号是错误。
+* **不贴装的零件、示例的表格和作业报告**（`src/parts.rs`、`src/commands.rs`、`src/job.rs`）：CSV 中名为 `dnp`、`do not place` 或 `fitted` 的列（或 `--dnp R1,R2`）会让零件不进入计划、上料表和检查，并在报告中列出；`tables-check` 读取表格（`--parts`、`--packages`、`--catalog`、`--feeders`、`--slots`），并给出每个错误的代码和行号；`simulate --report-csv 文件` 把作业统计写成表头永不改变的 CSV。`examples/` 里有带 `dnp` 列的电路板、各种供料器以及常见封装表。
 * **供料器**（`src/feeders.rs`）：供料器的 CSV（编号、值、封装、取料位置、剩余数量）；每个元件得到第一个值和封装相同（不区分大小写）的供料器；没有供料器的元件和将耗尽的供料器会被报告，同类的第二个供料器接替。
 * **计划**（`src/plan.rs`）：按最近优先走过各贴装位置，并切分成一到六个吸嘴的批次，批内供料器也按最近优先访问，底面按板宽镜像，计划给出行程和时间估计，并写成 JSON 作业。
 * **表格与设置**（`src/catalog.rs`、`src/config.rs`、`src/rotation.rs`）：数值可继承的零件表和封装表（先零件，再封装，再默认值）、`键 = 值` 格式的机器配置文件（`examples/machine.cfg` 说明每个键）、CSV 位置文件列名的更多写法，以及按封装的旋转修正。
@@ -110,7 +111,7 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               零件表和封装表及其属性的继承
 │   ├── cli_args.rs                              命令行参数，严格：未知选项即错误
-│   ├── commands.rs                              使用配置的命令，以及 check-bottom
+│   ├── commands.rs                              使用配置的命令、tables-check 和 check-bottom
 │   ├── config.rs                                机器的配置文件：键、范围和安全限制
 │   ├── error.rs                                 错误代码 PHOENIX-PNP-NNN 及其八种语言的含义
 │   ├── export.rs                                报告、缺料清单和移动的 G 代码
@@ -141,7 +142,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 以 trait 表示的机器部件：机器、吸嘴、供料器、执行器、相机、驱动
 │   ├── motion.rs                                包含加速度和加加速度的移动时间
 │   ├── panel.rs                                 拼板：拼板中的电路板和拼板，各在其位
-│   ├── parts.rs                                 逻辑的一部分
+│   ├── parts.rs                                 位置文件和不贴装的零件
 │   ├── plan.rs                                  逻辑的一部分
 │   ├── planner.rs                               了解机器的规划器：等级、顺序、吸嘴头及其搜索、角度和时间
 │   ├── preflight.rs                             作业前的检查，含严重程度及其所指对象
@@ -162,14 +163,18 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             作业前检查的测试
 │   ├── readme.rs                                验证 README 可运行且完整的测试
 │   ├── sim.rs                                   模拟机器的测试
-│   └── strict.rs                                命令行测试：它不认识的选项和词
+│   ├── strict.rs                                命令行测试：它不认识的选项和词
+│   └── tables.rs                                不贴装零件、tables-check 以及作业 CSV 报告的测试
 ├── examples/
 │   ├── board.pos                                试用的示例
+│   ├── board_dnp.csv                            带 dnp 列的电路板：其中两个零件不贴装
 │   ├── catalog.csv                              零件表：等级和高度
 │   ├── feeders.csv                              试用的示例
+│   ├── feeders_kinds.csv                        各种供料器：料带、料条、托盘和一个已关闭的
 │   ├── machine.cfg                              机器设置，每个键均有说明
 │   ├── marks.csv                                拼板基准点的实测位置
 │   ├── packages.csv                             封装表：高度、吸嘴头、等级和料带
+│   ├── packages_common.csv                      常见封装表（从 0201 电阻到 QFN），请按自己的零件调整
 │   ├── panel.json                               由两块板组成的拼板
 │   └── slots.csv                                机器的槽位
 ├── docs/
@@ -190,6 +195,8 @@ EH3D-PHOENIX-PNP/
 ## ⚙️ 配置
 
 机器和规划器通过由 `键 = 值` 行组成的文本文件配置（`--config 文件`），格式与套件中其他程序相同；`examples/machine.cfg` 列出每个键的默认值及作用。缺少的键保持默认值；未知的键、重复书写的键或超出范围的键都会产生指出行号的错误。命令行选项（`--nozzles`、`--speed`、`--order`、`--side`）优先于文件。
+
+标记零件不贴装的列及其用词也是设置：`header_dnp` 和 `header_fitted` 增加列名，`dnp_yes_words` 和 `dnp_no_words` 增加表示“是”和“否”的词。名为 `dnp`、`do not place`、`do not populate`、`do not mount`、`do_not_place`、`not fitted` 或 `no montar` 的列，遇到“是”（`yes`、`y`、`true`、`1`、`x`）就排除该零件；名为 `fitted`、`populate`、`populated`、`mount`、`mounted` 或 `montar` 的列，遇到“否”（`no`、`n`、`false`、`0`、`-`）就排除该零件；空单元格表示贴装，其他任何词都是指出行号的错误。
 
 封装表和零件表（`--packages`、`--catalog`）是 CSV 文件，空单元格会继承；拼板（`--panel`）是 JSON 文件；机器的槽位（`loadsheet`）是带 `id,x,y,max_width_mm` 的 CSV。超过 `max_file_bytes` 的文件会被拒绝。每个错误都有代码 `PHOENIX-PNP-NNN`，其消息使用键 `language` 或 `--lang` 指定的语言（`en`、`es`、`de`、`fr`、`it`、`ja`、`zh` 或 `pt`）：
 
@@ -227,6 +234,8 @@ EH3D-PHOENIX-PNP/
 | `PHOENIX-PNP-030` | 驱动程序未接受该命令 |
 | `PHOENIX-PNP-031` | 模拟器注入了故障 |
 | `PHOENIX-PNP-032` | 基准点无效，或无法确定位置 |
+| `PHOENIX-PNP-033` | 装配标记既不是“是”也不是“否”，或要排除的位号未知 |
+| `PHOENIX-PNP-034` | 位置文件无效 |
 
 ## 🚀 快速开始
 
@@ -240,6 +249,9 @@ cargo run --release -- schedule examples/board.pos examples/feeders.csv examples
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
 cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
 cargo run --release -- check-bottom examples/board.pos
+cargo run --release -- schedule examples/board_dnp.csv examples/feeders.csv examples/schedule_dnp.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
+cargo run --release -- tables-check --parts examples/board_dnp.csv --packages examples/packages_common.csv --feeders examples/feeders_kinds.csv --slots examples/slots.csv --config examples/machine.cfg
+cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-csv examples/job_report.csv
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
 cargo run --release --features gui
@@ -251,7 +263,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 308 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 324 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -271,7 +283,7 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               零件表和封装表及其属性的继承
 │   ├── cli_args.rs                              命令行参数，严格：未知选项即错误
-│   ├── commands.rs                              使用配置的命令，以及 check-bottom
+│   ├── commands.rs                              使用配置的命令、tables-check 和 check-bottom
 │   ├── config.rs                                机器的配置文件：键、范围和安全限制
 │   ├── error.rs                                 错误代码 PHOENIX-PNP-NNN 及其八种语言的含义
 │   ├── export.rs                                报告、缺料清单和移动的 G 代码
@@ -302,7 +314,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 以 trait 表示的机器部件：机器、吸嘴、供料器、执行器、相机、驱动
 │   ├── motion.rs                                包含加速度和加加速度的移动时间
 │   ├── panel.rs                                 拼板：拼板中的电路板和拼板，各在其位
-│   ├── parts.rs                                 逻辑的一部分
+│   ├── parts.rs                                 位置文件和不贴装的零件
 │   ├── plan.rs                                  逻辑的一部分
 │   ├── planner.rs                               了解机器的规划器：等级、顺序、吸嘴头及其搜索、角度和时间
 │   ├── preflight.rs                             作业前的检查，含严重程度及其所指对象
@@ -323,14 +335,18 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             作业前检查的测试
 │   ├── readme.rs                                验证 README 可运行且完整的测试
 │   ├── sim.rs                                   模拟机器的测试
-│   └── strict.rs                                命令行测试：它不认识的选项和词
+│   ├── strict.rs                                命令行测试：它不认识的选项和词
+│   └── tables.rs                                不贴装零件、tables-check 以及作业 CSV 报告的测试
 ├── examples/
 │   ├── board.pos                                试用的示例
+│   ├── board_dnp.csv                            带 dnp 列的电路板：其中两个零件不贴装
 │   ├── catalog.csv                              零件表：等级和高度
 │   ├── feeders.csv                              试用的示例
+│   ├── feeders_kinds.csv                        各种供料器：料带、料条、托盘和一个已关闭的
 │   ├── machine.cfg                              机器设置，每个键均有说明
 │   ├── marks.csv                                拼板基准点的实测位置
 │   ├── packages.csv                             封装表：高度、吸嘴头、等级和料带
+│   ├── packages_common.csv                      常见封装表（从 0201 电阻到 QFN），请按自己的零件调整
 │   ├── panel.json                               由两块板组成的拼板
 │   └── slots.csv                                机器的槽位
 ├── docs/

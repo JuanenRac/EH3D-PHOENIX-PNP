@@ -56,14 +56,14 @@
         {
           "name": "commands.rs",
           "desc": {
-            "en": "the commands that use the configuration, and check-bottom",
-            "es": "las órdenes que usan la configuración, y check-bottom",
-            "de": "die Befehle, die die Konfiguration nutzen, und check-bottom",
-            "fr": "les commandes qui utilisent la configuration, et check-bottom",
-            "it": "i comandi che usano la configurazione, e check-bottom",
-            "ja": "設定を使うコマンドと check-bottom",
-            "zh": "使用配置的命令，以及 check-bottom",
-            "pt": "os comandos que usam a configuração, e check-bottom"
+            "en": "the commands that use the configuration, tables-check and check-bottom",
+            "es": "las órdenes que usan la configuración, tables-check y check-bottom",
+            "de": "die Befehle mit Konfiguration, tables-check und check-bottom",
+            "fr": "les commandes avec configuration, tables-check et check-bottom",
+            "it": "i comandi con configurazione, tables-check e check-bottom",
+            "ja": "設定を使うコマンド、tables-check、check-bottom",
+            "zh": "使用配置的命令、tables-check 和 check-bottom",
+            "pt": "os comandos com configuração, tables-check e check-bottom"
           }
         },
         {
@@ -459,14 +459,14 @@
         {
           "name": "parts.rs",
           "desc": {
-            "en": "a part of the logic",
-            "es": "una parte de la lógica",
-            "de": "ein Teil der Logik",
-            "fr": "une partie de la logique",
-            "it": "una parte della logica",
-            "ja": "ロジックの一部",
-            "zh": "逻辑的一部分",
-            "pt": "uma parte da lógica"
+            "en": "the position file and the parts that are not to be mounted",
+            "es": "el archivo de posiciones y las piezas que no se montan",
+            "de": "die Positionsdatei und die nicht zu bestückenden Teile",
+            "fr": "le fichier de positions et les pièces à ne pas monter",
+            "it": "il file delle posizioni e le parti da non montare",
+            "ja": "位置ファイルと実装しない部品",
+            "zh": "位置文件和不贴装的零件",
+            "pt": "o ficheiro de posições e as peças que não se montam"
           }
         },
         {
@@ -735,6 +735,19 @@
             "zh": "命令行测试：它不认识的选项和词",
             "pt": "testes da linha de comandos: opções e palavras que não conhece"
           }
+        },
+        {
+          "name": "tables.rs",
+          "desc": {
+            "en": "tests of the parts not to be mounted, of tables-check and of the report of a job as a CSV",
+            "es": "pruebas de las piezas que no se montan, de tables-check y del informe de un trabajo en CSV",
+            "de": "Tests der nicht zu bestückenden Teile, von tables-check und des Auftragsberichts als CSV",
+            "fr": "tests des pièces à ne pas monter, de tables-check et du rapport d'un travail en CSV",
+            "it": "test delle parti da non montare, di tables-check e del rapporto di un lavoro in CSV",
+            "ja": "実装しない部品、tables-check、ジョブのCSVレポートのテスト",
+            "zh": "不贴装零件、tables-check 以及作业 CSV 报告的测试",
+            "pt": "testes das peças que não se montam, de tables-check e do relatório de um trabalho em CSV"
+          }
         }
       ]
     },
@@ -754,6 +767,19 @@
             "ja": "試すためのサンプル",
             "zh": "试用的示例",
             "pt": "um exemplo para experimentar o programa"
+          }
+        },
+        {
+          "name": "board_dnp.csv",
+          "desc": {
+            "en": "a board with a dnp column: two of its parts are not to be mounted",
+            "es": "una placa con una columna dnp: dos de sus piezas no se montan",
+            "de": "eine Platine mit einer dnp-Spalte: zwei ihrer Teile werden nicht bestückt",
+            "fr": "une carte avec une colonne dnp : deux de ses pièces ne sont pas montées",
+            "it": "una scheda con una colonna dnp: due delle sue parti non vanno montate",
+            "ja": "dnp 列を持つ基板：2つの部品は実装しない",
+            "zh": "带 dnp 列的电路板：其中两个零件不贴装",
+            "pt": "uma placa com uma coluna dnp: duas das suas peças não se montam"
           }
         },
         {
@@ -780,6 +806,19 @@
             "ja": "試すためのサンプル",
             "zh": "试用的示例",
             "pt": "um exemplo para experimentar o programa"
+          }
+        },
+        {
+          "name": "feeders_kinds.csv",
+          "desc": {
+            "en": "feeders of every kind: tape, strip, tray and one switched off",
+            "es": "alimentadores de todos los tipos: cinta, tira, bandeja y uno apagado",
+            "de": "Zuführer jeder Art: Gurt, Streifen, Tray und einer ausgeschaltet",
+            "fr": "alimentateurs de chaque type : bande, réglette, plateau et un éteint",
+            "it": "alimentatori di ogni tipo: nastro, striscia, vassoio e uno spento",
+            "ja": "あらゆる種類のフィーダー：テープ、ストリップ、トレイ、オフのもの",
+            "zh": "各种供料器：料带、料条、托盘和一个已关闭的",
+            "pt": "alimentadores de todos os tipos: fita, tira, tabuleiro e um desligado"
           }
         },
         {
@@ -819,6 +858,19 @@
             "ja": "パッケージの表：高さ、チップ、ランク、テープ",
             "zh": "封装表：高度、吸嘴头、等级和料带",
             "pt": "uma tabela de encapsulamentos: altura, ponta, nível e fita"
+          }
+        },
+        {
+          "name": "packages_common.csv",
+          "desc": {
+            "en": "a table of common packages, from 0201 resistors to QFN, to adjust to your own parts",
+            "es": "una tabla de paquetes habituales, de resistencias 0201 a QFN, para ajustar a tus piezas",
+            "de": "eine Tabelle üblicher Gehäuse, von 0201-Widerständen bis QFN, zum Anpassen an die eigenen Teile",
+            "fr": "une table de boîtiers courants, des résistances 0201 aux QFN, à ajuster à vos pièces",
+            "it": "una tabella di package comuni, dalle resistenze 0201 ai QFN, da adattare alle proprie parti",
+            "ja": "一般的なパッケージの表（0201抵抗からQFNまで）。自分の部品に合わせて調整する",
+            "zh": "常见封装表（从 0201 电阻到 QFN），请按自己的零件调整",
+            "pt": "uma tabela de encapsulamentos comuns, das resistências 0201 aos QFN, para ajustar às suas peças"
           }
         },
         {

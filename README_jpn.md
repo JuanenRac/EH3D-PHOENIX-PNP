@@ -18,7 +18,7 @@
 
 ---
 
-**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 308 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、画面での確認はまだです。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
+**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 324 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、画面での確認はまだです。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | バージョン | `0.0.5` |
 | 成熟度 | 足場 |
-| テスト | 308 |
+| テスト | 324 |
 | 技術スタック | Rust |
 | 実機での動作 | 未試験：ここにあるものは機械で動かしたことがありません |
 
@@ -46,8 +46,8 @@
 | 領域 | 状態 | ここでの意味 |
 |---|---|---|
 | コア | 🟡 | 基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップ）、最大6本のノズルを持つヘッドの配置順をランク、ノズルチップ、角度の制限、移動時間とともに計画し、パネルを計画し、搭載シートを書き出します。通常の入力と壊れた入力でコンピューター上でテスト済みですが、実際のファイル群ではありません。 |
-| コマンドライン | 🟡 | `phoenix-pnp` はライブラリと同じ関数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`）を実行して結果を表示します。エラーはすべて `PHOENIX-PNP-NNN` のコード付きメッセージと0以外の終了コードで返ります。 |
-| テスト | 🟡 | 308 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
+| コマンドライン | 🟡 | `phoenix-pnp` はライブラリと同じ関数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`）を実行して結果を表示します。エラーはすべて `PHOENIX-PNP-NNN` のコード付きメッセージと0以外の終了コードで返ります。 |
+| テスト | 🟡 | 324 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
 | 機械の設定 | 🟡 | バージョン付きの `キー = 値` ファイル、行を示す検証、安全限界（Z の行程、X と Y の限界、再試行、ノズルの角度）。値は実機とは比較していません。 |
 | シミュレーターとジョブ | 🟡 | 仮想時計、確率（シード付き）または指定した場所で注入する故障、再試行、警告と保留の方針、故障が続くと止まるフィーダー、一時停止、一手ずつの実行、再開用に保存する状態。模擬のみで、実機は動かしていません。 |
 | セキュリティ | 🟡 | 安全な Rust のみ（`forbid(unsafe_code)`）。受け取ったファイルでパニックせず、不正な値は理由付きのエラーになります。独立したレビューはありません。 |
@@ -58,6 +58,7 @@
 ## 🎯 概要
 
 * **部品**（`src/parts.rs`）：KiCad の `.pos` ファイルまたは CSV（カンマまたはセミコロン、引用符、名前で見つけるヘッダー）。位置は mm、mil、インチ、角度は 0〜360、面は上か下。意味のない行は行番号付きで拒否され、同じ参照の重複はエラーです。
+* **実装しない部品、例の表、ジョブのレポート**（`src/parts.rs`、`src/commands.rs`、`src/job.rs`）：CSV の列 `dnp`、`do not place`、`fitted`（または `--dnp R1,R2`）で指定した部品は、計画・搭載シート・確認から外れ、レポートに一覧されます。`tables-check` は表（`--parts`、`--packages`、`--catalog`、`--feeders`、`--slots`）を読み、エラーごとにコードと行番号を示します。`simulate --report-csv FILE` はジョブの統計を、見出しが変わらない CSV で書き出します。`examples/` には `dnp` 列のある基板、あらゆる種類のフィーダー、一般的なパッケージの表があります。
 * **フィーダー**（`src/feeders.rs`）：フィーダーの CSV（ID、値、パッケージ、ピック位置、残数）。各部品には、大文字小文字を区別せず値とパッケージが一致する最初のフィーダーが割り当てられます。フィーダーのない部品と枯渇するフィーダーは報告され、同種の 2 つ目のフィーダーが引き継ぎます。
 * **計画**（`src/plan.rs`）：実装位置を近い順に巡り、1〜6 ノズルのバッチに分け、バッチ内のフィーダーも近い順に訪れ、下面は基板幅で鏡像にし、移動距離と所要時間の見積りを出し、JSON のジョブとして書き出します。
 * **表と設定**（`src/catalog.rs`、`src/config.rs`、`src/rotation.rs`）：値が継承される部品とパッケージの表（部品、次にパッケージ、次に既定値）、`キー = 値` 形式の機械設定ファイル（`examples/machine.cfg` がすべてのキーを説明）、CSV 位置ファイルの列名の追加、パッケージ別の回転補正。
@@ -110,7 +111,7 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               部品とパッケージの表、およびその属性の継承
 │   ├── cli_args.rs                              コマンドライン引数（厳格：未知のオプションはエラー）
-│   ├── commands.rs                              設定を使うコマンドと check-bottom
+│   ├── commands.rs                              設定を使うコマンド、tables-check、check-bottom
 │   ├── config.rs                                機械の設定ファイル：キー、範囲、安全限界
 │   ├── error.rs                                 エラーコード PHOENIX-PNP-NNN と8言語での意味
 │   ├── export.rs                                レポート、不足の一覧、移動の G コード
@@ -141,7 +142,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 機械の部品をトレイトで表現：機械、ノズル、フィーダー、アクチュエーター、カメラ、ドライバー
 │   ├── motion.rs                                加速度とジャークを含む移動時間
 │   ├── panel.rs                                 パネル：パネルの中の基板とパネル、それぞれの位置
-│   ├── parts.rs                                 ロジックの一部
+│   ├── parts.rs                                 位置ファイルと実装しない部品
 │   ├── plan.rs                                  ロジックの一部
 │   ├── planner.rs                               機械を知るプランナー：ランク、順序、チップとその探索、角度、時間
 │   ├── preflight.rs                             ジョブ前の確認（重大度と対象つき）
@@ -162,14 +163,18 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             ジョブ前の確認のテスト
 │   ├── readme.rs                                README が実行でき、漏れがないことのテスト
 │   ├── sim.rs                                   模擬機械のテスト
-│   └── strict.rs                                コマンドラインのテスト：知らないオプションと語
+│   ├── strict.rs                                コマンドラインのテスト：知らないオプションと語
+│   └── tables.rs                                実装しない部品、tables-check、ジョブのCSVレポートのテスト
 ├── examples/
 │   ├── board.pos                                試すためのサンプル
+│   ├── board_dnp.csv                            dnp 列を持つ基板：2つの部品は実装しない
 │   ├── catalog.csv                              部品の表：ランクと高さ
 │   ├── feeders.csv                              試すためのサンプル
+│   ├── feeders_kinds.csv                        あらゆる種類のフィーダー：テープ、ストリップ、トレイ、オフのもの
 │   ├── machine.cfg                              機械の設定（すべてのキーを説明）
 │   ├── marks.csv                                パネルのフィデューシャルの実測位置
 │   ├── packages.csv                             パッケージの表：高さ、チップ、ランク、テープ
+│   ├── packages_common.csv                      一般的なパッケージの表（0201抵抗からQFNまで）。自分の部品に合わせて調整する
 │   ├── panel.json                               2枚の基板のパネル
 │   └── slots.csv                                機械のスロット
 ├── docs/
@@ -190,6 +195,8 @@ EH3D-PHOENIX-PNP/
 ## ⚙️ 設定
 
 機械とプランナーは `キー = 値` の行からなるテキストファイル（`--config ファイル`）で設定します。形式はスイートの他のプログラムと同じです。`examples/machine.cfg` がすべてのキーを既定値と働きとともに載せています。ないキーは既定値のままで、未知のキー、二重に書かれたキー、範囲外のキーは行を示すエラーになります。コマンドラインのオプション（`--nozzles`、`--speed`、`--order`、`--side`）はファイルより優先されます。
+
+部品を「実装しない」と示す列とその語も設定です。`header_dnp` と `header_fitted` は列の名前を、`dnp_yes_words` と `dnp_no_words` は「はい」「いいえ」の語を追加します。`dnp`、`do not place`、`do not populate`、`do not mount`、`do_not_place`、`not fitted`、`no montar` という名前の列は「はい」（`yes`、`y`、`true`、`1`、`x`）で部品を外し、`fitted`、`populate`、`populated`、`mount`、`mounted`、`montar` という名前の列は「いいえ」（`no`、`n`、`false`、`0`、`-`）で部品を外します。空のセルは部品を実装し、それ以外の語は行番号付きのエラーです。
 
 パッケージと部品の表（`--packages`、`--catalog`）は空のセルが継承される CSV ファイル、パネル（`--panel`）は JSON ファイル、機械のスロット（`loadsheet`）は `id,x,y,max_width_mm` の CSV です。`max_file_bytes` より大きなファイルは拒否されます。すべてのエラーにはコード `PHOENIX-PNP-NNN` があり、メッセージはキー `language` または `--lang` の言語（`en`、`es`、`de`、`fr`、`it`、`ja`、`zh`、`pt`）で書かれます。
 
@@ -227,6 +234,8 @@ EH3D-PHOENIX-PNP/
 | `PHOENIX-PNP-030` | ドライバーがコマンドを受け付けませんでした |
 | `PHOENIX-PNP-031` | シミュレーターが障害を注入しました |
 | `PHOENIX-PNP-032` | フィデューシャルが無効か、位置を決められません |
+| `PHOENIX-PNP-033` | 実装の印が「はい」でも「いいえ」でもないか、除外する参照が不明です |
+| `PHOENIX-PNP-034` | 位置ファイルが無効です |
 
 ## 🚀 クイックスタート
 
@@ -240,6 +249,9 @@ cargo run --release -- schedule examples/board.pos examples/feeders.csv examples
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
 cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
 cargo run --release -- check-bottom examples/board.pos
+cargo run --release -- schedule examples/board_dnp.csv examples/feeders.csv examples/schedule_dnp.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
+cargo run --release -- tables-check --parts examples/board_dnp.csv --packages examples/packages_common.csv --feeders examples/feeders_kinds.csv --slots examples/slots.csv --config examples/machine.cfg
+cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-csv examples/job_report.csv
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
 cargo run --release --features gui
@@ -251,7 +263,7 @@ cargo run --release --features gui
 
 ## 🧪 テスト
 
-テストは 308 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
+テストは 324 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
 
 ## 🏗️ ビルドとリリース
 
@@ -271,7 +283,7 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               部品とパッケージの表、およびその属性の継承
 │   ├── cli_args.rs                              コマンドライン引数（厳格：未知のオプションはエラー）
-│   ├── commands.rs                              設定を使うコマンドと check-bottom
+│   ├── commands.rs                              設定を使うコマンド、tables-check、check-bottom
 │   ├── config.rs                                機械の設定ファイル：キー、範囲、安全限界
 │   ├── error.rs                                 エラーコード PHOENIX-PNP-NNN と8言語での意味
 │   ├── export.rs                                レポート、不足の一覧、移動の G コード
@@ -302,7 +314,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 機械の部品をトレイトで表現：機械、ノズル、フィーダー、アクチュエーター、カメラ、ドライバー
 │   ├── motion.rs                                加速度とジャークを含む移動時間
 │   ├── panel.rs                                 パネル：パネルの中の基板とパネル、それぞれの位置
-│   ├── parts.rs                                 ロジックの一部
+│   ├── parts.rs                                 位置ファイルと実装しない部品
 │   ├── plan.rs                                  ロジックの一部
 │   ├── planner.rs                               機械を知るプランナー：ランク、順序、チップとその探索、角度、時間
 │   ├── preflight.rs                             ジョブ前の確認（重大度と対象つき）
@@ -323,14 +335,18 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             ジョブ前の確認のテスト
 │   ├── readme.rs                                README が実行でき、漏れがないことのテスト
 │   ├── sim.rs                                   模擬機械のテスト
-│   └── strict.rs                                コマンドラインのテスト：知らないオプションと語
+│   ├── strict.rs                                コマンドラインのテスト：知らないオプションと語
+│   └── tables.rs                                実装しない部品、tables-check、ジョブのCSVレポートのテスト
 ├── examples/
 │   ├── board.pos                                試すためのサンプル
+│   ├── board_dnp.csv                            dnp 列を持つ基板：2つの部品は実装しない
 │   ├── catalog.csv                              部品の表：ランクと高さ
 │   ├── feeders.csv                              試すためのサンプル
+│   ├── feeders_kinds.csv                        あらゆる種類のフィーダー：テープ、ストリップ、トレイ、オフのもの
 │   ├── machine.cfg                              機械の設定（すべてのキーを説明）
 │   ├── marks.csv                                パネルのフィデューシャルの実測位置
 │   ├── packages.csv                             パッケージの表：高さ、チップ、ランク、テープ
+│   ├── packages_common.csv                      一般的なパッケージの表（0201抵抗からQFNまで）。自分の部品に合わせて調整する
 │   ├── panel.json                               2枚の基板のパネル
 │   └── slots.csv                                機械のスロット
 ├── docs/

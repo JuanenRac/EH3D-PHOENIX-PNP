@@ -18,7 +18,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 308 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il a aussi une fenêtre (construite avec `--features gui`) dont la logique est testée sans écran ; le dessin lui-même n'est pas couvert par des tests et n'a pas été vérifié sur un écran. Il ne pilote aucune machine : il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 324 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il a aussi une fenêtre (construite avec `--features gui`) dont la logique est testée sans écran ; le dessin lui-même n'est pas couvert par des tests et n'a pas été vérifié sur un écran. Il ne pilote aucune machine : il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.5` |
 | Maturité | Échafaudage |
-| Tests | 308 |
+| Tests | 324 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -46,8 +46,8 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 | Domaine | État | Ce que cela veut dire ici |
 |---|---|---|
 | Cœur | 🟡 | lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (priorité, plateau, bande), planifie l'ordre de pose pour une tête de jusqu'à six buses avec des rangs, des pointes de buse, des limites d'angle et le temps des déplacements, planifie des panneaux et écrit la feuille de chargement ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
-| Ligne de commande | 🟡 | `phoenix-pnp` exécute les mêmes fonctions que la bibliothèque (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`) et affiche le résultat ; chaque erreur revient comme un message avec son code `PHOENIX-PNP-NNN` et un code de sortie non nul. |
-| Tests | 🟡 | 308 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
+| Ligne de commande | 🟡 | `phoenix-pnp` exécute les mêmes fonctions que la bibliothèque (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`) et affiche le résultat ; chaque erreur revient comme un message avec son code `PHOENIX-PNP-NNN` et un code de sortie non nul. |
+| Tests | 🟡 | 324 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
 | Configuration de la machine | 🟡 | un fichier `clé = valeur` avec une version, un validateur qui nomme la ligne et les limites de sécurité (course de Z, limites de X et Y, nouvelles tentatives, angles de buse) ; les valeurs n'ont pas été comparées à une machine réelle. |
 | Simulateur et travail | 🟡 | une horloge virtuelle, des pannes injectées au hasard (avec une graine) ou à un endroit choisi, des nouvelles tentatives, les politiques alerte et report, des alimentateurs qui s'éteignent après des pannes répétées, pause, pas à pas et un état enregistré pour reprendre ; il ne fait que simuler, rien n'a piloté une machine. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
@@ -58,6 +58,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 ## 🎯 Présentation
 
 * **Les composants** (`src/parts.rs`) : un fichier `.pos` de KiCad ou un CSV (virgule ou point-virgule, guillemets, en-tête trouvé par nom) avec des positions en mm, mil ou pouces, les angles ramenés à 0-360, la face dessus ou dessous, et chaque ligne absurde est refusée avec son numéro ; une référence répétée est une erreur.
+* **Composants à ne pas monter, les tables des exemples et le rapport d'un travail** (`src/parts.rs`, `src/commands.rs`, `src/job.rs`) : une colonne `dnp`, `do not place` ou `fitted` dans un CSV (ou `--dnp R1,R2`) laisse des composants hors du plan, de la feuille de chargement et des vérifications et les liste dans le rapport ; `tables-check` lit les tables (`--parts`, `--packages`, `--catalog`, `--feeders`, `--slots`) et nomme le code et la ligne de chaque erreur ; `simulate --report-csv FICHIER` écrit les statistiques du travail en CSV dont l'en-tête ne change jamais. `examples/` contient une carte avec une colonne `dnp`, des alimentateurs de tous les types et une table de boîtiers courants.
 * **Les chargeurs** (`src/feeders.rs`) : un CSV de chargeurs (id, valeur, boîtier, position de prise, pièces restantes) ; chaque composant reçoit le premier chargeur qui contient sa valeur et son boîtier, sans tenir compte de la casse ; un composant sans chargeur et un chargeur qui s'épuise sont signalés, et un second chargeur du même type prend le relais.
 * **Le plan** (`src/plan.rs`) : les emplacements sont parcourus au plus proche et coupés en lots d'une à six buses, les chargeurs d'un lot sont visités au plus proche, la face dessous est inversée selon la largeur de la carte, et le plan donne le trajet et une estimation du temps ; il s'écrit comme un travail JSON.
 * **Les tables et les réglages** (`src/catalog.rs`, `src/config.rs`, `src/rotation.rs`) : des tables de pièces et de boîtiers dont les valeurs sont héritées (pièce, puis boîtier, puis les valeurs par défaut), un fichier de configuration de la machine au format `clé = valeur` (`examples/machine.cfg` documente chaque clé), davantage de noms pour les colonnes d'un CSV de positions et des corrections de rotation par boîtier.
@@ -110,7 +111,7 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               les tables de pièces et de boîtiers et l'héritage de leurs propriétés
 │   ├── cli_args.rs                              les arguments de la ligne de commande, stricts : une option inconnue est une erreur
-│   ├── commands.rs                              les commandes qui utilisent la configuration, et check-bottom
+│   ├── commands.rs                              les commandes avec configuration, tables-check et check-bottom
 │   ├── config.rs                                le fichier de configuration de la machine : clés, plages et limites de sécurité
 │   ├── error.rs                                 les codes d'erreur PHOENIX-PNP-NNN et leur sens en huit langues
 │   ├── export.rs                                le rapport, la liste de ce qui manque et le G-code des déplacements
@@ -141,7 +142,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 les parties d'une machine en traits : machine, buse, alimentateur, actionneur, caméra, pilote
 │   ├── motion.rs                                le temps d'un déplacement, avec accélération et à-coup
 │   ├── panel.rs                                 panneaux : cartes et panneaux dans des panneaux, chacun à sa place
-│   ├── parts.rs                                 une partie de la logique
+│   ├── parts.rs                                 le fichier de positions et les pièces à ne pas monter
 │   ├── plan.rs                                  une partie de la logique
 │   ├── planner.rs                               le planificateur qui connaît la machine : rangs, ordre, pointes et leur recherche, angles et temps
 │   ├── preflight.rs                             les vérifications avant un travail, avec une gravité et ce qu'elles désignent
@@ -162,14 +163,18 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             tests des vérifications avant un travail
 │   ├── readme.rs                                tests que le README est exécutable et complet
 │   ├── sim.rs                                   tests de la machine simulée
-│   └── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
+│   ├── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
+│   └── tables.rs                                tests des pièces à ne pas monter, de tables-check et du rapport d'un travail en CSV
 ├── examples/
 │   ├── board.pos                                un exemple pour essayer le programme
+│   ├── board_dnp.csv                            une carte avec une colonne dnp : deux de ses pièces ne sont pas montées
 │   ├── catalog.csv                              une table de pièces : rang et hauteur
 │   ├── feeders.csv                              un exemple pour essayer le programme
+│   ├── feeders_kinds.csv                        alimentateurs de chaque type : bande, réglette, plateau et un éteint
 │   ├── machine.cfg                              les réglages de la machine, chaque clé expliquée
 │   ├── marks.csv                                les positions mesurées des repères du panneau
 │   ├── packages.csv                             une table de boîtiers : hauteur, pointe, rang et bande
+│   ├── packages_common.csv                      une table de boîtiers courants, des résistances 0201 aux QFN, à ajuster à vos pièces
 │   ├── panel.json                               un panneau de deux cartes
 │   └── slots.csv                                les emplacements de la machine
 ├── docs/
@@ -190,6 +195,8 @@ EH3D-PHOENIX-PNP/
 ## ⚙️ Configuration
 
 La machine et le planificateur se configurent avec un fichier texte de lignes `clé = valeur` (`--config FICHIER`), le même format que les autres programmes de la suite ; `examples/machine.cfg` liste chaque clé avec sa valeur par défaut et son effet. Une clé absente garde sa valeur par défaut ; une clé inconnue, écrite deux fois ou hors de sa plage est une erreur qui nomme la ligne. Les options de la ligne de commande (`--nozzles`, `--speed`, `--order`, `--side`) l'emportent sur le fichier.
+
+Les colonnes qui marquent un composant comme à ne pas monter et les mots qu'elles emploient sont aussi des réglages : `header_dnp` et `header_fitted` ajoutent des noms de la colonne, `dnp_yes_words` et `dnp_no_words` ajoutent des mots pour oui et non. Une colonne nommée `dnp`, `do not place`, `do not populate`, `do not mount`, `do_not_place`, `not fitted` ou `no montar` laisse le composant de côté avec un oui (`yes`, `y`, `true`, `1`, `x`) ; une nommée `fitted`, `populate`, `populated`, `mount`, `mounted` ou `montar` le laisse de côté avec un non (`no`, `n`, `false`, `0`, `-`) ; une cellule vide monte le composant et tout autre mot est une erreur qui nomme la ligne.
 
 Les tables de boîtiers et de pièces (`--packages`, `--catalog`) sont des fichiers CSV où une cellule vide hérite ; un panneau (`--panel`) est un fichier JSON ; les emplacements de la machine (`loadsheet`) sont un CSV avec `id,x,y,max_width_mm`. Un fichier plus grand que `max_file_bytes` est refusé. Chaque erreur a un code `PHOENIX-PNP-NNN` ; son message est écrit dans la langue de la clé `language` ou de `--lang` (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh` ou `pt`) :
 
@@ -227,6 +234,8 @@ Les tables de boîtiers et de pièces (`--packages`, `--catalog`) sont des fichi
 | `PHOENIX-PNP-030` | Le pilote n'a pas accepté la commande |
 | `PHOENIX-PNP-031` | Le simulateur a injecté une panne |
 | `PHOENIX-PNP-032` | Les repères ne sont pas valides ou ne donnent pas de position |
+| `PHOENIX-PNP-033` | Une marque de montage n'est ni oui ni non, ou une référence à omettre est inconnue |
+| `PHOENIX-PNP-034` | Le fichier des positions n'est pas valide |
 
 ## 🚀 Démarrage rapide
 
@@ -240,6 +249,9 @@ cargo run --release -- schedule examples/board.pos examples/feeders.csv examples
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
 cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
 cargo run --release -- check-bottom examples/board.pos
+cargo run --release -- schedule examples/board_dnp.csv examples/feeders.csv examples/schedule_dnp.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
+cargo run --release -- tables-check --parts examples/board_dnp.csv --packages examples/packages_common.csv --feeders examples/feeders_kinds.csv --slots examples/slots.csv --config examples/machine.cfg
+cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-csv examples/job_report.csv
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
 cargo run --release --features gui
@@ -251,7 +263,7 @@ La dernière ligne ouvre la fenêtre ; `phoenix-pnp` sans commande le fait aussi
 
 ## 🧪 Tests
 
-La suite compte 308 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
+La suite compte 324 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
@@ -271,7 +283,7 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               les tables de pièces et de boîtiers et l'héritage de leurs propriétés
 │   ├── cli_args.rs                              les arguments de la ligne de commande, stricts : une option inconnue est une erreur
-│   ├── commands.rs                              les commandes qui utilisent la configuration, et check-bottom
+│   ├── commands.rs                              les commandes avec configuration, tables-check et check-bottom
 │   ├── config.rs                                le fichier de configuration de la machine : clés, plages et limites de sécurité
 │   ├── error.rs                                 les codes d'erreur PHOENIX-PNP-NNN et leur sens en huit langues
 │   ├── export.rs                                le rapport, la liste de ce qui manque et le G-code des déplacements
@@ -302,7 +314,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 les parties d'une machine en traits : machine, buse, alimentateur, actionneur, caméra, pilote
 │   ├── motion.rs                                le temps d'un déplacement, avec accélération et à-coup
 │   ├── panel.rs                                 panneaux : cartes et panneaux dans des panneaux, chacun à sa place
-│   ├── parts.rs                                 une partie de la logique
+│   ├── parts.rs                                 le fichier de positions et les pièces à ne pas monter
 │   ├── plan.rs                                  une partie de la logique
 │   ├── planner.rs                               le planificateur qui connaît la machine : rangs, ordre, pointes et leur recherche, angles et temps
 │   ├── preflight.rs                             les vérifications avant un travail, avec une gravité et ce qu'elles désignent
@@ -323,14 +335,18 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             tests des vérifications avant un travail
 │   ├── readme.rs                                tests que le README est exécutable et complet
 │   ├── sim.rs                                   tests de la machine simulée
-│   └── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
+│   ├── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
+│   └── tables.rs                                tests des pièces à ne pas monter, de tables-check et du rapport d'un travail en CSV
 ├── examples/
 │   ├── board.pos                                un exemple pour essayer le programme
+│   ├── board_dnp.csv                            une carte avec une colonne dnp : deux de ses pièces ne sont pas montées
 │   ├── catalog.csv                              une table de pièces : rang et hauteur
 │   ├── feeders.csv                              un exemple pour essayer le programme
+│   ├── feeders_kinds.csv                        alimentateurs de chaque type : bande, réglette, plateau et un éteint
 │   ├── machine.cfg                              les réglages de la machine, chaque clé expliquée
 │   ├── marks.csv                                les positions mesurées des repères du panneau
 │   ├── packages.csv                             une table de boîtiers : hauteur, pointe, rang et bande
+│   ├── packages_common.csv                      une table de boîtiers courants, des résistances 0201 aux QFN, à ajuster à vos pièces
 │   ├── panel.json                               un panneau de deux cartes
 │   └── slots.csv                                les emplacements de la machine
 ├── docs/

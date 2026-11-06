@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 308 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests and has not been checked on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 324 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests and has not been checked on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.5` |
 | Maturity | Scaffolding |
-| Tests | 308 |
+| Tests | 324 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,8 +46,8 @@ Each line is one part of this repository and the light says how far it is today.
 | Area | State | What it means here |
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder (priority, tray, strip), plans the order of the placements for a head with up to six nozzles with ranks, nozzle tips, angle limits and the time of the moves, plans panels and writes the load sheet; tested on a computer with normal and damaged input, not with a collection of real files. |
-| Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
-| Tests | 🟡 | 308 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
+| Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
+| Tests | 🟡 | 324 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
 | Machine configuration | 🟡 | a `key = value` file with a version, a validator that names the line, and the safety limits (travel of Z, limits of X and Y, retries, nozzle angles); the values have not been compared with a real machine. |
 | Simulator and job | 🟡 | a virtual clock, failures injected by chance (with a seed) or at a chosen place, retries, the policies alert and defer, feeders that switch off after repeated faults, pause, step by step, and a saved state to resume from; it only simulates, nothing has driven a machine. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
@@ -58,6 +58,7 @@ Each line is one part of this repository and the light says how far it is today.
 ## 🎯 Overview
 
 * **The parts** (`src/parts.rs`): a KiCad `.pos` file or a CSV (comma or semicolon, quotes, a header found by name) with positions in mm, mil or inches, the angles brought to 0-360, the side top or bottom, and every row that makes no sense refused with its number; a repeated reference is an error.
+* **Parts that are not to be mounted, the tables of the examples and the report of a job** (`src/parts.rs`, `src/commands.rs`, `src/job.rs`): a column `dnp`, `do not place` or `fitted` in a CSV (or `--dnp R1,R2`) leaves parts out of the plan, the load sheet and the checks and lists them in the report; `tables-check` reads the tables (`--parts`, `--packages`, `--catalog`, `--feeders`, `--slots`) and names the code and the row of every error; `simulate --report-csv FILE` writes the statistics of the job as a CSV whose header never changes. `examples/` has a board with a `dnp` column, feeders of every kind and a table of common packages.
 * **The feeders** (`src/feeders.rs`): a CSV of feeders (id, value, package, pick position, parts left); every part gets the first feeder that holds its value and package, without regard to case; a part with no feeder and a feeder that runs out are reported, and a second feeder of the same kind takes over.
 * **The plan** (`src/plan.rs`): the places are walked nearest-first and cut in batches of one to six nozzles, the feeders of a batch are visited nearest-first, the bottom side is mirrored about the width of the board, and the plan gives the travel and an estimate of the time; it is written as a JSON job.
 * **The tables and the settings** (`src/catalog.rs`, `src/config.rs`, `src/rotation.rs`): tables of parts and packages whose values are inherited (part, then package, then the defaults), a machine configuration file in `key = value` format (`examples/machine.cfg` documents every key), more names for the columns of a CSV position file, and corrections of the rotation by package.
@@ -110,7 +111,7 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               the tables of parts and packages and the inheritance of their properties
 │   ├── cli_args.rs                              the arguments of the command line, strict: an unknown option is an error
-│   ├── commands.rs                              the commands that use the configuration, and check-bottom
+│   ├── commands.rs                              the commands that use the configuration, tables-check and check-bottom
 │   ├── config.rs                                the configuration file of the machine: keys, ranges and safety limits
 │   ├── error.rs                                 the error codes PHOENIX-PNP-NNN and their meaning in eight languages
 │   ├── export.rs                                the report, the list of what is missing and the G-code of the movements
@@ -141,7 +142,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 the parts of a machine as traits: machine, nozzle, feeder, actuator, camera, driver
 │   ├── motion.rs                                the time a move takes, with acceleration and jerk
 │   ├── panel.rs                                 panels: boards and panels inside panels, each in its place
-│   ├── parts.rs                                 a part of the logic
+│   ├── parts.rs                                 the position file and the parts that are not to be mounted
 │   ├── plan.rs                                  a part of the logic
 │   ├── planner.rs                               the planner that knows the machine: ranks, order, tips and their search, angles and time
 │   ├── preflight.rs                             the checks before a job, with a severity and what they point at
@@ -162,14 +163,18 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             tests of the checks before a job
 │   ├── readme.rs                                tests that the README can be run and is complete
 │   ├── sim.rs                                   tests of the simulated machine
-│   └── strict.rs                                tests of the command line: options and words it does not know
+│   ├── strict.rs                                tests of the command line: options and words it does not know
+│   └── tables.rs                                tests of the parts not to be mounted, of tables-check and of the report of a job as a CSV
 ├── examples/
 │   ├── board.pos                                a sample to try the program with
+│   ├── board_dnp.csv                            a board with a dnp column: two of its parts are not to be mounted
 │   ├── catalog.csv                              a table of parts: rank and height
 │   ├── feeders.csv                              a sample to try the program with
+│   ├── feeders_kinds.csv                        feeders of every kind: tape, strip, tray and one switched off
 │   ├── machine.cfg                              the settings of the machine, every key explained
 │   ├── marks.csv                                the measured places of the fiducials of the panel
 │   ├── packages.csv                             a table of packages: height, nozzle tip, rank and tape
+│   ├── packages_common.csv                      a table of common packages, from 0201 resistors to QFN, to adjust to your own parts
 │   ├── panel.json                               a panel of two boards
 │   └── slots.csv                                the slots of the machine
 ├── docs/
@@ -190,6 +195,8 @@ EH3D-PHOENIX-PNP/
 ## ⚙️ Configuration
 
 The machine and the planner are configured with a text file of `key = value` lines (`--config FILE`), the same format as the other programs of the suite; `examples/machine.cfg` lists every key with its default and what it does. A key that is missing keeps its default; a key that is not known, written twice or outside its range is an error that names the line. The options of the command line (`--nozzles`, `--speed`, `--order`, `--side`) win over the file.
+
+The columns that mark a part as not to be mounted and the words they use are settings too: `header_dnp` and `header_fitted` add names for the column, `dnp_yes_words` and `dnp_no_words` add words for yes and no. A column called `dnp`, `do not place`, `do not populate`, `do not mount`, `do_not_place`, `not fitted` or `no montar` leaves the part out with a yes (`yes`, `y`, `true`, `1`, `x`); one called `fitted`, `populate`, `populated`, `mount`, `mounted` or `montar` leaves it out with a no (`no`, `n`, `false`, `0`, `-`); an empty cell mounts the part and any other word is an error that names the row.
 
 The tables of packages and parts (`--packages`, `--catalog`) are CSV files in which an empty cell inherits; a panel (`--panel`) is a JSON file; the slots of the machine (`loadsheet`) are a CSV with `id,x,y,max_width_mm`. A file larger than `max_file_bytes` is refused. Every error has a code `PHOENIX-PNP-NNN`; its message is written in the language of the key `language` or of `--lang` (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh` or `pt`):
 
@@ -227,6 +234,8 @@ The tables of packages and parts (`--packages`, `--catalog`) are CSV files in wh
 | `PHOENIX-PNP-030` | The driver did not accept the command |
 | `PHOENIX-PNP-031` | The simulator injected a fault |
 | `PHOENIX-PNP-032` | The fiducials are not valid or do not give a position |
+| `PHOENIX-PNP-033` | A mark of mounting is not yes or no, or a reference to leave out is not known |
+| `PHOENIX-PNP-034` | The file of positions is not valid |
 
 ## 🚀 Quick start
 
@@ -240,6 +249,9 @@ cargo run --release -- schedule examples/board.pos examples/feeders.csv examples
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --state examples/job_state.json --steps 5
 cargo run --release -- loadsheet examples/board.pos examples/slots.csv examples/loadsheet.csv --packages examples/packages.csv
 cargo run --release -- check-bottom examples/board.pos
+cargo run --release -- schedule examples/board_dnp.csv examples/feeders.csv examples/schedule_dnp.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
+cargo run --release -- tables-check --parts examples/board_dnp.csv --packages examples/packages_common.csv --feeders examples/feeders_kinds.csv --slots examples/slots.csv --config examples/machine.cfg
+cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-csv examples/job_report.csv
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
 cargo run --release --features gui
@@ -251,7 +263,7 @@ The last line opens the window; so does `phoenix-pnp` with no command when it wa
 
 ## 🧪 Testing
 
-The suite has 308 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 324 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -271,7 +283,7 @@ EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── catalog.rs                               the tables of parts and packages and the inheritance of their properties
 │   ├── cli_args.rs                              the arguments of the command line, strict: an unknown option is an error
-│   ├── commands.rs                              the commands that use the configuration, and check-bottom
+│   ├── commands.rs                              the commands that use the configuration, tables-check and check-bottom
 │   ├── config.rs                                the configuration file of the machine: keys, ranges and safety limits
 │   ├── error.rs                                 the error codes PHOENIX-PNP-NNN and their meaning in eight languages
 │   ├── export.rs                                the report, the list of what is missing and the G-code of the movements
@@ -302,7 +314,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 the parts of a machine as traits: machine, nozzle, feeder, actuator, camera, driver
 │   ├── motion.rs                                the time a move takes, with acceleration and jerk
 │   ├── panel.rs                                 panels: boards and panels inside panels, each in its place
-│   ├── parts.rs                                 a part of the logic
+│   ├── parts.rs                                 the position file and the parts that are not to be mounted
 │   ├── plan.rs                                  a part of the logic
 │   ├── planner.rs                               the planner that knows the machine: ranks, order, tips and their search, angles and time
 │   ├── preflight.rs                             the checks before a job, with a severity and what they point at
@@ -323,14 +335,18 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             tests of the checks before a job
 │   ├── readme.rs                                tests that the README can be run and is complete
 │   ├── sim.rs                                   tests of the simulated machine
-│   └── strict.rs                                tests of the command line: options and words it does not know
+│   ├── strict.rs                                tests of the command line: options and words it does not know
+│   └── tables.rs                                tests of the parts not to be mounted, of tables-check and of the report of a job as a CSV
 ├── examples/
 │   ├── board.pos                                a sample to try the program with
+│   ├── board_dnp.csv                            a board with a dnp column: two of its parts are not to be mounted
 │   ├── catalog.csv                              a table of parts: rank and height
 │   ├── feeders.csv                              a sample to try the program with
+│   ├── feeders_kinds.csv                        feeders of every kind: tape, strip, tray and one switched off
 │   ├── machine.cfg                              the settings of the machine, every key explained
 │   ├── marks.csv                                the measured places of the fiducials of the panel
 │   ├── packages.csv                             a table of packages: height, nozzle tip, rank and tape
+│   ├── packages_common.csv                      a table of common packages, from 0201 resistors to QFN, to adjust to your own parts
 │   ├── panel.json                               a panel of two boards
 │   └── slots.csv                                the slots of the machine
 ├── docs/
