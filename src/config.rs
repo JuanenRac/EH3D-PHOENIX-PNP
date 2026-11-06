@@ -15,7 +15,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 88] = [
+pub const KEYS: [&str; 89] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -104,6 +104,7 @@ pub const KEYS: [&str; 88] = [
     "sim_align_dy_mm",
     "sim_align_deg",
     "sim_align_noise_mm",
+    "vision",
 ];
 
 /// The order in which the places are visited.
@@ -169,6 +170,25 @@ pub enum ErrorPolicy {
     Alert,
     /// The part is put aside and the job goes on; the parts put aside are listed at the end.
     Defer,
+}
+
+/// Where the simulated camera takes what it reports about a part from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum VisionMode {
+    /// The camera reports the offset it was given, with the error of `sim_align_noise_mm`.
+    #[default]
+    Off,
+    /// The camera draws a picture of the part (an image made in memory) and the vision pipeline measures it.
+    Pipeline,
+}
+
+impl VisionMode {
+    pub fn name(self) -> &'static str {
+        match self {
+            VisionMode::Off => "off",
+            VisionMode::Pipeline => "pipeline",
+        }
+    }
 }
 
 /// Where the point of a part is, for a footprint of the CAD file.
@@ -275,6 +295,8 @@ pub struct MachineConfig {
     pub sim_align_deg: f64,
     /// The simulated camera: a random error of every reading, from minus to plus this many millimetres on each axis (taken from the seed).
     pub sim_align_noise_mm: f64,
+    /// Where the simulated camera takes its readings from: `off` (the offset it was given) or `pipeline` (the measure of a picture of the part, see `vision`).
+    pub vision: VisionMode,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -357,25 +379,26 @@ impl Default for MachineConfig {
             sim_align_dy_mm: 0.0,
             sim_align_deg: 0.0,
             sim_align_noise_mm: 0.0,
+            vision: VisionMode::Off,
         }
     }
 }
 
-fn bad(line: usize, key: &str, v: &str, what: &str) -> PnpError {
+pub(crate) fn bad(line: usize, key: &str, v: &str, what: &str) -> PnpError {
     PnpError::new(
         Code::ConfigBadValue,
         format!("line {line}: {key} '{v}' is not {what}"),
     )
 }
 
-fn out_of_range(line: usize, key: &str, v: &str, lo: f64, hi: f64) -> PnpError {
+pub(crate) fn out_of_range(line: usize, key: &str, v: &str, lo: f64, hi: f64) -> PnpError {
     PnpError::new(
         Code::ConfigOutOfRange,
         format!("line {line}: {key} {v} is not from {lo} to {hi}"),
     )
 }
 
-fn num(line: usize, key: &str, v: &str, lo: f64, hi: f64) -> Result<f64, PnpError> {
+pub(crate) fn num(line: usize, key: &str, v: &str, lo: f64, hi: f64) -> Result<f64, PnpError> {
     let x: f64 = v
         .parse()
         .ok()
@@ -387,7 +410,7 @@ fn num(line: usize, key: &str, v: &str, lo: f64, hi: f64) -> Result<f64, PnpErro
     Ok(x)
 }
 
-fn int(line: usize, key: &str, v: &str, lo: i64, hi: i64) -> Result<i64, PnpError> {
+pub(crate) fn int(line: usize, key: &str, v: &str, lo: i64, hi: i64) -> Result<i64, PnpError> {
     let x: i64 = v.parse().map_err(|_| bad(line, key, v, "a whole number"))?;
     if x < lo || x > hi {
         return Err(out_of_range(line, key, v, lo as f64, hi as f64));
@@ -683,6 +706,13 @@ impl MachineConfig {
             "sim_align_dy_mm" => self.sim_align_dy_mm = n(-50.0, 50.0)?,
             "sim_align_deg" => self.sim_align_deg = n(-180.0, 180.0)?,
             "sim_align_noise_mm" => self.sim_align_noise_mm = n(0.0, 10.0)?,
+            "vision" => {
+                self.vision = match v.to_ascii_lowercase().as_str() {
+                    "off" => VisionMode::Off,
+                    "pipeline" => VisionMode::Pipeline,
+                    _ => return Err(bad(line, key, v, "off or pipeline")),
+                }
+            }
             "tray_fill" => {
                 self.tray_fill = TrayFill::parse(&v.to_ascii_lowercase())
                     .ok_or_else(|| bad(line, key, v, "rows, columns or snake"))?
