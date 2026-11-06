@@ -13,8 +13,8 @@
     "JSON"
   ],
   "deployment_target": "user-pc",
-  "maturity": "scaffolding",
-  "evidence": "host-test",
+  "maturity": "functional",
+  "evidence": "simulator",
   "hardware_bound": false,
   "family": "CNC Workflow Tools",
   "parent": null,
