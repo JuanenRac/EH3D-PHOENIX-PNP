@@ -92,10 +92,12 @@ pub enum Code {
     VisionNotFound = 37,
     VisionAreaOutOfRange = 38,
     VisionSeveralSpots = 39,
+    ReportExists = 40,
+    JobActionBad = 41,
 }
 
 impl Code {
-    pub const ALL: [Code; 39] = [
+    pub const ALL: [Code; 41] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -135,6 +137,8 @@ impl Code {
         Code::VisionNotFound,
         Code::VisionAreaOutOfRange,
         Code::VisionSeveralSpots,
+        Code::ReportExists,
+        Code::JobActionBad,
     ];
 
     pub fn number(self) -> u16 {
@@ -153,7 +157,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 39] = [
+static MESSAGES: [[&str; 8]; 41] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -543,6 +547,26 @@ static MESSAGES: [[&str; 8]; 39] = [
         "部品の可能性がある領域が複数見つかりました",
         "找到了不止一个可能是零件的斑块",
         "A visão encontrou mais de uma mancha que pode ser a peça",
+    ],
+    [
+        "The report file already exists and is not written over",
+        "El archivo del informe ya existe y no se sobrescribe",
+        "Die Berichtsdatei existiert bereits und wird nicht überschrieben",
+        "Le fichier du rapport existe déjà et n'est pas écrasé",
+        "Il file del rapporto esiste già e non viene sovrascritto",
+        "レポートのファイルは既に存在するため、上書きしません",
+        "报告文件已存在，不会被覆盖",
+        "O ficheiro do relatório já existe e não é substituído",
+    ],
+    [
+        "The action does not fit the state of the job",
+        "La acción no corresponde al estado del trabajo",
+        "Die Aktion passt nicht zum Zustand des Auftrags",
+        "L'action ne convient pas à l'état du travail",
+        "L'azione non è adatta allo stato del lavoro",
+        "この操作はジョブの状態に合いません",
+        "该操作不适用于作业的当前状态",
+        "A ação não se adequa ao estado do trabalho",
     ],
 ];
 
