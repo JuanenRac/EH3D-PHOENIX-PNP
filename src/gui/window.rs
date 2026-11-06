@@ -5,6 +5,7 @@
 
 use super::app::{fid_buffer, AppState, Tab};
 use super::browse::{self, Purpose};
+use super::jobtab::{self, PlaceState};
 use super::log::diagnostics;
 use super::problems::Fix;
 use super::samples;
@@ -12,8 +13,8 @@ use super::session::Next;
 use super::settings::{self, UiSettings};
 use super::shot::{self, ShotRequest, PATIENCE_FRAMES};
 use super::tables::{
-    board_rows, feeder_rows, fiducial_rows, kind_rows, package_rows, part_rows, plan_rows,
-    sort_feeders, sort_parts, sort_plan, FeederColumn, PartColumn, PlanColumn, SortState,
+    board_rows, feeder_rows, fiducial_rows, kind_rows, package_rows, part_rows, sort_feeders,
+    sort_parts, FeederColumn, PartColumn, PlanColumn, SortState,
 };
 use super::texts::{lang_name, tr, Text};
 use super::theme::{Palette, Rgb, ThemeId};
@@ -24,7 +25,7 @@ use crate::catalog::PartProps;
 use crate::config::OrderStrategy;
 use crate::error::Lang;
 use crate::feeding::{FeederKind, TrayFill};
-use crate::job::{Phase, Status};
+use crate::job::{Action, Phase, Status};
 use crate::parts::Side;
 use crate::preflight::Severity;
 use eframe::egui::{
@@ -230,6 +231,19 @@ fn status_label(status: Option<Status>, lang: Lang, pal: &Palette) -> (&'static 
         Some(Status::Pending) => (tr(Text::StatusPending, lang), col(pal.dim)),
         Some(Status::Placed) => (tr(Text::StatusPlaced, lang), col(pal.ok)),
         Some(Status::Deferred) => (tr(Text::StatusDeferred, lang), col(pal.warn)),
+        Some(Status::Skipped) => (tr(Text::StateSkipped, lang), col(pal.warn)),
+    }
+}
+
+/// The colour of the state of a placement in the Job tab.
+fn state_color(state: PlaceState, pal: &Palette) -> Color32 {
+    match state {
+        PlaceState::Pending | PlaceState::Dnp => col(pal.dim),
+        PlaceState::Picked => col(pal.accent),
+        PlaceState::Aligned => col(pal.accent2),
+        PlaceState::Placed => col(pal.ok),
+        PlaceState::Deferred | PlaceState::Skipped => col(pal.warn),
+        PlaceState::Failed => col(pal.danger),
     }
 }
 
@@ -607,10 +621,105 @@ impl PnpApp {
         let map_h = (ui.available_height() * 0.55).max(180.0);
         self.paint_map(ui, map_h);
         ui.separator();
-        let Some(planned) = self.s.planned.as_ref() else {
-            return;
+        let side = self.s.ws.options.side;
+        let mut rows = match self.s.planned.as_ref() {
+            Some(planned) => jobtab::job_rows(planned, &self.s.ws.dnp, side, self.s.session.job()),
+            None => return,
         };
-        let mut rows = plan_rows(planned, self.s.session.job());
+        let prog = jobtab::progress(self.s.session.job());
+        let counts = jobtab::counts(&rows);
+        ui.horizontal(|ui| {
+            ui.label(
+                RichText::new(tr(Text::ProgressLabel, lang))
+                    .strong()
+                    .color(col(pal.accent)),
+            );
+            ui.add(
+                egui::ProgressBar::new(prog.fraction as f32)
+                    .desired_width(260.0)
+                    .text(format!(
+                        "{}/{} ({:.0} %)",
+                        prog.done,
+                        prog.total,
+                        prog.fraction * 100.0
+                    )),
+            );
+            if let Some(job) = self.s.session.job() {
+                ui.label(format!(
+                    "{:.1} s {}",
+                    prog.elapsed_s,
+                    tr(Text::SumMachineTime, lang)
+                ));
+                ui.label(format!(
+                    "{:.0} s {}",
+                    prog.remaining_s,
+                    tr(Text::RemainingLabel, lang)
+                ));
+                ui.label(format!(
+                    "{:.0} {}",
+                    job.parts_per_hour(),
+                    tr(Text::PartsPerHour, lang)
+                ));
+            }
+        });
+        ui.horizontal_wrapped(|ui| {
+            for (state, n) in PlaceState::ALL.iter().zip(counts) {
+                if n > 0 {
+                    ui.label(
+                        RichText::new(format!("{}: {n}", tr(state.text(), lang)))
+                            .color(state_color(*state, &pal)),
+                    );
+                }
+            }
+        });
+        ui.horizontal(|ui| {
+            let current = match self.s.job_filter.state {
+                Some(state) => tr(state.text(), lang),
+                None => tr(Text::FilterAllStates, lang),
+            };
+            egui::ComboBox::from_id_salt("job_state_filter")
+                .selected_text(current)
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut self.s.job_filter.state,
+                        None,
+                        tr(Text::FilterAllStates, lang),
+                    );
+                    for state in PlaceState::ALL {
+                        ui.selectable_value(
+                            &mut self.s.job_filter.state,
+                            Some(state),
+                            tr(state.text(), lang),
+                        );
+                    }
+                });
+            ui.add(
+                egui::TextEdit::singleline(&mut self.s.job_filter.text)
+                    .desired_width(200.0)
+                    .hint_text(tr(Text::FilterHint, lang)),
+            );
+            ui.checkbox(&mut self.s.job_filter.hide_done, tr(Text::HideDone, lang));
+            if ui
+                .add_enabled(
+                    self.s.job_filter.is_active(),
+                    egui::Button::new(tr(Text::ClearFilter, lang)),
+                )
+                .clicked()
+            {
+                self.s.job_filter.clear();
+            }
+            if ui
+                .add_enabled(
+                    self.s.session.has_job(),
+                    egui::Button::new(tr(Text::CopyReport, lang)),
+                )
+                .clicked()
+            {
+                if let Some(text) = self.s.report_text() {
+                    ui.ctx().copy_text(text);
+                }
+            }
+        });
         let mut sort = self.s.plan_sort;
         ui.horizontal(|ui| {
             sort_picker(
@@ -631,7 +740,23 @@ impl PnpApp {
             );
         });
         self.s.plan_sort = sort;
-        sort_plan(&mut rows, sort);
+        jobtab::sort_job(&mut rows, sort);
+        let filter = self.s.job_filter.clone();
+        let shown = jobtab::filter_rows(&rows, &filter);
+        ui.horizontal(|ui| {
+            ui.label(
+                RichText::new(format!(
+                    "{}/{} {}",
+                    shown.len(),
+                    rows.len(),
+                    tr(Text::ShownOf, lang)
+                ))
+                .color(col(pal.dim)),
+            );
+            if !self.s.session.has_job() {
+                ui.label(RichText::new(tr(Text::NoJobYet, lang)).color(col(pal.dim)));
+            }
+        });
         let mut widths = self
             .s
             .ui
@@ -655,49 +780,112 @@ impl PnpApp {
             self.s.ui.set_column_width("plan", i, widths[i]);
         }
         let mut clicked: Option<String> = None;
-        let next = self.s.session.next();
+        let next = jobtab::current_index(self.s.session.job());
         egui::ScrollArea::vertical()
             .id_salt("plan_rows")
             .auto_shrink([false, false])
-            .show_rows(ui, ROW_H, rows.len(), |ui, range| {
+            .show_rows(ui, ROW_H, shown.len(), |ui, range| {
                 for i in range {
-                    let r = &rows[i];
-                    let chosen = self.s.selection.is_part(&r.reference);
-                    let current = matches!(next, Next::Pick(n) | Next::Place(n) if n + 1 == r.step);
-                    let (status_text, status_color) = status_label(r.status, lang, &pal);
+                    let r = shown[i];
+                    let chosen = self.s.selection.is_part(&r.row.reference);
+                    let current = r.row.step > 0 && next == Some(r.row.step - 1);
+                    let number = |n: usize| {
+                        if n == 0 {
+                            "-".to_string()
+                        } else {
+                            n.to_string()
+                        }
+                    };
                     let resp = row_ui(
                         ui,
-                        egui::Id::unique("plan_row").with(r.step),
+                        egui::Id::unique("plan_row").with(r.row.step).with(i),
                         chosen || current,
                         &pal,
                         true,
                         |ui| {
-                            cell(ui, widths[0], r.step.to_string());
-                            cell(ui, widths[1], r.reference.clone());
-                            cell(ui, widths[2], r.value.clone());
-                            cell(ui, widths[3], r.feeder.clone());
-                            cell(ui, widths[4], r.nozzle.to_string());
-                            cell(ui, widths[5], r.batch.to_string());
-                            let tip = if r.tip_change {
-                                RichText::new(format!("{} *", r.tip)).color(col(pal.warn))
+                            cell(ui, widths[0], number(r.row.step));
+                            cell(ui, widths[1], r.row.reference.clone());
+                            cell(ui, widths[2], r.row.value.clone());
+                            cell(ui, widths[3], r.row.feeder.clone());
+                            cell(ui, widths[4], number(r.row.nozzle));
+                            cell(ui, widths[5], number(r.row.batch));
+                            let tip = if r.row.tip_change {
+                                RichText::new(format!("{} *", r.row.tip)).color(col(pal.warn))
                             } else {
-                                RichText::new(r.tip.clone())
+                                RichText::new(r.row.tip.clone())
                             };
                             cell(ui, widths[6], tip);
-                            cell(
-                                ui,
-                                widths[7],
-                                RichText::new(status_text).color(status_color),
+                            let state = ui.add_sized(
+                                [widths[7], ROW_H - 2.0],
+                                egui::Label::new(
+                                    RichText::new(tr(r.state.text(), lang))
+                                        .color(state_color(r.state, &pal)),
+                                )
+                                .truncate(),
                             );
+                            if !r.note.is_empty() {
+                                state.on_hover_text(r.note.as_str());
+                            }
                         },
                     );
                     if resp.clicked() {
-                        clicked = Some(r.reference.clone());
+                        clicked = Some(r.row.reference.clone());
                     }
                 }
             });
         if let Some(r) = clicked {
             self.s.selection.select_part(&r, self.s.planned.as_ref());
+        }
+    }
+
+    /// The dialog of the error that stopped the job: what failed and what the person can do about it. The action chosen is carried out on the simulated job, which then goes on.
+    fn error_window(&mut self, ctx: &egui::Context) {
+        let Some(dialog) = jobtab::error_dialog(self.s.session.job()) else {
+            return;
+        };
+        let pal = self.s.ui.theme.palette();
+        let lang = self.s.lang();
+        let f = &dialog.failure;
+        let mut chosen: Option<Action> = None;
+        egui::Window::new(tr(Text::ErrorTitle, lang))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui| {
+                ui.label(RichText::new(f.error.localized(lang)).color(col(pal.danger)));
+                ui.add_space(4.0);
+                let step = if f.at_pick {
+                    tr(Text::StepPick, lang)
+                } else {
+                    tr(Text::StepPlace, lang)
+                };
+                ui.label(format!(
+                    "{}: {}   {}: {}   {}: {}   {}: {step}",
+                    tr(Text::ColRef, lang),
+                    f.reference,
+                    tr(Text::ColFeeder, lang),
+                    f.feeder,
+                    tr(Text::ColNozzle, lang),
+                    f.nozzle + 1,
+                    tr(Text::FailedStep, lang)
+                ));
+                ui.add_space(6.0);
+                ui.horizontal_wrapped(|ui| {
+                    for action in Action::ALL {
+                        if ui
+                            .add_enabled(
+                                dialog.allows(action),
+                                egui::Button::new(tr(jobtab::action_text(action), lang)),
+                            )
+                            .clicked()
+                        {
+                            chosen = Some(action);
+                        }
+                    }
+                });
+            });
+        if let Some(action) = chosen {
+            self.s.decide(action);
         }
     }
 
@@ -821,6 +1009,7 @@ impl PnpApp {
                 let fill = match status {
                     Some(Status::Placed) => alpha(col(pal.ok), 200),
                     Some(Status::Deferred) => alpha(col(pal.warn), 200),
+                    Some(Status::Skipped) => alpha(col(pal.warn), 110),
                     _ => alpha(col(pal.accent), 70),
                 };
                 let chosen = self.s.selection.is_part(&sh.reference);
@@ -2121,6 +2310,7 @@ impl eframe::App for PnpApp {
         self.side_panel(ui);
         self.center(ui);
         self.browser_window(&ctx);
+        self.error_window(&ctx);
         // an edit of a table ends when nothing is being dragged or typed in
         let busy = ctx.input(|i| i.pointer.any_down()) || ctx.memory(|m| m.focused().is_some());
         if !busy {
@@ -2238,7 +2428,12 @@ const SHOT_MAX_FILES: usize = 64;
 
 /// Opens the window at the size asked with the files loaded, in the language and the theme asked, saves the picture as the request says and closes by itself. The window reads and
 /// writes no settings (the guide is not shown). The answer is the reason when the picture could not be written.
-pub fn run_shot(files: &[PathBuf], lang: Lang, request: ShotRequest) -> Result<(), String> {
+pub fn run_shot(
+    files: &[PathBuf],
+    lang: Lang,
+    request: ShotRequest,
+    view: (Option<Tab>, u32),
+) -> Result<(), String> {
     if !request.replace && request.output.exists() {
         return Err(format!(
             "{} exists; give --replace to write over it",
@@ -2284,6 +2479,12 @@ pub fn run_shot(files: &[PathBuf], lang: Lang, request: ShotRequest) -> Result<(
         Box::new(move |cc| {
             install_fonts(&cc.egui_ctx);
             let mut app = PnpApp::new(ui_settings, &paths);
+            if let Some(tab) = view.0 {
+                app.s.tab = tab;
+            }
+            if view.1 > 0 {
+                app.s.run_steps(view.1);
+            }
             app.shot = Some(ShotState {
                 request,
                 frame: 0,
@@ -2314,7 +2515,13 @@ pub fn take_picture(args: &[String]) -> u8 {
         eprintln!("error: --shot needs a file to write");
         return 2;
     };
-    match run_shot(&parsed.files, parsed.lang.unwrap_or(Lang::En), request) {
+    let view = (parsed.window, parsed.steps.unwrap_or(0));
+    match run_shot(
+        &parsed.files,
+        parsed.lang.unwrap_or(Lang::En),
+        request,
+        view,
+    ) {
         Ok(()) => 0,
         Err(e) => {
             eprintln!("error: the picture could not be taken: {e}");
