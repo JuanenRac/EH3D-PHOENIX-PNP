@@ -89,10 +89,13 @@ pub enum Code {
     PartsBad = 34,
     AlignRejected = 35,
     AlignFailed = 36,
+    VisionNotFound = 37,
+    VisionAreaOutOfRange = 38,
+    VisionSeveralSpots = 39,
 }
 
 impl Code {
-    pub const ALL: [Code; 36] = [
+    pub const ALL: [Code; 39] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -129,6 +132,9 @@ impl Code {
         Code::PartsBad,
         Code::AlignRejected,
         Code::AlignFailed,
+        Code::VisionNotFound,
+        Code::VisionAreaOutOfRange,
+        Code::VisionSeveralSpots,
     ];
 
     pub fn number(self) -> u16 {
@@ -147,7 +153,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 36] = [
+static MESSAGES: [[&str; 8]; 39] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -507,6 +513,36 @@ static MESSAGES: [[&str; 8]; 36] = [
         "カメラが部品の測定値を返しませんでした",
         "相机没有给出零件的测量值",
         "A câmara não deu nenhuma leitura da peça",
+    ],
+    [
+        "The vision did not find the part in the image",
+        "La visión no encontró la pieza en la imagen",
+        "Die Bildverarbeitung fand das Teil im Bild nicht",
+        "La vision n'a pas trouvé la pièce dans l'image",
+        "La visione non ha trovato il componente nell'immagine",
+        "画像の中に部品が見つかりませんでした",
+        "在图像中没有找到零件",
+        "A visão não encontrou a peça na imagem",
+    ],
+    [
+        "The spot found in the image has an area outside the allowed range",
+        "La mancha hallada en la imagen tiene un área fuera del rango permitido",
+        "Der im Bild gefundene Fleck hat eine Fläche außerhalb des erlaubten Bereichs",
+        "La tache trouvée dans l'image a une aire hors de la plage autorisée",
+        "La macchia trovata nell'immagine ha un'area fuori dall'intervallo consentito",
+        "画像で見つかった領域の面積が許容範囲外です",
+        "图像中找到的斑块面积超出允许范围",
+        "A mancha encontrada na imagem tem uma área fora do intervalo permitido",
+    ],
+    [
+        "The vision found more than one spot that could be the part",
+        "La visión encontró más de una mancha que podría ser la pieza",
+        "Die Bildverarbeitung fand mehr als einen Fleck, der das Teil sein könnte",
+        "La vision a trouvé plus d'une tache pouvant être la pièce",
+        "La visione ha trovato più di una macchia che potrebbe essere il componente",
+        "部品の可能性がある領域が複数見つかりました",
+        "找到了不止一个可能是零件的斑块",
+        "A visão encontrou mais de uma mancha que pode ser a peça",
     ],
 ];
 
