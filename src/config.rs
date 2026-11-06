@@ -15,7 +15,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 79] = [
+pub const KEYS: [&str; 88] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -95,6 +95,15 @@ pub const KEYS: [&str; 79] = [
     "tip_opt_time_limit_s",
     "sim_part_fail",
     "sim_feeder_fail",
+    "align",
+    "pick_tolerance_mm",
+    "align_passes",
+    "align_settle_s",
+    "sim_camera_fail_rate",
+    "sim_align_dx_mm",
+    "sim_align_dy_mm",
+    "sim_align_deg",
+    "sim_align_noise_mm",
 ];
 
 /// The order in which the places are visited.
@@ -250,6 +259,22 @@ pub struct MachineConfig {
     pub sim_part_fail: Vec<(String, f64, f64)>,
     /// Chances that a pick from a feeder fails: `(feeder id, pick)`. They add to the general chances.
     pub sim_feeder_fail: Vec<(String, f64)>,
+    /// Look at the part with the camera between the pick and the place and correct the place by what it sees (off by default: a job then does what it always did).
+    pub align: bool,
+    /// A part whose position the camera finds further than this from the nozzle (millimetres) is thrown away and picked again, as the error policy says.
+    pub pick_tolerance_mm: f64,
+    /// How many times the camera looks at the part and the correction is made again, from 1 to 5.
+    pub align_passes: u32,
+    /// The seconds to wait after the pick, and again before each further look, for the part to settle on the nozzle.
+    pub align_settle_s: f64,
+    /// The simulated camera: the chance (0 to 1) that a look gives no reading.
+    pub sim_camera_fail_rate: f64,
+    /// The simulated camera: how far (millimetres) and how much turned (degrees) it finds every part from the nozzle, before any correction.
+    pub sim_align_dx_mm: f64,
+    pub sim_align_dy_mm: f64,
+    pub sim_align_deg: f64,
+    /// The simulated camera: a random error of every reading, from minus to plus this many millimetres on each axis (taken from the seed).
+    pub sim_align_noise_mm: f64,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -323,6 +348,15 @@ impl Default for MachineConfig {
             tip_opt_time_limit_s: 1.0,
             sim_part_fail: Vec::new(),
             sim_feeder_fail: Vec::new(),
+            align: false,
+            pick_tolerance_mm: 0.5,
+            align_passes: 1,
+            align_settle_s: 0.1,
+            sim_camera_fail_rate: 0.0,
+            sim_align_dx_mm: 0.0,
+            sim_align_dy_mm: 0.0,
+            sim_align_deg: 0.0,
+            sim_align_noise_mm: 0.0,
         }
     }
 }
@@ -640,6 +674,15 @@ impl MachineConfig {
                 }
                 self.sim_feeder_fail.push((fields[0].to_string(), pick));
             }
+            "align" => self.align = flag(line, key, v)?,
+            "pick_tolerance_mm" => self.pick_tolerance_mm = n(0.001, 50.0)?,
+            "align_passes" => self.align_passes = int(line, key, v, 1, 5)? as u32,
+            "align_settle_s" => self.align_settle_s = n(0.0, 10.0)?,
+            "sim_camera_fail_rate" => self.sim_camera_fail_rate = n(0.0, 1.0)?,
+            "sim_align_dx_mm" => self.sim_align_dx_mm = n(-50.0, 50.0)?,
+            "sim_align_dy_mm" => self.sim_align_dy_mm = n(-50.0, 50.0)?,
+            "sim_align_deg" => self.sim_align_deg = n(-180.0, 180.0)?,
+            "sim_align_noise_mm" => self.sim_align_noise_mm = n(0.0, 10.0)?,
             "tray_fill" => {
                 self.tray_fill = TrayFill::parse(&v.to_ascii_lowercase())
                     .ok_or_else(|| bad(line, key, v, "rows, columns or snake"))?

@@ -87,10 +87,12 @@ pub enum Code {
     FiducialBad = 32,
     MountingBad = 33,
     PartsBad = 34,
+    AlignRejected = 35,
+    AlignFailed = 36,
 }
 
 impl Code {
-    pub const ALL: [Code; 34] = [
+    pub const ALL: [Code; 36] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -125,6 +127,8 @@ impl Code {
         Code::FiducialBad,
         Code::MountingBad,
         Code::PartsBad,
+        Code::AlignRejected,
+        Code::AlignFailed,
     ];
 
     pub fn number(self) -> u16 {
@@ -143,7 +147,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 34] = [
+static MESSAGES: [[&str; 8]; 36] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -483,6 +487,26 @@ static MESSAGES: [[&str; 8]; 34] = [
         "位置ファイルが無効です",
         "位置文件无效",
         "O ficheiro de posições não é válido",
+    ],
+    [
+        "The camera found the part further out of place than the tolerance allows",
+        "La cámara encontró la pieza más desplazada de lo que permite la tolerancia",
+        "Die Kamera fand das Teil weiter verschoben, als die Toleranz erlaubt",
+        "La caméra a trouvé la pièce plus décalée que la tolérance ne l'autorise",
+        "La telecamera ha trovato il componente più spostato di quanto consenta la tolleranza",
+        "カメラが検出した部品のずれが許容差を超えています",
+        "相机发现零件的偏移超过了容差",
+        "A câmara encontrou a peça mais deslocada do que a tolerância permite",
+    ],
+    [
+        "The camera gave no reading of the part",
+        "La cámara no dio ninguna lectura de la pieza",
+        "Die Kamera lieferte keine Messung des Teils",
+        "La caméra n'a donné aucune mesure de la pièce",
+        "La telecamera non ha fornito alcuna misura del componente",
+        "カメラが部品の測定値を返しませんでした",
+        "相机没有给出零件的测量值",
+        "A câmara não deu nenhuma leitura da peça",
     ],
 ];
 
