@@ -487,6 +487,19 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
             if f.disabled { ", switched off" } else { "" }
         );
     }
+    if p.c.cfg.align {
+        let a = &s.align;
+        println!(
+            "align: {} parts corrected (mean {:.3} mm, largest {:.3} mm, largest turn {:.2} degrees), {} thrown away over {} mm, {} looks without a reading",
+            a.corrected,
+            a.mean_mm(),
+            a.max_mm,
+            a.max_deg,
+            a.rejected,
+            p.c.cfg.pick_tolerance_mm,
+            a.camera_failures
+        );
+    }
     for (r, why) in job.deferred() {
         println!("put aside: {r}: {why}");
     }

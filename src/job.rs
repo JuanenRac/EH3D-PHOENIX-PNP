@@ -12,10 +12,10 @@
 use crate::config::{ErrorPolicy, MachineConfig};
 use crate::error::{Code, PnpError};
 use crate::feeding::{choose, FeederSpec};
-use crate::model::{FeederDevice, Machine, Nozzle};
+use crate::model::{Camera, FeederDevice, Machine, Nozzle, Offset};
 use crate::planner::AdvancedPlan;
 use crate::rotation::glob_match;
-use crate::sim::{SimFeeder, SimMachine, SimOp};
+use crate::sim::{SimCamera, SimFeeder, SimMachine, SimOp};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
@@ -93,6 +93,37 @@ pub fn combined_chance(a: f64, b: f64) -> f64 {
 pub const STATS_CSV_HEADER: &str =
     "section,name,value,picked,pick_failures,placed,place_failures,faults,disabled";
 
+/// What the camera did with the parts of the job (all zero when the align step is off).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct AlignStats {
+    /// Parts that the camera found within the tolerance and whose place was corrected.
+    pub corrected: u32,
+    /// Parts thrown away because the camera found them further from the nozzle than `pick_tolerance_mm`.
+    pub rejected: u32,
+    /// Looks of the camera that gave no reading (the part was thrown away too).
+    pub camera_failures: u32,
+    /// The sum of the first readings of the corrected parts, in millimetres: how far each was from the nozzle.
+    pub sum_mm: f64,
+    /// The largest of those readings.
+    pub max_mm: f64,
+    /// The largest turn that was corrected, in degrees (without its sign).
+    pub max_deg: f64,
+}
+
+impl AlignStats {
+    /// The mean distance from the nozzle of the corrected parts, in millimetres; 0 when none was corrected.
+    pub fn mean_mm(&self) -> f64 {
+        if self.corrected > 0 {
+            self.sum_mm / f64::from(self.corrected)
+        } else {
+            0.0
+        }
+    }
+}
+
+/// What a saved job keeps of the align step: the statistics, the generator and the looks of the camera, and the correction found for the part on each nozzle.
+type AlignState = (AlignStats, (u64, u64), Vec<Option<Offset>>);
+
 /// The statistics of the job.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Stats {
@@ -106,6 +137,7 @@ pub struct Stats {
     pub feeders: Vec<FeederStats>,
     /// By package, in the order of the first feeder that holds it.
     pub kinds: Vec<KindStats>,
+    pub align: AlignStats,
 }
 
 #[derive(Debug, Clone)]
@@ -127,6 +159,9 @@ pub struct Job {
     windows: Vec<Vec<bool>>,
     mounted: bool,
     stats: Stats,
+    camera: SimCamera,
+    /// What the camera found on the part that each nozzle holds, to be corrected in the place.
+    corrections: Vec<Option<Offset>>,
 }
 
 fn fnv1a(text: &str) -> u64 {
@@ -189,6 +224,10 @@ impl Job {
         for f in &feeders {
             text.push_str(&format!("{}:{};", f.base.id, f.base.count));
         }
+        // a saved job of the align step is for the job with the step: a job without it keeps the number it always had
+        if cfg.align {
+            text.push_str("align;");
+        }
         let batches: Vec<Vec<usize>> = batches.into_iter().filter(|b| !b.is_empty()).collect();
         let devices: Vec<SimFeeder> = feeders
             .iter()
@@ -230,6 +269,8 @@ impl Job {
         } else {
             Cursor::Pick { batch: 0, k: 0 }
         };
+        let camera = SimCamera::from_config(&cfg);
+        let corrections = vec![None; cfg.nozzles];
         Ok(Job {
             plan,
             windows: vec![Vec::new(); feeders.len()],
@@ -248,6 +289,8 @@ impl Job {
             reasons: vec![String::new(); count],
             mounted: false,
             stats,
+            camera,
+            corrections,
         })
     }
 
@@ -298,6 +341,11 @@ impl Job {
 
     pub fn machine(&self) -> &SimMachine {
         &self.machine
+    }
+
+    /// The simulated camera, for tests that make a look fail at a chosen place.
+    pub fn camera_mut(&mut self) -> &mut SimCamera {
+        &mut self.camera
     }
 
     /// The simulated feeders, in the order of the list.
@@ -528,19 +576,7 @@ impl Job {
         };
         let at = self.feeders[f].pick_point(self.taken[f]);
         self.machine.move_to(at)?;
-        let mut fed = false;
-        for _ in 0..=self.cfg.feed_retries {
-            self.machine.wait(self.cfg.feed_s);
-            match self.devices[f].feed() {
-                Ok(()) => {
-                    fed = true;
-                    break;
-                }
-                Err(e) if e.code == Code::SimFault => self.stats.feed_failures += 1,
-                Err(e) => return Err(e),
-            }
-        }
-        if !fed {
+        if !self.feed_part(f)? {
             self.record(f, true);
             let e = PnpError::new(
                 Code::FeedFailed,
@@ -549,17 +585,45 @@ impl Job {
             return self.give_up(idx, nozzle, e);
         }
         let mut picked = false;
+        // why the last attempt was lost, when the camera was the cause
+        let mut align_error: Option<PnpError> = None;
+        self.corrections[nozzle] = None;
         let kind = self.kind_of(f);
         let chance = combined_chance(self.part_chances(f).0, self.feeder_chance(f));
         self.machine.set_extra_fail(SimOp::Pick, chance);
-        for _ in 0..=det.pick_retries {
+        for attempt in 0..=det.pick_retries {
             self.stats.pick_attempts += 1;
             match self.machine.pick(nozzle, &pl.reference) {
-                Ok(()) => {
+                Ok(()) if !self.cfg.align => {
                     picked = true;
                     break;
                 }
+                Ok(()) => match self.align_part(nozzle) {
+                    Ok(correction) => {
+                        self.corrections[nozzle] = Some(correction);
+                        picked = true;
+                        break;
+                    }
+                    Err(e) => {
+                        // the part is thrown away, so it is gone from the feeder: the next one is brought for the next attempt
+                        self.machine.discard(nozzle);
+                        self.devices[f].take();
+                        self.taken[f] += 1;
+                        align_error = Some(e);
+                        if attempt < det.pick_retries {
+                            if !self.usable(f) {
+                                break;
+                            }
+                            let at = self.feeders[f].pick_point(self.taken[f]);
+                            self.machine.move_to(at)?;
+                            if !self.feed_part(f)? {
+                                break;
+                            }
+                        }
+                    }
+                },
                 Err(e) if e.code == Code::SimFault => {
+                    align_error = None;
                     self.stats.pick_failures += 1;
                     self.stats.kinds[kind].pick_failures += 1;
                     self.stats.feeders[f].pick_failures += 1;
@@ -570,10 +634,12 @@ impl Job {
         self.machine.set_extra_fail(SimOp::Pick, 0.0);
         self.record(f, !picked);
         if !picked {
-            let e = PnpError::new(
-                Code::PickFailed,
-                format!("{} from feeder '{}'", pl.reference, self.feeders[f].base.id),
-            );
+            let e = align_error.unwrap_or_else(|| {
+                PnpError::new(
+                    Code::PickFailed,
+                    format!("{} from feeder '{}'", pl.reference, self.feeders[f].base.id),
+                )
+            });
             return self.give_up(idx, nozzle, e);
         }
         self.devices[f].take();
@@ -581,6 +647,80 @@ impl Job {
         self.stats.feeders[f].picked += 1;
         self.stats.kinds[kind].picked += 1;
         Ok(())
+    }
+
+    /// Brings the next part of the feeder `f` to its picking place, trying again as many times as the configuration says. False when every attempt failed.
+    fn feed_part(&mut self, f: usize) -> Result<bool, PnpError> {
+        for _ in 0..=self.cfg.feed_retries {
+            self.machine.wait(self.cfg.feed_s);
+            match self.devices[f].feed() {
+                Ok(()) => return Ok(true),
+                Err(e) if e.code == Code::SimFault => self.stats.feed_failures += 1,
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(false)
+    }
+
+    /// The align step: the part that the nozzle has just picked is looked at by the camera `align_passes` times, waiting `align_settle_s` before each look, and what the camera sees
+    /// is corrected each time. The first reading decides whether the part is good enough (it is not when it is further from the nozzle than `pick_tolerance_mm`). Gives the sum of the
+    /// corrections, which the place applies.
+    fn align_part(&mut self, nozzle: usize) -> Result<Offset, PnpError> {
+        self.camera.clear();
+        let mut total = Offset::default();
+        let mut first_mm: f64 = 0.0;
+        for pass in 0..self.cfg.align_passes {
+            self.machine.wait(self.cfg.align_settle_s);
+            let seen = match self.camera.measure(nozzle) {
+                Ok(o) => o,
+                Err(e) if e.code == Code::SimFault => {
+                    self.stats.align.camera_failures += 1;
+                    self.machine.note(format!(
+                        "the camera gave no reading of the part on nozzle {}",
+                        nozzle + 1
+                    ));
+                    return Err(PnpError::new(Code::AlignFailed, e.detail));
+                }
+                Err(e) => return Err(e),
+            };
+            let away_mm: f64 = seen.dx_mm.hypot(seen.dy_mm);
+            if pass == 0 {
+                first_mm = away_mm;
+                if away_mm > self.cfg.pick_tolerance_mm {
+                    self.stats.align.rejected += 1;
+                    self.machine.note(format!(
+                        "the part on nozzle {} is {:.3} mm from the nozzle: thrown away",
+                        nozzle + 1,
+                        away_mm
+                    ));
+                    return Err(PnpError::new(
+                        Code::AlignRejected,
+                        format!(
+                            "{:.3} mm from the nozzle, the tolerance is {} mm",
+                            away_mm, self.cfg.pick_tolerance_mm
+                        ),
+                    ));
+                }
+            }
+            total.dx_mm += seen.dx_mm;
+            total.dy_mm += seen.dy_mm;
+            total.rotation_deg += seen.rotation_deg;
+            self.camera.apply(seen);
+            self.machine.note(format!(
+                "look {} at nozzle {}: X {:.3} Y {:.3} mm, turned {:.3} degrees",
+                pass + 1,
+                nozzle + 1,
+                seen.dx_mm,
+                seen.dy_mm,
+                seen.rotation_deg
+            ));
+        }
+        let a = &mut self.stats.align;
+        a.corrected += 1;
+        a.sum_mm += first_mm;
+        a.max_mm = a.max_mm.max(first_mm);
+        a.max_deg = a.max_deg.max(total.rotation_deg.abs());
+        Ok(total)
     }
 
     fn do_place(&mut self, batch: usize, k: usize) -> Result<(), PnpError> {
@@ -609,7 +749,21 @@ impl Job {
             }
             Some(_) => {}
         }
-        self.machine.move_to((pl.x, pl.y))?;
+        // the camera found the part off the nozzle by this much: the head goes to the place less that, and the nozzle turns less that
+        let correction = self.corrections[nozzle];
+        let target = match correction {
+            Some(c) => (pl.x - c.dx_mm, pl.y - c.dy_mm),
+            None => (pl.x, pl.y),
+        };
+        self.machine.move_to(target)?;
+        if let Some(c) = correction {
+            self.machine.note(format!(
+                "nozzle {} places {} turned {:.3} degrees",
+                nozzle + 1,
+                pl.reference,
+                pl.rotation - c.rotation_deg
+            ));
+        }
         let source = self.index[&pl.feeder];
         let kind = self.kind_of(source);
         let place_chance = self.part_chances(source).1;
@@ -619,6 +773,7 @@ impl Job {
                 Ok(_) => {
                     self.machine.set_extra_fail(SimOp::Place, 0.0);
                     self.status[idx] = Status::Placed;
+                    self.corrections[nozzle] = None;
                     self.stats.placed += 1;
                     self.stats.kinds[kind].placed += 1;
                     return Ok(());
@@ -633,7 +788,11 @@ impl Job {
         self.machine.set_extra_fail(SimOp::Place, 0.0);
         // with `alert` the part stays on the nozzle, so that the step can be tried again after the cause is put right
         let e = PnpError::new(Code::PlaceFailed, pl.reference.clone());
-        self.give_up(idx, nozzle, e)
+        let given_up = self.give_up(idx, nozzle, e);
+        if given_up.is_ok() {
+            self.corrections[nozzle] = None;
+        }
+        given_up
     }
 
     /// The statistics as JSON.
@@ -655,7 +814,7 @@ impl Job {
             .into_iter()
             .map(|(r, why)| json!({"reference": r, "reason": why}))
             .collect();
-        serde_json::to_string_pretty(&json!({
+        let mut doc = json!({
             "schema_version": 1,
             "placed": s.placed,
             "deferred": s.deferred,
@@ -671,9 +830,21 @@ impl Job {
             "feeders": feeders,
             "kinds": kinds,
             "deferred_parts": deferred
-        }))
-        .unwrap_or_default()
-            + "\n"
+        });
+        // only a job with the align step reports it: the report of a job without it is the one it always was
+        if self.cfg.align {
+            doc["align"] = json!({
+                "passes": self.cfg.align_passes,
+                "pick_tolerance_mm": self.cfg.pick_tolerance_mm,
+                "corrected": s.align.corrected,
+                "rejected": s.align.rejected,
+                "camera_failures": s.align.camera_failures,
+                "mean_mm": s.align.mean_mm(),
+                "max_mm": s.align.max_mm,
+                "max_deg": s.align.max_deg
+            });
+        }
+        serde_json::to_string_pretty(&doc).unwrap_or_default() + "\n"
     }
 
     /// The report of the job as a CSV with the header `STATS_CSV_HEADER`: the `total` rows (name and value), a row for each package and each feeder, and a row for each part put aside
@@ -723,6 +894,26 @@ impl Job {
                 crate::parts::csv_field(&reference),
                 crate::parts::csv_field(&why)
             ));
+        }
+        // a section of its own, after the rows that were always there, and only for a job with the align step
+        if self.cfg.align {
+            let a = &s.align;
+            let rows: [(&str, String); 8] = [
+                ("passes", self.cfg.align_passes.to_string()),
+                (
+                    "pick_tolerance_mm",
+                    format!("{:.3}", self.cfg.pick_tolerance_mm),
+                ),
+                ("corrected", a.corrected.to_string()),
+                ("rejected", a.rejected.to_string()),
+                ("camera_failures", a.camera_failures.to_string()),
+                ("mean_mm", format!("{:.3}", a.mean_mm())),
+                ("max_mm", format!("{:.3}", a.max_mm)),
+                ("max_deg", format!("{:.3}", a.max_deg)),
+            ];
+            for (name, value) in rows {
+                out.push_str(&format!("align,{name},{value},,,,,,\n"));
+            }
         }
         out
     }
@@ -793,7 +984,7 @@ impl Job {
             "feeders": feeders,
             "kinds": kinds
         });
-        serde_json::to_string_pretty(&json!({
+        let mut doc = json!({
             "schema_version": 1,
             "hash": self.hash,
             "cursor": cursor,
@@ -805,9 +996,32 @@ impl Job {
             "devices": devices,
             "machine": machine,
             "stats": stats
-        }))
-        .unwrap_or_default()
-            + "\n"
+        });
+        // the numbers are kept as the bits of the float, in a text, so that they come back exactly
+        if self.cfg.align {
+            let (rng, looks) = self.camera.save();
+            let bits = |x: f64| x.to_bits().to_string();
+            let corrections: Vec<Value> = self
+                .corrections
+                .iter()
+                .map(|c| match c {
+                    Some(o) => json!([bits(o.dx_mm), bits(o.dy_mm), bits(o.rotation_deg)]),
+                    None => Value::Null,
+                })
+                .collect();
+            doc["align"] = json!({
+                "rng": rng.to_string(),
+                "looks": looks.to_string(),
+                "corrected": s.align.corrected,
+                "rejected": s.align.rejected,
+                "camera_failures": s.align.camera_failures,
+                "sum_mm": bits(s.align.sum_mm),
+                "max_mm": bits(s.align.max_mm),
+                "max_deg": bits(s.align.max_deg),
+                "corrections": corrections
+            });
+        }
+        serde_json::to_string_pretty(&doc).unwrap_or_default() + "\n"
     }
 
     /// Puts a saved state back into a job made from the same plan and feeders. A state that belongs to another job, or that does not fit this one, is refused and the job is left as it was.
@@ -978,6 +1192,65 @@ impl Job {
                 }
             }
         }
+        // a job without the align step ignores the section; one with it, and a state saved before it existed, starts it again from zero
+        let mut align_state: Option<AlignState> = None;
+        if self.cfg.align {
+            if let Some(a) = v.get("align") {
+                let bits = |key: &str| -> Result<f64, PnpError> {
+                    text_u64(a, key)
+                        .map(f64::from_bits)
+                        .ok()
+                        .filter(|x| x.is_finite())
+                        .ok_or_else(|| {
+                            state_bad(format!("'{key}' of the align step is not a number"))
+                        })
+                };
+                let counted = |key: &str| -> Result<u32, PnpError> { Ok(int(a, key)? as u32) };
+                let listed = a
+                    .get("corrections")
+                    .and_then(Value::as_array)
+                    .ok_or_else(|| state_bad("no corrections"))?;
+                if listed.len() != self.corrections.len() {
+                    return Err(state_bad("the corrections do not fit the nozzles"));
+                }
+                let mut corrections: Vec<Option<Offset>> = Vec::new();
+                for c in listed {
+                    corrections.push(match c {
+                        Value::Null => None,
+                        Value::Array(o) if o.len() == 3 => {
+                            let mut n = [0.0f64; 3];
+                            for (slot, item) in n.iter_mut().zip(o) {
+                                *slot = item
+                                    .as_str()
+                                    .and_then(|t| t.parse::<u64>().ok())
+                                    .map(f64::from_bits)
+                                    .filter(|x| x.is_finite())
+                                    .ok_or_else(|| state_bad("a correction is not a number"))?;
+                            }
+                            Some(Offset {
+                                dx_mm: n[0],
+                                dy_mm: n[1],
+                                rotation_deg: n[2],
+                            })
+                        }
+                        _ => return Err(state_bad("a correction is not null or three numbers")),
+                    });
+                }
+                let counters = AlignStats {
+                    corrected: counted("corrected")?,
+                    rejected: counted("rejected")?,
+                    camera_failures: counted("camera_failures")?,
+                    sum_mm: bits("sum_mm")?,
+                    max_mm: bits("max_mm")?,
+                    max_deg: bits("max_deg")?,
+                };
+                align_state = Some((
+                    counters,
+                    (text_u64(a, "rng")?, text_u64(a, "looks")?),
+                    corrections,
+                ));
+            }
+        }
         let error = match v.get("error") {
             Some(Value::Object(e)) => {
                 let number = e.get("code").and_then(Value::as_u64).unwrap_or(0);
@@ -997,6 +1270,17 @@ impl Job {
             text_u64(m, "clock_us")?,
         );
         self.machine.restore(saved_machine, pos, holding, tip);
+        match align_state {
+            Some((counters, camera, corrections)) => {
+                stats.align = counters;
+                self.camera.restore(camera);
+                self.corrections = corrections;
+            }
+            None => {
+                stats.align = AlignStats::default();
+                self.corrections = vec![None; self.corrections.len()];
+            }
+        }
         for (d, (saved, remaining, enabled)) in self.devices.iter_mut().zip(saved_devices) {
             d.restore(saved, remaining, enabled);
         }
