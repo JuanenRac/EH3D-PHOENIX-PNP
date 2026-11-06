@@ -58,6 +58,8 @@ pub struct AdvancedPlan {
     pub tiers: usize,
     /// The seconds of the plan that the nozzles spend turning when they do not turn while the head moves.
     pub rotation_s: f64,
+    /// The seconds of the plan that the camera takes to look at the parts after they are picked (0 when the align step is off).
+    pub align_s: f64,
     pub order: OrderStrategy,
 }
 
@@ -516,6 +518,12 @@ pub fn plan_advanced(
     // the walk of the head
     let mut head = (0.0, 0.0);
     let (mut travel, mut seconds, mut rotation_s) = (0.0, 0.0, 0.0);
+    let mut align_s: f64 = 0.0;
+    let per_pick: f64 = if cfg.align {
+        f64::from(cfg.align_passes) * cfg.align_settle_s
+    } else {
+        0.0
+    };
     let mut angles = [0.0f64; 6];
     let mut tip_changes = 0usize;
     let mut current_tip: Option<&str> = None;
@@ -560,7 +568,8 @@ pub fn plan_advanced(
             )?;
             let (d, t, r) = leg(head, it.pick, new - angles[nozzle], cfg, &motion);
             travel += d;
-            seconds += t + cfg.feed_s + cfg.pick_s;
+            seconds += t + cfg.feed_s + cfg.pick_s + per_pick;
+            align_s += per_pick;
             rotation_s += r;
             angles[nozzle] = new;
             head = it.pick;
@@ -611,6 +620,7 @@ pub fn plan_advanced(
         tip_changes,
         tiers: tier_ranges.len(),
         rotation_s,
+        align_s,
         order: cfg.order,
     })
 }
@@ -632,7 +642,7 @@ impl AdvancedPlan {
                 })
             })
             .collect();
-        serde_json::to_string_pretty(&json!({
+        let mut doc = json!({
             "schema_version": 2,
             "order": self.order.name(),
             "batches": self.plan.batches,
@@ -642,8 +652,11 @@ impl AdvancedPlan {
             "seconds": self.plan.seconds,
             "rotation_s": self.rotation_s,
             "placements": list
-        }))
-        .unwrap_or_default()
-            + "\n"
+        });
+        // only a plan with the align step says so: the plan of a job without it keeps the text it always had
+        if self.align_s > 0.0 {
+            doc["align_s"] = json!(self.align_s);
+        }
+        serde_json::to_string_pretty(&doc).unwrap_or_default() + "\n"
     }
 }

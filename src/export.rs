@@ -28,6 +28,12 @@ pub fn report(plan: &AdvancedPlan, picks: &Picks, undefined: &[(String, usize)])
         "travel {:.1} mm, about {:.1} s\n",
         plan.plan.travel_mm, plan.plan.seconds
     ));
+    if plan.align_s > 0.0 {
+        out.push_str(&format!(
+            "of which {:.1} s for the camera to look at the parts\n",
+            plan.align_s
+        ));
+    }
     let mut batch = usize::MAX;
     for (p, d) in plan.plan.placements.iter().zip(&plan.details) {
         if p.batch != batch {
