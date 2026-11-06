@@ -85,10 +85,12 @@ pub enum Code {
     DriverError = 30,
     SimFault = 31,
     FiducialBad = 32,
+    MountingBad = 33,
+    PartsBad = 34,
 }
 
 impl Code {
-    pub const ALL: [Code; 32] = [
+    pub const ALL: [Code; 34] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -121,6 +123,8 @@ impl Code {
         Code::DriverError,
         Code::SimFault,
         Code::FiducialBad,
+        Code::MountingBad,
+        Code::PartsBad,
     ];
 
     pub fn number(self) -> u16 {
@@ -139,7 +143,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 32] = [
+static MESSAGES: [[&str; 8]; 34] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -459,6 +463,26 @@ static MESSAGES: [[&str; 8]; 32] = [
         "フィデューシャルが無効か、位置を決められません",
         "基准点无效，或无法确定位置",
         "Os fiduciais não são válidos ou não dão uma posição",
+    ],
+    [
+        "A mark of mounting is not yes or no, or a reference to leave out is not known",
+        "Una marca de montaje no es sí ni no, o una referencia que se omite no se conoce",
+        "Eine Bestückungsmarkierung ist weder ja noch nein, oder eine auszulassende Referenz ist unbekannt",
+        "Une marque de montage n'est ni oui ni non, ou une référence à omettre est inconnue",
+        "Un segno di montaggio non è né sì né no, oppure un riferimento da escludere non è noto",
+        "実装の印が「はい」でも「いいえ」でもないか、除外する参照が不明です",
+        "装配标记既不是“是”也不是“否”，或要排除的位号未知",
+        "Uma marca de montagem não é sim nem não, ou uma referência a omitir não é conhecida",
+    ],
+    [
+        "The file of positions is not valid",
+        "El archivo de posiciones no es válido",
+        "Die Positionsdatei ist ungültig",
+        "Le fichier des positions n'est pas valide",
+        "Il file delle posizioni non è valido",
+        "位置ファイルが無効です",
+        "位置文件无效",
+        "O ficheiro de posições não é válido",
     ],
 ];
 

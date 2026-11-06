@@ -2,6 +2,7 @@
 //! the movements; it has no commands for the pump, the valves or the nozzle, because those depend on the machine and nothing here has run on one).
 
 use crate::feeding::Picks;
+use crate::parts::Part;
 use crate::planner::AdvancedPlan;
 
 fn csv_field(s: &str) -> String {
@@ -60,6 +61,19 @@ pub fn report(plan: &AdvancedPlan, picks: &Picks, undefined: &[(String, usize)])
         ));
     }
     out
+}
+
+/// The parts that the table marks as not to be mounted, for the report: one line with how many there are and their references, and nothing when there are none.
+pub fn dnp_text(dnp: &[Part]) -> String {
+    if dnp.is_empty() {
+        return String::new();
+    }
+    let refs: Vec<&str> = dnp.iter().map(|p| p.reference.as_str()).collect();
+    format!(
+        "not to be mounted, left out of the plan: {} parts ({})\n",
+        dnp.len(),
+        refs.join(", ")
+    )
 }
 
 /// The parts that are missing, as a CSV: `kind,what,detail` with one line for each part without a feeder, each feeder that is short and each kind that no table describes.

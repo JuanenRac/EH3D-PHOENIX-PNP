@@ -1,5 +1,7 @@
 //! The position file of a board: KiCad `.pos` (text with columns) or a CSV table from any CAD program. Positions come out in millimetres.
 
+use crate::error::{Code, PnpError};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
     Top,
@@ -26,6 +28,50 @@ impl Part {
             self.value.trim().to_ascii_lowercase(),
             self.package.trim().to_ascii_lowercase()
         )
+    }
+}
+
+/// What a table of parts gives: the parts to mount and the parts the table marks as not to be mounted (do not populate), both in the order of the file.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Parsed {
+    pub parts: Vec<Part>,
+    pub dnp: Vec<Part>,
+}
+
+/// The names of a column that says a part is not to be mounted: a yes in it leaves the part out.
+const DNP_NAMES: [&str; 7] = [
+    "dnp",
+    "do not place",
+    "do not populate",
+    "do not mount",
+    "do_not_place",
+    "not fitted",
+    "no montar",
+];
+/// The names of a column that says a part is to be mounted: a no in it leaves the part out.
+const FITTED_NAMES: [&str; 6] = [
+    "fitted",
+    "populate",
+    "populated",
+    "mount",
+    "mounted",
+    "montar",
+];
+const YES_WORDS: [&str; 5] = ["yes", "y", "true", "1", "x"];
+const NO_WORDS: [&str; 5] = ["no", "n", "false", "0", "-"];
+
+/// Whether the cell of the column of mounting says the part is mounted. An empty cell says it is; a word that is neither yes nor no is an error with the stable code.
+fn is_mounted(text: &str, fitted_column: bool, profile: &Profile) -> Result<bool, String> {
+    let t = text.trim().to_ascii_lowercase();
+    if t.is_empty() {
+        return Ok(true);
+    }
+    let yes = YES_WORDS.contains(&t.as_str()) || profile.extra_yes.contains(&t);
+    let no = NO_WORDS.contains(&t.as_str()) || profile.extra_no.contains(&t);
+    match (yes, no) {
+        (true, false) => Ok(fitted_column),
+        (false, true) => Ok(!fitted_column),
+        _ => Err(format!("'{text}' is not yes or no")),
     }
 }
 
@@ -178,6 +224,14 @@ pub struct Profile {
     pub extra_y: Vec<String>,
     pub extra_rotation: Vec<String>,
     pub extra_side: Vec<String>,
+    /// More names for the column that says a part is not to be mounted (a yes in it leaves the part out).
+    pub extra_dnp: Vec<String>,
+    /// More names for the column that says a part is to be mounted (a no in it leaves the part out).
+    pub extra_fitted: Vec<String>,
+    /// More words that mean yes in those columns.
+    pub extra_yes: Vec<String>,
+    /// More words that mean no in those columns.
+    pub extra_no: Vec<String>,
     /// Which pair of position columns is read when the file has both the centre of the body and the origin of the part.
     pub position: PositionColumns,
     /// What is done with the angle of the parts of the bottom side.
@@ -309,6 +363,24 @@ pub fn from_csv(text: &str) -> Result<Vec<Part>, String> {
 
 /// The same with the synonyms of a profile for the names of the columns, the pair of position columns it prefers and its rule for the angle of the bottom side.
 pub fn from_csv_with(text: &str, profile: &Profile) -> Result<Vec<Part>, String> {
+    Ok(csv_parsed(text, profile)?.parts)
+}
+
+/// The error of a file of positions with its stable code in front; an error that has its code already is left as it is.
+fn coded(e: String) -> String {
+    if e.starts_with("PHOENIX-PNP-") {
+        e
+    } else {
+        PnpError::new(Code::PartsBad, e).to_string()
+    }
+}
+
+/// The same, with the parts that a column of mounting (`DNP`, `Do not place`, `Fitted`, `Populate`...) left out told apart from the parts to mount.
+fn csv_parsed(text: &str, profile: &Profile) -> Result<Parsed, String> {
+    csv_rows(text, profile).map_err(coded)
+}
+
+fn csv_rows(text: &str, profile: &Profile) -> Result<Parsed, String> {
     let text = text.trim_start_matches('\u{feff}');
     let head_line = text
         .lines()
@@ -382,7 +454,15 @@ pub fn from_csv_with(text: &str, profile: &Profile) -> Result<Vec<Part>, String>
         ),
         "side",
     )?;
+    // the column of mounting is optional: the one that says "do not mount" first, else the one that says "mount"
+    let mounting: Option<(usize, bool)> =
+        column(&header, &names_of(&DNP_NAMES, &profile.extra_dnp))
+            .map(|c| (c, false))
+            .or_else(|| {
+                column(&header, &names_of(&FITTED_NAMES, &profile.extra_fitted)).map(|c| (c, true))
+            });
     let mut parts = Vec::new();
+    let mut mounted: Vec<bool> = Vec::new();
     for (i, f) in records.enumerate() {
         if parts.len() >= MAX_PARTS {
             return Err(format!("more than {MAX_PARTS} parts"));
@@ -405,10 +485,32 @@ pub fn from_csv_with(text: &str, profile: &Profile) -> Result<Vec<Part>, String>
         if part.side == Side::Bottom {
             part.rotation = profile.bottom_rotation.apply(part.rotation);
         }
+        let to_mount = match mounting {
+            Some((c, fitted_column)) => {
+                let cell = at(c).map_err(row)?;
+                is_mounted(cell, fitted_column, profile).map_err(|e| {
+                    PnpError::new(Code::MountingBad, format!("row {}: {e}", i + 2)).to_string()
+                })?
+            }
+            None => true,
+        };
         parts.push(part);
+        mounted.push(to_mount);
     }
     check(&parts)?;
-    Ok(parts)
+    Ok(split_mounted(parts, &mounted))
+}
+
+fn split_mounted(parts: Vec<Part>, mounted: &[bool]) -> Parsed {
+    let mut out = Parsed::default();
+    for (part, &to_mount) in parts.into_iter().zip(mounted) {
+        if to_mount {
+            out.parts.push(part);
+        } else {
+            out.dnp.push(part);
+        }
+    }
+    out
 }
 
 /// A KiCad `.pos` file: `## Unit = mm` (or `inch`) and rows `Ref Val Package PosX PosY Rot Side` separated by spaces; a value with spaces is not supported by the format.
@@ -466,16 +568,43 @@ pub fn parse(text: &str) -> Result<Vec<Part>, String> {
 
 /// The same, reading a CSV with the names of the columns and the rules of a profile.
 pub fn parse_with(text: &str, profile: &Profile) -> Result<Vec<Part>, String> {
+    Ok(parse_all(text, profile)?.parts)
+}
+
+/// The same, keeping the parts that a column of mounting leaves out in a list of their own (a KiCad `.pos` file has no such column).
+pub fn parse_all(text: &str, profile: &Profile) -> Result<Parsed, String> {
     let first = text
         .trim_start_matches('\u{feff}')
         .lines()
         .find(|l| !l.trim().is_empty())
         .unwrap_or("");
     if first.trim_start().starts_with('#') {
-        from_kicad_pos(text)
+        Ok(Parsed {
+            parts: from_kicad_pos(text).map_err(coded)?,
+            dnp: Vec::new(),
+        })
     } else {
-        from_csv_with(text, profile)
+        csv_parsed(text, profile)
     }
+}
+
+/// Takes out of `parts` the ones whose reference is in `references` and gives them back, in the order they were in. A reference that no part has is an error with the stable code,
+/// so that a typing mistake does not leave a part in the plan.
+pub fn take_references(parts: &mut Vec<Part>, references: &[String]) -> Result<Vec<Part>, String> {
+    for r in references {
+        if !parts.iter().any(|p| p.reference == *r) {
+            return Err(PnpError::new(
+                Code::MountingBad,
+                format!("'{r}' is not the reference of a part"),
+            )
+            .to_string());
+        }
+    }
+    let (taken, kept): (Vec<Part>, Vec<Part>) = std::mem::take(parts)
+        .into_iter()
+        .partition(|p| references.contains(&p.reference));
+    *parts = kept;
+    Ok(taken)
 }
 
 fn check(parts: &[Part]) -> Result<(), String> {

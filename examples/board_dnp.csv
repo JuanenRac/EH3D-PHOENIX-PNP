@@ -1,0 +1,8 @@
+ref,val,package,x,y,rot,side,dnp
+R1,10k,R_0603,10,20,0,top,
+R2,10k,R_0603,15,20,90,top,yes
+R3,10k,R_0603,20,20,180,top,no
+C1,100n,C_0603,10,30,0,top,
+C2,100n,C_0603,15,30,270,top,x
+U1,MCU,QFN-32,40,25,0,top,
+D1,LED,LED_0603,30,10,0,bottom,

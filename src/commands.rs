@@ -14,9 +14,12 @@ use eh3d_phoenix_pnp::job::{Job, Phase};
 use eh3d_phoenix_pnp::loadsheet;
 use eh3d_phoenix_pnp::model::Machine;
 use eh3d_phoenix_pnp::panel::Panel;
-use eh3d_phoenix_pnp::parts::{bottom_table, parse_with, BottomRotation, Part, Side};
+use eh3d_phoenix_pnp::parts::{
+    bottom_table, parse_all, parse_with, take_references, BottomRotation, Part, Side,
+};
 use eh3d_phoenix_pnp::planner::{plan_advanced, AdvancedPlan, Options};
-use eh3d_phoenix_pnp::preflight::{has_errors, preflight, to_text, Check};
+use eh3d_phoenix_pnp::preflight::{has_errors, preflight, to_text, Check, Severity, Source};
+use std::cell::RefCell;
 use std::fs;
 use std::path::Path;
 
@@ -75,6 +78,8 @@ pub struct Common {
     pub panel: Option<String>,
     /// The file with the measured places of the fiducials of the panel.
     pub fiducials: Option<String>,
+    /// The references that `--dnp` leaves out of the plan.
+    pub dnp: Vec<String>,
     pub inputs: Vec<String>,
 }
 
@@ -157,6 +162,14 @@ pub fn common(args: &mut Vec<String>) -> Result<Common, String> {
         }
         inputs.push(p.clone());
     }
+    let dnp: Vec<String> = match flag(args, "--dnp")? {
+        Some(v) => v
+            .split(',')
+            .map(|r| r.trim().to_string())
+            .filter(|r| !r.is_empty())
+            .collect(),
+        None => Vec::new(),
+    };
     Ok(Common {
         cfg,
         catalog,
@@ -164,16 +177,21 @@ pub fn common(args: &mut Vec<String>) -> Result<Common, String> {
         lang,
         panel,
         fiducials,
+        dnp,
         inputs,
     })
 }
 
-/// The parts of the board (or of the panel), with the rotation corrections of the configuration applied, and how many of the positional words they took (0 for a panel, else 1).
-fn load_parts(args: &[String], c: &Common) -> Result<(Vec<Part>, usize), String> {
+/// What `load_parts` gives: the parts to mount, how many of the positional words they took (0 for a panel, else 1) and the parts left out as not to be mounted.
+type Loaded = (Vec<Part>, usize, Vec<Part>);
+
+/// The parts of the board (or of the panel), with the rotation corrections of the configuration applied; the parts that a column of mounting or `--dnp` leaves out come apart.
+fn load_parts(args: &[String], c: &Common) -> Result<Loaded, String> {
     let lang = c.lang;
     let l = move |e: PnpError| e.localized(lang);
     let max = c.cfg.max_file_bytes;
     let profile = &c.cfg.profile;
+    let left_out: RefCell<Vec<Part>> = RefCell::new(Vec::new());
     let (mut parts, used) = if let Some(panel_path) = &c.panel {
         let panel = Panel::parse(&read_text(panel_path, max)?).map_err(l)?;
         let base = Path::new(panel_path)
@@ -182,7 +200,9 @@ fn load_parts(args: &[String], c: &Common) -> Result<(Vec<Part>, usize), String>
             .unwrap_or_default();
         let load = |file: &str| -> Result<Vec<Part>, String> {
             let text = read_text(&base.join(file).to_string_lossy(), max)?;
-            parse_with(&text, profile)
+            let parsed = parse_all(&text, profile)?;
+            left_out.borrow_mut().extend(parsed.dnp);
+            Ok(parsed.parts)
         };
         let expanded = panel.expand(&load).map_err(l)?;
         let mut parts = expanded.parts;
@@ -208,8 +228,14 @@ fn load_parts(args: &[String], c: &Common) -> Result<(Vec<Part>, usize), String>
         (parts, 0)
     } else {
         let path = args.first().ok_or("a file of parts is needed")?;
-        (parse_with(&read_text(path, max)?, profile)?, 1)
+        let parsed = parse_all(&read_text(path, max)?, profile)?;
+        left_out.borrow_mut().extend(parsed.dnp);
+        (parsed.parts, 1)
     };
+    let mut dnp = left_out.into_inner();
+    if !c.dnp.is_empty() {
+        dnp.extend(take_references(&mut parts, &c.dnp)?);
+    }
     if parts.len() > c.cfg.max_parts {
         return Err(PnpError::new(
             Code::TooManyParts,
@@ -218,12 +244,14 @@ fn load_parts(args: &[String], c: &Common) -> Result<(Vec<Part>, usize), String>
         .localized(lang));
     }
     c.cfg.rotation_table().map_err(l)?.apply(&mut parts);
-    Ok((parts, used))
+    Ok((parts, used, dnp))
 }
 
 struct Prepared {
     c: Common,
     parts: Vec<Part>,
+    /// The parts left out as not to be mounted.
+    dnp: Vec<Part>,
     feeders: Vec<FeederSpec>,
     picks: Picks,
     /// The positional words that are left once the board and the feeders are taken.
@@ -236,7 +264,7 @@ fn prepare(mut args: Vec<String>, extra: usize) -> Result<Prepared, String> {
     let c = common(&mut args)?;
     let used = usize::from(c.panel.is_none());
     finish(&args, used + 1 + extra)?;
-    let (parts, used) = load_parts(&args, &c)?;
+    let (parts, used, dnp) = load_parts(&args, &c)?;
     let lang = c.lang;
     let feeders_path = args.get(used).ok_or("a file of feeders is needed")?;
     let feeders = feeding::from_csv_with(
@@ -254,6 +282,7 @@ fn prepare(mut args: Vec<String>, extra: usize) -> Result<Prepared, String> {
     Ok(Prepared {
         c,
         parts,
+        dnp,
         feeders,
         picks,
         rest,
@@ -285,7 +314,7 @@ fn make_plan(p: &Prepared) -> Result<Planned, String> {
         &p.c.opts,
     )
     .map_err(|e| e.localized(lang))?;
-    let checks = preflight(
+    let mut checks = preflight(
         &p.parts,
         p.c.opts.side,
         &p.picks,
@@ -293,6 +322,14 @@ fn make_plan(p: &Prepared) -> Result<Planned, String> {
         &p.c.cfg,
         Some(&plan),
     );
+    // the parts that are not to be mounted are told apart, so that nobody looks for them on the board
+    for d in p.dnp.iter().filter(|d| d.side == p.c.opts.side) {
+        checks.push(Check {
+            severity: Severity::Info,
+            source: Source::Part(d.reference.clone()),
+            message: "marked as not to be mounted: it is left out of the plan".to_string(),
+        });
+    }
     Ok(Planned {
         plan,
         undefined,
@@ -339,10 +376,9 @@ pub fn schedule(mut args: Vec<String>) -> Result<(), String> {
     stop_on_errors(&p, &planned, partial)?;
     write_atomic(&out, &planned.plan.to_json())?;
     if let Some(r) = &report {
-        write_atomic(
-            r,
-            &export::report(&planned.plan, &p.picks, &planned.undefined),
-        )?;
+        let mut text = export::report(&planned.plan, &p.picks, &planned.undefined);
+        text.push_str(&export::dnp_text(&p.dnp));
+        write_atomic(r, &text)?;
     }
     if let Some(g) = &gcode {
         write_atomic(g, &export::gcode(&planned.plan))?;
@@ -385,6 +421,7 @@ fn phase_name(p: Phase) -> &'static str {
 pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let state_path = flag(&mut args, "--state")?;
     let report_path = flag(&mut args, "--report")?;
+    let csv_path = flag(&mut args, "--report-csv")?;
     let steps = match flag(&mut args, "--steps")? {
         Some(v) => {
             let n = num(&v, "--steps")?;
@@ -399,7 +436,7 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let p = prepare(args, 0)?;
     let lang = p.c.lang;
     let l = move |e: PnpError| e.localized(lang);
-    if let Some(r) = &report_path {
+    for r in [&report_path, &csv_path].into_iter().flatten() {
         refuse_same_file(&p.inputs, r)?;
     }
     let planned = make_plan(&p)?;
@@ -420,6 +457,9 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     }
     if let Some(rp) = &report_path {
         write_atomic(rp, &job.stats_json())?;
+    }
+    if let Some(cp) = &csv_path {
+        write_atomic(cp, &job.stats_csv())?;
     }
     let phase = outcome.map_err(l)?;
     let s = job.stats();
@@ -459,7 +499,8 @@ pub fn run_loadsheet(mut args: Vec<String>) -> Result<(), String> {
     let c = common(&mut args)?;
     let used = usize::from(c.panel.is_none());
     finish(&args, used + 2)?;
-    let (parts, used) = load_parts(&args, &c)?;
+    let (parts, used, dnp) = load_parts(&args, &c)?;
+    print!("{}", export::dnp_text(&dnp));
     let lang = c.lang;
     let slots_path = args.get(used).ok_or("a file of slots is needed")?;
     let out = args.get(used + 1).ok_or("loadsheet needs an output file")?;
@@ -514,6 +555,66 @@ pub fn config_check(mut args: Vec<String>) -> Result<(), String> {
         cfg.order.name(),
         cfg.rotation_rules.len()
     );
+    Ok(())
+}
+
+/// `tables-check`: reads each table that is named (`--parts`, `--packages`, `--catalog`, `--feeders`, `--slots`) and says whether it is valid; an error shows its stable code and the row.
+/// The exit code is 1 when any table is not valid, after all of them were read.
+pub fn tables_check(mut args: Vec<String>) -> Result<(), String> {
+    let lang = match flag(&mut args, "--lang")? {
+        Some(l) => Lang::from_code(&l)
+            .ok_or_else(|| format!("--lang '{l}' is not one of en es de fr it ja zh pt"))?,
+        None => Lang::En,
+    };
+    let cfg = match flag(&mut args, "--config")? {
+        Some(p) => MachineConfig::parse(&read_text(&p, MAX_CONFIG_BYTES as u64)?)
+            .map_err(|e| e.localized(lang))?,
+        None => MachineConfig::default(),
+    };
+    let mut named: Vec<(&str, String)> = Vec::new();
+    for kind in ["parts", "packages", "catalog", "feeders", "slots"] {
+        if let Some(path) = flag(&mut args, &format!("--{kind}"))? {
+            named.push((kind, path));
+        }
+    }
+    finish(&args, 0)?;
+    if named.is_empty() {
+        return Err("tables-check needs at least one of --parts, --packages, --catalog, --feeders and --slots".into());
+    }
+    let mut bad = 0usize;
+    for (kind, path) in &named {
+        let text = read_text(path, cfg.max_file_bytes)?;
+        let result: Result<usize, String> = match *kind {
+            "parts" => parse_all(&text, &cfg.profile).map(|p| p.parts.len() + p.dnp.len()),
+            "packages" => {
+                let mut c = Catalog::new();
+                c.add_packages(&text)
+                    .map(|()| c.package_names().len())
+                    .map_err(|e| e.localized(lang))
+            }
+            "catalog" => Catalog::new()
+                .add_parts(&text)
+                .map(|()| 0)
+                .map_err(|e| e.localized(lang)),
+            "feeders" => feeding::from_csv_with(&text, cfg.tray_fill)
+                .map(|f| f.len())
+                .map_err(|e| e.localized(lang)),
+            _ => loadsheet::slots_from_csv(&text)
+                .map(|s| s.len())
+                .map_err(|e| e.localized(lang)),
+        };
+        match result {
+            Ok(_) if *kind == "catalog" => println!("ok: {kind} {path}"),
+            Ok(rows) => println!("ok: {kind} {path} ({rows} rows)"),
+            Err(e) => {
+                bad += 1;
+                println!("not valid: {kind} {path}: {e}");
+            }
+        }
+    }
+    if bad > 0 {
+        return Err(format!("{bad} of {} tables are not valid", named.len()));
+    }
     Ok(())
 }
 

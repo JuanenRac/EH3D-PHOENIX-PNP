@@ -12,9 +12,10 @@ use crate::feeding::{self, FeederSpec, Picks};
 use crate::fiducial::{self, Fit};
 use crate::loadsheet::{self, LoadSheet, Slot};
 use crate::panel::Panel;
-use crate::parts::{detect_delimiter, parse_with, Part, Side};
+use crate::parts::{detect_delimiter, parse_all, Part, Side};
 use crate::planner::{plan_advanced, AdvancedPlan, Options};
-use crate::preflight::{preflight, Check};
+use crate::preflight::{preflight, Check, Severity, Source};
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -167,6 +168,8 @@ pub struct Workspace {
     pub lang: Lang,
     pub cfg: MachineConfig,
     pub parts: Vec<Part>,
+    /// The parts that the table of positions marks as not to be mounted: they are not in `parts` and not in the plan.
+    pub dnp: Vec<Part>,
     pub feeders: Vec<FeederSpec>,
     pub catalog: Catalog,
     pub slots: Vec<Slot>,
@@ -208,6 +211,7 @@ impl Workspace {
             lang,
             cfg: MachineConfig::default(),
             parts: Vec::new(),
+            dnp: Vec::new(),
             feeders: Vec::new(),
             catalog: Catalog::new(),
             slots: Vec::new(),
@@ -256,8 +260,9 @@ impl Workspace {
         }
         match kind {
             FileKind::Parts => {
-                let parts = parse_with(text, &self.cfg.profile)?;
-                self.finish_parts(parts, None)?;
+                let parsed = parse_all(text, &self.cfg.profile)?;
+                self.finish_parts(parsed.parts, None)?;
+                self.dnp = parsed.dnp;
                 self.parts_text = Some(text.to_string());
                 self.panel_parts = None;
                 self.forget_panel();
@@ -329,14 +334,18 @@ impl Workspace {
         let base = path.parent().map(Path::to_path_buf).unwrap_or_default();
         let max = self.cfg.max_file_bytes;
         let profile = self.cfg.profile.clone();
+        let left_out: RefCell<Vec<Part>> = RefCell::new(Vec::new());
         let load = |file: &str| -> Result<Vec<Part>, String> {
             let (board, _) = read_file(&base.join(file), max)?;
-            parse_with(&board, &profile)
+            let parsed = parse_all(&board, &profile)?;
+            left_out.borrow_mut().extend(parsed.dnp);
+            Ok(parsed.parts)
         };
         let expanded = panel.expand(&load).map_err(|e| self.localize(&e))?;
         // the panel is kept as it was read, so that a new configuration turns its parts again
         let raw = expanded.parts.clone();
         self.finish_parts(expanded.parts, None)?;
+        self.dnp = left_out.into_inner();
         self.panel_parts = Some(raw);
         self.panel = Some(panel);
         self.design_fiducials = expanded.fiducials;
@@ -371,8 +380,9 @@ impl Workspace {
     /// The parts are read again when the configuration changes, because it says how to read the columns and how to turn the parts.
     fn reparse_parts(&mut self) -> Result<(), String> {
         if let Some(text) = self.parts_text.clone() {
-            let parts = parse_with(&text, &self.cfg.profile)?;
-            self.finish_parts(parts, None)?;
+            let parsed = parse_all(&text, &self.cfg.profile)?;
+            self.finish_parts(parsed.parts, None)?;
+            self.dnp = parsed.dnp;
         } else if let Some(raw) = self.panel_parts.clone() {
             let fit = self.fit.clone();
             self.finish_parts(raw, fit.as_ref())?;
@@ -526,7 +536,7 @@ impl Workspace {
             &self.cfg,
             &options,
         )?;
-        let checks = preflight(
+        let mut checks = preflight(
             &parts,
             options.side,
             &picks,
@@ -534,6 +544,13 @@ impl Workspace {
             &self.cfg,
             Some(&plan),
         );
+        for d in self.dnp.iter().filter(|d| d.side == options.side) {
+            checks.push(Check {
+                severity: Severity::Info,
+                source: Source::Part(d.reference.clone()),
+                message: "marked as not to be mounted: it is left out of the plan".to_string(),
+            });
+        }
         Ok(Planned {
             plan,
             picks,

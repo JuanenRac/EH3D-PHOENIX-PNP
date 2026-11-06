@@ -1,0 +1,6 @@
+id,value,package,x,y,count,priority,kind,cols,rows,pitch_x,pitch_y,pitch,rotation,enabled,warn_below,slot,fill
+F1,10k,R_0603,-20,10,100,high,tape,,,,,,0,yes,10,S1,
+F2,100n,C_0603,-20,20,40,normal,strip,,,,,4,90,yes,5,S2,
+F3,MCU,QFN-32,-60,40,6,normal,tray,3,2,12.5,12.5,,0,yes,0,,snake
+F4,LED,LED_0603,-20,50,50,low,tape,,,,,,0,no,10,S5,
+F5,10k,R_0603,-20,60,100,low,tape,,,,,,0,yes,10,,

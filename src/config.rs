@@ -15,7 +15,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 75] = [
+pub const KEYS: [&str; 79] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -74,6 +74,10 @@ pub const KEYS: [&str; 75] = [
     "header_y",
     "header_rotation",
     "header_side",
+    "header_dnp",
+    "header_fitted",
+    "dnp_yes_words",
+    "dnp_no_words",
     "position",
     "bottom_rotation",
     "sim_seed",
@@ -569,6 +573,10 @@ impl MachineConfig {
             "header_y" => self.profile.extra_y = names(line, key, v)?,
             "header_rotation" => self.profile.extra_rotation = names(line, key, v)?,
             "header_side" => self.profile.extra_side = names(line, key, v)?,
+            "header_dnp" => self.profile.extra_dnp = names(line, key, v)?,
+            "header_fitted" => self.profile.extra_fitted = names(line, key, v)?,
+            "dnp_yes_words" => self.profile.extra_yes = names(line, key, v)?,
+            "dnp_no_words" => self.profile.extra_no = names(line, key, v)?,
             "position" => {
                 self.profile.position = match v.to_ascii_lowercase().as_str() {
                     "any" => PositionColumns::Any,

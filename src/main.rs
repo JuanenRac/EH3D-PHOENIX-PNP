@@ -24,13 +24,14 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
 
   phoenix-pnp schedule PARTS FEEDERS OUT.json [OPTIONS] [--report-text F] [--gcode F] [--missing F] [--partial]
   phoenix-pnp preflight PARTS FEEDERS [OPTIONS]            the checks before a job, without writing anything
-  phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--partial]
+  phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--report-csv F] [--partial]
   phoenix-pnp loadsheet PARTS SLOTS OUT.csv [OPTIONS] [--feeders-out F]
   phoenix-pnp config-check FILE [--lang CODE]
   phoenix-pnp check-bottom PARTS [--config FILE] [--lang CODE]   the angle each rule of the bottom side (keep, mirror, half_turn) gives to the parts of the bottom side
+  phoenix-pnp tables-check [--parts F] [--packages F] [--catalog F] [--feeders F] [--slots F] [--config F] [--lang CODE]   whether each table is valid, with the code and the row of an error
 
 OPTIONS of schedule, preflight, simulate and loadsheet: --config FILE (the machine settings), --packages FILE and --catalog FILE (the tables of packages and parts), --panel FILE (a panel in place of
-PARTS), --fiducials FILE (with --panel: the measured places of the fiducials of the panel, a CSV id,x,y), --side top|bottom, --board-width MM, --origin-x MM, --nozzles N, --speed MM_S, --order NAME and --lang CODE (the language of the error messages: en es de fr it ja zh pt). schedule and
+PARTS), --dnp R1,R2 (references to leave out as not to be mounted; a column dnp, fitted or populate in a CSV does the same), --fiducials FILE (with --panel: the measured places of the fiducials of the panel, a CSV id,x,y), --side top|bottom, --board-width MM, --origin-x MM, --nozzles N, --speed MM_S, --order NAME and --lang CODE (the language of the error messages: en es de fr it ja zh pt). schedule and
 simulate use the whole configuration (ranks, nozzle tips, the limits of the nozzle, the time of the moves) and print the checks before the job; they stop on an error unless --partial is given.
 simulate runs the plan on a simulated machine; with --state the job is saved when it stops (after N steps, or on an error) and resumed from that file the next time.
 
@@ -179,6 +180,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "loadsheet" => commands::run_loadsheet(args),
         "config-check" => commands::config_check(args),
         "check-bottom" => commands::check_bottom(args),
+        "tables-check" => commands::tables_check(args),
         other => Err(format!("{other}: unknown command (see help)")),
     }
 }
