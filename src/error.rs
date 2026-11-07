@@ -94,10 +94,12 @@ pub enum Code {
     VisionSeveralSpots = 39,
     ReportExists = 40,
     JobActionBad = 41,
+    PanelXOutUnknown = 42,
+    PanelAllBad = 43,
 }
 
 impl Code {
-    pub const ALL: [Code; 41] = [
+    pub const ALL: [Code; 43] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -139,6 +141,8 @@ impl Code {
         Code::VisionSeveralSpots,
         Code::ReportExists,
         Code::JobActionBad,
+        Code::PanelXOutUnknown,
+        Code::PanelAllBad,
     ];
 
     pub fn number(self) -> u16 {
@@ -157,7 +161,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 41] = [
+static MESSAGES: [[&str; 8]; 43] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -567,6 +571,26 @@ static MESSAGES: [[&str; 8]; 41] = [
         "この操作はジョブの状態に合いません",
         "该操作不适用于作业的当前状态",
         "A ação não se adequa ao estado do trabalho",
+    ],
+    [
+        "A board marked as bad (X-out) is not in the panel",
+        "Una placa marcada como mala (X-out) no está en el panel",
+        "Eine als schlecht markierte Platine (X-out) ist nicht im Nutzen",
+        "Une carte marquée comme mauvaise (X-out) n'est pas dans le panneau",
+        "Una scheda segnata come difettosa (X-out) non è nel pannello",
+        "不良としてマークされた基板（X-out）がパネルにありません",
+        "标记为不良的板（X-out）不在拼板中",
+        "Uma placa marcada como defeituosa (X-out) não está no painel",
+    ],
+    [
+        "Every board of the panel is marked as bad (X-out): nothing is left to place",
+        "Todas las placas del panel están marcadas como malas (X-out): no queda nada que colocar",
+        "Alle Platinen des Nutzens sind als schlecht markiert (X-out): nichts mehr zu bestücken",
+        "Toutes les cartes du panneau sont marquées comme mauvaises (X-out) : il ne reste rien à placer",
+        "Tutte le schede del pannello sono segnate come difettose (X-out): non resta nulla da posizionare",
+        "パネルのすべての基板が不良（X-out）としてマークされています。実装するものが残っていません",
+        "拼板中的所有板都被标记为不良（X-out）：没有可贴装的内容",
+        "Todas as placas do painel estão marcadas como defeituosas (X-out): não resta nada para colocar",
     ],
 ];
 

@@ -14,6 +14,7 @@ pub mod fiducial;
 pub mod gui;
 pub mod job;
 pub mod loadsheet;
+pub mod marks;
 pub mod model;
 pub mod motion;
 pub mod panel;

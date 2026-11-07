@@ -704,3 +704,143 @@ fn simulate_lists_the_failures_by_package_and_by_feeder_and_the_parts_per_hour()
     assert_eq!(v["kinds"].as_array().unwrap().len(), 4);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+// ---- boards marked as bad and the marks of two levels
+
+fn two_level_files(dir: &std::path::Path) -> (String, String) {
+    std::fs::write(
+        path(dir, "main.csv"),
+        "ref,val,package,x,y,rot,side\nR1,10k,R_0603,10,20,0,top\nFID1,mark,Fiducial,1,1,0,top\nFID2,mark,Fiducial,9,1,0,top\n",
+    )
+    .unwrap();
+    let panel = path(dir, "panel.json");
+    std::fs::write(
+        &panel,
+        r#"{
+  "schema_version": 1,
+  "boards": { "main": "main.csv" },
+  "panels": { "p": {
+    "children": [
+      { "id": "A", "board": "main", "x": 0, "y": 0, "rotation": 0 },
+      { "id": "B", "board": "main", "x": 60, "y": 0, "rotation": 0 },
+      { "id": "C", "board": "main", "x": 120, "y": 0, "rotation": 0, "x_out": true } ],
+    "fiducials": [ { "id": "f1", "x": -5, "y": -5 }, { "id": "f2", "x": 185, "y": -5 } ] } },
+  "root": "p"
+}"#,
+    )
+    .unwrap();
+    // the panel is 1 to the right and 2 up; the board A is 0.5 to the right and 0.5 up
+    let marks = path(dir, "marks.csv");
+    std::fs::write(
+        &marks,
+        "id,x,y\nf1,-4,-3\nf2,186,-3\nA/FID1,1.5,1.5\nA/FID2,9.5,1.5\n",
+    )
+    .unwrap();
+    (panel, marks)
+}
+
+#[test]
+fn a_board_marked_as_bad_is_not_planned_and_the_fiducial_parts_are_marks_of_two_levels() {
+    let dir = scratch("two_levels");
+    let (panel, marks) = two_level_files(&dir);
+    let (plain, moved) = (path(&dir, "plain.json"), path(&dir, "moved.json"));
+    let (feeders, config) = (example("feeders.csv"), example("machine.cfg"));
+    let o = run(&[
+        "schedule", &feeders, &plain, "--panel", &panel, "--config", &config,
+    ]);
+    assert!(o.status.success(), "{}", err(&o));
+    let text = out(&o);
+    assert!(
+        text.contains("x-out: C is marked as bad and is left out"),
+        "{text}"
+    );
+    assert!(
+        text.contains("fiducial parts: 4 are marks of their boards and are not placed (A/FID1, A/FID2, B/FID1, B/FID2)"),
+        "{text}"
+    );
+    let a = plan_of(&plain);
+    let references: Vec<&str> = a["placements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["reference"].as_str().unwrap())
+        .collect();
+    assert_eq!(references.len(), 2, "{references:?}");
+    assert!(references.contains(&"A/R1") && references.contains(&"B/R1"));
+    let o = run(&[
+        "schedule",
+        &feeders,
+        &moved,
+        "--panel",
+        &panel,
+        "--config",
+        &config,
+        "--fiducials",
+        &marks,
+    ]);
+    assert!(o.status.success(), "{}", err(&o));
+    let text = out(&o);
+    assert!(
+        text.contains("fiducials: 2 marks, similarity fit"),
+        "{text}"
+    );
+    assert!(
+        text.contains("fiducials of A: 2 marks, similarity fit"),
+        "{text}"
+    );
+    let b = plan_of(&moved);
+    // A/R1 at (10, 20) is moved by the fit of its board, (0.5, 0.5); B/R1 at (70, 20) by the fit of the panel, (1, 2)
+    for (reference, dx, dy) in [("A/R1", 0.5, 0.5), ("B/R1", 1.0, 2.0)] {
+        let (p, q) = (
+            &placement(&a, reference)["place"],
+            &placement(&b, reference)["place"],
+        );
+        let d = |k: &str| q[k].as_f64().unwrap() - p[k].as_f64().unwrap();
+        assert!((d("x") - dx).abs() < 1e-6, "{reference}: {}", d("x"));
+        assert!((d("y") - dy).abs() < 1e-6, "{reference}: {}", d("y"));
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn x_out_on_the_command_line_names_boards_and_a_wrong_name_is_refused() {
+    let dir = scratch("x_out_option");
+    let (panel, _) = two_level_files(&dir);
+    let plan = path(&dir, "plan.json");
+    let (feeders, config) = (example("feeders.csv"), example("machine.cfg"));
+    let o = run(&[
+        "schedule", &feeders, &plan, "--panel", &panel, "--config", &config, "--x-out", "A",
+    ]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(out(&o).contains("x-out: A is marked as bad"), "{}", out(&o));
+    assert!(out(&o).contains("x-out: C is marked as bad"), "{}", out(&o));
+    let v = plan_of(&plan);
+    assert_eq!(v["placements"].as_array().unwrap().len(), 1);
+    assert_eq!(v["placements"][0]["reference"], "B/R1");
+    // a name that no board has
+    let o = run(&[
+        "schedule", &feeders, &plan, "--panel", &panel, "--config", &config, "--x-out", "Z",
+    ]);
+    assert!(!o.status.success());
+    assert!(err(&o).contains("PHOENIX-PNP-042"), "{}", err(&o));
+    // every board out
+    let o = run(&[
+        "schedule", &feeders, &plan, "--panel", &panel, "--config", &config, "--x-out", "A,B",
+    ]);
+    assert!(!o.status.success());
+    assert!(err(&o).contains("PHOENIX-PNP-043"), "{}", err(&o));
+    // the option names boards of a panel
+    let o = run(&[
+        "schedule",
+        &feeders,
+        &plan,
+        &example("board.pos"),
+        "--config",
+        &config,
+        "--x-out",
+        "A",
+    ]);
+    assert!(!o.status.success());
+    assert!(err(&o).contains("--x-out needs --panel"), "{}", err(&o));
+    let _ = std::fs::remove_dir_all(&dir);
+}

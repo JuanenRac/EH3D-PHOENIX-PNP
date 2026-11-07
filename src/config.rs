@@ -15,7 +15,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 89] = [
+pub const KEYS: [&str; 91] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -89,6 +89,8 @@ pub const KEYS: [&str; 89] = [
     "gui_part_size_mm",
     "fiducial_mode",
     "fiducial_max_residual_mm",
+    "fiducial_words",
+    "fiducial_refs",
     "tray_fill",
     "undo_limit",
     "tip_opt_max_evals",
@@ -267,6 +269,10 @@ pub struct MachineConfig {
     pub fiducial_mode: FitMode,
     /// A fiducial that is further than this from where the fit puts it makes the fit refused, in millimetres.
     pub fiducial_max_residual_mm: f64,
+    /// A part whose value or package holds one of these words (lower case) is a mark of its board and is not placed.
+    pub fiducial_words: Vec<String>,
+    /// A part whose reference is one of these prefixes (lower case) followed by a number (`FID1`) is a mark of its board and is not placed.
+    pub fiducial_refs: Vec<String>,
     /// The order of the cells of a tray whose row says nothing about it.
     pub tray_fill: TrayFill,
     /// The window: how many edits of the tables can be taken back.
@@ -364,6 +370,8 @@ impl Default for MachineConfig {
             gui_part_size_mm: 2.0,
             fiducial_mode: FitMode::Auto,
             fiducial_max_residual_mm: 0.5,
+            fiducial_words: vec!["fiducial".to_string()],
+            fiducial_refs: vec!["fid".to_string(), "fd".to_string()],
             tray_fill: TrayFill::Rows,
             undo_limit: 100,
             tip_opt_max_evals: 20_000,
@@ -668,6 +676,8 @@ impl MachineConfig {
                     .ok_or_else(|| bad(line, key, v, "auto, similarity or affine"))?
             }
             "fiducial_max_residual_mm" => self.fiducial_max_residual_mm = n(0.001, 100.0)?,
+            "fiducial_words" => self.fiducial_words = names(line, key, v)?,
+            "fiducial_refs" => self.fiducial_refs = names(line, key, v)?,
             "undo_limit" => self.undo_limit = int(line, key, v, 1, 1000)? as usize,
             "tip_opt_max_evals" => {
                 self.tip_opt_max_evals = int(line, key, v, 1, 1_000_000)? as usize

@@ -16,6 +16,8 @@
 //!
 //! A part of a board in the panel is named `child/reference` (`B/C/R1` for a board inside a panel inside the panel); the position of a child is where the origin of its board or
 //! panel goes, and its rotation turns it, counter-clockwise, about that origin.
+//!
+//! A child with `"x_out": true` is a board (or a panel) marked as bad, an X-out: it is left out with everything inside it, and `expand_with` leaves out more by their path (`A`, `B/C`).
 
 use crate::error::{Code, PnpError};
 use crate::parts::{Part, MAX_PARTS};
@@ -42,6 +44,8 @@ struct Child {
     x: f64,
     y: f64,
     rotation: f64,
+    /// Marked as bad (X-out): the board, or everything in the panel, is not placed.
+    x_out: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -78,8 +82,14 @@ pub struct Expanded {
     pub parts: Vec<Part>,
     /// The fiducials with their names (`id` or `child/id`) and their places.
     pub fiducials: Vec<(String, f64, f64)>,
+    /// The children that were left out because they are marked as bad (X-out), by their path (`A`, `B/C`), in the order they were met.
+    pub x_out: Vec<String>,
     /// How many children have been visited: a panel that holds itself many times over is stopped.
     visited: usize,
+    /// The path of every child that was reached, to tell a name that no child has.
+    seen: Vec<String>,
+    /// How many boards were put in their places.
+    boards_placed: usize,
 }
 
 fn bad(message: String) -> PnpError {
@@ -178,12 +188,19 @@ impl Panel {
                         )))
                     }
                 };
+                let x_out = match k.get("x_out") {
+                    None => false,
+                    Some(flag) => flag
+                        .as_bool()
+                        .ok_or_else(|| bad(format!("{here}: 'x_out' is not true or false")))?,
+                };
                 d.children.push(Child {
                     id: id.to_string(),
                     what,
                     x: coord(k, "x", &here)?,
                     y: coord(k, "y", &here)?,
                     rotation: coord(k, "rotation", &here)?,
+                    x_out,
                 });
             }
             if let Some(fs) = def.get("fiducials") {
@@ -319,6 +336,16 @@ impl Panel {
         &self,
         load: &dyn Fn(&str) -> Result<Vec<Part>, String>,
     ) -> Result<Expanded, PnpError> {
+        self.expand_with(load, &[])
+    }
+
+    /// Like `expand`, with more children left out as bad (X-out) besides the ones the file marks: `x_out` names them by their path (`A`, `B/C`). A name that no child has is an
+    /// error, and so is a panel in which every board is left out. A child that is left out takes with it everything inside it, the marks of a panel inside it included.
+    pub fn expand_with(
+        &self,
+        load: &dyn Fn(&str) -> Result<Vec<Part>, String>,
+        x_out: &[String],
+    ) -> Result<Expanded, PnpError> {
         let mut cache: HashMap<String, Vec<Part>> = HashMap::new();
         let mut out = Expanded::default();
         self.walk(
@@ -329,7 +356,20 @@ impl Panel {
             load,
             &mut cache,
             &mut out,
+            x_out,
         )?;
+        if let Some(name) = x_out.iter().find(|name| !out.seen.contains(name)) {
+            return Err(PnpError::new(
+                Code::PanelXOutUnknown,
+                format!("'{name}' is not a board or a panel that the panel reaches"),
+            ));
+        }
+        if !out.x_out.is_empty() && out.boards_placed == 0 {
+            return Err(PnpError::new(
+                Code::PanelAllBad,
+                format!("{} left out and no board left", out.x_out.join(", ")),
+            ));
+        }
         Ok(out)
     }
 
@@ -343,6 +383,7 @@ impl Panel {
         load: &dyn Fn(&str) -> Result<Vec<Part>, String>,
         cache: &mut HashMap<String, Vec<Part>>,
         out: &mut Expanded,
+        x_out: &[String],
     ) -> Result<(), PnpError> {
         if depth > MAX_DEPTH {
             return Err(PnpError::new(
@@ -373,9 +414,18 @@ impl Panel {
             let (cx, cy) = world(c.x, c.y);
             let ct = (cx, cy, t.2 + c.rotation);
             let child_prefix = format!("{prefix}{}/", c.id);
+            let path = format!("{prefix}{}", c.id);
+            out.seen.push(path.clone());
+            if c.x_out || x_out.contains(&path) {
+                out.x_out.push(path);
+                continue;
+            }
             match &c.what {
-                What::Panel(p) => self.walk(p, ct, &child_prefix, depth + 1, load, cache, out)?,
+                What::Panel(p) => {
+                    self.walk(p, ct, &child_prefix, depth + 1, load, cache, out, x_out)?
+                }
                 What::Board(b) => {
+                    out.boards_placed += 1;
                     let file = &self.boards[b];
                     if !cache.contains_key(file) {
                         let parts = load(file).map_err(|e| bad(format!("board '{b}': {e}")))?;

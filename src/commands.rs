@@ -12,6 +12,7 @@ use eh3d_phoenix_pnp::feeding::{self, FeederSpec, Picks};
 use eh3d_phoenix_pnp::fiducial;
 use eh3d_phoenix_pnp::job::{Job, Phase};
 use eh3d_phoenix_pnp::loadsheet;
+use eh3d_phoenix_pnp::marks;
 use eh3d_phoenix_pnp::model::Machine;
 use eh3d_phoenix_pnp::model::Offset;
 use eh3d_phoenix_pnp::panel::Panel;
@@ -84,6 +85,8 @@ pub struct Common {
     pub fiducials: Option<String>,
     /// The references that `--dnp` leaves out of the plan.
     pub dnp: Vec<String>,
+    /// The boards of the panel that `--x-out` marks as bad, by their path (`A`, `B/C`).
+    pub x_out: Vec<String>,
     pub inputs: Vec<String>,
 }
 
@@ -166,6 +169,15 @@ pub fn common(args: &mut Vec<String>) -> Result<Common, String> {
         }
         inputs.push(p.clone());
     }
+    let x_out = match flag(args, "--x-out")? {
+        Some(v) => {
+            if panel.is_none() {
+                return Err("--x-out needs --panel: it names boards of the panel".into());
+            }
+            marks::parse_list(&v)
+        }
+        None => Vec::new(),
+    };
     let dnp: Vec<String> = match flag(args, "--dnp")? {
         Some(v) => v
             .split(',')
@@ -182,6 +194,7 @@ pub fn common(args: &mut Vec<String>) -> Result<Common, String> {
         panel,
         fiducials,
         dnp,
+        x_out,
         inputs,
     })
 }
@@ -208,33 +221,71 @@ fn load_parts(args: &[String], c: &Common) -> Result<Loaded, String> {
             left_out.borrow_mut().extend(parsed.dnp);
             Ok(parsed.parts)
         };
-        let expanded = panel.expand(&load).map_err(l)?;
+        let expanded = panel.expand_with(&load, &c.x_out).map_err(l)?;
+        for path in &expanded.x_out {
+            println!("x-out: {path} is marked as bad and is left out");
+        }
         let mut parts = expanded.parts;
+        let marks_as_parts =
+            marks::take_fiducial_parts(&mut parts, &c.cfg.fiducial_words, &c.cfg.fiducial_refs);
+        if !marks_as_parts.is_empty() {
+            let names: Vec<&str> = marks_as_parts
+                .iter()
+                .map(|p| p.reference.as_str())
+                .collect();
+            println!(
+                "fiducial parts: {} are marks of their boards and are not placed ({})",
+                names.len(),
+                names.join(", ")
+            );
+        }
         if let Some(path) = &c.fiducials {
             let measured = fiducial::parse_measured(&read_text(path, max)?).map_err(l)?;
-            let fit = fiducial::solve(
+            let fits = marks::fit_levels(
                 &expanded.fiducials,
+                &marks::marks_of(&marks_as_parts),
                 &measured,
                 c.cfg.fiducial_mode,
                 c.cfg.fiducial_max_residual_mm,
             )
             .map_err(l)?;
-            fiducial::correct(&mut parts, &fit.transform);
-            println!(
-                "fiducials: {} marks, {} fit, turn {:.3} degrees, residual {:.3} mm (largest {:.3} mm)",
-                fit.ids.len(),
-                fit.mode.name(),
-                fit.transform.rotation_deg(),
-                fit.rms,
-                fit.max
-            );
+            marks::correct_levels(&mut parts, &fits);
+            for level in &fits {
+                let label = if level.group.is_empty() {
+                    "fiducials".to_string()
+                } else {
+                    format!("fiducials of {}", level.group)
+                };
+                println!(
+                    "{label}: {} marks, {} fit, turn {:.3} degrees, residual {:.3} mm (largest {:.3} mm)",
+                    level.fit.ids.len(),
+                    level.fit.mode.name(),
+                    level.fit.transform.rotation_deg(),
+                    level.fit.rms,
+                    level.fit.max
+                );
+            }
         }
         (parts, 0)
     } else {
         let path = args.first().ok_or("a file of parts is needed")?;
         let parsed = parse_all(&read_text(path, max)?, profile)?;
         left_out.borrow_mut().extend(parsed.dnp);
-        (parsed.parts, 1)
+        let mut parts = parsed.parts;
+        let marks_as_parts =
+            marks::take_fiducial_parts(&mut parts, &c.cfg.fiducial_words, &c.cfg.fiducial_refs);
+        if !marks_as_parts.is_empty() {
+            let names: Vec<&str> = marks_as_parts
+                .iter()
+                .map(|p| p.reference.as_str())
+                .collect();
+            println!(
+                "fiducial parts: {} are marks of the board and are not placed ({})",
+                names.len(),
+                names.join(", ")
+            );
+        }
+        (parts, 1)
     };
     let mut dnp = left_out.into_inner();
     if !c.dnp.is_empty() {
