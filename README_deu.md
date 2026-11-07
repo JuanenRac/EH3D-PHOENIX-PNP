@@ -18,7 +18,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 434 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt, und obwohl das Programm Bilder seines eigenen Fensters aufnimmt (`--shot`), hat keine Person die Zeichnung auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 452 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt, und obwohl das Programm Bilder seines eigenen Fensters aufnimmt (`--shot`), hat keine Person die Zeichnung auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.5` |
 | Reifegrad | Gerüst |
-| Tests | 434 |
+| Tests | 452 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -47,7 +47,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (Priorität, Tray, Streifen), plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen mit Rängen, Düsenspitzen, Winkelgrenzen und der Zeit der Bewegungen, plant Panels und schreibt die Ladeliste; auf einem Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `phoenix-pnp` führt dieselben Funktionen wie die Bibliothek aus (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `vision-test`) und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit seinem Code `PHOENIX-PNP-NNN` und einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 434 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen, beschädigten Eingaben und kleinen erzeugten Fällen. |
+| Tests | 🟡 | 452 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen, beschädigten Eingaben und kleinen erzeugten Fällen. |
 | Maschinenkonfiguration | 🟡 | eine Datei `Schlüssel = Wert` mit Version, ein Prüfer, der die Zeile nennt, und die Sicherheitsgrenzen (Z-Weg, Grenzen von X und Y, Wiederholungen, Düsenwinkel); die Werte wurden nicht mit einer echten Maschine verglichen. |
 | Simulator und Auftrag | 🟡 | eine virtuelle Uhr, zufällig (mit Startwert) oder an gewählter Stelle eingespeiste Fehler, Wiederholungen, die Richtlinien Alarm und Aufschieben, Zuführer, die nach wiederholten Fehlern abschalten, Pause, Einzelschritte und ein gespeicherter Zustand zum Fortsetzen; es simuliert nur, nichts hat eine Maschine bewegt. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
@@ -66,6 +66,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 * **Der Planer der Maschine** (`src/planner.rs`, `src/motion.rs`): Ränge (Blöcke, die nacheinander bestückt werden), Ordnungsstrategien, Düsenspitzen und ihr Wechsel, die Grenzen des Düsenwinkels, die Zeit der Bewegungen mit Beschleunigung und Ruck, kürzere Wege (2-opt) und die Korrektur des Ursprungs eines Bauteils.
 * **Panels, Ladeliste und Exporte** (`src/panel.rs`, `src/loadsheet.rs`, `src/export.rs`): Platinen und Panels in Panels, der Platz jeder Gurtart, ein Bericht, die Liste des Fehlenden und ein G-Code, der nur den Kopf bewegt.
 * **Passmarken eines Nutzens** (`src/fiducial.rs`): die gemessenen Lagen der Marken werden an die entworfenen angepasst (eine Ähnlichkeitsabbildung mit zwei Marken, eine affine Anpassung mit drei oder mehr), und die Teile des Nutzens werden mit der Anpassung verschoben und gedreht; jede Marke hat ihren Restfehler, und eine Anpassung, die eine Marke um mehr als `fiducial_max_residual_mm` verfehlt, wird abgelehnt (`--fiducials DATEI` mit `--panel` oder der Reiter Nutzen des Fensters).
+* **Als schlecht markierte Platinen (X-out) und Marken auf zwei Ebenen** (`src/marks.rs`, `src/panel.rs`): Ein Kind der Panel-Datei mit `"x_out": true` oder `--x-out A,B/C` wird mit allem, was darin ist, ausgelassen; Plan, Ladeliste und Prüfungen sehen es nicht, und ein Name, den keine Platine hat (`PHOENIX-PNP-042`), oder ein Nutzen, dessen Platinen alle ausgelassen sind (`PHOENIX-PNP-043`), ist ein Fehler. Ein Bauteil einer Platine, dessen Wert oder Gehäuse ein Wort aus `fiducial_words` enthält oder dessen Referenz ein Präfix aus `fiducial_refs` mit einer Zahl ist (`FID1`), ist eine Marke seiner Platine und wird nicht bestückt; die Datei von `--fiducials` kann dann die Marken des Nutzens (`f1`) und der Platinen (`A/FID1`) benennen: Die Marken einer Platine werden zusammen angepasst und bewegen nur die Teile dieser Platine, die Teile der Platinen ohne gemessene Marken folgen der Anpassung des Nutzens. Simuliert: Keine Platine wurde je auf einer Maschine gemessen; das Fenster nutzt die Marken der Platinen noch nicht.
 * **Mehr vom Planer und vom Simulator:** die Reihenfolge, in der die Zellen eines Trays geleert werden (Zeilen, Spalten oder Schlangenlinie), eine Suche nach der Reihenfolge der Düsenspitzen, die den Weg und die Fahrt zum Wechsler zählt (`tip_strategy = optimize`, begrenzt durch `tip_opt_max_evals` und `tip_opt_time_limit_s`), Ausfallwahrscheinlichkeiten je Gehäuse und je Zuführer (`sim_part_fail`, `sim_feeder_fail`) mit Statistiken je Gehäuse und je Zuführer und den Teilen pro Stunde sowie `check-bottom`, das den Winkel zeigt, den jede Regel der Unterseite ergibt.
 * **Der Ausrichtschritt** (`src/job.rs`, `src/sim.rs`, `src/model.rs`): Mit `align = on` sieht sich der Auftrag jedes Teil nach dem Aufnehmen mit der Kamera an und korrigiert die Platzierung nach dem Gesehenen (der Kopf fährt zum Platz abzüglich des Versatzes des Teils, und die Düse dreht um dessen Drehung weniger); `pick_tolerance_mm` wirft ein Teil weg, das weiter daneben liegt, und es wird so neu aufgenommen, wie `error_policy` es sagt; `align_passes` (1 bis 5) und `align_settle_s` legen die Blicke und das Warten vor jedem fest und zählen zur Zeit des Plans; die simulierte Kamera hat einen Versatz, einen Fehler und einspeisbare Ausfälle (`sim_align_*`, `sim_camera_fail_rate`); und die Korrektur (Mittel, größte, weggeworfene Teile) steht im Text, im JSON-Bericht und in den `align`-Zeilen von `--report-csv`. Standardmäßig aus: Ein Auftrag ist dann derselbe wie immer. Nicht an einer Maschine erprobt.
 * **Die Bildverarbeitung** (`src/vision.rs`, `src/sim.rs`, `examples/vision.cfg`): mit `vision = pipeline` zeichnet die simulierte Kamera ein Bild des Teils im Speicher (seine Größe, seine Drehung und sein Abstand zur Düse, mit einem aus `sim_seed` gezogenen Rauschen) und misst es mit den Schritten einer Einstellungsdatei (`--vision FILE`): eine Maske, ein Medianfilter, eine feste oder Otsu-Schwelle, ein Flächenbereich für den Fleck und das kleinste gedrehte Rechteck, dessen Mitte und Winkel die Abweichung sind, die der Ausrichtschritt korrigiert. Ein Teil, das nicht gefunden wird, ein Fleck mit falscher Fläche und mehrere Flecken sind Blicke ohne Messwert, jeder mit eigenem Code (`PHOENIX-PNP-037` bis `PHOENIX-PNP-039`). `phoenix-pnp vision-test` zeichnet ein Teil aus Größe, Drehung, Abweichung und Rauschen, die man ihm gibt, und gibt das Gemessene mit seinem Fehler aus. Standardmäßig aus: ein Auftrag ist dann derselbe wie zuvor. Nicht mit einer echten Kamera erprobt.
@@ -133,6 +134,8 @@ Maschine und Planer werden mit einer Textdatei aus Zeilen `Schlüssel = Wert` ko
 
 Die Spalten, die ein Bauteil als nicht zu bestücken markieren, und ihre Wörter sind ebenfalls Einstellungen: `header_dnp` und `header_fitted` fügen Namen der Spalte hinzu, `dnp_yes_words` und `dnp_no_words` fügen Wörter für Ja und Nein hinzu. Eine Spalte namens `dnp`, `do not place`, `do not populate`, `do not mount`, `do_not_place`, `not fitted` oder `no montar` lässt das Bauteil bei einem Ja (`yes`, `y`, `true`, `1`, `x`) weg; eine namens `fitted`, `populate`, `populated`, `mount`, `mounted` oder `montar` lässt es bei einem Nein (`no`, `n`, `false`, `0`, `-`) weg; eine leere Zelle bestückt das Bauteil, und jedes andere Wort ist ein Fehler, der die Zeile nennt.
 
+Auch die Bauteile, die Marken ihrer Platine sind, sind Einstellungen: `fiducial_words` (Standard `fiducial`) und `fiducial_refs` (Standard `fid, fd`); eine leere Liste schaltet die Regel ab.
+
 Die Tabellen der Gehäuse und Teile (`--packages`, `--catalog`) sind CSV-Dateien, in denen eine leere Zelle erbt; ein Panel (`--panel`) ist eine JSON-Datei; die Plätze der Maschine (`loadsheet`) sind eine CSV mit `id,x,y,max_width_mm`. Eine Datei, die größer als `max_file_bytes` ist, wird abgelehnt. Jeder Fehler hat einen Code `PHOENIX-PNP-NNN`; seine Meldung steht in der Sprache des Schlüssels `language` oder von `--lang` (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh` oder `pt`):
 
 | Code | Bedeutung |
@@ -178,6 +181,8 @@ Die Tabellen der Gehäuse und Teile (`--packages`, `--catalog`) sind CSV-Dateien
 | `PHOENIX-PNP-039` | Die Bildverarbeitung fand mehr als einen Fleck, der das Teil sein könnte |
 | `PHOENIX-PNP-040` | Die Berichtsdatei existiert bereits und wird nicht überschrieben |
 | `PHOENIX-PNP-041` | Die Aktion passt nicht zum Zustand des Auftrags |
+| `PHOENIX-PNP-042` | Eine als schlecht markierte Platine (X-out) ist nicht im Nutzen |
+| `PHOENIX-PNP-043` | Alle Platinen des Nutzens sind als schlecht markiert (X-out): nichts mehr zu bestücken |
 
 ## 🚀 Schnellstart
 
@@ -196,6 +201,7 @@ cargo run --release -- tables-check --parts examples/board_dnp.csv --packages ex
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-csv examples/job_report.csv
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-text examples/job_report.txt --report-html examples/job_report.html
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
+cargo run --release -- schedule examples/feeders.csv examples/schedule_xout.json --panel examples/panel.json --x-out B --config examples/machine.cfg
 cargo run --release -- vision-test --vision examples/vision.cfg --turn 30 --dx 0.5 --dy -0.3
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
 cargo run --release --features gui -- --shot job.png --window job --steps 9 examples/board.pos examples/feeders.csv examples/machine.cfg   # the Job tab with the job on its way
@@ -212,7 +218,7 @@ Die letzte Zeile öffnet das Fenster; das tut auch `phoenix-pnp` ohne Befehl, we
 
 ## 🧪 Tests
 
-Die Suite hat 434 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt). Sie prüfen die Normalfälle, die Grenzfälle und beschädigte Eingaben: leere Dateien, Müll und abgeschnittene Dateien führen nie zu einer Panik. Kleine erzeugte Fälle (aus einem festen Startwert, also mit denselben Zahlen bei jedem Lauf) prüfen, dass der Plan nicht von der Reihenfolge der Dateien abhängt, dass ein Weg nie länger wird, dass ein irgendwo gespeicherter und fortgesetzter Auftrag genauso endet wie einer, der nie angehalten wurde, und dass sich Längen und Winkel hin und zurück umrechnen lassen. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 452 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt). Sie prüfen die Normalfälle, die Grenzfälle und beschädigte Eingaben: leere Dateien, Müll und abgeschnittene Dateien führen nie zu einer Panik. Kleine erzeugte Fälle (aus einem festen Startwert, also mit denselben Zahlen bei jedem Lauf) prüfen, dass der Plan nicht von der Reihenfolge der Dateien abhängt, dass ein Weg nie länger wird, dass ein irgendwo gespeicherter und fortgesetzter Auftrag genauso endet wie einer, der nie angehalten wurde, und dass sich Längen und Winkel hin und zurück umrechnen lassen. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 
@@ -260,6 +266,7 @@ EH3D-PHOENIX-PNP/
 │   ├── job.rs                                   der Auftrag: Schritte, Pause, Wiederholungen, Richtlinien, Statistik und gespeicherter Zustand
 │   ├── lib.rs                                   die Bibliothek: was jeder Befehl nutzt
 │   ├── loadsheet.rs                             die Ladeliste: der Platz jeder Gurtart
+│   ├── marks.rs                                 Marken auf zwei Ebenen: Bauteile, die Marken sind, und die Anpassung von Nutzen und Platine
 │   ├── main.rs                                  die Kommandozeile und der Einstieg des Fensters, wenn es ohne Befehl läuft
 │   ├── model.rs                                 die Teile einer Maschine als Traits: Maschine, Düse, Zuführer, Aktor, Kamera, Treiber
 │   ├── motion.rs                                die Zeit einer Bewegung, mit Beschleunigung und Ruck
@@ -281,6 +288,7 @@ EH3D-PHOENIX-PNP/
 │   ├── job.rs                                   Tests des Auftrags: Schritte, Wiederholungen und gespeicherter Zustand
 │   ├── jobtab.rs                                Tests des Reiters Auftrag ohne Bildschirm: Zustände, Filter, Fortschritt, Dialog
 │   ├── loadsheet.rs                             Tests der Ladeliste und der Exporte
+│   ├── marks.rs                                 Tests der als schlecht markierten Platinen, der Bauteile, die Marken sind, und der Marken auf zwei Ebenen
 │   ├── model.rs                                 Tests des Datenmodells: Codes, Längen, Konfiguration und Tabellen
 │   ├── more.rs                                  weitere Tests von Bibliothek und Kommandozeile
 │   ├── panel.rs                                 Tests der Panels und ihrer Passmarken
@@ -289,6 +297,7 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             Tests der Prüfungen vor einem Auftrag
 │   ├── readme.rs                                Tests, dass die README ausführbar und vollständig ist
 │   ├── report.rs                                Tests des Berichts: Phasen, Aufnahmen, Histogramme, Gruppen, Entscheidungen
+│   ├── shot.rs                                  Tests des Bildmodus des Fensters: seine Argumente, ohne Bildschirm gelesen und geprüft
 │   ├── sim.rs                                   Tests der simulierten Maschine
 │   ├── strict.rs                                Tests der Kommandozeile: Optionen und Wörter, die sie nicht kennt
 │   ├── tables.rs                                Tests der nicht zu bestückenden Teile, von tables-check und des Auftragsberichts als CSV

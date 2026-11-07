@@ -418,6 +418,19 @@
           }
         },
         {
+          "name": "marks.rs",
+          "desc": {
+            "en": "marks of two levels: the parts that are marks, the fit of a panel and of each board",
+            "es": "marcas de dos niveles: las piezas que son marcas, el ajuste de un panel y de cada placa",
+            "de": "Marken auf zwei Ebenen: Bauteile, die Marken sind, und die Anpassung von Nutzen und Platine",
+            "fr": "repères à deux niveaux : les pièces qui sont des repères, l'ajustement du panneau et de chaque carte",
+            "it": "marche a due livelli: i componenti che sono marche e l'adattamento del pannello e di ogni scheda",
+            "ja": "2階層のマーク：マークである部品と、パネルと各基板のフィット",
+            "zh": "两级标记：作为标记的零件，以及拼板和每块电路板的拟合",
+            "pt": "marcas de dois níveis: as peças que são marcas e o ajuste do painel e de cada placa"
+          }
+        },
+        {
           "name": "main.rs",
           "desc": {
             "en": "the command line, and the entry of the window when it runs with no command",
@@ -685,6 +698,19 @@
           }
         },
         {
+          "name": "marks.rs",
+          "desc": {
+            "en": "tests of the boards marked as bad, the parts that are marks and the marks of two levels",
+            "es": "pruebas de las placas marcadas como malas, las piezas que son marcas y las marcas de dos niveles",
+            "de": "Tests der als schlecht markierten Platinen, der Bauteile, die Marken sind, und der Marken auf zwei Ebenen",
+            "fr": "tests des cartes marquées comme mauvaises, des pièces qui sont des repères et des repères à deux niveaux",
+            "it": "test delle schede segnate come difettose, dei componenti che sono marche e delle marche a due livelli",
+            "ja": "不良としてマークされた基板、マークである部品、2階層のマークのテスト",
+            "zh": "标记为不良的电路板、作为标记的零件和两级标记的测试",
+            "pt": "testes das placas marcadas como defeituosas, das peças que são marcas e das marcas de dois níveis"
+          }
+        },
+        {
           "name": "model.rs",
           "desc": {
             "en": "tests of the data model: codes, lengths, configuration and tables",
@@ -786,6 +812,19 @@
             "ja": "レポートのテスト：工程、ピック、ヒストグラム、グループ、判断、形式",
             "zh": "报告测试：阶段、拾取、直方图、分组、决定、格式",
             "pt": "testes do relatório: fases, recolhas, histogramas, grupos, decisões, formatos"
+          }
+        },
+        {
+          "name": "shot.rs",
+          "desc": {
+            "en": "tests of the picture mode of the window: its arguments, read and checked without a screen",
+            "es": "pruebas del modo de captura de la ventana: sus argumentos, leídos y comprobados sin pantalla",
+            "de": "Tests des Bildmodus des Fensters: seine Argumente, ohne Bildschirm gelesen und geprüft",
+            "fr": "tests du mode capture de la fenêtre : ses arguments, lus et vérifiés sans écran",
+            "it": "test della modalità immagine della finestra: i suoi argomenti, letti e verificati senza schermo",
+            "ja": "ウィンドウの画像モードのテスト：画面なしで読み取り・確認される引数",
+            "zh": "窗口图片模式的测试：在没有屏幕的情况下读取并检查其参数",
+            "pt": "testes do modo de imagem da janela: os seus argumentos, lidos e verificados sem ecrã"
           }
         },
         {

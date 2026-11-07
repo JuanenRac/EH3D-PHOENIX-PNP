@@ -18,7 +18,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 434 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e, sebbene il programma acquisisca immagini della propria finestra (`--shot`), nessuna persona ha verificato il disegno su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 452 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e, sebbene il programma acquisisca immagini della propria finestra (`--shot`), nessuna persona ha verificato il disegno su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versione | `0.0.5` |
 | Maturità | Impalcatura |
-| Test | 434 |
+| Test | 452 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -47,7 +47,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (priorità, vassoio, striscia), pianifica l'ordine di posizionamento per una testa fino a sei ugelli con ranghi, punte degli ugelli, limiti d'angolo e il tempo dei movimenti, pianifica pannelli e scrive il foglio di carico; provato su un computer con ingressi normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `phoenix-pnp` esegue le stesse funzioni della libreria (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `vision-test`) e stampa il risultato; ogni errore torna come messaggio con il suo codice `PHOENIX-PNP-NNN` e un codice di uscita diverso da zero. |
-| Test | 🟡 | 434 test passano (`cargo test`), con casi normali, casi limite, ingressi danneggiati e piccoli casi generati. |
+| Test | 🟡 | 452 test passano (`cargo test`), con casi normali, casi limite, ingressi danneggiati e piccoli casi generati. |
 | Configurazione della macchina | 🟡 | un file `chiave = valore` con versione, un validatore che nomina la riga e i limiti di sicurezza (corsa di Z, limiti di X e Y, nuovi tentativi, angoli dell'ugello); i valori non sono stati confrontati con una macchina reale. |
 | Simulatore e lavoro | 🟡 | un orologio virtuale, guasti iniettati a caso (con un seme) o in un punto scelto, nuovi tentativi, le politiche allerta e rinvio, alimentatori che si spengono dopo guasti ripetuti, pausa, passo dopo passo e uno stato salvato da cui riprendere; simula soltanto, nulla ha mosso una macchina. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
@@ -66,6 +66,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Il pianificatore della macchina** (`src/planner.rs`, `src/motion.rs`): ranghi (blocchi posizionati uno dopo l'altro), strategie d'ordine, punte degli ugelli e i loro cambi, i limiti dell'angolo dell'ugello, il tempo dei movimenti con accelerazione e jerk, percorsi più corti (2-opt) e la correzione dell'origine di un componente.
 * **Pannelli, foglio di carico ed esportazioni** (`src/panel.rs`, `src/loadsheet.rs`, `src/export.rs`): schede e pannelli dentro pannelli, lo slot di ogni tipo di nastro, un rapporto, l'elenco di ciò che manca e un G-code che sposta solo la testa.
 * **Fiduciali di un pannello** (`src/fiducial.rs`): le posizioni misurate dei segni vengono adattate a quelle progettate (una similitudine con due segni, un adattamento affine con tre o più) e le parti del pannello vengono spostate e ruotate dall'adattamento; ogni segno ha il suo residuo, e un adattamento che manca un segno di più di `fiducial_max_residual_mm` viene rifiutato (`--fiducials FILE` con `--panel`, o la scheda Pannelli della finestra).
+* **Schede segnate come difettose (X-out) e marche a due livelli** (`src/marks.rs`, `src/panel.rs`): un figlio del file del pannello con `"x_out": true`, o `--x-out A,B/C`, viene lasciato fuori con tutto ciò che contiene; il piano, il foglio di carico e i controlli non lo vedono, e un nome che nessuna scheda ha (`PHOENIX-PNP-042`) o un pannello con tutte le schede escluse (`PHOENIX-PNP-043`) è un errore. Un componente di una scheda il cui valore o package contiene una parola di `fiducial_words`, o il cui riferimento è un prefisso di `fiducial_refs` seguito da un numero (`FID1`), è una marca della sua scheda e non viene posizionato; il file di `--fiducials` può allora nominare le marche del pannello (`f1`) e delle schede (`A/FID1`): le marche di una scheda si adattano insieme e spostano solo i componenti di quella scheda, e i componenti delle schede senza marche misurate seguono l'adattamento del pannello. Simulato: nessuna scheda è mai stata misurata su una macchina; la finestra non usa ancora le marche delle schede.
 * **Altro dal pianificatore e dal simulatore:** l'ordine in cui si svuotano le celle di un vassoio (righe, colonne o serpentina), una ricerca dell'ordine delle punte dell'ugello che conta il percorso e il viaggio al cambio punta (`tip_strategy = optimize`, limitata da `tip_opt_max_evals` e `tip_opt_time_limit_s`), probabilità di guasto per package e per alimentatore (`sim_part_fail`, `sim_feeder_fail`) con statistiche per package e per alimentatore e le parti all'ora, e `check-bottom`, che mostra l'angolo che dà ogni regola del lato inferiore.
 * **Il passo di allineamento** (`src/job.rs`, `src/sim.rs`, `src/model.rs`): con `align = on` il lavoro guarda ogni componente con la telecamera dopo il prelievo e corregge il posizionamento in base a ciò che vede (la testa va al punto meno lo scostamento del componente, e l'ugello ruota meno della rotazione del componente); `pick_tolerance_mm` scarta un componente più fuori posto, che viene prelevato di nuovo come dice `error_policy`; `align_passes` (da 1 a 5) e `align_settle_s` fissano gli sguardi e l'attesa prima di ciascuno, che si sommano al tempo del piano; la telecamera simulata ha uno scostamento, un errore e guasti iniettabili (`sim_align_*`, `sim_camera_fail_rate`); e la correzione (media, massima, componenti scartati) compare nel testo, nel rapporto JSON e nelle righe `align` di `--report-csv`. Spento per impostazione predefinita: un lavoro è allora quello di sempre. Non provato su una macchina.
 * **La catena di visione** (`src/vision.rs`, `src/sim.rs`, `examples/vision.cfg`): con `vision = pipeline` la telecamera simulata disegna in memoria un'immagine del componente (la sua dimensione, la sua rotazione e quanto è lontano dall'ugello, con un rumore tratto da `sim_seed`) e la misura con i passi di un file di impostazioni (`--vision FILE`): una maschera, un filtro mediano, una soglia fissa o di Otsu, un intervallo di area per la macchia e il rettangolo ruotato più piccolo, il cui centro e angolo sono lo scostamento che il passo di allineamento corregge. Un componente non trovato, una macchia di area sbagliata e più macchie sono osservazioni senza misura, ognuna con il suo codice (da `PHOENIX-PNP-037` a `PHOENIX-PNP-039`). `phoenix-pnp vision-test` disegna un componente con la dimensione, la rotazione, lo scostamento e il rumore che gli si danno e stampa quanto misurato con il suo errore. Disattivato per impostazione predefinita: un lavoro è allora quello di sempre. Non provato con una telecamera reale.
@@ -133,6 +134,8 @@ La macchina e il pianificatore si configurano con un file di testo di righe `chi
 
 Anche le colonne che segnano un componente come da non montare e le parole che usano sono impostazioni: `header_dnp` e `header_fitted` aggiungono nomi della colonna, `dnp_yes_words` e `dnp_no_words` aggiungono parole per sì e no. Una colonna chiamata `dnp`, `do not place`, `do not populate`, `do not mount`, `do_not_place`, `not fitted` o `no montar` esclude il componente con un sì (`yes`, `y`, `true`, `1`, `x`); una chiamata `fitted`, `populate`, `populated`, `mount`, `mounted` o `montar` lo esclude con un no (`no`, `n`, `false`, `0`, `-`); una cella vuota monta il componente e qualsiasi altra parola è un errore che nomina la riga.
 
+Anche i componenti che sono marche della loro scheda sono impostazioni: `fiducial_words` (predefinito `fiducial`) e `fiducial_refs` (predefinito `fid, fd`); una lista vuota disattiva la regola.
+
 Le tabelle di package e parti (`--packages`, `--catalog`) sono file CSV in cui una cella vuota eredita; un pannello (`--panel`) è un file JSON; gli slot della macchina (`loadsheet`) sono un CSV con `id,x,y,max_width_mm`. Un file più grande di `max_file_bytes` viene rifiutato. Ogni errore ha un codice `PHOENIX-PNP-NNN`; il suo messaggio è scritto nella lingua della chiave `language` o di `--lang` (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh` o `pt`):
 
 | Codice | Significato |
@@ -178,6 +181,8 @@ Le tabelle di package e parti (`--packages`, `--catalog`) sono file CSV in cui u
 | `PHOENIX-PNP-039` | La visione ha trovato più di una macchia che potrebbe essere il componente |
 | `PHOENIX-PNP-040` | Il file del rapporto esiste già e non viene sovrascritto |
 | `PHOENIX-PNP-041` | L'azione non è adatta allo stato del lavoro |
+| `PHOENIX-PNP-042` | Una scheda segnata come difettosa (X-out) non è nel pannello |
+| `PHOENIX-PNP-043` | Tutte le schede del pannello sono segnate come difettose (X-out): non resta nulla da posizionare |
 
 ## 🚀 Avvio rapido
 
@@ -196,6 +201,7 @@ cargo run --release -- tables-check --parts examples/board_dnp.csv --packages ex
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-csv examples/job_report.csv
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-text examples/job_report.txt --report-html examples/job_report.html
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
+cargo run --release -- schedule examples/feeders.csv examples/schedule_xout.json --panel examples/panel.json --x-out B --config examples/machine.cfg
 cargo run --release -- vision-test --vision examples/vision.cfg --turn 30 --dx 0.5 --dy -0.3
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
 cargo run --release --features gui -- --shot job.png --window job --steps 9 examples/board.pos examples/feeders.csv examples/machine.cfg   # the Job tab with the job on its way
@@ -212,7 +218,7 @@ L'ultima riga apre la finestra; lo fa anche `phoenix-pnp` senza comando se è st
 
 ## 🧪 Test
 
-La suite ha 434 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli ingressi danneggiati: file vuoti, spazzatura e file tagliati non provocano mai un panic. Piccoli casi generati (da un seme fisso, quindi con gli stessi numeri a ogni esecuzione) verificano che il piano non dipenda dall'ordine dei file, che un percorso non si allunghi mai, che un lavoro salvato e ripreso in qualsiasi punto finisca come quello che non si è mai fermato, e che lunghezze e angoli si convertano avanti e indietro. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 452 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli ingressi danneggiati: file vuoti, spazzatura e file tagliati non provocano mai un panic. Piccoli casi generati (da un seme fisso, quindi con gli stessi numeri a ogni esecuzione) verificano che il piano non dipenda dall'ordine dei file, che un percorso non si allunghi mai, che un lavoro salvato e ripreso in qualsiasi punto finisca come quello che non si è mai fermato, e che lunghezze e angoli si convertano avanti e indietro. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -260,6 +266,7 @@ EH3D-PHOENIX-PNP/
 │   ├── job.rs                                   il lavoro: passi, pausa, nuovi tentativi, politiche, statistiche e stato salvato
 │   ├── lib.rs                                   la libreria: ciò che usa ogni comando
 │   ├── loadsheet.rs                             il foglio di carico: lo slot di ogni tipo di nastro
+│   ├── marks.rs                                 marche a due livelli: i componenti che sono marche e l'adattamento del pannello e di ogni scheda
 │   ├── main.rs                                  la riga di comando e l'ingresso della finestra quando gira senza comando
 │   ├── model.rs                                 le parti di una macchina come trait: macchina, ugello, alimentatore, attuatore, telecamera, driver
 │   ├── motion.rs                                il tempo di un movimento, con accelerazione e jerk
@@ -281,6 +288,7 @@ EH3D-PHOENIX-PNP/
 │   ├── job.rs                                   test del lavoro: passi, nuovi tentativi e stato salvato
 │   ├── jobtab.rs                                test della scheda Lavoro senza schermo: stati, filtri, avanzamento, finestra
 │   ├── loadsheet.rs                             test del foglio di carico e delle esportazioni
+│   ├── marks.rs                                 test delle schede segnate come difettose, dei componenti che sono marche e delle marche a due livelli
 │   ├── model.rs                                 test del modello dei dati: codici, lunghezze, configurazione e tabelle
 │   ├── more.rs                                  altri test della libreria e della riga di comando
 │   ├── panel.rs                                 test dei pannelli e dei loro fiduciali
@@ -289,6 +297,7 @@ EH3D-PHOENIX-PNP/
 │   ├── preflight.rs                             test dei controlli prima di un lavoro
 │   ├── readme.rs                                test che il README sia eseguibile e completo
 │   ├── report.rs                                test del rapporto: fasi, prelievi, istogrammi, gruppi, decisioni, formati
+│   ├── shot.rs                                  test della modalità immagine della finestra: i suoi argomenti, letti e verificati senza schermo
 │   ├── sim.rs                                   test della macchina simulata
 │   ├── strict.rs                                test della riga di comando: opzioni e parole che non conosce
 │   ├── tables.rs                                test delle parti da non montare, di tables-check e del rapporto di un lavoro in CSV
