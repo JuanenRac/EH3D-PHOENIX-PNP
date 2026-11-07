@@ -36,11 +36,12 @@
       "level": "tested",
       "title": "parts and feeders",
       "lines": [
-        "KiCad and CSV position files,",
+        "KiCad, EAGLE, CSV positions,",
         "a feeder for every part"
       ],
       "code": [
         "src/parts.rs::pub fn parse",
+        "src/import.rs::pub fn import",
         "src/feeders.rs::pub fn assign"
       ]
     },
@@ -191,7 +192,7 @@
     }
   ],
   "legend": {
-    "tested": "covered by tests on a computer (536 tests)",
+    "tested": "covered by tests on a computer (572 tests)",
     "config": "planned, not used today",
     "external": "a person, a file or another repository"
   },

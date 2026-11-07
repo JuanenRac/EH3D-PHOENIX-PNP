@@ -18,7 +18,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 536 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il a aussi une fenêtre (construite avec `--features gui`) dont la logique est testée sans écran ; le dessin lui-même n'est pas couvert par des tests et, bien que le programme prenne des captures de sa propre fenêtre (`--shot`), aucune personne n'a vérifié le dessin sur un écran. Il ne pilote aucune machine : il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 572 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il a aussi une fenêtre (construite avec `--features gui`) dont la logique est testée sans écran ; le dessin lui-même n'est pas couvert par des tests et, bien que le programme prenne des captures de sa propre fenêtre (`--shot`), aucune personne n'a vérifié le dessin sur un écran. Il ne pilote aucune machine : il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.6` |
 | Maturité | Échafaudage |
-| Tests | 536 |
+| Tests | 572 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -46,8 +46,8 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 | Domaine | État | Ce que cela veut dire ici |
 |---|---|---|
 | Cœur | 🟡 | lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (priorité, plateau, bande), planifie l'ordre de pose pour une tête de jusqu'à six buses avec des rangs, des pointes de buse, des limites d'angle et le temps des déplacements, planifie des panneaux et écrit la feuille de chargement ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
-| Ligne de commande | 🟡 | `phoenix-pnp` exécute les mêmes fonctions que la bibliothèque (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `vision-test`) et affiche le résultat ; chaque erreur revient comme un message avec son code `PHOENIX-PNP-NNN` et un code de sortie non nul. |
-| Tests | 🟡 | 536 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
+| Ligne de commande | 🟡 | `phoenix-pnp` exécute les mêmes fonctions que la bibliothèque (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) et affiche le résultat ; chaque erreur revient comme un message avec son code `PHOENIX-PNP-NNN` et un code de sortie non nul. |
+| Tests | 🟡 | 572 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
 | Configuration de la machine | 🟡 | un fichier `clé = valeur` avec une version, un validateur qui nomme la ligne et les limites de sécurité (course de Z, limites de X et Y, nouvelles tentatives, angles de buse) ; les valeurs n'ont pas été comparées à une machine réelle. |
 | Simulateur et travail | 🟡 | une horloge virtuelle, des pannes injectées au hasard (avec une graine) ou à un endroit choisi, des nouvelles tentatives, les politiques alerte et report, des alimentateurs qui s'éteignent après des pannes répétées, pause, pas à pas et un état enregistré pour reprendre ; il ne fait que simuler, rien n'a piloté une machine. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
@@ -75,6 +75,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 * **Le vide, les actionneurs et la fenêtre de défauts d'un alimentateur** (`src/sim.rs`, `src/job.rs`, `src/config.rs`) : avec `vacuum = on`, la pompe simulée aspire pendant `vacuum_suck_s` secondes après chaque prise et le niveau de la buse (kilopascals) est lu ; un niveau sous `vacuum_pick_min_kpa` signifie que la buse ne tient aucune pièce (`PHOENIX-PNP-044`, et la prise est refaite comme le disent les nouvelles tentatives) et, après le soufflage de `vacuum_blow_s` secondes à chaque dépose, un niveau au-dessus de `vacuum_release_max_kpa` signifie que la pièce reste collée à la buse (`PHOENIX-PNP-045`). Le capteur a son propre générateur (`sim_vacuum_noise_kpa`, `sim_vacuum_miss_rate`, `sim_vacuum_stuck_rate`) et est désactivé par défaut : un travail sans lui est exactement ce qu'il était. Les dispositifs tout ou rien se déclarent avec `actuator = NOM : DÉLAI_S` et se commutent avec `Job::set_actuator`, qui ajoute leur délai à l'horloge (`PHOENIX-PNP-046` pour un nom que la machine n'a pas). Avec `fault_action = alert`, un alimentateur qui atteint `fault_limit` défauts parmi ses `fault_window` dernières prises ne se désactive plus tout seul : le travail s'arrête (`PHOENIX-PNP-047`) et la boîte de dialogue de l'onglet Job propose de réessayer, d'écarter la pièce, de la mettre de côté ou de désactiver l'alimentateur.
 * **Le modèle de caméra, les têtes de la machine et les embouts d'un boîtier** (`src/camera.rs`, `src/heads.rs`, `src/tips.rs`, `src/config.rs`): la caméra est décrite par `camera_units_per_px` (0 est la taille pour laquelle la vision est réglée), `camera_offset_x_mm` et `camera_offset_y_mm` (où se trouve l'axe de la buse dans l'image), `camera_rotation_deg`, `camera_flip_x` et `camera_flip_y`, et l'objectif (`camera_lens_scale`, `camera_lens_k1`) ; la caméra simulée de l'étape d'alignement lit la pièce à travers ce modèle, avec ou sans image, et avec les valeurs par défaut un travail est exactement ce qu'il était. `head = NOM : BUSES [: DÉCALAGE_X : DÉCALAGE_Y : CAMÉRA_X : CAMÉRA_Y : CAMÉRA_ROT : CAMÉRA_UNITÉS : CAMÉRA_OBJECTIF]` déclare jusqu'à quatre têtes, chacune avec ses buses, son décalage et sa caméra ; avec deux têtes ou plus, `schedule` donne chaque pièce à une tête qui l'atteint (`PHOENIX-PNP-048` si aucune ne l'atteint), planifie chaque tête et compte, sur l'horloge de la machine, le temps qu'une tête attend un alimentateur utilisé par une autre. `tip_compat = MOTIF : EMBOUT, EMBOUT, ...` liste les embouts qu'un boîtier accepte et `tip_compat_mode` (`fewest_changes` ou `preferred`) choisit un embout pour chaque sorte de pièce afin que la machine change d'embout le moins souvent possible ; un embout nommé dans les tables est conservé.
 * **Recettes** (`src/recipe.rs`, `src/job.rs`, `src/commands.rs`) : un fichier texte avec une version (`examples/job.recipe`) fixe les étapes que traverse un travail (`prepare`, `pick`, `align`, `place` et `check`, dans cet ordre et aucune deux fois ; l'étape d'alignement et le contrôle du vide ne sont actifs que si la recette les contient) et les paramètres qui changent pour un boîtier, un alimentateur ou un embout (`pick_retries`, `pick_tolerance_mm`, `vacuum_suck_s` et `vacuum_blow_s` ; pour chaque clé la première règle qui correspond l'emporte, d'abord celles des alimentateurs, puis celles des boîtiers et enfin celles des embouts). `phoenix-pnp recipe-check FICHIER` la lit et la vérifie, et `simulate ... --recipe FICHIER` exécute le travail avec elle. Ses erreurs portent les codes `PHOENIX-PNP-049` à `PHOENIX-PNP-052` (une ligne non valide, des étapes dans le désordre, un fichier hors de ses limites, une version trop récente) et les limites sont les clés `recipe_max_bytes` et `recipe_max_rules` de `machine.cfg`. Un état enregistré se souvient aussi de l'alimentateur de la dernière prise et de la prise qui a été arrêtée, si bien qu'un travail chargé dans une autre exécution offre à la personne les mêmes décisions (un ancien état se charge toujours).
+* **Import de fichiers de positions** (`src/import.rs`, `src/commands.rs`) : `phoenix-pnp import-centroid FICHIER` lit un CSV de centroïdes (`--map FICHIER` nomme ses colonnes, `examples/centroid.map` ; `examples/centroid.csv` n'a pas besoin de carte), le texte de positions d'EAGLE (`examples/board.mnt` : nom, x, y, rotation `R90` ou `MR90` pour la face inférieure, valeur, boîtier) ou le `.pos` de KiCad (`--format auto|csv|eagle|kicad-pos` ; `auto` les distingue par la première ligne) et écrit le tableau des pièces `ref,val,package,x,y,rot,side,dnp` en millimètres dans `--out` (un fichier qui existe n'est jamais écrasé : `PHOENIX-PNP-040`) ou sur la sortie standard. Les unités sont mm, mil ou pouce (dans l'en-tête comme `X (mil)`, dans la cellule comme `0.5in`, dans un commentaire comme `## Unit = inch`, dans la carte ou dans `import_unit`) ; les angles sortent de 0 à 360 ; la colonne de la face est facultative ; une colonne `dnp` ou `fitted` (ou `--dnp R1-R5,C7` avec des plages de références) marque les pièces à ne pas monter ; `import_bottom_mirror_width_mm` reflète le X de la face inférieure et `bottom_rotation` tourne son angle. Les trois lecteurs sont ceux du programme (aucun autre dépôt n'a de lecteur utilisable sans ajouter une dépendance) et la disposition du texte d'EAGLE n'a pas été comparée à un fichier écrit par une installation réelle. Chaque erreur porte un code de `PHOENIX-PNP-053` à `PHOENIX-PNP-056` (une ligne non valide, un en-tête sans une colonne de la carte, un format inconnu, une plage de références non valide) et le numéro de la ligne.
 * **Le simulateur et le travail** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`) : les vérifications avant un travail, une machine à horloge virtuelle et pannes injectables, et un travail qu'on peut mettre en pause, exécuter pas à pas, enregistrer et reprendre.
 * **La fenêtre** (`src/gui.rs`, `src/gui/`) : ce que la fenêtre fait en dehors du dessin n'a pas besoin d'écran (les fichiers chargés, le plan et ses problèmes avec corrections, le travail simulé, la géométrie de la carte, les tableaux à sélection partagée, l'assistant en cinq étapes et les textes en huit langues) et est testé ; seul `src/gui/window.rs`, construit avec `--features gui`, le dessine avec egui. La vitesse de la simulation, le thème et la taille dessinée pour une pièce de boîtier inconnu sont des clés de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -127,6 +128,7 @@ phoenix-pnp config-check FILE                            si un fichier de config
 phoenix-pnp check-bottom PARTS                           l'angle que donne chaque règle de la face inférieure
 phoenix-pnp tables-check [--parts F] [--feeders F] ...   si chaque table est valide, avec le code et la ligne
 phoenix-pnp recipe-check FILE                            si une recette est valide, avec le code et la ligne
+phoenix-pnp import-centroid FILE [--map F] [--out F]     un fichier de positions d'un CAO comme tableau de pièces
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mesure l'image d'une pièce créée en mémoire
 ```
 
@@ -196,6 +198,10 @@ Les tables de boîtiers et de pièces (`--packages`, `--catalog`) sont des fichi
 | `PHOENIX-PNP-050` | Les étapes de la recette ne suivent pas l'ordre du travail |
 | `PHOENIX-PNP-051` | La recette dépasse les limites autorisées |
 | `PHOENIX-PNP-052` | La recette a été écrite pour une version plus récente du programme |
+| `PHOENIX-PNP-053` | Une ligne du fichier de positions n'est pas valide |
+| `PHOENIX-PNP-054` | La carte des colonnes, ou l'en-tête à laquelle elle s'applique, ne donne pas les colonnes nécessaires |
+| `PHOENIX-PNP-055` | Le format du fichier de positions n'est pas connu |
+| `PHOENIX-PNP-056` | Une plage de références n'est pas valide |
 
 ## 🚀 Démarrage rapide
 
@@ -216,6 +222,8 @@ cargo run --release -- simulate examples/board.pos examples/feeders.csv --config
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
 cargo run --release -- schedule examples/feeders.csv examples/schedule_xout.json --panel examples/panel.json --x-out B --config examples/machine.cfg
 cargo run --release -- vision-test --vision examples/vision.cfg --turn 30 --dx 0.5 --dy -0.3
+cargo run --release -- import-centroid examples/centroid_custom.csv --map examples/centroid.map --out examples/parts_from_centroid.csv
+cargo run --release -- import-centroid examples/board.mnt --dnp R1-R2
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
 cargo run --release --features gui -- --shot job.png --window job --steps 9 examples/board.pos examples/feeders.csv examples/machine.cfg   # the Job tab with the job on its way
 cargo run --release --features gui
@@ -231,7 +239,7 @@ La dernière ligne ouvre la fenêtre ; `phoenix-pnp` sans commande le fait aussi
 
 ## 🧪 Tests
 
-La suite compte 536 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
+La suite compte 572 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
@@ -278,6 +286,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui/workspace.rs                         les fichiers chargés, le plan et les modifications, sans fenêtre
 │   ├── gui_main.rs                              la fenêtre comme programme à part, sans console sous Windows
 │   ├── heads.rs                                 plusieurs têtes : portée, répartition des pièces, attentes d'un alimentateur
+│   ├── import.rs                                l'import de positions : CSV de centroïdes avec carte des colonnes, texte d'EAGLE, .pos de KiCad
 │   ├── job.rs                                   le travail : étapes, pause, nouvelles tentatives, politiques, statistiques et état enregistré
 │   ├── lib.rs                                   la bibliothèque : ce que chaque commande utilise
 │   ├── loadsheet.rs                             la feuille de chargement : l'emplacement de chaque type de bande
@@ -304,6 +313,7 @@ EH3D-PHOENIX-PNP/
 │   ├── feeding.rs                               tests des alimentateurs : priorité, plateaux et bandes
 │   ├── gui.rs                                   tests de la fenêtre sans écran : état, plan, travail, carte, tableaux et assistant
 │   ├── heads.rs                                 tests des têtes : lignes de la configuration, portée, répartition, l'horloge et schedule
+│   ├── import.rs                                tests de l'import : formats, unités, face inférieure, DNP, plages, erreurs avec leur ligne
 │   ├── job.rs                                   tests du travail : étapes, nouvelles tentatives et état enregistré
 │   ├── jobtab.rs                                tests de l'onglet Travail sans écran : états, filtres, progression, dialogue
 │   ├── loadsheet.rs                             tests de la feuille de chargement et des exports
@@ -315,7 +325,7 @@ EH3D-PHOENIX-PNP/
 │   ├── pnp.rs                                   tests de la bibliothèque et de la ligne de commande
 │   ├── preflight.rs                             tests des vérifications avant un travail
 │   ├── readme.rs                                tests que le README est exécutable et complet
-│   ├── readme.rs                                tests de la recette : le fichier, les limites, les étapes, les règles dans le travail et l'état enregistré
+│   ├── recipe.rs                                tests de la recette : le fichier, les limites, les étapes, les règles dans le travail et l'état enregistré
 │   ├── report.rs                                tests du rapport : phases, prises, histogrammes, groupes, décisions, formats
 │   ├── shot.rs                                  tests du mode capture de la fenêtre : ses arguments, lus et vérifiés sans écran
 │   ├── sim.rs                                   tests de la machine simulée
@@ -326,9 +336,13 @@ EH3D-PHOENIX-PNP/
 │   ├── vision.rs                                tests de la vision : images calculées à la main, échecs, réglages
 │   └── vision_job.rs                            tests de la vision dans le travail, vision-test : mesures, échecs, état
 ├── examples/
+│   ├── board.mnt                                les positions d'une carte comme le texte d'EAGLE les a
 │   ├── board.pos                                un exemple pour essayer le programme
 │   ├── board_dnp.csv                            une carte avec une colonne dnp : deux de ses pièces ne sont pas montées
 │   ├── catalog.csv                              une table de pièces : rang et hauteur
+│   ├── centroid.csv                             un CSV de centroïdes avec une colonne de pièces à ne pas monter et une valeur avec une virgule
+│   ├── centroid.map                             la carte des colonnes de centroid_custom.csv
+│   ├── centroid_custom.csv                      un CSV de centroïdes avec d'autres noms de colonnes, des millièmes de pouce dans les en-têtes et des mots pour les faces
 │   ├── feeders.csv                              un exemple pour essayer le programme
 │   ├── feeders_kinds.csv                        alimentateurs de chaque type : bande, réglette, plateau et un éteint
 │   ├── job.recipe                               une recette avec toutes les étapes et des règles par boîtier, alimentateur et embout

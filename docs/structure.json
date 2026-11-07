@@ -405,6 +405,19 @@
           }
         },
         {
+          "name": "import.rs",
+          "desc": {
+            "en": "the import of position files: a centroid CSV with a column map, EAGLE text, KiCad .pos",
+            "es": "la importación de posiciones: CSV de centroides con mapa de columnas, texto de EAGLE, .pos de KiCad",
+            "de": "der Import von Positionsdateien: Centroid-CSV mit Spaltenzuordnung, EAGLE-Text, KiCad-.pos",
+            "fr": "l'import de positions : CSV de centroïdes avec carte des colonnes, texte d'EAGLE, .pos de KiCad",
+            "it": "l'importazione di posizioni: CSV di centroidi con mappa delle colonne, testo di EAGLE, .pos di KiCad",
+            "ja": "位置ファイルの取り込み：列マップ付きセントロイド CSV、EAGLE のテキスト、KiCad の .pos",
+            "zh": "位置文件的导入：带列映射的质心 CSV、EAGLE 文本、KiCad 的 .pos",
+            "pt": "a importação de posições: CSV de centroides com mapa das colunas, texto do EAGLE, .pos do KiCad"
+          }
+        },
+        {
           "name": "job.rs",
           "desc": {
             "en": "the job: steps, pause, retries, policies, statistics and saved state",
@@ -737,6 +750,19 @@
           }
         },
         {
+          "name": "import.rs",
+          "desc": {
+            "en": "tests of the import: formats, units, bottom side, DNP, ranges, errors with their line",
+            "es": "pruebas de la importación: formatos, unidades, cara inferior, DNP, rangos, errores con su línea",
+            "de": "Tests des Imports: Formate, Einheiten, Unterseite, DNP, Bereiche, Fehler mit Zeile",
+            "fr": "tests de l'import : formats, unités, face inférieure, DNP, plages, erreurs avec leur ligne",
+            "it": "test dell'importazione: formati, unità, lato inferiore, DNP, intervalli, errori con la riga",
+            "ja": "取り込みのテスト：形式、単位、底面、DNP、範囲、行つきのエラー",
+            "zh": "导入的测试：格式、单位、底面、DNP、范围、带行号的错误",
+            "pt": "testes da importação: formatos, unidades, face inferior, DNP, intervalos, erros com a sua linha"
+          }
+        },
+        {
           "name": "job.rs",
           "desc": {
             "en": "tests of the job: steps, retries and saved state",
@@ -880,7 +906,7 @@
           }
         },
         {
-          "name": "readme.rs",
+          "name": "recipe.rs",
           "desc": {
             "en": "tests of the recipe: the file, the limits, the steps, the rules in the job and the saved state",
             "es": "pruebas de la receta: el fichero, los límites, los pasos, las reglas en el trabajo y el estado guardado",
@@ -1017,6 +1043,19 @@
       "accent": "d",
       "rows": [
         {
+          "name": "board.mnt",
+          "desc": {
+            "en": "the positions of a board as the text of EAGLE has them",
+            "es": "las posiciones de una placa como las tiene el texto de EAGLE",
+            "de": "die Positionen einer Platine, wie der Text von EAGLE sie hat",
+            "fr": "les positions d'une carte comme le texte d'EAGLE les a",
+            "it": "le posizioni di una scheda come le ha il testo di EAGLE",
+            "ja": "EAGLE のテキスト形式の基板の位置",
+            "zh": "EAGLE 文本格式的电路板位置",
+            "pt": "as posições de uma placa como o texto do EAGLE as tem"
+          }
+        },
+        {
           "name": "board.pos",
           "desc": {
             "en": "a sample to try the program with",
@@ -1053,6 +1092,45 @@
             "ja": "部品の表：ランクと高さ",
             "zh": "零件表：等级和高度",
             "pt": "uma tabela de peças: nível e altura"
+          }
+        },
+        {
+          "name": "centroid.csv",
+          "desc": {
+            "en": "a centroid CSV with a column of parts not to be mounted and a value with a comma",
+            "es": "un CSV de centroides con una columna de piezas que no se montan y un valor con una coma",
+            "de": "ein Centroid-CSV mit einer Spalte für nicht zu bestückende Teile und einem Wert mit Komma",
+            "fr": "un CSV de centroïdes avec une colonne de pièces à ne pas monter et une valeur avec une virgule",
+            "it": "un CSV di centroidi con una colonna di parti da non montare e un valore con una virgola",
+            "ja": "実装しない部品の列とカンマを含む値を持つセントロイド CSV",
+            "zh": "带有不贴装零件列和含逗号取值的质心 CSV",
+            "pt": "um CSV de centroides com uma coluna de peças que não se montam e um valor com uma vírgula"
+          }
+        },
+        {
+          "name": "centroid.map",
+          "desc": {
+            "en": "the map of the columns of centroid_custom.csv",
+            "es": "el mapa de las columnas de centroid_custom.csv",
+            "de": "die Spaltenzuordnung von centroid_custom.csv",
+            "fr": "la carte des colonnes de centroid_custom.csv",
+            "it": "la mappa delle colonne di centroid_custom.csv",
+            "ja": "centroid_custom.csv の列マップ",
+            "zh": "centroid_custom.csv 的列映射",
+            "pt": "o mapa das colunas de centroid_custom.csv"
+          }
+        },
+        {
+          "name": "centroid_custom.csv",
+          "desc": {
+            "en": "a centroid CSV with other column names, mils in the headers and words for the sides",
+            "es": "un CSV de centroides con otros nombres de columnas, milésimas de pulgada en las cabeceras y palabras para las caras",
+            "de": "ein Centroid-CSV mit anderen Spaltennamen, Mil in den Kopfzeilen und Wörtern für die Seiten",
+            "fr": "un CSV de centroïdes avec d'autres noms de colonnes, des millièmes de pouce dans les en-têtes et des mots pour les faces",
+            "it": "un CSV di centroidi con altri nomi di colonne, millesimi di pollice nelle intestazioni e parole per i lati",
+            "ja": "別の列名、見出しにミル単位、面を表す語を持つセントロイド CSV",
+            "zh": "使用其他列名、表头带密耳单位、并用词语表示面的质心 CSV",
+            "pt": "um CSV de centroides com outros nomes de colunas, milésimas de polegada nos cabeçalhos e palavras para as faces"
           }
         },
         {

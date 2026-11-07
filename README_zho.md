@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 536 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 572 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.0.6` |
 | 成熟度 | 脚手架 |
-| 测试 | 536 |
+| 测试 | 572 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -46,8 +46,8 @@
 | 领域 | 状态 | 在这里的含义 |
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
-| 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 536 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
+| 测试 | 🟡 | 572 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -75,6 +75,7 @@
 * **真空、执行器与供料器的故障窗口** (`src/sim.rs`, `src/job.rs`, `src/config.rs`)：`vacuum = on` 时，模拟的泵在每次拾取后吸气 `vacuum_suck_s` 秒，并读取吸嘴的真空度（千帕）；低于 `vacuum_pick_min_kpa` 表示吸嘴上没有零件（`PHOENIX-PNP-044`，并按重试设置重新拾取），每次贴装后吹气 `vacuum_blow_s` 秒，高于 `vacuum_release_max_kpa` 表示零件仍粘在吸嘴上（`PHOENIX-PNP-045`）。传感器有自己的随机数生成器（`sim_vacuum_noise_kpa`、`sim_vacuum_miss_rate`、`sim_vacuum_stuck_rate`），默认关闭，因此不使用它的作业与以前完全一样。开关型设备用 `actuator = 名称 : 延迟秒数` 声明，并用 `Job::set_actuator` 切换，其延迟会加到时钟上（机器没有的名称为 `PHOENIX-PNP-046`）。`fault_action = alert` 时，在最近 `fault_window` 次拾取中达到 `fault_limit` 次故障的供料器不再自行关闭：作业停止（`PHOENIX-PNP-047`），Job 标签页的对话框提供重试、跳过该零件、搁置或关闭该供料器。
 * **相机模型、机器的贴装头与封装可用的吸嘴** (`src/camera.rs`, `src/heads.rs`, `src/tips.rs`, `src/config.rs`): 相机由 `camera_units_per_px`（0 表示视觉流水线设定的尺寸）、`camera_offset_x_mm` 与 `camera_offset_y_mm`（吸嘴轴线在图像中的位置）、`camera_rotation_deg`、`camera_flip_x` 与 `camera_flip_y`，以及镜头（`camera_lens_scale`、`camera_lens_k1`）来描述；对位步骤中模拟的相机透过该模型读取零件，无论有无图像，使用默认值时作业与以前完全一样。`head = 名称 : 吸嘴数 [: 偏移X : 偏移Y : 相机X : 相机Y : 相机旋转 : 相机单位 : 相机镜头]` 最多声明四个贴装头，每个都有自己的吸嘴、偏移和相机；有两个或更多贴装头时，`schedule` 把每个零件分给够得着它的贴装头（都够不着则为 `PHOENIX-PNP-048`），为每个贴装头做计划，并在机器的时钟上计入贴装头等待另一个贴装头正在使用的供料器的时间。`tip_compat = 模式 : 吸嘴, 吸嘴, ...` 列出封装可接受的吸嘴，`tip_compat_mode`（`fewest_changes` 或 `preferred`）为每一类零件选一个吸嘴，使机器换吸嘴的次数尽可能少；表中指定的吸嘴会被保留。
 * **配方** (`src/recipe.rs`, `src/job.rs`, `src/commands.rs`)：带版本号的文本文件（`examples/job.recipe`）规定作业经过的步骤（`prepare`、`pick`、`align`、`place` 和 `check`，按此顺序且每步至多一次；只有配方包含对位步骤和真空检查时它们才会启用），以及随封装、供料器或吸嘴而变的参数（`pick_retries`、`pick_tolerance_mm`、`vacuum_suck_s` 和 `vacuum_blow_s`；每个键以第一条匹配的规则为准，先看供料器，再看封装，最后看吸嘴）。`phoenix-pnp recipe-check 文件` 读取并检查它，`simulate ... --recipe 文件` 按它执行作业。其错误的代码为 `PHOENIX-PNP-049` 至 `PHOENIX-PNP-052`（无效的行、步骤顺序错误、文件超出限制、版本过新），限制是 `machine.cfg` 的键 `recipe_max_bytes` 和 `recipe_max_rules`。保存的状态还会记住最近一次拾取的供料器和被中止的拾取，因此在另一次运行中载入的作业会向操作人员提供同样的决定（旧状态仍可载入）。
+* **位置文件的导入** (`src/import.rs`, `src/commands.rs`)：`phoenix-pnp import-centroid 文件` 读取质心 CSV（`--map 文件` 指定其列，见 `examples/centroid.map`；`examples/centroid.csv` 不需要映射）、EAGLE 的位置文本（`examples/board.mnt`：名称、x、y、旋转（底面为 `R90` 或 `MR90`）、值、封装）或 KiCad 的 `.pos`（`--format auto|csv|eagle|kicad-pos`；`auto` 根据第一行判别），并把零件表 `ref,val,package,x,y,rot,side,dnp` 以毫米写入 `--out`（已存在的文件绝不会被覆盖：`PHOENIX-PNP-040`）或标准输出。单位为 mm、mil 或 inch（写在表头 `X (mil)`、单元格 `0.5in`、注释 `## Unit = inch`、映射或 `import_unit` 中）；角度输出为 0 至 360；面所在的列可省略；列 `dnp` 或 `fitted`（或带位号范围的 `--dnp R1-R5,C7`）标记不贴装的零件；`import_bottom_mirror_width_mm` 镜像底面的 X，`bottom_rotation` 旋转其角度。三个读取器都是程序自带的（其他仓库没有无需增加依赖就能使用的读取器），EAGLE 文本的排布也没有与真实安装写出的文件比对过。每个错误都带有 `PHOENIX-PNP-053` 至 `PHOENIX-PNP-056` 的代码（无效的行、缺少映射所需列的表头、未知的格式、无效的位号范围）以及行号。
 * **模拟器与作业**（`src/sim.rs`、`src/job.rs`、`src/preflight.rs`、`src/model.rs`）：作业前的检查、带虚拟时钟和可注入故障的机器，以及可暂停、单步执行、保存并恢复的作业。
 * **窗口**（`src/gui.rs`、`src/gui/`）：窗口除绘制之外的工作都不需要屏幕（已载入的文件、规划及其问题与修复、模拟作业、地图的几何、共享选择的表格、五步向导和八种语言的文字），并经过测试；只有用 `--features gui` 构建的 `src/gui/window.rs` 用 egui 绘制。模拟速度、主题以及为未知封装的零件绘制的大小是 `machine.cfg` 的键（`gui_steps_per_s`、`gui_theme`、`gui_part_size_mm`）。
 
@@ -127,6 +128,7 @@ phoenix-pnp config-check FILE                            配置文件是否有�
 phoenix-pnp check-bottom PARTS                           底面各规则给出的角度
 phoenix-pnp tables-check [--parts F] [--feeders F] ...   各表是否有效，并给出代码和行号
 phoenix-pnp recipe-check FILE                            配方是否有效，并给出代码和行号
+phoenix-pnp import-centroid FILE [--map F] [--out F]     把 CAD 的位置文件导入为零件表
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       测量在内存中生成的零件图像
 ```
 
@@ -196,6 +198,10 @@ phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       测量在内存中生�
 | `PHOENIX-PNP-050` | 配方的步骤不符合作业的顺序 |
 | `PHOENIX-PNP-051` | 配方超出允许的限制 |
 | `PHOENIX-PNP-052` | 该配方是为更新版本的程序编写的 |
+| `PHOENIX-PNP-053` | 位置文件中有一行无效 |
+| `PHOENIX-PNP-054` | 列映射或其所应用的表头没有给出所需的列 |
+| `PHOENIX-PNP-055` | 无法识别位置文件的格式 |
+| `PHOENIX-PNP-056` | 位号范围无效 |
 
 ## 🚀 快速开始
 
@@ -216,6 +222,8 @@ cargo run --release -- simulate examples/board.pos examples/feeders.csv --config
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
 cargo run --release -- schedule examples/feeders.csv examples/schedule_xout.json --panel examples/panel.json --x-out B --config examples/machine.cfg
 cargo run --release -- vision-test --vision examples/vision.cfg --turn 30 --dx 0.5 --dy -0.3
+cargo run --release -- import-centroid examples/centroid_custom.csv --map examples/centroid.map --out examples/parts_from_centroid.csv
+cargo run --release -- import-centroid examples/board.mnt --dnp R1-R2
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
 cargo run --release --features gui -- --shot job.png --window job --steps 9 examples/board.pos examples/feeders.csv examples/machine.cfg   # the Job tab with the job on its way
 cargo run --release --features gui
@@ -231,7 +239,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 536 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 572 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -278,6 +286,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui/workspace.rs                         已载入的文件、规划和编辑，无需窗口
 │   ├── gui_main.rs                              作为独立程序的窗口，在 Windows 上没有控制台
 │   ├── heads.rs                                 多贴装头：可达范围、零件分配、等待供料器
+│   ├── import.rs                                位置文件的导入：带列映射的质心 CSV、EAGLE 文本、KiCad 的 .pos
 │   ├── job.rs                                   作业：步骤、暂停、重试、策略、统计和已保存状态
 │   ├── lib.rs                                   库：每个命令所使用的部分
 │   ├── loadsheet.rs                             上料表：每种料带的槽位
@@ -304,6 +313,7 @@ EH3D-PHOENIX-PNP/
 │   ├── feeding.rs                               供料器测试：优先级、托盘和料带
 │   ├── gui.rs                                   无屏幕的窗口测试：状态、规划、作业、地图、表格和向导
 │   ├── heads.rs                                 贴装头测试：配置行、可达范围、分配、时钟和 schedule
+│   ├── import.rs                                导入的测试：格式、单位、底面、DNP、范围、带行号的错误
 │   ├── job.rs                                   作业测试：步骤、重试和已保存状态
 │   ├── jobtab.rs                                无屏幕的作业标签页测试：状态、筛选、进度、对话框
 │   ├── loadsheet.rs                             上料表和导出的测试
@@ -315,7 +325,7 @@ EH3D-PHOENIX-PNP/
 │   ├── pnp.rs                                   库和命令行的测试
 │   ├── preflight.rs                             作业前检查的测试
 │   ├── readme.rs                                验证 README 可运行且完整的测试
-│   ├── readme.rs                                配方的测试：文件、限制、步骤、作业中的规则和已保存的状态
+│   ├── recipe.rs                                配方的测试：文件、限制、步骤、作业中的规则和已保存的状态
 │   ├── report.rs                                报告测试：阶段、拾取、直方图、分组、决定、格式
 │   ├── shot.rs                                  窗口图片模式的测试：在没有屏幕的情况下读取并检查其参数
 │   ├── sim.rs                                   模拟机器的测试
@@ -326,9 +336,13 @@ EH3D-PHOENIX-PNP/
 │   ├── vision.rs                                视觉处理测试：手算图像、失败和设置
 │   └── vision_job.rs                            作业与 vision-test 的视觉测试：读数、失败、已保存状态
 ├── examples/
+│   ├── board.mnt                                EAGLE 文本格式的电路板位置
 │   ├── board.pos                                试用的示例
 │   ├── board_dnp.csv                            带 dnp 列的电路板：其中两个零件不贴装
 │   ├── catalog.csv                              零件表：等级和高度
+│   ├── centroid.csv                             带有不贴装零件列和含逗号取值的质心 CSV
+│   ├── centroid.map                             centroid_custom.csv 的列映射
+│   ├── centroid_custom.csv                      使用其他列名、表头带密耳单位、并用词语表示面的质心 CSV
 │   ├── feeders.csv                              试用的示例
 │   ├── feeders_kinds.csv                        各种供料器：料带、料条、托盘和一个已关闭的
 │   ├── job.recipe                               含全部步骤以及按封装、供料器和吸嘴规则的配方
