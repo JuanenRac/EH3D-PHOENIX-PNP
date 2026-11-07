@@ -561,6 +561,19 @@
           }
         },
         {
+          "name": "recipe.rs",
+          "desc": {
+            "en": "the recipe of a job: its file, its steps and the parameters by package, feeder and tip",
+            "es": "la receta de un trabajo: su fichero, sus pasos y los parámetros por encapsulado, alimentador y punta",
+            "de": "das Rezept eines Auftrags: seine Datei, seine Schritte und die Parameter je Gehäuse, Zuführung und Spitze",
+            "fr": "la recette d'un travail : son fichier, ses étapes et les paramètres par boîtier, alimentateur et embout",
+            "it": "la ricetta di un lavoro: il suo file, i suoi passi e i parametri per package, alimentatore e punta",
+            "ja": "ジョブのレシピ：ファイル、手順、パッケージ・フィーダー・チップ別のパラメーター",
+            "zh": "作业配方：其文件、步骤以及按封装、供料器和吸嘴的参数",
+            "pt": "a receita de um trabalho: o seu ficheiro, os seus passos e os parâmetros por encapsulamento, alimentador e ponta"
+          }
+        },
+        {
           "name": "report.rs",
           "desc": {
             "en": "the report of a job: phases, picks, groups, errors; text, HTML, CSV, JSON",
@@ -867,6 +880,19 @@
           }
         },
         {
+          "name": "readme.rs",
+          "desc": {
+            "en": "tests of the recipe: the file, the limits, the steps, the rules in the job and the saved state",
+            "es": "pruebas de la receta: el fichero, los límites, los pasos, las reglas en el trabajo y el estado guardado",
+            "de": "Tests des Rezepts: die Datei, die Grenzen, die Schritte, die Regeln im Auftrag und der gespeicherte Zustand",
+            "fr": "tests de la recette : le fichier, les limites, les étapes, les règles dans le travail et l'état enregistré",
+            "it": "test della ricetta: il file, i limiti, i passi, le regole nel lavoro e lo stato salvato",
+            "ja": "レシピのテスト：ファイル、上限、手順、ジョブ内のルール、保存した状態",
+            "zh": "配方的测试：文件、限制、步骤、作业中的规则和已保存的状态",
+            "pt": "testes da receita: o ficheiro, os limites, os passos, as regras no trabalho e o estado guardado"
+          }
+        },
+        {
           "name": "report.rs",
           "desc": {
             "en": "tests of the job report: phases, picks, histograms, groups, decisions, formats",
@@ -1053,6 +1079,32 @@
             "ja": "あらゆる種類のフィーダー：テープ、ストリップ、トレイ、オフのもの",
             "zh": "各种供料器：料带、料条、托盘和一个已关闭的",
             "pt": "alimentadores de todos os tipos: fita, tira, tabuleiro e um desligado"
+          }
+        },
+        {
+          "name": "job.recipe",
+          "desc": {
+            "en": "a recipe with every step and rules by package, feeder and tip",
+            "es": "una receta con todos los pasos y reglas por encapsulado, alimentador y punta",
+            "de": "ein Rezept mit allen Schritten und Regeln je Gehäuse, Zuführung und Spitze",
+            "fr": "une recette avec toutes les étapes et des règles par boîtier, alimentateur et embout",
+            "it": "una ricetta con tutti i passi e regole per package, alimentatore e punta",
+            "ja": "全手順と、パッケージ・フィーダー・チップ別ルールを持つレシピ",
+            "zh": "含全部步骤以及按封装、供料器和吸嘴规则的配方",
+            "pt": "uma receita com todos os passos e regras por encapsulamento, alimentador e ponta"
+          }
+        },
+        {
+          "name": "job_basic.recipe",
+          "desc": {
+            "en": "the shortest recipe: prepare, pick and place",
+            "es": "la receta más corta: preparar, recoger y colocar",
+            "de": "das kürzeste Rezept: vorbereiten, aufnehmen und bestücken",
+            "fr": "la recette la plus courte : préparer, prendre et poser",
+            "it": "la ricetta più breve: preparare, prelevare e posizionare",
+            "ja": "最短のレシピ：準備、ピック、配置",
+            "zh": "最短的配方：准备、拾取和贴装",
+            "pt": "a receita mais curta: preparar, recolher e colocar"
           }
         },
         {

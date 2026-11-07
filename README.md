@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 515 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 536 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.6` |
 | Maturity | Scaffolding |
-| Tests | 515 |
+| Tests | 536 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,8 +46,8 @@ Each line is one part of this repository and the light says how far it is today.
 | Area | State | What it means here |
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder (priority, tray, strip), plans the order of the placements for a head with up to six nozzles with ranks, nozzle tips, angle limits and the time of the moves, plans panels and writes the load sheet; tested on a computer with normal and damaged input, not with a collection of real files. |
-| Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `vision-test`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
-| Tests | 🟡 | 515 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
+| Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `vision-test`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
+| Tests | 🟡 | 536 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
 | Machine configuration | 🟡 | a `key = value` file with a version, a validator that names the line, and the safety limits (travel of Z, limits of X and Y, retries, nozzle angles); the values have not been compared with a real machine. |
 | Simulator and job | 🟡 | a virtual clock, failures injected by chance (with a seed) or at a chosen place, retries, the policies alert and defer, feeders that switch off after repeated faults, pause, step by step, and a saved state to resume from; it only simulates, nothing has driven a machine. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
@@ -74,6 +74,7 @@ Each line is one part of this repository and the light says how far it is today.
 * **The Job tab and the decisions of the person** (`src/gui/jobtab.rs`, `src/gui/window.rs`, `src/job.rs`): the table shows the state of every placement (waiting, picked, aligned, placed, put aside, left out, failed) and the parts not to be mounted, a bar of progress with the machine time and an estimate of the time left, and filters by state, by text and by what is done. When an error stops the job a dialog names the step that failed and offers four actions that are carried out on the simulated job, which then goes on: retry, skip the part, put it aside, or switch the feeder off so that another feeder of the same kind takes over. Each decision is counted in the report. The logic needs no screen and is tested; no person has reviewed the drawing on a screen (the pictures of this tab in `images/screens/` are taken by the program itself).
 * **The vacuum, the actuators and the window of faults of a feeder** (`src/sim.rs`, `src/job.rs`, `src/config.rs`): with `vacuum = on` the simulated pump sucks for `vacuum_suck_s` seconds after each pick and the level of the nozzle (kilopascals) is read; a level under `vacuum_pick_min_kpa` means the nozzle holds no part (`PHOENIX-PNP-044`, and the pick is tried again as the retries say) and, after the blow of `vacuum_blow_s` seconds at each place, a level over `vacuum_release_max_kpa` means the part is still stuck to the nozzle (`PHOENIX-PNP-045`). The sensor has a generator of its own (`sim_vacuum_noise_kpa`, `sim_vacuum_miss_rate`, `sim_vacuum_stuck_rate`) and is off by default, so a job without it is exactly what it was. On/off devices are declared with `actuator = NAME : DELAY_S` and switched with `Job::set_actuator`, which adds their delay to the clock (`PHOENIX-PNP-046` for a name the machine does not have). With `fault_action = alert` a feeder that reaches `fault_limit` faults among its last `fault_window` picks no longer switches itself off: the job stops (`PHOENIX-PNP-047`) and the dialog of the Job tab offers to try again, leave the part out, put it aside or switch the feeder off.
 * **The camera model, the heads of the machine and the nozzle tips of a package** (`src/camera.rs`, `src/heads.rs`, `src/tips.rs`, `src/config.rs`): the camera is described by `camera_units_per_px` (0 is the size the pipeline is set to), `camera_offset_x_mm` and `camera_offset_y_mm` (where the axis of the nozzle is in the picture), `camera_rotation_deg`, `camera_flip_x` and `camera_flip_y`, and the lens (`camera_lens_scale`, `camera_lens_k1`); the simulated camera of the align step reads the part through it, with or without a picture, and with the default values a job is exactly what it was. `head = NAME : NOZZLES [: OFFSET_X : OFFSET_Y : CAMERA_X : CAMERA_Y : CAMERA_ROT : CAMERA_UNITS : CAMERA_LENS]` declares up to four heads, each with its nozzles, its offset and its camera; with two or more heads `schedule` gives every part to a head that reaches it (`PHOENIX-PNP-048` when none does), plans each head and counts, on the clock of the machine, the time a head waits for a feeder that another head is using. `tip_compat = PATTERN : TIP, TIP, ...` lists the tips that a package accepts and `tip_compat_mode` (`fewest_changes` or `preferred`) chooses one tip for every kind of part so that the machine changes tip as few times as it can; a tip named in the tables is kept.
+* **Recipes** (`src/recipe.rs`, `src/job.rs`, `src/commands.rs`): a text file with a version (`examples/job.recipe`) fixes the steps a job goes through (`prepare`, `pick`, `align`, `place` and `check`, in that order and none twice; the align step and the vacuum check are on only when the recipe has them) and the parameters that change for a package, a feeder or a nozzle tip (`pick_retries`, `pick_tolerance_mm`, `vacuum_suck_s` and `vacuum_blow_s`; for each key the first rule that matches wins, the feeders first, then the packages and then the tips). `phoenix-pnp recipe-check FILE` reads and checks it and `simulate ... --recipe FILE` carries the job out with it. Its errors have the codes `PHOENIX-PNP-049` to `PHOENIX-PNP-052` (a line that is not valid, steps out of order, a file over its limits, a version that is too new) and the limits are the keys `recipe_max_bytes` and `recipe_max_rules` of `machine.cfg`. A saved state also remembers the feeder of the last pick and the pick that was stopped, so a job loaded in another run offers the same decisions to the person (an older state still loads).
 * **The simulator and the job** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): the checks before a job, a machine with a virtual clock and failures that can be injected, and a job that can be paused, taken step by step, saved and resumed.
 * **The window** (`src/gui.rs`, `src/gui/`): what the window does besides drawing needs no screen (the files that were loaded, the plan and its problems with fixes, the simulated job, the geometry of the map, the tables with a shared selection, the guide of five steps and the words in eight languages) and is tested; only `src/gui/window.rs`, built with `--features gui`, draws it with egui. The speed of the simulation, the theme and the size drawn for a part of an unknown package are keys of `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -125,6 +126,7 @@ phoenix-pnp loadsheet PARTS SLOTS OUT.csv                the load sheet
 phoenix-pnp config-check FILE                            whether a configuration file is valid
 phoenix-pnp check-bottom PARTS                           the angle each rule of the bottom side gives
 phoenix-pnp tables-check [--parts F] [--feeders F] ...   whether each table is valid, with the code and the row
+phoenix-pnp recipe-check FILE                            whether a recipe is valid, with the code and the line
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       measures the picture of a part made in memory
 ```
 
@@ -190,6 +192,10 @@ The tables of packages and parts (`--packages`, `--catalog`) are CSV files in wh
 | `PHOENIX-PNP-046` | The machine has no actuator with that name |
 | `PHOENIX-PNP-047` | A feeder has too many faults among its last picks: the person decides |
 | `PHOENIX-PNP-048` | No head of the machine can reach the part |
+| `PHOENIX-PNP-049` | A line of the recipe is not valid |
+| `PHOENIX-PNP-050` | The steps of the recipe are not in the order of the job |
+| `PHOENIX-PNP-051` | The recipe is larger than its limits allow |
+| `PHOENIX-PNP-052` | The recipe was written for a newer version of the program |
 
 ## 🚀 Quick start
 
@@ -225,7 +231,7 @@ The last line opens the window; so does `phoenix-pnp` with no command when it wa
 
 ## 🧪 Testing
 
-The suite has 515 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 536 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -284,6 +290,7 @@ EH3D-PHOENIX-PNP/
 │   ├── plan.rs                                  a part of the logic
 │   ├── planner.rs                               the planner that knows the machine: ranks, order, tips and their search, angles and time
 │   ├── preflight.rs                             the checks before a job, with a severity and what they point at
+│   ├── recipe.rs                                the recipe of a job: its file, its steps and the parameters by package, feeder and tip
 │   ├── report.rs                                the report of a job: phases, picks, groups, errors; text, HTML, CSV, JSON
 │   ├── rotation.rs                              corrections of the rotation by package, and how a limited nozzle turns
 │   ├── sim.rs                                   the simulated machine: virtual clock and failures that can be injected
@@ -308,6 +315,7 @@ EH3D-PHOENIX-PNP/
 │   ├── pnp.rs                                   tests of the library and the command line
 │   ├── preflight.rs                             tests of the checks before a job
 │   ├── readme.rs                                tests that the README can be run and is complete
+│   ├── readme.rs                                tests of the recipe: the file, the limits, the steps, the rules in the job and the saved state
 │   ├── report.rs                                tests of the job report: phases, picks, histograms, groups, decisions, formats
 │   ├── shot.rs                                  tests of the picture mode of the window: its arguments, read and checked without a screen
 │   ├── sim.rs                                   tests of the simulated machine
@@ -323,6 +331,8 @@ EH3D-PHOENIX-PNP/
 │   ├── catalog.csv                              a table of parts: rank and height
 │   ├── feeders.csv                              a sample to try the program with
 │   ├── feeders_kinds.csv                        feeders of every kind: tape, strip, tray and one switched off
+│   ├── job.recipe                               a recipe with every step and rules by package, feeder and tip
+│   ├── job_basic.recipe                         the shortest recipe: prepare, pick and place
 │   ├── machine.cfg                              the settings of the machine, every key explained
 │   ├── marks.csv                                the measured places of the fiducials of the panel
 │   ├── packages.csv                             a table of packages: height, nozzle tip, rank and tape
