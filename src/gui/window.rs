@@ -2191,6 +2191,16 @@ impl PnpApp {
             ("fault_limit", cfg.fault_limit.to_string()),
             ("fault_action", cfg.fault_action.name().to_string()),
             ("vacuum", if cfg.vacuum { "on" } else { "off" }.to_string()),
+            ("heads", cfg.head_list().len().to_string()),
+            (
+                "camera_units_per_px",
+                if cfg.camera.units_per_px > 0.0 {
+                    cfg.camera.units_per_px.to_string()
+                } else {
+                    "vision".to_string()
+                },
+            ),
+            ("tip_compat_mode", cfg.tip_choice.name().to_string()),
             ("sim_seed", cfg.sim_seed.to_string()),
             ("gui_theme", cfg.gui_theme.clone()),
         ];

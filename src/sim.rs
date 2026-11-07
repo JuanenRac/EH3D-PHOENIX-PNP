@@ -2,11 +2,12 @@
 //! always gives the same times; and it can fail: each action fails with a chance taken from the configuration, from a generator with a seed, or at the place in the sequence that a
 //! test chooses. The same seed and the same actions give the same failures, always.
 
-use crate::config::{MachineConfig, VisionMode};
+use crate::camera::CameraModel;
+use crate::config::{HeadSpec, MachineConfig, VisionMode};
 use crate::error::{Code, PnpError};
 use crate::model::{Actuator, Camera, Driver, FeederDevice, Machine, Nozzle, Offset};
 use crate::motion::{move_time, AxisMotion};
-use crate::vision::{measure_image, render, VisionConfig};
+use crate::vision::{measure_image, render, wrap, VisionConfig};
 
 pub const MAX_EVENTS: usize = 1_000_000;
 
@@ -658,6 +659,8 @@ pub struct SimCamera {
     vision: Option<VisionConfig>,
     /// The seed of the noise of the pictures; the picture of a look is drawn from this and the number of the look.
     image_seed: u64,
+    /// How the camera is set on the machine and what its lens does (the identity by default: nothing changes).
+    model: CameraModel,
 }
 
 impl Default for SimCamera {
@@ -672,6 +675,7 @@ impl Default for SimCamera {
             force: Vec::new(),
             vision: None,
             image_seed: 1,
+            model: CameraModel::default(),
         }
     }
 }
@@ -698,8 +702,25 @@ impl SimCamera {
             rng: Rng::new(cfg.sim_seed ^ 0xA11C_E5ED_0000_0001),
             vision: (cfg.vision == VisionMode::Pipeline).then(VisionConfig::default),
             image_seed: cfg.sim_seed ^ 0x51CA_7E57_0000_0002,
+            model: cfg.camera,
             ..SimCamera::default()
         }
+    }
+
+    /// The camera of a head: the one the configuration describes, set as the head says.
+    pub fn for_head(cfg: &MachineConfig, head: &HeadSpec) -> SimCamera {
+        let mut camera = SimCamera::from_config(cfg);
+        camera.model = head.camera(&cfg.camera);
+        camera
+    }
+
+    /// How the camera is set and what its lens does.
+    pub fn model(&self) -> &CameraModel {
+        &self.model
+    }
+
+    pub fn set_model(&mut self, model: CameraModel) {
+        self.model = model;
     }
 
     /// Gives the pipeline its settings. A camera that reports the offset directly (`vision = off`) is not changed.
@@ -767,13 +788,51 @@ impl Camera for SimCamera {
             };
             let mut noise_rng =
                 Rng::new(self.image_seed ^ self.looks.wrapping_mul(0x9E37_79B9_7F4A_7C15));
-            let picture = render(settings, truth, &mut noise_rng);
-            return measure_image(settings, &picture).map(|reading| reading.offset);
+            if self.model.is_default() {
+                let picture = render(settings, truth, &mut noise_rng);
+                return measure_image(settings, &picture).map(|reading| reading.offset);
+            }
+            // the part is drawn where the optics put it, in the frame of the picture, and what the pipeline measures goes back through the model to the frame of the machine
+            let m = &self.model;
+            let units = m.units(settings.mm_per_px);
+            let px = m.to_pixels((truth.dx_mm, truth.dy_mm), units);
+            let seen = Offset {
+                dx_mm: px.0 * settings.mm_per_px,
+                dy_mm: px.1 * settings.mm_per_px,
+                rotation_deg: m.angle_to_image(truth.rotation_deg),
+            };
+            // the part has its true size, so it covers more or fewer pixels as the pixels of the camera are smaller or larger than the ones the pipeline is set for
+            let size = settings.mm_per_px / (units * m.lens_scale);
+            let mut drawn = settings.clone();
+            drawn.sim_part_long_mm *= size;
+            drawn.sim_part_short_mm *= size;
+            let picture = render(&drawn, seen, &mut noise_rng);
+            let measured = measure_image(settings, &picture)?.offset;
+            let place = m.to_machine(
+                (
+                    measured.dx_mm / settings.mm_per_px,
+                    measured.dy_mm / settings.mm_per_px,
+                ),
+                units,
+            );
+            return Ok(Offset {
+                dx_mm: place.0,
+                dy_mm: place.1,
+                rotation_deg: wrap(m.angle_to_machine(measured.rotation_deg), 180.0),
+            });
         }
         let spread = |r: f64| (2.0 * r - 1.0) * self.noise_mm;
+        let mut place = (
+            self.bias.dx_mm - self.applied.dx_mm,
+            self.bias.dy_mm - self.applied.dy_mm,
+        );
+        if !self.model.is_default() {
+            // the optics and the software, without a picture: the lens makes the camera report the place scaled and bent
+            place = self.model.read(place, 1.0);
+        }
         Ok(Offset {
-            dx_mm: self.bias.dx_mm - self.applied.dx_mm + spread(noise[0]),
-            dy_mm: self.bias.dy_mm - self.applied.dy_mm + spread(noise[1]),
+            dx_mm: place.0 + spread(noise[0]),
+            dy_mm: place.1 + spread(noise[1]),
             rotation_deg: self.bias.rotation_deg - self.applied.rotation_deg + spread(noise[2]),
         })
     }

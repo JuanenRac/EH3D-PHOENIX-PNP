@@ -10,6 +10,7 @@ use eh3d_phoenix_pnp::error::{Code, Lang, PnpError};
 use eh3d_phoenix_pnp::export;
 use eh3d_phoenix_pnp::feeding::{self, FeederSpec, Picks};
 use eh3d_phoenix_pnp::fiducial;
+use eh3d_phoenix_pnp::heads::plan_heads;
 use eh3d_phoenix_pnp::job::{Job, Phase};
 use eh3d_phoenix_pnp::loadsheet;
 use eh3d_phoenix_pnp::marks;
@@ -429,7 +430,30 @@ pub fn schedule(mut args: Vec<String>) -> Result<(), String> {
     }
     let planned = make_plan(&p)?;
     stop_on_errors(&p, &planned, partial)?;
-    write_atomic(&out, &planned.plan.to_json())?;
+    // with two or more heads the parts are shared out between them and the file also says what each head does
+    let heads = if p.c.cfg.heads.len() >= 2 {
+        Some(
+            plan_heads(
+                &p.parts,
+                &p.feeders,
+                &p.picks,
+                &p.c.catalog,
+                &p.c.cfg,
+                &p.c.opts,
+            )
+            .map_err(|e| e.localized(p.c.lang))?,
+        )
+    } else {
+        None
+    };
+    let mut json = planned.plan.to_json();
+    if let Some(h) = &heads {
+        if let Ok(mut doc) = serde_json::from_str::<serde_json::Value>(&json) {
+            doc["heads"] = h.to_value();
+            json = serde_json::to_string_pretty(&doc).unwrap_or_default() + "\n";
+        }
+    }
+    write_atomic(&out, &json)?;
     if let Some(r) = &report {
         let mut text = export::report(&planned.plan, &p.picks, &planned.undefined);
         text.push_str(&export::dnp_text(&p.dnp));
@@ -450,6 +474,9 @@ pub fn schedule(mut args: Vec<String>) -> Result<(), String> {
         pl.seconds,
         planned.plan.tip_changes
     );
+    if let Some(h) = &heads {
+        print!("{}", h.summary());
+    }
     Ok(())
 }
 

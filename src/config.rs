@@ -2,11 +2,13 @@
 //! default when it is missing; a key that is not known, written twice, not a valid value or outside its range is an error that names the line. The numbers that decide how the machine
 //! moves, how often it tries again or what is safe live here and never in the code.
 
+use crate::camera::CameraModel;
 use crate::catalog::Defaults;
 use crate::error::{Code, Lang, PnpError};
 use crate::feeding::TrayFill;
 use crate::fiducial::FitMode;
 use crate::parts::{BottomRotation, PositionColumns, Profile};
+use crate::tips::{TipChoice, TipRule, MAX_RULE_TIPS, MAX_TIP_RULES};
 use std::collections::HashSet;
 
 /// The version of the schema of the file that this program writes and reads; a file with a higher number is refused.
@@ -15,7 +17,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 103] = [
+pub const KEYS: [&str; 114] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -119,6 +121,17 @@ pub const KEYS: [&str; 103] = [
     "sim_vacuum_miss_rate",
     "sim_vacuum_stuck_rate",
     "actuator",
+    "camera_units_per_px",
+    "camera_offset_x_mm",
+    "camera_offset_y_mm",
+    "camera_rotation_deg",
+    "camera_flip_x",
+    "camera_flip_y",
+    "camera_lens_scale",
+    "camera_lens_k1",
+    "head",
+    "tip_compat",
+    "tip_compat_mode",
 ];
 
 /// The order in which the places are visited.
@@ -214,6 +227,56 @@ pub struct ActuatorSpec {
 
 /// The most actuators a machine can declare.
 pub const MAX_ACTUATORS: usize = 32;
+
+/// The most heads a machine can declare.
+pub const MAX_HEADS: usize = 4;
+
+/// One head of the machine: its nozzles, where it is set with respect to the frame of the machine and its camera. A field of the camera that the line leaves out is the one of the
+/// camera of the configuration (`camera_*`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct HeadSpec {
+    pub name: String,
+    /// How many nozzles the head carries, from 1 to 6.
+    pub nozzles: usize,
+    /// Where the head is with respect to the carriage: to put its first nozzle over a place the carriage goes to that place less this offset (millimetres).
+    pub offset_x_mm: f64,
+    pub offset_y_mm: f64,
+    /// Where the axis of the nozzle is in the picture of this head's camera.
+    pub camera_x_mm: Option<f64>,
+    pub camera_y_mm: Option<f64>,
+    pub camera_rotation_deg: Option<f64>,
+    pub camera_units_per_px: Option<f64>,
+    pub camera_lens_scale: Option<f64>,
+}
+
+impl HeadSpec {
+    /// The head of a machine that declares none: the nozzles of `nozzles`, no offset and the camera of the configuration.
+    pub fn implicit(nozzles: usize) -> HeadSpec {
+        HeadSpec {
+            name: "head".to_string(),
+            nozzles,
+            offset_x_mm: 0.0,
+            offset_y_mm: 0.0,
+            camera_x_mm: None,
+            camera_y_mm: None,
+            camera_rotation_deg: None,
+            camera_units_per_px: None,
+            camera_lens_scale: None,
+        }
+    }
+
+    /// The camera of the head: `base` with what the head says changed.
+    pub fn camera(&self, base: &CameraModel) -> CameraModel {
+        CameraModel {
+            units_per_px: self.camera_units_per_px.unwrap_or(base.units_per_px),
+            offset_x_mm: self.camera_x_mm.unwrap_or(base.offset_x_mm),
+            offset_y_mm: self.camera_y_mm.unwrap_or(base.offset_y_mm),
+            rotation_deg: self.camera_rotation_deg.unwrap_or(base.rotation_deg),
+            lens_scale: self.camera_lens_scale.unwrap_or(base.lens_scale),
+            ..*base
+        }
+    }
+}
 
 /// Where the simulated camera takes what it reports about a part from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -364,6 +427,14 @@ pub struct MachineConfig {
     pub sim_vacuum_stuck_rate: f64,
     /// The on/off devices of the machine, in the order of the file.
     pub actuators: Vec<ActuatorSpec>,
+    /// How the camera is set on the machine and what its lens does (the identity by default).
+    pub camera: CameraModel,
+    /// The heads of the machine, in the order of the file; none means one head with `nozzles` nozzles.
+    pub heads: Vec<HeadSpec>,
+    /// The nozzle tips that each kind of package accepts, in the order of the file (the first rule that matches a package is the one used).
+    pub tip_rules: Vec<TipRule>,
+    /// What the planner prefers when a package accepts several tips.
+    pub tip_choice: TipChoice,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -461,6 +532,10 @@ impl Default for MachineConfig {
             sim_vacuum_miss_rate: 0.0,
             sim_vacuum_stuck_rate: 0.0,
             actuators: Vec::new(),
+            camera: CameraModel::default(),
+            heads: Vec::new(),
+            tip_rules: Vec::new(),
+            tip_choice: TipChoice::FewestChanges,
         }
     }
 }
@@ -524,7 +599,56 @@ fn names(line: usize, key: &str, v: &str) -> Result<Vec<String>, PnpError> {
     Ok(items)
 }
 
+/// A head: `NAME : NOZZLES : OFFSET_X : OFFSET_Y : CAMERA_X : CAMERA_Y : CAMERA_ROT : CAMERA_UNITS : CAMERA_LENS`; from the third field on they may be left out or empty.
+fn parse_head(line: usize, key: &str, v: &str) -> Result<HeadSpec, PnpError> {
+    let fields: Vec<&str> = v.split(':').map(str::trim).collect();
+    let name = fields.first().copied().unwrap_or("");
+    let named = !name.is_empty()
+        && name.chars().count() <= 32
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+    if fields.len() < 2 || fields.len() > 9 || !named {
+        return Err(bad(
+            line,
+            key,
+            v,
+            "NAME : NOZZLES [: OFFSET_X : OFFSET_Y : CAMERA_X : CAMERA_Y : CAMERA_ROT : CAMERA_UNITS : CAMERA_LENS]",
+        ));
+    }
+    let optional = |i: usize, lo: f64, hi: f64| -> Result<Option<f64>, PnpError> {
+        match fields.get(i) {
+            Some(f) if !f.is_empty() => num(line, key, f, lo, hi).map(Some),
+            _ => Ok(None),
+        }
+    };
+    let units = optional(7, 0.0, 10.0)?;
+    if units.is_some_and(|u| u > 0.0 && u < 0.001) {
+        return Err(out_of_range(line, key, fields[7], 0.001, 10.0));
+    }
+    Ok(HeadSpec {
+        name: name.to_string(),
+        nozzles: int(line, key, fields[1], 1, 6)? as usize,
+        offset_x_mm: optional(2, -2000.0, 2000.0)?.unwrap_or(0.0),
+        offset_y_mm: optional(3, -2000.0, 2000.0)?.unwrap_or(0.0),
+        camera_x_mm: optional(4, -500.0, 500.0)?,
+        camera_y_mm: optional(5, -500.0, 500.0)?,
+        camera_rotation_deg: optional(6, -180.0, 180.0)?,
+        camera_units_per_px: units,
+        camera_lens_scale: optional(8, 0.5, 2.0)?,
+    })
+}
+
 impl MachineConfig {
+    /// The heads of the machine: the ones the file declares, or one head with `nozzles` nozzles.
+    pub fn head_list(&self) -> Vec<HeadSpec> {
+        if self.heads.is_empty() {
+            vec![HeadSpec::implicit(self.nozzles)]
+        } else {
+            self.heads.clone()
+        }
+    }
+
     /// Reads a configuration. A missing key keeps its default; the result is validated as a whole (see `validate`).
     pub fn parse(text: &str) -> Result<MachineConfig, PnpError> {
         if text.len() > MAX_CONFIG_BYTES {
@@ -554,7 +678,14 @@ impl MachineConfig {
                 ));
             };
             let (key, value) = (k.trim().to_ascii_lowercase(), v.trim());
-            let repeats = ["rotation", "sim_part_fail", "sim_feeder_fail", "actuator"];
+            let repeats = [
+                "rotation",
+                "sim_part_fail",
+                "sim_feeder_fail",
+                "actuator",
+                "head",
+                "tip_compat",
+            ];
             if !repeats.contains(&key.as_str()) && !seen.insert(key.clone()) {
                 return Err(PnpError::new(
                     Code::ConfigDuplicateKey,
@@ -840,6 +971,67 @@ impl MachineConfig {
                     name: name.to_string(),
                     delay_s,
                 });
+            }
+            "camera_units_per_px" => {
+                let x = n(0.0, 10.0)?;
+                if x > 0.0 && x < 0.001 {
+                    return Err(out_of_range(line, key, v, 0.001, 10.0));
+                }
+                self.camera.units_per_px = x;
+            }
+            "camera_offset_x_mm" => self.camera.offset_x_mm = n(-500.0, 500.0)?,
+            "camera_offset_y_mm" => self.camera.offset_y_mm = n(-500.0, 500.0)?,
+            "camera_rotation_deg" => self.camera.rotation_deg = n(-180.0, 180.0)?,
+            "camera_flip_x" => self.camera.flip_x = flag(line, key, v)?,
+            "camera_flip_y" => self.camera.flip_y = flag(line, key, v)?,
+            "camera_lens_scale" => self.camera.lens_scale = n(0.5, 2.0)?,
+            "camera_lens_k1" => self.camera.lens_k1 = n(-0.01, 0.01)?,
+            "head" => {
+                let head = parse_head(line, key, v)?;
+                if self.heads.len() >= MAX_HEADS {
+                    return Err(bad(line, key, v, "one of at most 4 heads"));
+                }
+                if self.heads.iter().any(|h| h.name == head.name) {
+                    return Err(bad(line, key, v, "a name that no other head has"));
+                }
+                self.heads.push(head);
+            }
+            "tip_compat" => {
+                let Some((pattern, tips)) = v.rsplit_once(':') else {
+                    return Err(bad(line, key, v, "PATTERN : TIP, TIP, ..."));
+                };
+                let pattern = pattern.trim();
+                let tips: Vec<String> = tips.split(',').map(|t| t.trim().to_string()).collect();
+                let tips_ok = !tips.is_empty()
+                    && tips.len() <= MAX_RULE_TIPS
+                    && tips.iter().enumerate().all(|(i, t)| {
+                        !t.is_empty()
+                            && t.chars().count() <= 64
+                            && !t.chars().any(char::is_control)
+                            && !tips[..i].contains(t)
+                    });
+                if pattern.is_empty() || pattern.chars().count() > 128 || !tips_ok {
+                    return Err(bad(
+                        line,
+                        key,
+                        v,
+                        "PATTERN : TIP, TIP, ... (one to eight different tips of at most 64 characters)",
+                    ));
+                }
+                if self.tip_rules.len() >= MAX_TIP_RULES {
+                    return Err(bad(line, key, v, "one of at most 64 rules"));
+                }
+                if self.tip_rules.iter().any(|r| r.pattern == pattern) {
+                    return Err(bad(line, key, v, "a pattern that no other rule has"));
+                }
+                self.tip_rules.push(TipRule {
+                    pattern: pattern.to_string(),
+                    tips,
+                });
+            }
+            "tip_compat_mode" => {
+                self.tip_choice = TipChoice::parse(&v.to_ascii_lowercase())
+                    .ok_or_else(|| bad(line, key, v, "fewest_changes or preferred"))?
             }
             "tray_fill" => {
                 self.tray_fill = TrayFill::parse(&v.to_ascii_lowercase())

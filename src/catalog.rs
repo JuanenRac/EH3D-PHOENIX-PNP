@@ -321,6 +321,18 @@ impl Catalog {
         kinds.into_iter().collect()
     }
 
+    /// The nozzle tip that the row of the part or the row of its package names, if either does.
+    pub fn explicit_tip(&self, part: &Part) -> Option<String> {
+        self.parts
+            .get(&part.key())
+            .and_then(|p| p.nozzle_tip.clone())
+            .or_else(|| {
+                self.packages
+                    .get(&part.package.trim().to_ascii_lowercase())
+                    .and_then(|p| p.nozzle_tip.clone())
+            })
+    }
+
     /// Every property of a part: its own row, else the row of its package, else the default.
     pub fn resolve(&self, part: &Part, d: &Defaults) -> Resolved {
         let own = self.parts.get(&part.key());

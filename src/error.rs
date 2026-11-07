@@ -100,10 +100,11 @@ pub enum Code {
     VacuumStuck = 45,
     ActuatorUnknown = 46,
     FeederFaultWindow = 47,
+    HeadUnreachable = 48,
 }
 
 impl Code {
-    pub const ALL: [Code; 47] = [
+    pub const ALL: [Code; 48] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -151,6 +152,7 @@ impl Code {
         Code::VacuumStuck,
         Code::ActuatorUnknown,
         Code::FeederFaultWindow,
+        Code::HeadUnreachable,
     ];
 
     pub fn number(self) -> u16 {
@@ -169,7 +171,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 47] = [
+static MESSAGES: [[&str; 8]; 48] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -639,6 +641,16 @@ static MESSAGES: [[&str; 8]; 47] = [
         "フィーダーの直近のピックで失敗が多すぎます。担当者が判断します",
         "供料器最近的拾取中故障过多：由操作人员决定",
         "Um alimentador tem demasiadas falhas nas últimas recolhas: a pessoa decide",
+    ],
+    [
+        "No head of the machine can reach the part",
+        "Ninguna cabeza de la máquina alcanza la pieza",
+        "Kein Kopf der Maschine erreicht das Teil",
+        "Aucune tête de la machine n'atteint la pièce",
+        "Nessuna testa della macchina raggiunge il componente",
+        "マシンのどのヘッドも部品に届きません",
+        "机器的任何一个贴装头都够不到该零件",
+        "Nenhuma cabeça da máquina alcança a peça",
     ],
 ];
 

@@ -48,6 +48,14 @@ pub struct Detail {
     pub pick_retries: u32,
 }
 
+/// When, counted from the start of the plan, the head arrives at a feeder to pick, and for how long the feeder is busy (the feed and the pick).
+#[derive(Debug, Clone, PartialEq)]
+pub struct PickTime {
+    pub feeder: String,
+    pub at_s: f64,
+    pub busy_s: f64,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct AdvancedPlan {
     pub plan: Plan,
@@ -61,6 +69,8 @@ pub struct AdvancedPlan {
     /// The seconds of the plan that the camera takes to look at the parts after they are picked (0 when the align step is off).
     pub align_s: f64,
     pub order: OrderStrategy,
+    /// The arrival at the feeder of every pick, in the order of the picks of the plan (the heads of a machine use them to share the feeders).
+    pub pick_times: Vec<PickTime>,
 }
 
 #[derive(Debug, Clone)]
@@ -403,6 +413,8 @@ pub fn plan_advanced(
         AxisMotion::new(cfg.y_speed_mm_s, cfg.y_accel_mm_s2, cfg.y_jerk_mm_s3)?,
     );
     let defaults = cfg.part_defaults();
+    // the tip of every kind of part when the configuration has rules for the tips (none: the tips of the catalog and the defaults)
+    let tip_of = crate::tips::resolve(parts, picks, opts.side, catalog, cfg);
     let mut items: Vec<Item> = Vec::new();
     for pick in &picks.picks {
         let p = parts.get(pick.part).ok_or_else(|| {
@@ -445,7 +457,10 @@ pub fn plan_advanced(
             tape_rot: f.tape_rotation,
             rank: props.rank,
             tier: i64::from(props.rank).div_euclid(i64::from(cfg.rank_step)),
-            tip: props.nozzle_tip.clone(),
+            tip: tip_of
+                .get(&p.key())
+                .cloned()
+                .unwrap_or_else(|| props.nozzle_tip.clone()),
             bin: props.bin,
             height: props.height_mm,
             pick_retries: props.pick_retries,
@@ -519,6 +534,7 @@ pub fn plan_advanced(
     let mut head = (0.0, 0.0);
     let (mut travel, mut seconds, mut rotation_s) = (0.0, 0.0, 0.0);
     let mut align_s: f64 = 0.0;
+    let mut pick_times: Vec<PickTime> = Vec::with_capacity(items.len());
     let per_pick: f64 = if cfg.align {
         f64::from(cfg.align_passes) * cfg.align_settle_s
     } else {
@@ -568,6 +584,11 @@ pub fn plan_advanced(
             )?;
             let (d, t, r) = leg(head, it.pick, new - angles[nozzle], cfg, &motion);
             travel += d;
+            pick_times.push(PickTime {
+                feeder: it.feeder_id.clone(),
+                at_s: seconds + t,
+                busy_s: cfg.feed_s + cfg.pick_s,
+            });
             seconds += t + cfg.feed_s + cfg.pick_s + per_pick;
             align_s += per_pick;
             rotation_s += r;
@@ -622,6 +643,7 @@ pub fn plan_advanced(
         rotation_s,
         align_s,
         order: cfg.order,
+        pick_times,
     })
 }
 
