@@ -219,6 +219,17 @@ impl SimMachine {
     pub fn nozzle_count(&self) -> usize {
         self.nozzles.len()
     }
+
+    /// The part is still on the nozzle (the vacuum says it did not let go): the nozzle holds it again.
+    pub fn regrip(&mut self, nozzle: usize, reference: &str) {
+        if let Some(slot) = self.nozzles.get_mut(nozzle) {
+            *slot = Some(reference.to_string());
+            self.note(format!(
+                "nozzle {} still holds {reference} after the place",
+                nozzle + 1
+            ));
+        }
+    }
 }
 
 impl Machine for SimMachine {
@@ -413,19 +424,217 @@ impl FeederDevice for SimFeeder {
     }
 }
 
+/// An on/off device (a valve, a light, a pump) with a name and the seconds it takes to answer; the job adds that time to the clock of the machine when it switches it.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SimActuator {
+    name: String,
+    delay_s: f64,
     on: bool,
+    switches: u32,
+}
+
+impl SimActuator {
+    pub fn new(name: &str, delay_s: f64) -> SimActuator {
+        SimActuator {
+            name: name.to_string(),
+            delay_s,
+            on: false,
+            switches: 0,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// The seconds the device takes to answer.
+    pub fn delay_s(&self) -> f64 {
+        self.delay_s
+    }
+
+    /// How many times it changed from off to on or from on to off.
+    pub fn switches(&self) -> u32 {
+        self.switches
+    }
+
+    /// Puts back what a saved job kept.
+    pub fn restore(&mut self, on: bool, switches: u32) {
+        self.on = on;
+        self.switches = switches;
+    }
 }
 
 impl Actuator for SimActuator {
     fn set(&mut self, on: bool) -> Result<(), PnpError> {
+        if on != self.on {
+            self.switches = self.switches.saturating_add(1);
+        }
         self.on = on;
         Ok(())
     }
 
     fn is_on(&self) -> bool {
         self.on
+    }
+}
+
+/// The vacuum sensor of the nozzles, simulated. After a pick the pump sucks for `suck_s` seconds and the level of the nozzle is read; after a place the nozzle blows for `blow_s` seconds
+/// and it is read again. A nozzle that holds a part reads `held_kpa` and one that holds nothing reads `free_kpa`, each with a random error of up to `noise_kpa` drawn from a generator of
+/// its own (so nothing else in the simulation moves when the vacuum is used). A pick can leave no part on the nozzle (by chance, or at a check that a test chooses) and a place can leave
+/// the part stuck to it. The levels are in kilopascals below the air.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SimVacuum {
+    suck_s: f64,
+    blow_s: f64,
+    free_kpa: f64,
+    held_kpa: f64,
+    pick_min_kpa: f64,
+    release_max_kpa: f64,
+    noise_kpa: f64,
+    miss_rate: f64,
+    stuck_rate: f64,
+    on: Vec<bool>,
+    level: Vec<f64>,
+    rng: Rng,
+    picks: u64,
+    places: u64,
+    force_miss: Vec<u64>,
+    force_stuck: Vec<u64>,
+}
+
+/// The highest level the sensor can read.
+pub const VACUUM_MAX_KPA: f64 = 101.0;
+
+impl SimVacuum {
+    /// The sensor that the configuration describes, for its nozzles.
+    pub fn from_config(cfg: &MachineConfig) -> SimVacuum {
+        SimVacuum {
+            suck_s: cfg.vacuum_suck_s,
+            blow_s: cfg.vacuum_blow_s,
+            free_kpa: cfg.vacuum_free_kpa,
+            held_kpa: cfg.vacuum_held_kpa,
+            pick_min_kpa: cfg.vacuum_pick_min_kpa,
+            release_max_kpa: cfg.vacuum_release_max_kpa,
+            noise_kpa: cfg.sim_vacuum_noise_kpa,
+            miss_rate: cfg.sim_vacuum_miss_rate,
+            stuck_rate: cfg.sim_vacuum_stuck_rate,
+            on: vec![false; cfg.nozzles],
+            level: vec![0.0; cfg.nozzles],
+            rng: Rng::new(cfg.sim_seed ^ 0x7ACC_0000_0000_0003),
+            picks: 0,
+            places: 0,
+            force_miss: Vec::new(),
+            force_stuck: Vec::new(),
+        }
+    }
+
+    /// The seconds the pump sucks before the level is read after a pick.
+    pub fn suck_s(&self) -> f64 {
+        self.suck_s
+    }
+
+    /// The seconds of blowing before the level is read after a place.
+    pub fn blow_s(&self) -> f64 {
+        self.blow_s
+    }
+
+    /// Makes the `nth` check after a pick (counted from 1) find no part on the nozzle.
+    pub fn force_miss(&mut self, nth: u64) {
+        self.force_miss.push(nth);
+    }
+
+    /// Makes the `nth` check after a place (counted from 1) find the part still on the nozzle.
+    pub fn force_stuck(&mut self, nth: u64) {
+        self.force_stuck.push(nth);
+    }
+
+    /// The last level read on a nozzle (0 before it was read, and after the pump is switched off).
+    pub fn level(&self, nozzle: usize) -> f64 {
+        self.level.get(nozzle).copied().unwrap_or(0.0)
+    }
+
+    /// Whether the pump of a nozzle is sucking.
+    pub fn is_on(&self, nozzle: usize) -> bool {
+        self.on.get(nozzle).copied().unwrap_or(false)
+    }
+
+    /// The pump of a nozzle starts to suck.
+    pub fn suck(&mut self, nozzle: usize) {
+        if let Some(on) = self.on.get_mut(nozzle) {
+            *on = true;
+        }
+    }
+
+    /// The pump of a nozzle stops (the nozzle blows, then reads the air).
+    pub fn release(&mut self, nozzle: usize) {
+        if let Some(on) = self.on.get_mut(nozzle) {
+            *on = false;
+        }
+        if let Some(level) = self.level.get_mut(nozzle) {
+            *level = 0.0;
+        }
+    }
+
+    fn read(&mut self, nozzle: usize, part: bool) -> f64 {
+        let noise = self.rng.next_f64();
+        let base = if part { self.held_kpa } else { self.free_kpa };
+        let level = (base + (2.0 * noise - 1.0) * self.noise_kpa).clamp(0.0, VACUUM_MAX_KPA);
+        if let Some(slot) = self.level.get_mut(nozzle) {
+            *slot = level;
+        }
+        level
+    }
+
+    /// Reads the nozzle after a pick. Two numbers are drawn at every check (the chance of a miss and the error of the reading), so that a change of the chance does not move the errors.
+    pub fn read_after_pick(&mut self, nozzle: usize) -> f64 {
+        self.picks += 1;
+        let chance = self.rng.next_f64();
+        let missed = self.force_miss.contains(&self.picks) || chance < self.miss_rate;
+        self.read(nozzle, !missed)
+    }
+
+    /// Reads the nozzle after a place and its blow, with the same two draws.
+    pub fn read_after_place(&mut self, nozzle: usize) -> f64 {
+        self.places += 1;
+        let chance = self.rng.next_f64();
+        let stuck = self.force_stuck.contains(&self.places) || chance < self.stuck_rate;
+        self.read(nozzle, stuck)
+    }
+
+    /// Whether a level read after a pick says that the part is held.
+    pub fn holds(&self, level: f64) -> bool {
+        level >= self.pick_min_kpa
+    }
+
+    /// Whether a level read after a place says that the part is gone.
+    pub fn gone(&self, level: f64) -> bool {
+        level <= self.release_max_kpa
+    }
+
+    /// The state that a saved job keeps: the generator and the number of checks after a pick and after a place.
+    pub fn save(&self) -> (u64, u64, u64) {
+        (self.rng.state(), self.picks, self.places)
+    }
+
+    /// Puts back what `save` gave, with the state of the pump and the last level of each nozzle.
+    pub fn restore(&mut self, saved: (u64, u64, u64), on: Vec<bool>, level: Vec<f64>) {
+        self.rng = Rng::from_state(saved.0);
+        self.picks = saved.1;
+        self.places = saved.2;
+        if on.len() == self.on.len() && level.len() == self.level.len() {
+            self.on = on;
+            self.level = level;
+        }
+    }
+
+    /// The state of the pump of each nozzle.
+    pub fn on_states(&self) -> &[bool] {
+        &self.on
+    }
+
+    /// The last level read on each nozzle.
+    pub fn levels(&self) -> &[f64] {
+        &self.level
     }
 }
 

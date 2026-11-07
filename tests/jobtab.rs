@@ -408,3 +408,27 @@ fn the_picture_can_ask_for_a_tab_and_for_steps_of_the_job() {
     let e = parse_window_args(&args(&["--window", "job"]), 1).unwrap_err();
     assert!(e.contains("--shot"), "{e}");
 }
+
+#[test]
+fn a_feeder_that_reaches_its_limit_of_faults_opens_the_dialog_with_the_four_actions() {
+    let mut a = app(
+        "error_policy = defer\npick_retries = 0\nsim_pick_fail_rate = 1\nfault_window = 1\nfault_limit = 1\nfault_action = alert\n",
+    );
+    a.step();
+    assert_eq!(a.session.phase(), Some(Phase::Stopped));
+    let d = error_dialog(a.session.job()).unwrap();
+    assert_eq!(d.failure.error.code, Code::FeederFaultWindow);
+    for action in Action::ALL {
+        assert!(d.allows(action));
+    }
+    // the text of the error is in the language of the window
+    assert!(d
+        .failure
+        .error
+        .code
+        .message(Lang::Es)
+        .contains("alimentador"));
+    assert!(a.decide(Action::SwitchOffFeeder));
+    let job = a.session.job().unwrap();
+    assert!(job.stats().feeders.iter().any(|f| f.disabled));
+}

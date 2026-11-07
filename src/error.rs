@@ -96,10 +96,14 @@ pub enum Code {
     JobActionBad = 41,
     PanelXOutUnknown = 42,
     PanelAllBad = 43,
+    VacuumNoPart = 44,
+    VacuumStuck = 45,
+    ActuatorUnknown = 46,
+    FeederFaultWindow = 47,
 }
 
 impl Code {
-    pub const ALL: [Code; 43] = [
+    pub const ALL: [Code; 47] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -143,6 +147,10 @@ impl Code {
         Code::JobActionBad,
         Code::PanelXOutUnknown,
         Code::PanelAllBad,
+        Code::VacuumNoPart,
+        Code::VacuumStuck,
+        Code::ActuatorUnknown,
+        Code::FeederFaultWindow,
     ];
 
     pub fn number(self) -> u16 {
@@ -161,7 +169,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 43] = [
+static MESSAGES: [[&str; 8]; 47] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -591,6 +599,46 @@ static MESSAGES: [[&str; 8]; 43] = [
         "パネルのすべての基板が不良（X-out）としてマークされています。実装するものが残っていません",
         "拼板中的所有板都被标记为不良（X-out）：没有可贴装的内容",
         "Todas as placas do painel estão marcadas como defeituosas (X-out): não resta nada para colocar",
+    ],
+    [
+        "The vacuum shows no part on the nozzle after the pick",
+        "El vacío no muestra ninguna pieza en la boquilla tras recogerla",
+        "Das Vakuum zeigt nach dem Aufnehmen kein Teil an der Düse",
+        "Le vide ne montre aucune pièce sur la buse après la prise",
+        "Il vuoto non mostra alcuna parte sull'ugello dopo il prelievo",
+        "ピック後、真空はノズルに部品がないことを示しています",
+        "拾取后真空显示吸嘴上没有零件",
+        "O vácuo não mostra nenhuma peça no bico depois da recolha",
+    ],
+    [
+        "The vacuum shows the part still on the nozzle after the place",
+        "El vacío muestra que la pieza sigue en la boquilla tras colocarla",
+        "Das Vakuum zeigt, dass das Teil nach dem Bestücken noch an der Düse hängt",
+        "Le vide montre que la pièce est encore sur la buse après la dépose",
+        "Il vuoto mostra che la parte è ancora sull'ugello dopo il posizionamento",
+        "配置後も、真空は部品がノズルに残っていることを示しています",
+        "放置后真空显示零件仍留在吸嘴上",
+        "O vácuo mostra que a peça continua no bico depois da colocação",
+    ],
+    [
+        "The machine has no actuator with that name",
+        "La máquina no tiene ningún actuador con ese nombre",
+        "Die Maschine hat keinen Aktor mit diesem Namen",
+        "La machine n'a aucun actionneur de ce nom",
+        "La macchina non ha nessun attuatore con quel nome",
+        "その名前のアクチュエータはマシンにありません",
+        "机器没有该名称的执行器",
+        "A máquina não tem nenhum atuador com esse nome",
+    ],
+    [
+        "A feeder has too many faults among its last picks: the person decides",
+        "Un alimentador tiene demasiados fallos entre sus últimas recogidas: decide la persona",
+        "Eine Zuführung hat zu viele Fehler bei den letzten Aufnahmen: die Person entscheidet",
+        "Un alimentateur a trop d'échecs parmi ses dernières prises : la personne décide",
+        "Un alimentatore ha troppi errori tra gli ultimi prelievi: decide la persona",
+        "フィーダーの直近のピックで失敗が多すぎます。担当者が判断します",
+        "供料器最近的拾取中故障过多：由操作人员决定",
+        "Um alimentador tem demasiadas falhas nas últimas recolhas: a pessoa decide",
     ],
 ];
 

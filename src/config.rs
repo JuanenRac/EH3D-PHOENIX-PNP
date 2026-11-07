@@ -15,7 +15,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 91] = [
+pub const KEYS: [&str; 103] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -51,6 +51,7 @@ pub const KEYS: [&str; 91] = [
     "error_policy",
     "fault_window",
     "fault_limit",
+    "fault_action",
     "order",
     "tip_strategy",
     "two_opt",
@@ -107,6 +108,17 @@ pub const KEYS: [&str; 91] = [
     "sim_align_deg",
     "sim_align_noise_mm",
     "vision",
+    "vacuum",
+    "vacuum_suck_s",
+    "vacuum_blow_s",
+    "vacuum_free_kpa",
+    "vacuum_held_kpa",
+    "vacuum_pick_min_kpa",
+    "vacuum_release_max_kpa",
+    "sim_vacuum_noise_kpa",
+    "sim_vacuum_miss_rate",
+    "sim_vacuum_stuck_rate",
+    "actuator",
 ];
 
 /// The order in which the places are visited.
@@ -174,6 +186,35 @@ pub enum ErrorPolicy {
     Defer,
 }
 
+/// What the job does when a feeder has `fault_limit` faults among its last `fault_window` picks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FaultAction {
+    /// The feeder is switched off and the parts it held are taken from another feeder of the same kind, if there is one.
+    #[default]
+    Disable,
+    /// The job stops with `PHOENIX-PNP-047` and the person decides: try the step again, leave the part out, put it aside or switch the feeder off.
+    Alert,
+}
+
+impl FaultAction {
+    pub fn name(self) -> &'static str {
+        match self {
+            FaultAction::Disable => "disable",
+            FaultAction::Alert => "alert",
+        }
+    }
+}
+
+/// An on/off device of the simulated machine (a valve, a light, a pump) and the seconds it takes to answer.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ActuatorSpec {
+    pub name: String,
+    pub delay_s: f64,
+}
+
+/// The most actuators a machine can declare.
+pub const MAX_ACTUATORS: usize = 32;
+
 /// Where the simulated camera takes what it reports about a part from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum VisionMode {
@@ -239,6 +280,8 @@ pub struct MachineConfig {
     pub error_policy: ErrorPolicy,
     pub fault_window: u32,
     pub fault_limit: u32,
+    /// What happens when the limit is reached.
+    pub fault_action: FaultAction,
     pub order: OrderStrategy,
     pub tip_strategy: TipStrategy,
     pub two_opt: bool,
@@ -303,6 +346,24 @@ pub struct MachineConfig {
     pub sim_align_noise_mm: f64,
     /// Where the simulated camera takes its readings from: `off` (the offset it was given) or `pipeline` (the measure of a picture of the part, see `vision`).
     pub vision: VisionMode,
+    /// Check the vacuum after every pick (a part must show on the nozzle) and after every place (the part must be gone); off by default: a job then does what it always did.
+    pub vacuum: bool,
+    /// The seconds the pump sucks before the vacuum is read after a pick, and the seconds of blowing before it is read after a place.
+    pub vacuum_suck_s: f64,
+    pub vacuum_blow_s: f64,
+    /// The simulated vacuum, in kilopascals below the air: with the nozzle open and with a part held.
+    pub vacuum_free_kpa: f64,
+    pub vacuum_held_kpa: f64,
+    /// A level at or above this after a pick says that the part is held; a level at or below `vacuum_release_max_kpa` after a place says that the part is gone.
+    pub vacuum_pick_min_kpa: f64,
+    pub vacuum_release_max_kpa: f64,
+    /// A random error of each reading, from minus to plus this many kilopascals (taken from the seed).
+    pub sim_vacuum_noise_kpa: f64,
+    /// The chance (0 to 1) that a pick leaves no part on the nozzle, and that a place leaves the part stuck to it.
+    pub sim_vacuum_miss_rate: f64,
+    pub sim_vacuum_stuck_rate: f64,
+    /// The on/off devices of the machine, in the order of the file.
+    pub actuators: Vec<ActuatorSpec>,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -345,6 +406,7 @@ impl Default for MachineConfig {
             error_policy: ErrorPolicy::Alert,
             fault_window: 6,
             fault_limit: 3,
+            fault_action: FaultAction::Disable,
             order: OrderStrategy::Nearest,
             tip_strategy: TipStrategy::Minimize,
             two_opt: true,
@@ -388,6 +450,17 @@ impl Default for MachineConfig {
             sim_align_deg: 0.0,
             sim_align_noise_mm: 0.0,
             vision: VisionMode::Off,
+            vacuum: false,
+            vacuum_suck_s: 0.08,
+            vacuum_blow_s: 0.05,
+            vacuum_free_kpa: 8.0,
+            vacuum_held_kpa: 62.0,
+            vacuum_pick_min_kpa: 40.0,
+            vacuum_release_max_kpa: 20.0,
+            sim_vacuum_noise_kpa: 0.0,
+            sim_vacuum_miss_rate: 0.0,
+            sim_vacuum_stuck_rate: 0.0,
+            actuators: Vec::new(),
         }
     }
 }
@@ -481,7 +554,7 @@ impl MachineConfig {
                 ));
             };
             let (key, value) = (k.trim().to_ascii_lowercase(), v.trim());
-            let repeats = ["rotation", "sim_part_fail", "sim_feeder_fail"];
+            let repeats = ["rotation", "sim_part_fail", "sim_feeder_fail", "actuator"];
             if !repeats.contains(&key.as_str()) && !seen.insert(key.clone()) {
                 return Err(PnpError::new(
                     Code::ConfigDuplicateKey,
@@ -560,6 +633,13 @@ impl MachineConfig {
             }
             "fault_window" => self.fault_window = int(line, key, v, 1, 100)? as u32,
             "fault_limit" => self.fault_limit = int(line, key, v, 0, 100)? as u32,
+            "fault_action" => {
+                self.fault_action = match v.to_ascii_lowercase().as_str() {
+                    "disable" => FaultAction::Disable,
+                    "alert" => FaultAction::Alert,
+                    _ => return Err(bad(line, key, v, "disable or alert")),
+                }
+            }
             "order" => {
                 self.order = OrderStrategy::parse(&v.to_ascii_lowercase()).ok_or_else(|| {
                     bad(
@@ -723,6 +803,44 @@ impl MachineConfig {
                     _ => return Err(bad(line, key, v, "off or pipeline")),
                 }
             }
+            "vacuum" => self.vacuum = flag(line, key, v)?,
+            "vacuum_suck_s" => self.vacuum_suck_s = n(0.0, 10.0)?,
+            "vacuum_blow_s" => self.vacuum_blow_s = n(0.0, 10.0)?,
+            "vacuum_free_kpa" => self.vacuum_free_kpa = n(0.0, 101.0)?,
+            "vacuum_held_kpa" => self.vacuum_held_kpa = n(0.0, 101.0)?,
+            "vacuum_pick_min_kpa" => self.vacuum_pick_min_kpa = n(0.0, 101.0)?,
+            "vacuum_release_max_kpa" => self.vacuum_release_max_kpa = n(0.0, 101.0)?,
+            "sim_vacuum_noise_kpa" => self.sim_vacuum_noise_kpa = n(0.0, 50.0)?,
+            "sim_vacuum_miss_rate" => self.sim_vacuum_miss_rate = n(0.0, 1.0)?,
+            "sim_vacuum_stuck_rate" => self.sim_vacuum_stuck_rate = n(0.0, 1.0)?,
+            "actuator" => {
+                let fields: Vec<&str> = v.split(':').map(str::trim).collect();
+                let name = fields.first().copied().unwrap_or("");
+                let named = !name.is_empty()
+                    && name.chars().count() <= 32
+                    && name
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+                if fields.len() != 2 || !named {
+                    return Err(bad(
+                        line,
+                        key,
+                        v,
+                        "NAME : DELAY_S (a name of letters, digits, _ and -)",
+                    ));
+                }
+                let delay_s = num(line, key, fields[1], 0.0, 10.0)?;
+                if self.actuators.iter().any(|a| a.name == name) {
+                    return Err(bad(line, key, v, "a name that no other actuator has"));
+                }
+                if self.actuators.len() >= MAX_ACTUATORS {
+                    return Err(bad(line, key, v, "one of at most 32 actuators"));
+                }
+                self.actuators.push(ActuatorSpec {
+                    name: name.to_string(),
+                    delay_s,
+                });
+            }
             "tray_fill" => {
                 self.tray_fill = TrayFill::parse(&v.to_ascii_lowercase())
                     .ok_or_else(|| bad(line, key, v, "rows, columns or snake"))?
@@ -777,6 +895,18 @@ impl MachineConfig {
             return unsafe_setting(format!(
                 "place_retries {} allows more attempts than max_placement_attempts {}",
                 self.place_retries, self.max_placement_attempts
+            ));
+        }
+        if !(self.vacuum_free_kpa <= self.vacuum_release_max_kpa
+            && self.vacuum_release_max_kpa < self.vacuum_pick_min_kpa
+            && self.vacuum_pick_min_kpa <= self.vacuum_held_kpa)
+        {
+            return unsafe_setting(format!(
+                "the levels of the vacuum must satisfy vacuum_free_kpa {} <= vacuum_release_max_kpa {} < vacuum_pick_min_kpa {} <= vacuum_held_kpa {}",
+                self.vacuum_free_kpa,
+                self.vacuum_release_max_kpa,
+                self.vacuum_pick_min_kpa,
+                self.vacuum_held_kpa
             ));
         }
         if let Some((x, y)) = self.tip_changer {

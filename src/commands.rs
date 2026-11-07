@@ -609,6 +609,13 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
             a.camera_failures
         );
     }
+    if p.c.cfg.vacuum {
+        let v = &s.vacuum;
+        println!(
+            "vacuum: {} of {} picks found no part on the nozzle, {} of {} places left the part stuck",
+            v.pick_misses, v.pick_checks, v.place_stuck, v.place_checks
+        );
+    }
     for (r, why) in job.deferred() {
         println!("put aside: {r}: {why}");
     }

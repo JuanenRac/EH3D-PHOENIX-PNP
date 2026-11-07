@@ -2189,6 +2189,11 @@ impl PnpApp {
             ("y_accel_mm_s2", cfg.y_accel_mm_s2.to_string()),
             ("error_policy", format!("{:?}", cfg.error_policy)),
             ("fault_limit", cfg.fault_limit.to_string()),
+            ("fault_action", cfg.fault_action.name().to_string()),
+            (
+                "vacuum",
+                if cfg.vacuum { "on" } else { "off" }.to_string(),
+            ),
             ("sim_seed", cfg.sim_seed.to_string()),
             ("gui_theme", cfg.gui_theme.clone()),
         ];

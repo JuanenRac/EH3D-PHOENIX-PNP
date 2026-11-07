@@ -8,14 +8,16 @@
 //!   on, and lists the parts put aside at the end.
 //! * each feeder remembers how its last picks went; when too many failed it is switched off and the parts it held are taken from another feeder of the same kind, if there is one.
 //! * a nozzle never picks while it holds a part and never places while it holds none.
+//! * with `fault_action = alert` a feeder that reaches its limit of faults stops the job (`PHOENIX-PNP-047`) instead of being switched off, and the person decides.
+//! * with `vacuum = on` the vacuum of the nozzle is read after every pick (no part: the pick failed) and after every place (the part still there: the place failed).
 
-use crate::config::{ErrorPolicy, MachineConfig};
+use crate::config::{ErrorPolicy, FaultAction, MachineConfig};
 use crate::error::{Code, PnpError};
 use crate::feeding::{choose, FeederSpec};
-use crate::model::{Camera, FeederDevice, Machine, Nozzle, Offset};
+use crate::model::{Actuator, Camera, FeederDevice, Machine, Nozzle, Offset};
 use crate::planner::AdvancedPlan;
 use crate::rotation::glob_match;
-use crate::sim::{SimCamera, SimFeeder, SimMachine, SimOp};
+use crate::sim::{SimActuator, SimCamera, SimFeeder, SimMachine, SimOp, SimVacuum};
 use crate::vision::VisionConfig;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
@@ -223,6 +225,23 @@ impl AlignStats {
 /// What a saved job keeps of the align step: the statistics, the generator and the looks of the camera, and the correction found for the part on each nozzle.
 type AlignState = (AlignStats, (u64, u64), Vec<Option<Offset>>);
 
+/// What the vacuum checks found (all zero when `vacuum` is off).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct VacuumStats {
+    /// Checks after a pick, and those that found no part on the nozzle.
+    pub pick_checks: u32,
+    pub pick_misses: u32,
+    /// Checks after a place, and those that found the part still on the nozzle.
+    pub place_checks: u32,
+    pub place_stuck: u32,
+    /// The lowest level (kilopascals) that said a part was held, and the highest that said it was gone.
+    pub lowest_held_kpa: Option<f64>,
+    pub highest_released_kpa: Option<f64>,
+}
+
+/// What a saved job keeps of the vacuum: the statistics, the generator and the counts of the checks, and the pump and the last level of each nozzle.
+type VacuumState = (VacuumStats, (u64, u64, u64), Vec<bool>, Vec<f64>);
+
 /// The statistics of the job.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Stats {
@@ -239,6 +258,7 @@ pub struct Stats {
     /// By package, in the order of the first feeder that holds it.
     pub kinds: Vec<KindStats>,
     pub align: AlignStats,
+    pub vacuum: VacuumStats,
 }
 
 #[derive(Debug, Clone)]
@@ -261,6 +281,9 @@ pub struct Job {
     mounted: bool,
     stats: Stats,
     camera: SimCamera,
+    vacuum: SimVacuum,
+    /// The on/off devices of the machine, in the order of the configuration.
+    actuators: Vec<SimActuator>,
     /// What the camera found on the part that each nozzle holds, to be corrected in the place.
     corrections: Vec<Option<Offset>>,
     trace: Trace,
@@ -334,6 +357,10 @@ impl Job {
         if cfg.align {
             text.push_str("align;");
         }
+        // the same for the vacuum: a job that checks it has failures that one without it has not
+        if cfg.vacuum {
+            text.push_str("vacuum;");
+        }
         let batches: Vec<Vec<usize>> = batches.into_iter().filter(|b| !b.is_empty()).collect();
         let devices: Vec<SimFeeder> = feeders
             .iter()
@@ -376,6 +403,12 @@ impl Job {
             Cursor::Pick { batch: 0, k: 0 }
         };
         let camera = SimCamera::from_config(&cfg);
+        let vacuum = SimVacuum::from_config(&cfg);
+        let actuators: Vec<SimActuator> = cfg
+            .actuators
+            .iter()
+            .map(|a| SimActuator::new(&a.name, a.delay_s))
+            .collect();
         let corrections = vec![None; cfg.nozzles];
         Ok(Job {
             plan,
@@ -396,6 +429,8 @@ impl Job {
             mounted: false,
             stats,
             camera,
+            vacuum,
+            actuators,
             corrections,
             trace: Trace::default(),
             last_feeder: None,
@@ -455,6 +490,38 @@ impl Job {
     /// The simulated camera, for tests that make a look fail at a chosen place.
     pub fn camera_mut(&mut self) -> &mut SimCamera {
         &mut self.camera
+    }
+
+    /// The simulated vacuum sensor, for tests that make a check fail at a chosen place.
+    pub fn vacuum_mut(&mut self) -> &mut SimVacuum {
+        &mut self.vacuum
+    }
+
+    /// The last vacuum level read on a nozzle, in kilopascals; `None` when `vacuum` is off.
+    pub fn vacuum_level(&self, nozzle: usize) -> Option<f64> {
+        self.cfg.vacuum.then(|| self.vacuum.level(nozzle))
+    }
+
+    /// The on/off devices of the machine, in the order of the configuration.
+    pub fn actuators(&self) -> &[SimActuator] {
+        &self.actuators
+    }
+
+    /// Switches a device of the machine. The seconds it takes to answer go on the clock of the machine; a name the machine does not have is refused.
+    pub fn set_actuator(&mut self, name: &str, on: bool) -> Result<(), PnpError> {
+        let Some(n) = self.actuators.iter().position(|a| a.name() == name) else {
+            return Err(PnpError::new(
+                Code::ActuatorUnknown,
+                format!("'{name}' is not one of the actuators of the machine"),
+            ));
+        };
+        self.machine.wait(self.actuators[n].delay_s());
+        self.actuators[n].set(on)?;
+        self.machine.note(format!(
+            "actuator {name} switched {}",
+            if on { "on" } else { "off" }
+        ));
+        Ok(())
     }
 
     /// The settings of the vision pipeline for the simulated camera. They count only when the configuration says `vision = pipeline`; otherwise the camera reports its offset directly.
@@ -543,6 +610,12 @@ impl Job {
                 "the job is not stopped by an error",
             ));
         };
+        // the person has looked at the feeder: the faults that stopped the job are not counted again
+        if failure.error.code == Code::FeederFaultWindow && action != Action::SwitchOffFeeder {
+            if let Some(&f) = self.index.get(&failure.feeder) {
+                self.windows[f].clear();
+            }
+        }
         match action {
             Action::Retry => self.resume(),
             Action::Skip | Action::Defer => {
@@ -550,6 +623,7 @@ impl Job {
                 if self.machine.holding(nozzle) == Some(failure.reference.as_str()) {
                     self.machine.discard(nozzle);
                 }
+                self.vacuum.release(nozzle);
                 self.corrections[nozzle] = None;
                 if failure.at_pick {
                     self.trace.lost += 1;
@@ -729,7 +803,9 @@ impl Job {
         Ok(self.phase())
     }
 
-    fn record(&mut self, f: usize, fault: bool) {
+    /// Notes how a pick from the feeder `f` went. When the faults of its window reach the limit the feeder is switched off, or, with `fault_action = alert`, the number of faults is given back
+    /// so that the job stops and the person decides.
+    fn record(&mut self, f: usize, fault: bool) -> Option<u32> {
         let cap = self.cfg.fault_window as usize;
         let w = &mut self.windows[f];
         w.push(fault);
@@ -744,12 +820,103 @@ impl Job {
             && faults >= self.cfg.fault_limit
             && self.devices[f].is_enabled()
         {
+            if self.cfg.fault_action == FaultAction::Alert {
+                return Some(faults);
+            }
             self.devices[f].set_enabled(false);
             self.stats.feeders[f].disabled = true;
             let id = self.devices[f].id().to_string();
             self.machine
                 .note(format!("feeder {id} switched off after {faults} faults"));
         }
+        None
+    }
+
+    /// The error that stops the job when the faults of a feeder reach the limit and the person is to decide.
+    fn window_error(&mut self, f: usize, faults: u32) -> PnpError {
+        let id = self.devices[f].id().to_string();
+        self.machine.note(format!(
+            "feeder {id} has {faults} faults among its last {} picks: the job waits for the person",
+            self.cfg.fault_window
+        ));
+        PnpError::new(
+            Code::FeederFaultWindow,
+            format!(
+                "feeder '{id}': {faults} faults among its last {} picks",
+                self.cfg.fault_window
+            ),
+        )
+    }
+
+    /// The vacuum is read after a pick: the pump has sucked for `vacuum_suck_s` seconds and the level must say that the part is held. A level below the threshold means the nozzle holds
+    /// nothing: the part is let go of and the pick is a failure with `PHOENIX-PNP-044`.
+    fn vacuum_after_pick(&mut self, nozzle: usize, reference: &str) -> Result<(), PnpError> {
+        if !self.cfg.vacuum {
+            return Ok(());
+        }
+        self.vacuum.suck(nozzle);
+        self.machine.wait(self.vacuum.suck_s());
+        let level = self.vacuum.read_after_pick(nozzle);
+        let v = &mut self.stats.vacuum;
+        v.pick_checks += 1;
+        if self.vacuum.holds(level) {
+            v.lowest_held_kpa = Some(v.lowest_held_kpa.map_or(level, |l| l.min(level)));
+            self.machine.note(format!(
+                "vacuum of nozzle {}: {level:.1} kPa, {reference} is held",
+                nozzle + 1
+            ));
+            return Ok(());
+        }
+        v.pick_misses += 1;
+        self.machine.note(format!(
+            "vacuum of nozzle {}: {level:.1} kPa, no part on the nozzle",
+            nozzle + 1
+        ));
+        self.machine.discard(nozzle);
+        self.vacuum.release(nozzle);
+        Err(PnpError::new(
+            Code::VacuumNoPart,
+            format!(
+                "{reference} on nozzle {}: {level:.1} kPa, at least {} kPa was expected",
+                nozzle + 1,
+                self.cfg.vacuum_pick_min_kpa
+            ),
+        ))
+    }
+
+    /// The vacuum is read after a place: the nozzle has blown for `vacuum_blow_s` seconds and the level must say that the part is gone. A level above the threshold means the part is
+    /// still stuck to the nozzle: the nozzle holds it again and the place is a failure with `PHOENIX-PNP-045`.
+    fn vacuum_after_place(&mut self, nozzle: usize, reference: &str) -> Result<(), PnpError> {
+        if !self.cfg.vacuum {
+            return Ok(());
+        }
+        self.machine.wait(self.vacuum.blow_s());
+        let level = self.vacuum.read_after_place(nozzle);
+        let v = &mut self.stats.vacuum;
+        v.place_checks += 1;
+        if self.vacuum.gone(level) {
+            v.highest_released_kpa = Some(v.highest_released_kpa.map_or(level, |l| l.max(level)));
+            self.vacuum.release(nozzle);
+            self.machine.note(format!(
+                "vacuum of nozzle {}: {level:.1} kPa, {reference} let go",
+                nozzle + 1
+            ));
+            return Ok(());
+        }
+        v.place_stuck += 1;
+        self.machine.note(format!(
+            "vacuum of nozzle {}: {level:.1} kPa, {reference} is still on the nozzle",
+            nozzle + 1
+        ));
+        self.machine.regrip(nozzle, reference);
+        Err(PnpError::new(
+            Code::VacuumStuck,
+            format!(
+                "{reference} on nozzle {}: {level:.1} kPa, at most {} kPa was expected",
+                nozzle + 1,
+                self.cfg.vacuum_release_max_kpa
+            ),
+        ))
     }
 
     /// What the job does with a part that could not be picked or placed.
@@ -759,6 +926,7 @@ impl Job {
             ErrorPolicy::Defer => {
                 self.trace.count(e.code);
                 self.machine.discard(nozzle);
+                self.vacuum.release(nozzle);
                 self.status[idx] = Status::Deferred;
                 self.reasons[idx] = e.to_string();
                 self.stats.deferred += 1;
@@ -840,7 +1008,9 @@ impl Job {
         let at = self.feeders[f].pick_point(self.taken[f]);
         self.travel(at)?;
         if !self.feed_part(f)? {
-            self.record(f, true);
+            if let Some(faults) = self.record(f, true) {
+                return Err(self.window_error(f, faults));
+            }
             let e = PnpError::new(
                 Code::FeedFailed,
                 format!("feeder '{}' for {}", self.feeders[f].base.id, pl.reference),
@@ -853,7 +1023,7 @@ impl Job {
         let mut picked = false;
         // the attempt that picked the part (0 is the first)
         let mut won_at = 0u32;
-        // why the last attempt was lost, when the camera was the cause
+        // why the last attempt was lost, when the camera or the vacuum was the cause
         let mut align_error: Option<PnpError> = None;
         self.corrections[nozzle] = None;
         let kind = self.kind_of(f);
@@ -861,7 +1031,13 @@ impl Job {
         self.machine.set_extra_fail(SimOp::Pick, chance);
         for attempt in 0..=det.pick_retries {
             self.stats.pick_attempts += 1;
-            match self.machine.pick(nozzle, &pl.reference) {
+            let mut result = self.machine.pick(nozzle, &pl.reference);
+            if result.is_ok() {
+                if let Err(e) = self.vacuum_after_pick(nozzle, &pl.reference) {
+                    result = Err(e);
+                }
+            }
+            match result {
                 Ok(()) if !self.cfg.align => {
                     picked = true;
                     won_at = attempt;
@@ -892,8 +1068,9 @@ impl Job {
                         }
                     }
                 },
-                Err(e) if e.code == Code::SimFault => {
-                    align_error = None;
+                Err(e) if e.code == Code::SimFault || e.code == Code::VacuumNoPart => {
+                    // the vacuum found no part: that is why the last attempt was lost
+                    align_error = (e.code == Code::VacuumNoPart).then(|| e.clone());
                     self.trace.count(e.code);
                     self.stats.pick_failures += 1;
                     self.stats.kinds[kind].pick_failures += 1;
@@ -903,7 +1080,9 @@ impl Job {
             }
         }
         self.machine.set_extra_fail(SimOp::Pick, 0.0);
-        self.record(f, !picked);
+        if let Some(faults) = self.record(f, !picked) {
+            return Err(self.window_error(f, faults));
+        }
         if picked {
             if won_at == 0 && !earlier {
                 self.trace.first_try += 1;
@@ -1081,8 +1260,16 @@ impl Job {
         let kind = self.kind_of(source);
         let place_chance = self.part_chances(source).1;
         self.machine.set_extra_fail(SimOp::Place, place_chance);
+        // why the last attempt was lost, when the vacuum was the cause
+        let mut vacuum_error: Option<PnpError> = None;
         for _ in 0..=self.cfg.place_retries {
-            match self.machine.place(nozzle) {
+            let mut result = self.machine.place(nozzle);
+            if result.is_ok() {
+                if let Err(e) = self.vacuum_after_place(nozzle, &pl.reference) {
+                    result = Err(e);
+                }
+            }
+            match result {
                 Ok(_) => {
                     self.machine.set_extra_fail(SimOp::Place, 0.0);
                     self.status[idx] = Status::Placed;
@@ -1091,7 +1278,8 @@ impl Job {
                     self.stats.kinds[kind].placed += 1;
                     return Ok(());
                 }
-                Err(e) if e.code == Code::SimFault => {
+                Err(e) if e.code == Code::SimFault || e.code == Code::VacuumStuck => {
+                    vacuum_error = (e.code == Code::VacuumStuck).then(|| e.clone());
                     self.trace.count(e.code);
                     self.stats.place_failures += 1;
                     self.stats.kinds[kind].place_failures += 1;
@@ -1101,7 +1289,8 @@ impl Job {
         }
         self.machine.set_extra_fail(SimOp::Place, 0.0);
         // with `alert` the part stays on the nozzle, so that the step can be tried again after the cause is put right
-        let e = PnpError::new(Code::PlaceFailed, pl.reference.clone());
+        let e =
+            vacuum_error.unwrap_or_else(|| PnpError::new(Code::PlaceFailed, pl.reference.clone()));
         let given_up = self.give_up(idx, nozzle, e);
         if given_up.is_ok() {
             self.corrections[nozzle] = None;
@@ -1162,6 +1351,31 @@ impl Job {
                 "max_deg": s.align.max_deg
             });
         }
+        // only a job with the vacuum checks reports them, and only one with actuators reports those: the report of any other job is the one it always was
+        if self.cfg.vacuum {
+            let v = &s.vacuum;
+            doc["vacuum"] = json!({
+                "suck_s": self.cfg.vacuum_suck_s,
+                "blow_s": self.cfg.vacuum_blow_s,
+                "pick_min_kpa": self.cfg.vacuum_pick_min_kpa,
+                "release_max_kpa": self.cfg.vacuum_release_max_kpa,
+                "pick_checks": v.pick_checks,
+                "pick_misses": v.pick_misses,
+                "place_checks": v.place_checks,
+                "place_stuck": v.place_stuck,
+                "lowest_held_kpa": v.lowest_held_kpa,
+                "highest_released_kpa": v.highest_released_kpa,
+                "nozzle_kpa": self.vacuum.levels()
+            });
+        }
+        if !self.actuators.is_empty() {
+            doc["actuators"] = Value::Array(
+                self.actuators
+                    .iter()
+                    .map(|a| json!({"name": a.name(), "delay_s": a.delay_s(), "on": a.is_on(), "switches": a.switches()}))
+                    .collect(),
+            );
+        }
         serde_json::to_string_pretty(&doc).unwrap_or_default() + "\n"
     }
 
@@ -1211,6 +1425,30 @@ impl Job {
                 "deferred,{},{},,,,,,\n",
                 crate::parts::csv_field(&reference),
                 crate::parts::csv_field(&why)
+            ));
+        }
+        // sections of their own, after the rows that were always there, and only for a job with the vacuum checks or with actuators
+        if self.cfg.vacuum {
+            let v = &s.vacuum;
+            let level = |x: Option<f64>| x.map_or(String::new(), |l| format!("{l:.1}"));
+            let rows: [(&str, String); 6] = [
+                ("pick_checks", v.pick_checks.to_string()),
+                ("pick_misses", v.pick_misses.to_string()),
+                ("place_checks", v.place_checks.to_string()),
+                ("place_stuck", v.place_stuck.to_string()),
+                ("lowest_held_kpa", level(v.lowest_held_kpa)),
+                ("highest_released_kpa", level(v.highest_released_kpa)),
+            ];
+            for (name, value) in rows {
+                out.push_str(&format!("vacuum,{name},{value},,,,,,\n"));
+            }
+        }
+        for a in &self.actuators {
+            out.push_str(&format!(
+                "actuator,{},{},,,,,{},\n",
+                crate::parts::csv_field(a.name()),
+                if a.is_on() { "on" } else { "off" },
+                a.switches()
             ));
         }
         // a section of its own, after the rows that were always there, and only for a job with the align step
@@ -1338,6 +1576,32 @@ impl Job {
             "codes": codes,
             "readings": readings
         });
+        if self.cfg.vacuum {
+            let (rng, picks, places) = self.vacuum.save();
+            let v = &s.vacuum;
+            let opt = |x: Option<f64>| x.map_or(Value::Null, |l| json!(bits_of(l)));
+            doc["vacuum"] = json!({
+                "rng": rng.to_string(),
+                "picks": picks.to_string(),
+                "places": places.to_string(),
+                "pick_checks": v.pick_checks,
+                "pick_misses": v.pick_misses,
+                "place_checks": v.place_checks,
+                "place_stuck": v.place_stuck,
+                "lowest_held_kpa": opt(v.lowest_held_kpa),
+                "highest_released_kpa": opt(v.highest_released_kpa),
+                "on": self.vacuum.on_states(),
+                "levels": self.vacuum.levels().iter().map(|l| bits_of(*l)).collect::<Vec<_>>()
+            });
+        }
+        if !self.actuators.is_empty() {
+            doc["actuators"] = Value::Array(
+                self.actuators
+                    .iter()
+                    .map(|a| json!({"on": a.is_on(), "switches": a.switches()}))
+                    .collect(),
+            );
+        }
         if self.cfg.align {
             let (rng, looks) = self.camera.save();
             let bits = |x: f64| x.to_bits().to_string();
@@ -1658,6 +1922,79 @@ impl Job {
                 ));
             }
         }
+        // a job without the vacuum checks ignores the section; one with them, and a state saved before they existed, starts them again from zero
+        let mut vacuum_state: Option<VacuumState> = None;
+        if self.cfg.vacuum {
+            if let Some(a) = v.get("vacuum") {
+                let bits = |x: &Value| -> Result<f64, PnpError> {
+                    x.as_str()
+                        .and_then(|t| t.parse::<u64>().ok())
+                        .map(f64::from_bits)
+                        .filter(|n| n.is_finite())
+                        .ok_or_else(|| state_bad("a level of the vacuum is not a number"))
+                };
+                let optional = |key: &str| -> Result<Option<f64>, PnpError> {
+                    match a.get(key) {
+                        None | Some(Value::Null) => Ok(None),
+                        Some(x) => bits(x).map(Some),
+                    }
+                };
+                let counted = |key: &str| -> Result<u32, PnpError> { Ok(int(a, key)? as u32) };
+                let on: Vec<bool> = a
+                    .get("on")
+                    .and_then(Value::as_array)
+                    .ok_or_else(|| state_bad("no pumps in the vacuum"))?
+                    .iter()
+                    .map(Value::as_bool)
+                    .collect::<Option<Vec<_>>>()
+                    .ok_or_else(|| state_bad("a pump is not true or false"))?;
+                let levels: Vec<f64> = a
+                    .get("levels")
+                    .and_then(Value::as_array)
+                    .ok_or_else(|| state_bad("no levels in the vacuum"))?
+                    .iter()
+                    .map(&bits)
+                    .collect::<Result<Vec<_>, _>>()?;
+                if on.len() != self.cfg.nozzles || levels.len() != self.cfg.nozzles {
+                    return Err(state_bad("the vacuum does not fit the nozzles"));
+                }
+                let counters = VacuumStats {
+                    pick_checks: counted("pick_checks")?,
+                    pick_misses: counted("pick_misses")?,
+                    place_checks: counted("place_checks")?,
+                    place_stuck: counted("place_stuck")?,
+                    lowest_held_kpa: optional("lowest_held_kpa")?,
+                    highest_released_kpa: optional("highest_released_kpa")?,
+                };
+                vacuum_state = Some((
+                    counters,
+                    (
+                        text_u64(a, "rng")?,
+                        text_u64(a, "picks")?,
+                        text_u64(a, "places")?,
+                    ),
+                    on,
+                    levels,
+                ));
+            }
+        }
+        let mut saved_actuators: Option<Vec<(bool, u32)>> = None;
+        if !self.actuators.is_empty() {
+            if let Some(list) = v.get("actuators").and_then(Value::as_array) {
+                if list.len() != self.actuators.len() {
+                    return Err(state_bad("the actuators do not fit the machine"));
+                }
+                let mut states = Vec::new();
+                for item in list {
+                    let on = item
+                        .get("on")
+                        .and_then(Value::as_bool)
+                        .ok_or_else(|| state_bad("an actuator is not on or off"))?;
+                    states.push((on, int(item, "switches")? as u32));
+                }
+                saved_actuators = Some(states);
+            }
+        }
         let error = match v.get("error") {
             Some(Value::Object(e)) => {
                 let number = e.get("code").and_then(Value::as_u64).unwrap_or(0);
@@ -1686,6 +2023,18 @@ impl Job {
             None => {
                 stats.align = AlignStats::default();
                 self.corrections = vec![None; self.corrections.len()];
+            }
+        }
+        match vacuum_state {
+            Some((counters, saved, on, levels)) => {
+                stats.vacuum = counters;
+                self.vacuum.restore(saved, on, levels);
+            }
+            None => stats.vacuum = VacuumStats::default(),
+        }
+        if let Some(states) = saved_actuators {
+            for (a, (on, switches)) in self.actuators.iter_mut().zip(states) {
+                a.restore(on, switches);
             }
         }
         for (d, (saved, remaining, enabled)) in self.devices.iter_mut().zip(saved_devices) {
