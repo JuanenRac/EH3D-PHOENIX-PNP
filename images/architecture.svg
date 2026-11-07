@@ -88,9 +88,9 @@
 <text x="900" y="352.25" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#00E5FF" text-anchor="middle">state</text>
 <rect x="36" y="548" width="14" height="14" rx="3" fill="none" stroke="#00E5FF" stroke-width="2"/>
 <text x="58" y="560" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#C9D1D9" text-anchor="start">covered by tests on a computer (572 tests)</text>
-<rect x="349.2799999999998" y="548" width="14" height="14" rx="3" fill="none" stroke="#FFB020" stroke-width="2" stroke-dasharray="3 2"/>
+<rect x="349.28000000000003" y="548" width="14" height="14" rx="3" fill="none" stroke="#FFB020" stroke-width="2" stroke-dasharray="3 2"/>
 <text x="371.28" y="560" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#C9D1D9" text-anchor="start">planned, not used today</text>
-<rect x="539.9199999999997" y="548" width="14" height="14" rx="3" fill="none" stroke="#30363D" stroke-width="2"/>
+<rect x="539.9200000000001" y="548" width="14" height="14" rx="3" fill="none" stroke="#30363D" stroke-width="2"/>
 <text x="561.92" y="560" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#C9D1D9" text-anchor="start">a person, a file or another repository</text>
 <text x="36" y="604" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#6E7681" text-anchor="start">No part has been placed with this plan on a real machine yet.</text>
 </svg>
