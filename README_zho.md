@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 391 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内，也没有在屏幕上检查过。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 434 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内，也没有在屏幕上检查过。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.0.5` |
 | 成熟度 | 脚手架 |
-| 测试 | 391 |
+| 测试 | 434 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
 | 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 391 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 测试 | 🟡 | 434 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -69,6 +69,8 @@
 * **规划器和模拟器的更多功能：** 托盘单元格被取空的顺序（按行、按列或蛇形）、同时计入路程和去换头位置往返的吸嘴头顺序搜索（`tip_strategy = optimize`，受 `tip_opt_max_evals` 和 `tip_opt_time_limit_s` 限制）、按封装和按供料器设置的故障概率（`sim_part_fail`、`sim_feeder_fail`）及其统计和每小时零件数，以及显示底面各规则所得角度的 `check-bottom`。
 * **对位步骤** (`src/job.rs`, `src/sim.rs`, `src/model.rs`)：`align = on` 时，作业在吸取零件后用相机查看，并按所见修正贴装（贴装头移到目标位置减去零件的偏移，吸嘴少转零件的旋转量）；`pick_tolerance_mm` 会丢弃偏移更大的零件，并按 `error_policy` 重新吸取；`align_passes`（1 到 5）和 `align_settle_s` 设定查看次数和每次之前的等待，它们计入计划时间；模拟相机有偏移、误差和可注入的故障 (`sim_align_*`, `sim_camera_fail_rate`)；修正量（平均值、最大值、丢弃的零件）出现在文本、JSON 报告和 `--report-csv` 的 `align` 行中。默认关闭：此时作业与以往完全一样。未在机器上试过。
 * **视觉处理流程**（`src/vision.rs`、`src/sim.rs`、`examples/vision.cfg`）：设置 `vision = pipeline` 后，模拟相机在内存中画出零件的图像（大小、旋转以及与吸嘴的偏差，噪声取自 `sim_seed`），并用设置文件（`--vision FILE`）中的步骤测量：掩膜、中值滤波、固定阈值或 Otsu 阈值、斑块的面积范围和最小旋转矩形，其中心和角度就是对位步骤所修正的偏差。找不到零件、斑块面积不符和出现多个斑块，都是没有读数的查看，各有自己的代码（`PHOENIX-PNP-037` 至 `PHOENIX-PNP-039`）。`phoenix-pnp vision-test` 按给定的大小、旋转、偏差和噪声画出零件，并打印测量结果及其误差。默认关闭：此时作业与以前完全相同。未在真实相机上试过。
+* **作业报告** (`src/report.rs`, `src/job.rs`)：模拟作业之后，`simulate` 可以把报告写成：按 `--lang` 语言的文本 (`--report-text`)；包含全部内容、没有脚本也不引用任何外部资源、且绝不覆盖已有文件的 HTML 页面 (`--report-html`)；追加在 CSV 各行之后的分节 (`--report-csv`，表头不变)；以及 JSON 中的 `work` (`--report`)。报告给出已贴装、已搁置、被操作员跳过、仍待处理和不贴装的零件数量，机器时间花在哪里（送料与拾取、相机查看、贴装、吸头移动、更换吸嘴），首次拾取就成功的数量，按封装、供料器、吸嘴、吸嘴头和拼板中各电路板的同样统计，出现的错误及其代码，作业前的提示，以及相机修正量（X、Y 和旋转）的直方图。这是模拟结果：其中没有任何数据是在真实机器上测得的。
+* **“作业”标签页与操作员的决定** (`src/gui/jobtab.rs`, `src/gui/window.rs`, `src/job.rs`)：表格显示每个贴装的状态（等待、已拾取、已对位、已贴装、已搁置、已跳过、失败）和不贴装的零件，带机器时间和剩余时间估计的进度条，以及按状态、按文本和按是否完成的筛选。错误使作业停止时，对话框会指出失败的步骤，并提供四个在模拟作业上执行的操作，之后作业继续：重试、跳过该零件、搁置该零件，或关闭供料器以便由同类的另一个供料器接手。每个决定都会计入报告。逻辑无需屏幕并已测试；界面绘制尚未有人在屏幕上检查过。
 * **模拟器与作业**（`src/sim.rs`、`src/job.rs`、`src/preflight.rs`、`src/model.rs`）：作业前的检查、带虚拟时钟和可注入故障的机器，以及可暂停、单步执行、保存并恢复的作业。
 * **窗口**（`src/gui.rs`、`src/gui/`）：窗口除绘制之外的工作都不需要屏幕（已载入的文件、规划及其问题与修复、模拟作业、地图的几何、共享选择的表格、五步向导和八种语言的文字），并经过测试；只有用 `--features gui` 构建的 `src/gui/window.rs` 用 egui 绘制。模拟速度、主题以及为未知封装的零件绘制的大小是 `machine.cfg` 的键（`gui_steps_per_s`、`gui_theme`、`gui_part_size_mm`）。
 
@@ -123,6 +125,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui.rs                                   窗口：无需屏幕的模块，以及 window.rs 中的绘制
 │   ├── gui/app.rs                               窗口的状态：载入、规划、开始、暂停、单步、修复、保存
 │   ├── gui/browse.rs                            文件选择器：文件夹和文件、上一级、输入的路径
+│   ├── gui/jobtab.rs                            不依赖窗口的作业标签页：状态、筛选、进度、错误对话框
 │   ├── gui/log.rs                               带级别的日志，以及可复制的诊断文本
 │   ├── gui/problems.rs                          作业的问题及解决它们的修复
 │   ├── gui/samples.rs                           示例，从小型电路板到大型电路板
@@ -148,6 +151,7 @@ EH3D-PHOENIX-PNP/
 │   ├── plan.rs                                  逻辑的一部分
 │   ├── planner.rs                               了解机器的规划器：等级、顺序、吸嘴头及其搜索、角度和时间
 │   ├── preflight.rs                             作业前的检查，含严重程度及其所指对象
+│   ├── report.rs                                作业报告：阶段、拾取、分组、错误（文本、HTML、CSV、JSON）
 │   ├── rotation.rs                              按封装的旋转修正，以及受限吸嘴如何转动
 │   ├── sim.rs                                   模拟机器：虚拟时钟和可注入的故障
 │   ├── units.rs                                 带单位的长度和位置
@@ -158,6 +162,7 @@ EH3D-PHOENIX-PNP/
 │   ├── feeding.rs                               供料器测试：优先级、托盘和料带
 │   ├── gui.rs                                   无屏幕的窗口测试：状态、规划、作业、地图、表格和向导
 │   ├── job.rs                                   作业测试：步骤、重试和已保存状态
+│   ├── jobtab.rs                                无屏幕的作业标签页测试：状态、筛选、进度、对话框
 │   ├── loadsheet.rs                             上料表和导出的测试
 │   ├── model.rs                                 数据模型测试：代码、长度、配置和表格
 │   ├── more.rs                                  库和命令行的更多测试
@@ -166,6 +171,7 @@ EH3D-PHOENIX-PNP/
 │   ├── pnp.rs                                   库和命令行的测试
 │   ├── preflight.rs                             作业前检查的测试
 │   ├── readme.rs                                验证 README 可运行且完整的测试
+│   ├── report.rs                                报告测试：阶段、拾取、直方图、分组、决定、格式
 │   ├── sim.rs                                   模拟机器的测试
 │   ├── strict.rs                                命令行测试：它不认识的选项和词
 │   ├── tables.rs                                不贴装零件、tables-check 以及作业 CSV 报告的测试
@@ -189,7 +195,7 @@ EH3D-PHOENIX-PNP/
 │   ├── structure.json                           结构图数据
 │   └── windows-console.md                       在 Windows 上窗口为何是独立程序
 ├── tools/                                       CI 和 README 检查及绘图工具
-├── images/                                      横幅图以及架构和仓库结构图片
+├── images/                                      横幅图、架构与结构图片以及窗口截图
 ├── .github/                                     CI 与发布工作流、Issue 和 PR 模板
 ├── eh3d.project.json                            清单：版本、角色、成熟度和构建命令
 ├── Cargo.toml Cargo.lock                        工作区及其锁定的依赖
@@ -248,6 +254,8 @@ EH3D-PHOENIX-PNP/
 | `PHOENIX-PNP-037` | 在图像中没有找到零件 |
 | `PHOENIX-PNP-038` | 图像中找到的斑块面积超出允许范围 |
 | `PHOENIX-PNP-039` | 找到了不止一个可能是零件的斑块 |
+| `PHOENIX-PNP-040` | 报告文件已存在，不会被覆盖 |
+| `PHOENIX-PNP-041` | 该操作不适用于作业的当前状态 |
 
 ## 🚀 快速开始
 
@@ -264,19 +272,25 @@ cargo run --release -- check-bottom examples/board.pos
 cargo run --release -- schedule examples/board_dnp.csv examples/feeders.csv examples/schedule_dnp.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
 cargo run --release -- tables-check --parts examples/board_dnp.csv --packages examples/packages_common.csv --feeders examples/feeders_kinds.csv --slots examples/slots.csv --config examples/machine.cfg
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-csv examples/job_report.csv
+cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-text examples/job_report.txt --report-html examples/job_report.html
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
 cargo run --release -- vision-test --vision examples/vision.cfg --turn 30 --dx 0.5 --dy -0.3
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
+cargo run --release --features gui -- --shot job.png --window job --steps 9 examples/board.pos examples/feeders.csv examples/machine.cfg   # the Job tab with the job on its way
 cargo run --release --features gui
 ```
 
-要在不手动打开窗口的情况下截取窗口图像，请使用 `--shot FILE.png` 运行（还可用 `--size WxH`, `--theme phoenix|light|contrast`, `--wait N`, `--lang CODE`, `--open FILE`, `--replace`）：它按该尺寸打开，保存 PNG，不保留任何设置并自动关闭（写入文件成功时退出码为 0，否则为 1，参数错误时为 2）。
+要在不手动打开窗口的情况下截取窗口图像，请使用 `--shot FILE.png` 运行（还可用 `--size WxH`, `--theme phoenix|light|contrast`, `--wait N`, `--window TAB`, `--steps N`, `--lang CODE`, `--open FILE`, `--replace`）：它按该尺寸打开，保存 PNG，不保留任何设置并自动关闭（写入文件成功时退出码为 0，否则为 1，参数错误时为 2）。`--window` 选择截图的标签页（`job`, `parts`, `packages`, `feeders`, `panels`, `boards`, `loadsheet`, `machine`, `problems` 或 `log`），`--steps N` 在截取前让模拟作业走 N 步，因此“作业”标签页会显示进行中的作业。
+
+<p align="center">
+  <img src="images/screens/job_zh.png" alt="显示模拟作业进行中的“作业”标签页" width="100%">
+</p>
 
 最后一行会打开窗口；用 `--features gui` 构建时，不带命令运行 `phoenix-pnp` 也会打开（在 Linux 上，窗口需要 X11 或 Wayland 以及 OpenGL 的开发文件）。带上命令时，程序仍是命令行。在 Windows 上，`phoenix-pnp-gui`（用同一特性构建）会在没有控制台的情况下打开窗口；见 `docs/windows-console.md`。
 
 ## 🧪 测试
 
-测试套件共有 391 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 434 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -306,6 +320,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui.rs                                   窗口：无需屏幕的模块，以及 window.rs 中的绘制
 │   ├── gui/app.rs                               窗口的状态：载入、规划、开始、暂停、单步、修复、保存
 │   ├── gui/browse.rs                            文件选择器：文件夹和文件、上一级、输入的路径
+│   ├── gui/jobtab.rs                            不依赖窗口的作业标签页：状态、筛选、进度、错误对话框
 │   ├── gui/log.rs                               带级别的日志，以及可复制的诊断文本
 │   ├── gui/problems.rs                          作业的问题及解决它们的修复
 │   ├── gui/samples.rs                           示例，从小型电路板到大型电路板
@@ -331,6 +346,7 @@ EH3D-PHOENIX-PNP/
 │   ├── plan.rs                                  逻辑的一部分
 │   ├── planner.rs                               了解机器的规划器：等级、顺序、吸嘴头及其搜索、角度和时间
 │   ├── preflight.rs                             作业前的检查，含严重程度及其所指对象
+│   ├── report.rs                                作业报告：阶段、拾取、分组、错误（文本、HTML、CSV、JSON）
 │   ├── rotation.rs                              按封装的旋转修正，以及受限吸嘴如何转动
 │   ├── sim.rs                                   模拟机器：虚拟时钟和可注入的故障
 │   ├── units.rs                                 带单位的长度和位置
@@ -341,6 +357,7 @@ EH3D-PHOENIX-PNP/
 │   ├── feeding.rs                               供料器测试：优先级、托盘和料带
 │   ├── gui.rs                                   无屏幕的窗口测试：状态、规划、作业、地图、表格和向导
 │   ├── job.rs                                   作业测试：步骤、重试和已保存状态
+│   ├── jobtab.rs                                无屏幕的作业标签页测试：状态、筛选、进度、对话框
 │   ├── loadsheet.rs                             上料表和导出的测试
 │   ├── model.rs                                 数据模型测试：代码、长度、配置和表格
 │   ├── more.rs                                  库和命令行的更多测试
@@ -349,6 +366,7 @@ EH3D-PHOENIX-PNP/
 │   ├── pnp.rs                                   库和命令行的测试
 │   ├── preflight.rs                             作业前检查的测试
 │   ├── readme.rs                                验证 README 可运行且完整的测试
+│   ├── report.rs                                报告测试：阶段、拾取、直方图、分组、决定、格式
 │   ├── sim.rs                                   模拟机器的测试
 │   ├── strict.rs                                命令行测试：它不认识的选项和词
 │   ├── tables.rs                                不贴装零件、tables-check 以及作业 CSV 报告的测试
@@ -372,7 +390,7 @@ EH3D-PHOENIX-PNP/
 │   ├── structure.json                           结构图数据
 │   └── windows-console.md                       在 Windows 上窗口为何是独立程序
 ├── tools/                                       CI 和 README 检查及绘图工具
-├── images/                                      横幅图以及架构和仓库结构图片
+├── images/                                      横幅图、架构与结构图片以及窗口截图
 ├── .github/                                     CI 与发布工作流、Issue 和 PR 模板
 ├── eh3d.project.json                            清单：版本、角色、成熟度和构建命令
 ├── Cargo.toml Cargo.lock                        工作区及其锁定的依赖

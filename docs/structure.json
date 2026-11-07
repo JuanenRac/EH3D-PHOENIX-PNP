@@ -184,6 +184,19 @@
           }
         },
         {
+          "name": "gui/jobtab.rs",
+          "desc": {
+            "en": "the Job tab without the window: states, filters, progress, error dialog",
+            "es": "la pestaña Trabajo sin ventana: estados, filtros, progreso, diálogo de error",
+            "de": "der Reiter Auftrag ohne Fenster: Zustände, Filter, Fortschritt, Fehlerdialog",
+            "fr": "l'onglet Travail sans fenêtre : états, filtres, progression, dialogue d'erreur",
+            "it": "la scheda Lavoro senza finestra: stati, filtri, avanzamento, finestra d'errore",
+            "ja": "ウィンドウなしのジョブタブ：状態、フィルター、進捗、エラーダイアログ",
+            "zh": "不依赖窗口的作业标签页：状态、筛选、进度、错误对话框",
+            "pt": "o separador Trabalho sem janela: estados, filtros, progresso, diálogo de erro"
+          }
+        },
+        {
           "name": "gui/log.rs",
           "desc": {
             "en": "the log with levels, and the text of the diagnostic that can be copied",
@@ -509,6 +522,19 @@
           }
         },
         {
+          "name": "report.rs",
+          "desc": {
+            "en": "the report of a job: phases, picks, groups, errors; text, HTML, CSV, JSON",
+            "es": "el informe del trabajo: fases, recogidas, grupos, errores; texto, HTML, CSV, JSON",
+            "de": "der Auftragsbericht: Phasen, Aufnahmen, Gruppen, Fehler; Text, HTML, CSV, JSON",
+            "fr": "le rapport de travail : phases, prises, groupes, erreurs ; texte, HTML, CSV, JSON",
+            "it": "il rapporto di lavoro: fasi, prelievi, gruppi, errori; testo, HTML, CSV, JSON",
+            "ja": "ジョブのレポート：工程、ピック、グループ、エラー（テキスト・HTML・CSV・JSON）",
+            "zh": "作业报告：阶段、拾取、分组、错误（文本、HTML、CSV、JSON）",
+            "pt": "o relatório de trabalho: fases, recolhas, grupos, erros; texto, HTML, CSV, JSON"
+          }
+        },
+        {
           "name": "rotation.rs",
           "desc": {
             "en": "corrections of the rotation by package, and how a limited nozzle turns",
@@ -633,6 +659,19 @@
           }
         },
         {
+          "name": "jobtab.rs",
+          "desc": {
+            "en": "tests of the Job tab without a screen: states, filters, progress, dialog",
+            "es": "pruebas de la pestaña Trabajo sin pantalla: estados, filtros, progreso, diálogo",
+            "de": "Tests des Reiters Auftrag ohne Bildschirm: Zustände, Filter, Fortschritt, Dialog",
+            "fr": "tests de l'onglet Travail sans écran : états, filtres, progression, dialogue",
+            "it": "test della scheda Lavoro senza schermo: stati, filtri, avanzamento, finestra",
+            "ja": "画面なしのジョブタブのテスト：状態、フィルター、進捗、ダイアログ",
+            "zh": "无屏幕的作业标签页测试：状态、筛选、进度、对话框",
+            "pt": "testes do separador Trabalho sem ecrã: estados, filtros, progresso, diálogo"
+          }
+        },
+        {
           "name": "loadsheet.rs",
           "desc": {
             "en": "tests of the load sheet and the exports",
@@ -734,6 +773,19 @@
             "ja": "README が実行でき、漏れがないことのテスト",
             "zh": "验证 README 可运行且完整的测试",
             "pt": "testes de que o README se pode executar e está completo"
+          }
+        },
+        {
+          "name": "report.rs",
+          "desc": {
+            "en": "tests of the job report: phases, picks, histograms, groups, decisions, formats",
+            "es": "pruebas del informe: fases, recogidas, histogramas, grupos, decisiones, formatos",
+            "de": "Tests des Berichts: Phasen, Aufnahmen, Histogramme, Gruppen, Entscheidungen",
+            "fr": "tests du rapport : phases, prises, histogrammes, groupes, décisions, formats",
+            "it": "test del rapporto: fasi, prelievi, istogrammi, gruppi, decisioni, formati",
+            "ja": "レポートのテスト：工程、ピック、ヒストグラム、グループ、判断、形式",
+            "zh": "报告测试：阶段、拾取、直方图、分组、决定、格式",
+            "pt": "testes do relatório: fases, recolhas, histogramas, grupos, decisões, formatos"
           }
         },
         {
@@ -1043,14 +1095,14 @@
         {
           "name": "images/",
           "desc": {
-            "en": "banner and the Architecture and Repository Structure pictures",
-            "es": "banner y las imágenes de Arquitectura y Estructura del repositorio",
-            "de": "Banner und die Bilder von Architektur und Repository-Struktur",
-            "fr": "bannière et images d'Architecture et de Structure du dépôt",
-            "it": "banner e le immagini di Architettura e Struttura del repository",
-            "ja": "バナーとアーキテクチャ・リポジトリ構成の図",
-            "zh": "横幅图以及架构和仓库结构图片",
-            "pt": "banner e as imagens de Arquitetura e Estrutura do repositório"
+            "en": "banner, Architecture and Structure pictures, and the pictures of the window",
+            "es": "banner, imágenes de Arquitectura y Estructura, y capturas de la ventana",
+            "de": "Banner, Bilder von Architektur und Struktur und Bilder des Fensters",
+            "fr": "bannière, images d'Architecture et de Structure, et captures de la fenêtre",
+            "it": "banner, immagini di Architettura e Struttura, e immagini della finestra",
+            "ja": "バナー、アーキテクチャ・構成の図、ウィンドウの画像",
+            "zh": "横幅图、架构与结构图片以及窗口截图",
+            "pt": "banner, imagens de Arquitetura e Estrutura, e capturas da janela"
           }
         },
         {

@@ -18,7 +18,7 @@
 
 ---
 
-**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 391 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、画面での確認はまだです。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
+**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 434 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、画面での確認はまだです。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | バージョン | `0.0.5` |
 | 成熟度 | 足場 |
-| テスト | 391 |
+| テスト | 434 |
 | 技術スタック | Rust |
 | 実機での動作 | 未試験：ここにあるものは機械で動かしたことがありません |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | コア | 🟡 | 基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップ）、最大6本のノズルを持つヘッドの配置順をランク、ノズルチップ、角度の制限、移動時間とともに計画し、パネルを計画し、搭載シートを書き出します。通常の入力と壊れた入力でコンピューター上でテスト済みですが、実際のファイル群ではありません。 |
 | コマンドライン | 🟡 | `phoenix-pnp` はライブラリと同じ関数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `vision-test`）を実行して結果を表示します。エラーはすべて `PHOENIX-PNP-NNN` のコード付きメッセージと0以外の終了コードで返ります。 |
-| テスト | 🟡 | 391 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
+| テスト | 🟡 | 434 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
 | 機械の設定 | 🟡 | バージョン付きの `キー = 値` ファイル、行を示す検証、安全限界（Z の行程、X と Y の限界、再試行、ノズルの角度）。値は実機とは比較していません。 |
 | シミュレーターとジョブ | 🟡 | 仮想時計、確率（シード付き）または指定した場所で注入する故障、再試行、警告と保留の方針、故障が続くと止まるフィーダー、一時停止、一手ずつの実行、再開用に保存する状態。模擬のみで、実機は動かしていません。 |
 | セキュリティ | 🟡 | 安全な Rust のみ（`forbid(unsafe_code)`）。受け取ったファイルでパニックせず、不正な値は理由付きのエラーになります。独立したレビューはありません。 |
@@ -69,6 +69,8 @@
 * **プランナーとシミュレーターの追加機能：** トレイのセルを空にする順序（行、列、蛇行）、移動距離とチップ交換場所への往復を数えるノズルチップの順序探索（`tip_strategy = optimize`、`tip_opt_max_evals` と `tip_opt_time_limit_s` で制限）、パッケージごと・フィーダーごとの故障確率（`sim_part_fail`、`sim_feeder_fail`）とそれらの統計および1時間あたりの部品数、そして裏面の各規則が与える角度を表示する `check-bottom`。
 * **アライメント工程** (`src/job.rs`, `src/sim.rs`, `src/model.rs`)：`align = on` のとき、ジョブは部品を吸着した後にカメラで確認し、見えたとおりに配置を補正します（ヘッドは部品のずれの分だけ手前の位置へ行き、ノズルは部品の回転の分だけ回転を減らします）。`pick_tolerance_mm` を超えてずれた部品は捨てられ、`error_policy` に従って吸着し直します。`align_passes`（1〜5）と `align_settle_s` は確認の回数と各回の前の待ち時間を決め、プランの時間に加算されます。模擬カメラには、ずれ、誤差、注入できる故障があります (`sim_align_*`, `sim_camera_fail_rate`)。補正量（平均、最大、捨てた部品）は、テキスト、JSON レポート、`--report-csv` の `align` 行に出ます。既定ではオフで、その場合ジョブは従来どおりです。実機では試していません。
 * **画像処理パイプライン**（`src/vision.rs`、`src/sim.rs`、`examples/vision.cfg`）：`vision = pipeline` のとき、模擬カメラは部品の画像をメモリ上に描き（大きさ、回転、ノズルからのずれ、`sim_seed` から得たノイズ付き）、設定ファイル（`--vision FILE`）の手順で測定します：マスク、メディアンフィルタ、固定またはOtsuのしきい値、領域の面積範囲、最小の回転した矩形。その中心と角度が、アライメント工程が補正するずれになります。部品が見つからない、領域の面積が不適切、領域が複数ある場合は、測定値のない確認となり、それぞれ固有のコード（`PHOENIX-PNP-037` から `PHOENIX-PNP-039`）が付きます。`phoenix-pnp vision-test` は、与えた大きさ・回転・ずれ・ノイズで部品を描き、測定値とその誤差を表示します。既定ではオフで、その場合ジョブは従来どおりです。実際のカメラでは試していません。
+* **作業レポート** (`src/report.rs`, `src/job.rs`)：ジョブを模擬実行したあと、`simulate` はレポートを、`--lang` の言語のテキスト (`--report-text`)、すべてを含みスクリプトも外部のものも使わず既存のファイルには決して上書きしない HTML ページ (`--report-html`)、CSV の行の後ろに追加するセクション (`--report-csv`、ヘッダーは変わりません)、JSON の `work` (`--report`) として書き出せます。搭載した部品、保留した部品、オペレーターがスキップした部品、未処理の部品、実装しない部品の数、マシン時間の内訳（供給とピック、カメラの確認、搭載、ヘッドの移動、ノズル交換）、初回のピックで成功した数、パッケージ・フィーダー・ノズル・ノズル先端・パネルの基板ごとの同じ集計、発生したエラーとそのコード、ジョブ前の指摘、カメラが補正した量（X、Y、回転）のヒストグラムを示します。シミュレーションであり、実機で測定した値ではありません。
+* **ジョブタブとオペレーターの判断** (`src/gui/jobtab.rs`, `src/gui/window.rs`, `src/job.rs`)：表には、各配置の状態（待機、ピック済み、整列済み、搭載済み、保留、スキップ、失敗）と実装しない部品、マシン時間と残り時間の見積もり付きの進捗バー、状態・テキスト・完了済みによるフィルターが表示されます。エラーでジョブが止まると、ダイアログが失敗した工程を示し、模擬ジョブに対して実行される 4 つの操作を提示し、その後ジョブは続行します：再試行、部品をスキップ、保留、または同種の別のフィーダーに引き継がせるためにフィーダーを停止。判断はレポートで集計されます。ロジックは画面なしでテストされており、描画は人が画面で確認してはいません。
 * **シミュレーターとジョブ**（`src/sim.rs`、`src/job.rs`、`src/preflight.rs`、`src/model.rs`）：ジョブ前の確認、仮想時計と注入できる故障を持つ機械、一時停止・一手ずつの実行・保存・再開ができるジョブ。
 * **ウィンドウ**（`src/gui.rs`、`src/gui/`）：描画以外の処理は画面を必要とせず（読み込んだファイル、計画とその問題・修正、模擬ジョブ、地図の幾何、選択を共有する表、5ステップのガイド、8言語の文言）、テストされています。`--features gui` でビルドする `src/gui/window.rs` だけが egui で描画します。シミュレーションの速さ、テーマ、未知のパッケージの部品に描くサイズは `machine.cfg` のキー（`gui_steps_per_s`、`gui_theme`、`gui_part_size_mm`）です。
 
@@ -123,6 +125,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui.rs                                   ウィンドウ：画面不要のモジュールと window.rs の描画
 │   ├── gui/app.rs                               ウィンドウの状態：読み込み、計画、開始、一時停止、ステップ、修正、保存
 │   ├── gui/browse.rs                            ファイル選択：フォルダーとファイル、上へ、入力したパス
+│   ├── gui/jobtab.rs                            ウィンドウなしのジョブタブ：状態、フィルター、進捗、エラーダイアログ
 │   ├── gui/log.rs                               レベル付きのログと、コピーできる診断テキスト
 │   ├── gui/problems.rs                          ジョブの問題と、それを直す修正
 │   ├── gui/samples.rs                           小さな基板から大きな基板までのサンプル
@@ -148,6 +151,7 @@ EH3D-PHOENIX-PNP/
 │   ├── plan.rs                                  ロジックの一部
 │   ├── planner.rs                               機械を知るプランナー：ランク、順序、チップとその探索、角度、時間
 │   ├── preflight.rs                             ジョブ前の確認（重大度と対象つき）
+│   ├── report.rs                                ジョブのレポート：工程、ピック、グループ、エラー（テキスト・HTML・CSV・JSON）
 │   ├── rotation.rs                              パッケージ別の回転補正と、制限付きノズルの回し方
 │   ├── sim.rs                                   模擬機械：仮想時計と注入できる故障
 │   ├── units.rs                                 単位を持つ長さと位置
@@ -158,6 +162,7 @@ EH3D-PHOENIX-PNP/
 │   ├── feeding.rs                               フィーダーのテスト：優先度、トレイ、ストリップ
 │   ├── gui.rs                                   画面なしのウィンドウのテスト：状態、計画、ジョブ、地図、表、ガイド
 │   ├── job.rs                                   ジョブのテスト：ステップ、再試行、保存状態
+│   ├── jobtab.rs                                画面なしのジョブタブのテスト：状態、フィルター、進捗、ダイアログ
 │   ├── loadsheet.rs                             搭載シートと出力のテスト
 │   ├── model.rs                                 データモデルのテスト：コード、長さ、設定、表
 │   ├── more.rs                                  ライブラリとコマンドラインの追加テスト
@@ -166,6 +171,7 @@ EH3D-PHOENIX-PNP/
 │   ├── pnp.rs                                   ライブラリとコマンドラインのテスト
 │   ├── preflight.rs                             ジョブ前の確認のテスト
 │   ├── readme.rs                                README が実行でき、漏れがないことのテスト
+│   ├── report.rs                                レポートのテスト：工程、ピック、ヒストグラム、グループ、判断、形式
 │   ├── sim.rs                                   模擬機械のテスト
 │   ├── strict.rs                                コマンドラインのテスト：知らないオプションと語
 │   ├── tables.rs                                実装しない部品、tables-check、ジョブのCSVレポートのテスト
@@ -189,7 +195,7 @@ EH3D-PHOENIX-PNP/
 │   ├── structure.json                           構成図のデータ
 │   └── windows-console.md                       Windows でウィンドウが独立したプログラムである理由
 ├── tools/                                       CI と README のチェック、図のツール
-├── images/                                      バナーとアーキテクチャ・リポジトリ構成の図
+├── images/                                      バナー、アーキテクチャ・構成の図、ウィンドウの画像
 ├── .github/                                     CI とリリースのワークフロー、Issue と PR のテンプレート
 ├── eh3d.project.json                            マニフェスト：バージョン、役割、成熟度、ビルドコマンド
 ├── Cargo.toml Cargo.lock                        ワークスペースと固定された依存関係
@@ -248,6 +254,8 @@ EH3D-PHOENIX-PNP/
 | `PHOENIX-PNP-037` | 画像の中に部品が見つかりませんでした |
 | `PHOENIX-PNP-038` | 画像で見つかった領域の面積が許容範囲外です |
 | `PHOENIX-PNP-039` | 部品の可能性がある領域が複数見つかりました |
+| `PHOENIX-PNP-040` | レポートのファイルは既に存在するため、上書きしません |
+| `PHOENIX-PNP-041` | この操作はジョブの状態に合いません |
 
 ## 🚀 クイックスタート
 
@@ -264,19 +272,25 @@ cargo run --release -- check-bottom examples/board.pos
 cargo run --release -- schedule examples/board_dnp.csv examples/feeders.csv examples/schedule_dnp.json --config examples/machine.cfg --packages examples/packages.csv --catalog examples/catalog.csv
 cargo run --release -- tables-check --parts examples/board_dnp.csv --packages examples/packages_common.csv --feeders examples/feeders_kinds.csv --slots examples/slots.csv --config examples/machine.cfg
 cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-csv examples/job_report.csv
+cargo run --release -- simulate examples/board.pos examples/feeders.csv --config examples/machine.cfg --report-text examples/job_report.txt --report-html examples/job_report.html
 cargo run --release -- schedule examples/feeders.csv examples/schedule_panel.json --panel examples/panel.json --fiducials examples/marks.csv --config examples/machine.cfg
 cargo run --release -- vision-test --vision examples/vision.cfg --turn 30 --dx 0.5 --dy -0.3
 cargo run --release --features gui -- --shot screen.png examples/board.pos examples/feeders.csv examples/machine.cfg   # a picture of the window
+cargo run --release --features gui -- --shot job.png --window job --steps 9 examples/board.pos examples/feeders.csv examples/machine.cfg   # the Job tab with the job on its way
 cargo run --release --features gui
 ```
 
-手動で開かずにウィンドウの画像を撮るには、`--shot FILE.png` を付けて実行します（`--size WxH`, `--theme phoenix|light|contrast`, `--wait N`, `--lang CODE`, `--open FILE`, `--replace` も使えます）。指定のサイズで開き、PNG を保存し、設定は保持せず、自動で閉じます（終了コードは、ファイルを書き込めたら 0、書けなければ 1、引数が誤りなら 2）。
+手動で開かずにウィンドウの画像を撮るには、`--shot FILE.png` を付けて実行します（`--size WxH`, `--theme phoenix|light|contrast`, `--wait N`, `--window TAB`, `--steps N`, `--lang CODE`, `--open FILE`, `--replace` も使えます）。指定のサイズで開き、PNG を保存し、設定は保持せず、自動で閉じます（終了コードは、ファイルを書き込めたら 0、書けなければ 1、引数が誤りなら 2）。`--window` で画像のタブ（`job`, `parts`, `packages`, `feeders`, `panels`, `boards`, `loadsheet`, `machine`, `problems`, `log`）を選び、`--steps N` で撮影前に模擬ジョブを N ステップ進めるので、ジョブタブには進行中のジョブが表示されます。
+
+<p align="center">
+  <img src="images/screens/job_ja.png" alt="進行中の模擬ジョブを表示したジョブタブ" width="100%">
+</p>
 
 最後の行はウィンドウを開きます。`--features gui` でビルドした場合は、コマンドなしの `phoenix-pnp` でも開きます（Linux では X11 または Wayland と OpenGL の開発ファイルが必要です）。コマンドを付けると、プログラムはコマンドラインのままです。Windows では `phoenix-pnp-gui`（同じフィーチャーでビルド）がコンソールなしでウィンドウを開きます。`docs/windows-console.md` を参照してください。
 
 ## 🧪 テスト
 
-テストは 391 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
+テストは 434 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
 
 ## 🏗️ ビルドとリリース
 
@@ -306,6 +320,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui.rs                                   ウィンドウ：画面不要のモジュールと window.rs の描画
 │   ├── gui/app.rs                               ウィンドウの状態：読み込み、計画、開始、一時停止、ステップ、修正、保存
 │   ├── gui/browse.rs                            ファイル選択：フォルダーとファイル、上へ、入力したパス
+│   ├── gui/jobtab.rs                            ウィンドウなしのジョブタブ：状態、フィルター、進捗、エラーダイアログ
 │   ├── gui/log.rs                               レベル付きのログと、コピーできる診断テキスト
 │   ├── gui/problems.rs                          ジョブの問題と、それを直す修正
 │   ├── gui/samples.rs                           小さな基板から大きな基板までのサンプル
@@ -331,6 +346,7 @@ EH3D-PHOENIX-PNP/
 │   ├── plan.rs                                  ロジックの一部
 │   ├── planner.rs                               機械を知るプランナー：ランク、順序、チップとその探索、角度、時間
 │   ├── preflight.rs                             ジョブ前の確認（重大度と対象つき）
+│   ├── report.rs                                ジョブのレポート：工程、ピック、グループ、エラー（テキスト・HTML・CSV・JSON）
 │   ├── rotation.rs                              パッケージ別の回転補正と、制限付きノズルの回し方
 │   ├── sim.rs                                   模擬機械：仮想時計と注入できる故障
 │   ├── units.rs                                 単位を持つ長さと位置
@@ -341,6 +357,7 @@ EH3D-PHOENIX-PNP/
 │   ├── feeding.rs                               フィーダーのテスト：優先度、トレイ、ストリップ
 │   ├── gui.rs                                   画面なしのウィンドウのテスト：状態、計画、ジョブ、地図、表、ガイド
 │   ├── job.rs                                   ジョブのテスト：ステップ、再試行、保存状態
+│   ├── jobtab.rs                                画面なしのジョブタブのテスト：状態、フィルター、進捗、ダイアログ
 │   ├── loadsheet.rs                             搭載シートと出力のテスト
 │   ├── model.rs                                 データモデルのテスト：コード、長さ、設定、表
 │   ├── more.rs                                  ライブラリとコマンドラインの追加テスト
@@ -349,6 +366,7 @@ EH3D-PHOENIX-PNP/
 │   ├── pnp.rs                                   ライブラリとコマンドラインのテスト
 │   ├── preflight.rs                             ジョブ前の確認のテスト
 │   ├── readme.rs                                README が実行でき、漏れがないことのテスト
+│   ├── report.rs                                レポートのテスト：工程、ピック、ヒストグラム、グループ、判断、形式
 │   ├── sim.rs                                   模擬機械のテスト
 │   ├── strict.rs                                コマンドラインのテスト：知らないオプションと語
 │   ├── tables.rs                                実装しない部品、tables-check、ジョブのCSVレポートのテスト
@@ -372,7 +390,7 @@ EH3D-PHOENIX-PNP/
 │   ├── structure.json                           構成図のデータ
 │   └── windows-console.md                       Windows でウィンドウが独立したプログラムである理由
 ├── tools/                                       CI と README のチェック、図のツール
-├── images/                                      バナーとアーキテクチャ・リポジトリ構成の図
+├── images/                                      バナー、アーキテクチャ・構成の図、ウィンドウの画像
 ├── .github/                                     CI とリリースのワークフロー、Issue と PR のテンプレート
 ├── eh3d.project.json                            マニフェスト：バージョン、役割、成熟度、ビルドコマンド
 ├── Cargo.toml Cargo.lock                        ワークスペースと固定された依存関係
