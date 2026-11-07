@@ -18,7 +18,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 434 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e non è stato verificato su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 434 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e, sebbene il programma acquisisca immagini della propria finestra (`--shot`), nessuna persona ha verificato il disegno su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
 
 ---
 
@@ -51,7 +51,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 | Configurazione della macchina | 🟡 | un file `chiave = valore` con versione, un validatore che nomina la riga e i limiti di sicurezza (corsa di Z, limiti di X e Y, nuovi tentativi, angoli dell'ugello); i valori non sono stati confrontati con una macchina reale. |
 | Simulatore e lavoro | 🟡 | un orologio virtuale, guasti iniettati a caso (con un seme) o in un punto scelto, nuovi tentativi, le politiche allerta e rinvio, alimentatori che si spengono dopo guasti ripetuti, pausa, passo dopo passo e uno stato salvato da cui riprendere; simula soltanto, nulla ha mosso una macchina. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
-| Finestra | 🟠 | Una finestra egui (si compila con `--features gui`; `phoenix-pnp` senza comando la apre): schede di lavoro, parti, package, alimentatori, foglio di carico, macchina, problemi e registro, una mappa del tavolo di lavoro con il percorso della testa, marche di polarità e la parte successiva, una guida in cinque passi, problemi con correzioni che si possono annullare, un lavoro simulato che si può mettere in pausa, riprendere e avanzare passo dopo passo, e le otto lingue. La sua logica è testata senza schermo; il disegno non è coperto da test e non è stato verificato su uno schermo. Ha inoltre schede di pannelli (con i fiduciali e l'adattamento che sposta le parti) e di schede elettroniche, un selettore di file, tabelle di alimentatori e package modificabili con annulla, larghezze delle colonne memorizzate e un programma a sé (`phoenix-pnp-gui`) che si apre senza console su Windows. |
+| Finestra | 🟠 | Una finestra egui (si compila con `--features gui`; `phoenix-pnp` senza comando la apre): schede di lavoro, parti, package, alimentatori, foglio di carico, macchina, problemi e registro, una mappa del tavolo di lavoro con il percorso della testa, marche di polarità e la parte successiva, una guida in cinque passi, problemi con correzioni che si possono annullare, un lavoro simulato che si può mettere in pausa, riprendere e avanzare passo dopo passo, e le otto lingue. La sua logica è testata senza schermo; il disegno non è coperto da test: il programma acquisisce immagini della propria finestra (`--shot`), ma nessuna persona ha verificato il disegno su uno schermo. Ha inoltre schede di pannelli (con i fiduciali e l'adattamento che sposta le parti) e di schede elettroniche, un selettore di file, tabelle di alimentatori e package modificabili con annulla, larghezze delle colonne memorizzate e un programma a sé (`phoenix-pnp-gui`) che si apre senza console su Windows. |
 | Hardware reale | 🔴 | Non provato: nulla di questo è stato eseguito su una macchina. |
 | Documentazione | 🟡 | README in otto lingue, il changelog e le due immagini disegnate da `docs/`. |
 
@@ -70,7 +70,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Il passo di allineamento** (`src/job.rs`, `src/sim.rs`, `src/model.rs`): con `align = on` il lavoro guarda ogni componente con la telecamera dopo il prelievo e corregge il posizionamento in base a ciò che vede (la testa va al punto meno lo scostamento del componente, e l'ugello ruota meno della rotazione del componente); `pick_tolerance_mm` scarta un componente più fuori posto, che viene prelevato di nuovo come dice `error_policy`; `align_passes` (da 1 a 5) e `align_settle_s` fissano gli sguardi e l'attesa prima di ciascuno, che si sommano al tempo del piano; la telecamera simulata ha uno scostamento, un errore e guasti iniettabili (`sim_align_*`, `sim_camera_fail_rate`); e la correzione (media, massima, componenti scartati) compare nel testo, nel rapporto JSON e nelle righe `align` di `--report-csv`. Spento per impostazione predefinita: un lavoro è allora quello di sempre. Non provato su una macchina.
 * **La catena di visione** (`src/vision.rs`, `src/sim.rs`, `examples/vision.cfg`): con `vision = pipeline` la telecamera simulata disegna in memoria un'immagine del componente (la sua dimensione, la sua rotazione e quanto è lontano dall'ugello, con un rumore tratto da `sim_seed`) e la misura con i passi di un file di impostazioni (`--vision FILE`): una maschera, un filtro mediano, una soglia fissa o di Otsu, un intervallo di area per la macchia e il rettangolo ruotato più piccolo, il cui centro e angolo sono lo scostamento che il passo di allineamento corregge. Un componente non trovato, una macchia di area sbagliata e più macchie sono osservazioni senza misura, ognuna con il suo codice (da `PHOENIX-PNP-037` a `PHOENIX-PNP-039`). `phoenix-pnp vision-test` disegna un componente con la dimensione, la rotazione, lo scostamento e il rumore che gli si danno e stampa quanto misurato con il suo errore. Disattivato per impostazione predefinita: un lavoro è allora quello di sempre. Non provato con una telecamera reale.
 * **Il rapporto di lavoro** (`src/report.rs`, `src/job.rs`): dopo un lavoro simulato, `simulate` può scrivere il rapporto come testo nella lingua di `--lang` (`--report-text`), come pagina HTML che contiene tutto, senza script né nulla dall'esterno, e che non viene mai scritta sopra un file esistente (`--report-html`), come sezioni aggiunte dopo le righe del CSV (`--report-csv`, l'intestazione non cambia) e come `work` nel JSON (`--report`). Dice quanti componenti sono stati posizionati, messi da parte, saltati dalla persona, ancora in attesa o da non montare; dove è andato il tempo macchina (alimentare e prelevare, osservazioni della telecamera, posizionamenti, spostamenti della testa, cambi di punta); quanti prelievi sono riusciti al primo tentativo; lo stesso per package, alimentatore, ugello, punta e scheda di un pannello; gli errori avvenuti con i loro codici; gli avvisi prima del lavoro; e un istogramma di ciò che la telecamera ha corretto (X, Y e rotazione). Simulato: nulla di questo è stato misurato su una macchina.
-* **La scheda Lavoro e le decisioni della persona** (`src/gui/jobtab.rs`, `src/gui/window.rs`, `src/job.rs`): la tabella mostra lo stato di ogni posizionamento (in attesa, prelevato, allineato, posizionato, messo da parte, saltato, fallito) e i componenti da non montare, una barra di avanzamento con il tempo macchina e una stima del tempo rimanente, e filtri per stato, per testo e per ciò che è fatto. Quando un errore ferma il lavoro, una finestra indica il passo fallito e offre quattro azioni eseguite sul lavoro simulato, che poi prosegue: riprovare, saltare il componente, metterlo da parte o spegnere l'alimentatore perché ne subentri un altro dello stesso tipo. Ogni decisione è contata nel rapporto. La logica non ha bisogno dello schermo ed è testata; il disegno non è stato verificato da una persona su uno schermo.
+* **La scheda Lavoro e le decisioni della persona** (`src/gui/jobtab.rs`, `src/gui/window.rs`, `src/job.rs`): la tabella mostra lo stato di ogni posizionamento (in attesa, prelevato, allineato, posizionato, messo da parte, saltato, fallito) e i componenti da non montare, una barra di avanzamento con il tempo macchina e una stima del tempo rimanente, e filtri per stato, per testo e per ciò che è fatto. Quando un errore ferma il lavoro, una finestra indica il passo fallito e offre quattro azioni eseguite sul lavoro simulato, che poi prosegue: riprovare, saltare il componente, metterlo da parte o spegnere l'alimentatore perché ne subentri un altro dello stesso tipo. Ogni decisione è contata nel rapporto. La logica non ha bisogno dello schermo ed è testata; nessuna persona ha verificato il disegno su uno schermo (le immagini di questa scheda in `images/screens/` sono acquisite dal programma stesso).
 * **Il simulatore e il lavoro** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): i controlli prima di un lavoro, una macchina con orologio virtuale e guasti iniettabili, e un lavoro che si può mettere in pausa, eseguire passo dopo passo, salvare e riprendere.
 * **La finestra** (`src/gui.rs`, `src/gui/`): ciò che la finestra fa oltre a disegnare non ha bisogno di schermo (i file caricati, il piano e i suoi problemi con correzioni, il lavoro simulato, la geometria della mappa, le tabelle con selezione condivisa, la guida in cinque passi e i testi in otto lingue) ed è testato; solo `src/gui/window.rs`, compilato con `--features gui`, lo disegna con egui. La velocità della simulazione, il tema e la dimensione disegnata per una parte di package sconosciuto sono chiavi di `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -111,99 +111,21 @@ Come si incastrano le parti di questo repository: chi lo usa, cosa contiene e da
 La libreria è `eh3d_phoenix_pnp` (`use eh3d_phoenix_pnp::...`); la riga di comando è `phoenix-pnp`. I comandi sono questi; ciascuno stampa il risultato sull'output standard e segnala un errore sull'output di errore con un codice di uscita diverso da zero. Non c'è accesso alla rete.
 
 ```text
-EH3D-PHOENIX-PNP/
-├── src/
-│   ├── catalog.rs                               le tabelle di parti e package e l'ereditarietà delle loro proprietà
-│   ├── cli_args.rs                              gli argomenti della riga di comando, rigorosi: un'opzione sconosciuta è un errore
-│   ├── commands.rs                              i comandi con configurazione, tables-check e check-bottom
-│   ├── config.rs                                il file di configurazione della macchina: chiavi, intervalli e limiti di sicurezza
-│   ├── error.rs                                 i codici di errore PHOENIX-PNP-NNN e il loro significato in otto lingue
-│   ├── export.rs                                il rapporto, l'elenco di ciò che manca e il G-code dei movimenti
-│   ├── feeders.rs                               una parte della logica
-│   ├── feeding.rs                               alimentatori con priorità, vassoi e strisce, e la scelta dell'alimentatore per un componente
-│   ├── fiducial.rs                              fiduciali di un pannello: l'adattamento dei fiduciali misurati e la correzione delle parti
-│   ├── gui.rs                                   la finestra: moduli senza schermo e il disegno in window.rs
-│   ├── gui/app.rs                               lo stato della finestra: carica, pianifica, avvia, pausa, passo, correggi, salva
-│   ├── gui/browse.rs                            il selettore di file: cartelle e file, su, percorsi digitati
-│   ├── gui/jobtab.rs                            la scheda Lavoro senza finestra: stati, filtri, avanzamento, finestra d'errore
-│   ├── gui/log.rs                               il registro con livelli e il testo della diagnostica da copiare
-│   ├── gui/problems.rs                          i problemi di un lavoro e le correzioni che li risolvono
-│   ├── gui/samples.rs                           esempi, dalla scheda piccola a quella grande
-│   ├── gui/session.rs                           il lavoro simulato che si avvia, mette in pausa, riprende e avanza passo dopo passo
-│   ├── gui/settings.rs                          ciò che la finestra ricorda: lingua, tema, livelli, cartelle e la larghezza delle colonne
-│   ├── gui/shot.rs                              la modalità immagine della finestra (--shot): i suoi argomenti
-│   ├── gui/tables.rs                            le righe, l'ordinamento e la selezione condivisa dalle tabelle
-│   ├── gui/texts.rs                             ogni parola della finestra nelle otto lingue
-│   ├── gui/theme.rs                             i colori: verde fenice, chiaro e alto contrasto
-│   ├── gui/view.rs                              la geometria della mappa: corpi, marche di polarità, adattamento, zoom e selezione
-│   ├── gui/window.rs                            il disegno con egui, compilato con la feature gui: schede, mappa e tabelle
-│   ├── gui/wizard.rs                            la guida in cinque passi, da zero a un lavoro simulato
-│   ├── gui/workspace.rs                         i file caricati, il piano e le modifiche, senza finestra
-│   ├── gui_main.rs                              la finestra come programma a sé, senza console su Windows
-│   ├── job.rs                                   il lavoro: passi, pausa, nuovi tentativi, politiche, statistiche e stato salvato
-│   ├── lib.rs                                   la libreria: ciò che usa ogni comando
-│   ├── loadsheet.rs                             il foglio di carico: lo slot di ogni tipo di nastro
-│   ├── main.rs                                  la riga di comando e l'ingresso della finestra quando gira senza comando
-│   ├── model.rs                                 le parti di una macchina come trait: macchina, ugello, alimentatore, attuatore, telecamera, driver
-│   ├── motion.rs                                il tempo di un movimento, con accelerazione e jerk
-│   ├── panel.rs                                 pannelli: schede e pannelli dentro pannelli, ciascuno al suo posto
-│   ├── parts.rs                                 il file delle posizioni e le parti da non montare
-│   ├── plan.rs                                  una parte della logica
-│   ├── planner.rs                               il pianificatore che conosce la macchina: ranghi, ordine, punte e la loro ricerca, angoli e tempo
-│   ├── preflight.rs                             i controlli prima di un lavoro, con una gravità e ciò a cui puntano
-│   ├── report.rs                                il rapporto di lavoro: fasi, prelievi, gruppi, errori; testo, HTML, CSV, JSON
-│   ├── rotation.rs                              correzioni della rotazione per package, e come ruota un ugello limitato
-│   ├── sim.rs                                   la macchina simulata: orologio virtuale e guasti iniettabili
-│   ├── units.rs                                 lunghezze e posizioni che portano la loro unità
-│   └── vision.rs                                la catena di visione: filtro, soglia, macchie, rettangolo ruotato minimo
-├── tests/
-│   ├── align.rs                                 test del passo di allineamento: telecamera, posizione corretta, tolleranza e tempo
-│   ├── commands.rs                              test dei comandi che usano la configurazione
-│   ├── feeding.rs                               test degli alimentatori: priorità, vassoi e strisce
-│   ├── gui.rs                                   test della finestra senza schermo: stato, piano, lavoro, mappa, tabelle e guida
-│   ├── job.rs                                   test del lavoro: passi, nuovi tentativi e stato salvato
-│   ├── jobtab.rs                                test della scheda Lavoro senza schermo: stati, filtri, avanzamento, finestra
-│   ├── loadsheet.rs                             test del foglio di carico e delle esportazioni
-│   ├── model.rs                                 test del modello dei dati: codici, lunghezze, configurazione e tabelle
-│   ├── more.rs                                  altri test della libreria e della riga di comando
-│   ├── panel.rs                                 test dei pannelli e dei loro fiduciali
-│   ├── planner.rs                               test del tempo dei movimenti e del pianificatore
-│   ├── pnp.rs                                   test della libreria e della riga di comando
-│   ├── preflight.rs                             test dei controlli prima di un lavoro
-│   ├── readme.rs                                test che il README sia eseguibile e completo
-│   ├── report.rs                                test del rapporto: fasi, prelievi, istogrammi, gruppi, decisioni, formati
-│   ├── sim.rs                                   test della macchina simulata
-│   ├── strict.rs                                test della riga di comando: opzioni e parole che non conosce
-│   ├── tables.rs                                test delle parti da non montare, di tables-check e del rapporto di un lavoro in CSV
-│   ├── vision.rs                                test della visione: immagini calcolate a mano, errori, impostazioni
-│   └── vision_job.rs                            test della visione nel lavoro, vision-test: misure, errori, stato salvato
-├── examples/
-│   ├── board.pos                                un esempio per provare il programma
-│   ├── board_dnp.csv                            una scheda con una colonna dnp: due delle sue parti non vanno montate
-│   ├── catalog.csv                              una tabella di parti: rango e altezza
-│   ├── feeders.csv                              un esempio per provare il programma
-│   ├── feeders_kinds.csv                        alimentatori di ogni tipo: nastro, striscia, vassoio e uno spento
-│   ├── machine.cfg                              le impostazioni della macchina, ogni chiave spiegata
-│   ├── marks.csv                                le posizioni misurate dei fiduciali del pannello
-│   ├── packages.csv                             una tabella di package: altezza, punta, rango e nastro
-│   ├── packages_common.csv                      una tabella di package comuni, dalle resistenze 0201 ai QFN, da adattare alle proprie parti
-│   ├── panel.json                               un pannello di due schede
-│   ├── slots.csv                                gli slot della macchina
-│   └── vision.cfg                               le impostazioni della catena di visione, ogni chiave spiegata
-├── docs/
-│   ├── architecture.json                        dati dell'immagine di Architettura
-│   ├── structure.json                           dati dell'immagine di Struttura
-│   └── windows-console.md                       perché la finestra è un programma a sé su Windows
-├── tools/                                       controllo della CI e del README e strumenti per le immagini
-├── images/                                      banner, immagini di Architettura e Struttura, e immagini della finestra
-├── .github/                                     workflow di CI e di rilascio, modelli di issue e pull request
-├── eh3d.project.json                            manifesto: versione, ruolo, maturità e comando di compilazione
-├── Cargo.toml Cargo.lock                        il workspace e le sue dipendenze bloccate
-├── rust-toolchain.toml                          la toolchain Rust fissata
-├── CHANGELOG.md                                 cosa è cambiato in ogni versione
-├── SECURITY.md SUPPORT.md                       come segnalare una vulnerabilità e dove chiedere
-└── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   come contribuire, codice di condotta e licenza
+phoenix-pnp [gui [FILES...]]                             la finestra (compilata con --features gui)
+phoenix-pnp parts PARTS                                  i componenti di un file di posizioni, in millimetri
+phoenix-pnp check PARTS FEEDERS                          i componenti senza alimentatore e gli alimentatori che si esauriranno
+phoenix-pnp plan PARTS FEEDERS OUT.json                  il piano semplice, come lavoro JSON
+phoenix-pnp schedule PARTS FEEDERS OUT.json              il piano con tutta la configurazione, pannelli e fiduciali
+phoenix-pnp preflight PARTS FEEDERS                      i controlli prima di un lavoro
+phoenix-pnp simulate PARTS FEEDERS                       il lavoro su una macchina simulata, con i suoi rapporti
+phoenix-pnp loadsheet PARTS SLOTS OUT.csv                il foglio di carico
+phoenix-pnp config-check FILE                            se un file di configurazione è valido
+phoenix-pnp check-bottom PARTS                           l'angolo che dà ogni regola della faccia inferiore
+phoenix-pnp tables-check [--parts F] [--feeders F] ...   se ogni tabella è valida, con il codice e la riga
+phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       misura l'immagine di un componente creata in memoria
 ```
+
+`phoenix-pnp help` elenca tutte le opzioni. Le opzioni comuni a `schedule`, `preflight`, `simulate` e `loadsheet` sono `--config`, `--packages`, `--catalog`, `--panel`, `--fiducials`, `--x-out`, `--dnp`, `--side`, `--board-width`, `--origin-x`, `--nozzles`, `--speed`, `--order` e `--lang`; `--shot` e le sue compagne acquisiscono un'immagine della finestra (vedi l'avvio rapido).
 
 ## ⚙️ Configurazione
 
@@ -406,15 +328,15 @@ EH3D-PHOENIX-PNP/
 
 **Limiti noti oggi**
 
-* Il disegno della finestra non è stato verificato su uno schermo; le sue tabelle non ricordano la larghezza delle colonne e non ha schede per pannelli e schede elettroniche, né jog, né telecamera.
+* Nessuna persona ha verificato il disegno della finestra su uno schermo (le immagini in `images/screens/` sono acquisite dal programma stesso con `--shot`); la finestra non ha jog né telecamera reale e non usa ancora le marche che sono componenti di una scheda.
 * Non è stato provato su una macchina né con una raccolta di file reali, e non ha avuto una revisione indipendente; tutto ciò che fa con una macchina è una simulazione.
 * Non legge i file di altri programmi di posizionamento, e la regola dell'angolo della faccia inferiore di un CSV (`bottom_rotation`) non è stata confrontata con file reali di nessun programma CAD.
-* Non ci sono ancora telecamera, correzione del prelievo tramite visione né driver di una macchina reale; il piano è un file JSON che un altro programma deve eseguire.
+* La telecamera e la visione sono simulate: non ci sono telecamera reale, correzione del prelievo da un'immagine reale né driver di una macchina reale; il piano è un file JSON che un altro programma deve eseguire.
 
 **Prossimi passi**
 
-* Portare la finestra all'aspetto condiviso dai programmi della suite e aggiungere ciò che manca: schede per pannelli e schede elettroniche, larghezze di colonna ricordate e la modifica delle tabelle dei package.
-* Fiduciali della scheda e del pannello, e correzione con la telecamera di EH3D-VISION-STUDIO; inviare un piano a una macchina solo dopo averlo provato su una vera.
+* Portare la finestra all'aspetto condiviso dai programmi della suite, e farle usare le marche che sono componenti di una scheda e mostrare le schede segnate come difettose.
+* Provare la catena di visione con immagini di una telecamera reale e le marche a due livelli con un pannello reale; inviare un piano a una macchina solo dopo averlo provato su una vera.
 * Provarlo con file reali e con gli altri programmi della suite.
 
 ## 🌍 Lingue
@@ -433,6 +355,7 @@ Il README e i testi esistono in inglese, spagnolo, francese, italiano, tedesco, 
 
 * [Changelog](CHANGELOG.md)
 * [Dati di architettura e struttura](docs/architecture.json): i dati da cui si disegnano le due immagini.
+* [Perché la finestra è un programma a sé su Windows](docs/windows-console.md)
 
 ## 🤝 Contribuire e comunità
 

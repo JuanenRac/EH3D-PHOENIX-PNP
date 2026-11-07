@@ -18,7 +18,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 434 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt und wurde nicht auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 434 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt, und obwohl das Programm Bilder seines eigenen Fensters aufnimmt (`--shot`), hat keine Person die Zeichnung auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -51,7 +51,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 | Maschinenkonfiguration | 🟡 | eine Datei `Schlüssel = Wert` mit Version, ein Prüfer, der die Zeile nennt, und die Sicherheitsgrenzen (Z-Weg, Grenzen von X und Y, Wiederholungen, Düsenwinkel); die Werte wurden nicht mit einer echten Maschine verglichen. |
 | Simulator und Auftrag | 🟡 | eine virtuelle Uhr, zufällig (mit Startwert) oder an gewählter Stelle eingespeiste Fehler, Wiederholungen, die Richtlinien Alarm und Aufschieben, Zuführer, die nach wiederholten Fehlern abschalten, Pause, Einzelschritte und ein gespeicherter Zustand zum Fortsetzen; es simuliert nur, nichts hat eine Maschine bewegt. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
-| Fenster | 🟠 | Ein egui-Fenster (mit `--features gui` bauen; `phoenix-pnp` ohne Befehl öffnet es): Reiter für Auftrag, Teile, Gehäuse, Zuführungen, Bestückungsliste, Maschine, Probleme und Protokoll, eine Karte des Arbeitstisches mit dem Weg des Kopfes, Polaritätsmarken und dem nächsten Teil, ein Assistent in fünf Schritten, Probleme mit rückgängig machbaren Lösungen, ein simulierter Auftrag mit Pause, Fortsetzen und Einzelschritt und die acht Sprachen. Die Logik wird ohne Bildschirm getestet; die Zeichnung ist nicht durch Tests abgedeckt und wurde nicht auf einem Bildschirm geprüft. Dazu kommen Reiter für Nutzen (mit den Passmarken und der Anpassung, die die Teile verschiebt) und Platinen, eine Dateiauswahl, Tabellen der Zuführer und Gehäuse, die sich mit Rückgängig bearbeiten lassen, gemerkte Spaltenbreiten und ein eigenes Programm (`phoenix-pnp-gui`), das unter Windows ohne Konsole startet. |
+| Fenster | 🟠 | Ein egui-Fenster (mit `--features gui` bauen; `phoenix-pnp` ohne Befehl öffnet es): Reiter für Auftrag, Teile, Gehäuse, Zuführungen, Bestückungsliste, Maschine, Probleme und Protokoll, eine Karte des Arbeitstisches mit dem Weg des Kopfes, Polaritätsmarken und dem nächsten Teil, ein Assistent in fünf Schritten, Probleme mit rückgängig machbaren Lösungen, ein simulierter Auftrag mit Pause, Fortsetzen und Einzelschritt und die acht Sprachen. Die Logik wird ohne Bildschirm getestet; die Zeichnung ist nicht durch Tests abgedeckt: Das Programm nimmt Bilder seines eigenen Fensters auf (`--shot`), aber keine Person hat die Zeichnung auf einem Bildschirm geprüft. Dazu kommen Reiter für Nutzen (mit den Passmarken und der Anpassung, die die Teile verschiebt) und Platinen, eine Dateiauswahl, Tabellen der Zuführer und Gehäuse, die sich mit Rückgängig bearbeiten lassen, gemerkte Spaltenbreiten und ein eigenes Programm (`phoenix-pnp-gui`), das unter Windows ohne Konsole startet. |
 | Echte Hardware | 🔴 | Nicht erprobt: nichts davon wurde an einer Maschine ausgeführt. |
 | Dokumentation | 🟡 | README in acht Sprachen, das Changelog und die zwei aus `docs/` gezeichneten Bilder. |
 
@@ -70,7 +70,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 * **Der Ausrichtschritt** (`src/job.rs`, `src/sim.rs`, `src/model.rs`): Mit `align = on` sieht sich der Auftrag jedes Teil nach dem Aufnehmen mit der Kamera an und korrigiert die Platzierung nach dem Gesehenen (der Kopf fährt zum Platz abzüglich des Versatzes des Teils, und die Düse dreht um dessen Drehung weniger); `pick_tolerance_mm` wirft ein Teil weg, das weiter daneben liegt, und es wird so neu aufgenommen, wie `error_policy` es sagt; `align_passes` (1 bis 5) und `align_settle_s` legen die Blicke und das Warten vor jedem fest und zählen zur Zeit des Plans; die simulierte Kamera hat einen Versatz, einen Fehler und einspeisbare Ausfälle (`sim_align_*`, `sim_camera_fail_rate`); und die Korrektur (Mittel, größte, weggeworfene Teile) steht im Text, im JSON-Bericht und in den `align`-Zeilen von `--report-csv`. Standardmäßig aus: Ein Auftrag ist dann derselbe wie immer. Nicht an einer Maschine erprobt.
 * **Die Bildverarbeitung** (`src/vision.rs`, `src/sim.rs`, `examples/vision.cfg`): mit `vision = pipeline` zeichnet die simulierte Kamera ein Bild des Teils im Speicher (seine Größe, seine Drehung und sein Abstand zur Düse, mit einem aus `sim_seed` gezogenen Rauschen) und misst es mit den Schritten einer Einstellungsdatei (`--vision FILE`): eine Maske, ein Medianfilter, eine feste oder Otsu-Schwelle, ein Flächenbereich für den Fleck und das kleinste gedrehte Rechteck, dessen Mitte und Winkel die Abweichung sind, die der Ausrichtschritt korrigiert. Ein Teil, das nicht gefunden wird, ein Fleck mit falscher Fläche und mehrere Flecken sind Blicke ohne Messwert, jeder mit eigenem Code (`PHOENIX-PNP-037` bis `PHOENIX-PNP-039`). `phoenix-pnp vision-test` zeichnet ein Teil aus Größe, Drehung, Abweichung und Rauschen, die man ihm gibt, und gibt das Gemessene mit seinem Fehler aus. Standardmäßig aus: ein Auftrag ist dann derselbe wie zuvor. Nicht mit einer echten Kamera erprobt.
 * **Der Arbeitsbericht** (`src/report.rs`, `src/job.rs`): Nach einem simulierten Auftrag kann `simulate` den Bericht schreiben: als Text in der Sprache von `--lang` (`--report-text`), als HTML-Seite, die alles enthält, ohne Skript und ohne etwas von außen, und die nie über eine vorhandene Datei geschrieben wird (`--report-html`), als Abschnitte hinter den Zeilen der CSV (`--report-csv`, die Kopfzeile bleibt) und als `work` im JSON (`--report`). Er nennt, wie viele Teile bestückt, zurückgestellt, von der Person ausgelassen, noch offen oder nicht zu bestücken sind; wohin die Maschinenzeit ging (Zuführen und Aufnehmen, Blicke der Kamera, Bestücken, Kopfbewegungen, Düsenwechsel); wie viele Aufnahmen beim ersten Versuch gelangen; dasselbe nach Gehäuse, Zuführung, Düse, Düsenspitze und Platine eines Nutzens; die aufgetretenen Fehler mit ihren Codes; die Hinweise vor dem Auftrag; und ein Histogramm dessen, was die Kamera korrigiert hat (X, Y und Drehung). Simuliert: nichts davon wurde an einer Maschine gemessen.
-* **Der Reiter Auftrag und die Entscheidungen der Person** (`src/gui/jobtab.rs`, `src/gui/window.rs`, `src/job.rs`): Die Tabelle zeigt den Zustand jeder Platzierung (wartet, aufgenommen, ausgerichtet, bestückt, zurückgestellt, ausgelassen, fehlgeschlagen) und die nicht zu bestückenden Teile, einen Fortschrittsbalken mit der Maschinenzeit und eine Schätzung der Restzeit sowie Filter nach Zustand, nach Text und nach Erledigtem. Hält ein Fehler den Auftrag an, nennt ein Dialog den fehlgeschlagenen Schritt und bietet vier Aktionen, die am simulierten Auftrag ausgeführt werden, der danach weiterläuft: wiederholen, das Teil auslassen, es zurückstellen oder die Zuführung abschalten, damit eine andere derselben Art übernimmt. Jede Entscheidung wird im Bericht gezählt. Die Logik braucht keinen Bildschirm und ist getestet; die Darstellung hat keine Person an einem Bildschirm geprüft.
+* **Der Reiter Auftrag und die Entscheidungen der Person** (`src/gui/jobtab.rs`, `src/gui/window.rs`, `src/job.rs`): Die Tabelle zeigt den Zustand jeder Platzierung (wartet, aufgenommen, ausgerichtet, bestückt, zurückgestellt, ausgelassen, fehlgeschlagen) und die nicht zu bestückenden Teile, einen Fortschrittsbalken mit der Maschinenzeit und eine Schätzung der Restzeit sowie Filter nach Zustand, nach Text und nach Erledigtem. Hält ein Fehler den Auftrag an, nennt ein Dialog den fehlgeschlagenen Schritt und bietet vier Aktionen, die am simulierten Auftrag ausgeführt werden, der danach weiterläuft: wiederholen, das Teil auslassen, es zurückstellen oder die Zuführung abschalten, damit eine andere derselben Art übernimmt. Jede Entscheidung wird im Bericht gezählt. Die Logik braucht keinen Bildschirm und ist getestet; keine Person hat die Darstellung an einem Bildschirm geprüft (die Bilder dieses Reiters in `images/screens/` nimmt das Programm selbst auf).
 * **Der Simulator und der Auftrag** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): die Prüfungen vor einem Auftrag, eine Maschine mit virtueller Uhr und einspeisbaren Fehlern und ein Auftrag, der pausiert, Schritt für Schritt ausgeführt, gespeichert und fortgesetzt werden kann.
 * **Das Fenster** (`src/gui.rs`, `src/gui/`): was das Fenster außer dem Zeichnen tut, braucht keinen Bildschirm (die geladenen Dateien, der Plan und seine Probleme mit Lösungen, der simulierte Auftrag, die Geometrie der Karte, die Tabellen mit gemeinsamer Auswahl, der Assistent in fünf Schritten und die Texte in acht Sprachen) und wird getestet; nur `src/gui/window.rs`, gebaut mit `--features gui`, zeichnet es mit egui. Die Geschwindigkeit der Simulation, das Design und die Größe, die für ein Teil mit unbekanntem Gehäuse gezeichnet wird, sind Schlüssel von `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -111,99 +111,21 @@ Wie die Teile dieses Repositorys zusammenpassen: wer es nutzt, was es enthält u
 Die Bibliothek ist `eh3d_phoenix_pnp` (`use eh3d_phoenix_pnp::...`); die Kommandozeile ist `phoenix-pnp`. Die Befehle sind diese; jeder gibt sein Ergebnis auf der Standardausgabe aus und meldet einen Fehler auf der Fehlerausgabe mit einem Exit-Code ungleich null. Es gibt keinen Netzwerkzugriff.
 
 ```text
-EH3D-PHOENIX-PNP/
-├── src/
-│   ├── catalog.rs                               die Tabellen von Teilen und Gehäusen und die Vererbung ihrer Eigenschaften
-│   ├── cli_args.rs                              die Argumente der Kommandozeile, streng: eine unbekannte Option ist ein Fehler
-│   ├── commands.rs                              die Befehle mit Konfiguration, tables-check und check-bottom
-│   ├── config.rs                                die Konfigurationsdatei der Maschine: Schlüssel, Bereiche und Sicherheitsgrenzen
-│   ├── error.rs                                 die Fehlercodes PHOENIX-PNP-NNN und ihre Bedeutung in acht Sprachen
-│   ├── export.rs                                der Bericht, die Liste des Fehlenden und der G-Code der Bewegungen
-│   ├── feeders.rs                               ein Teil der Logik
-│   ├── feeding.rs                               Zuführer mit Priorität, Trays und Streifen und die Wahl des Zuführers für ein Bauteil
-│   ├── fiducial.rs                              Passmarken eines Nutzens: die Anpassung der gemessenen Marken und die Korrektur der Teile
-│   ├── gui.rs                                   das Fenster: Module ohne Bildschirm und die Zeichnung in window.rs
-│   ├── gui/app.rs                               der Zustand des Fensters: laden, planen, starten, pausieren, Schritt, beheben, speichern
-│   ├── gui/browse.rs                            die Dateiauswahl: Ordner und Dateien, hinauf, eingetippte Pfade
-│   ├── gui/jobtab.rs                            der Reiter Auftrag ohne Fenster: Zustände, Filter, Fortschritt, Fehlerdialog
-│   ├── gui/log.rs                               das Protokoll mit Stufen und der Text der kopierbaren Diagnose
-│   ├── gui/problems.rs                          die Probleme eines Auftrags und die Lösungen dafür
-│   ├── gui/samples.rs                           Beispiele, von der kleinen bis zur großen Platine
-│   ├── gui/session.rs                           der simulierte Auftrag: starten, pausieren, fortsetzen, Einzelschritt
-│   ├── gui/settings.rs                          was das Fenster sich merkt: Sprache, Design, Ebenen, Ordner und die Breite der Spalten
-│   ├── gui/shot.rs                              der Bildmodus des Fensters (--shot): seine Argumente
-│   ├── gui/tables.rs                            die Zeilen, die Sortierung und die gemeinsame Auswahl der Tabellen
-│   ├── gui/texts.rs                             jedes Wort des Fensters in den acht Sprachen
-│   ├── gui/theme.rs                             die Farben: Phönixgrün, hell und hoher Kontrast
-│   ├── gui/view.rs                              die Geometrie der Karte: Körper, Polaritätsmarken, Anpassung, Zoom und Treffer
-│   ├── gui/window.rs                            die Zeichnung mit egui, gebaut mit dem Feature gui: Reiter, Karte und Tabellen
-│   ├── gui/wizard.rs                            der Assistent in fünf Schritten, von nichts zu einem simulierten Auftrag
-│   ├── gui/workspace.rs                         die geladenen Dateien, der Plan und die Änderungen, ohne Fenster
-│   ├── gui_main.rs                              das Fenster als eigenes Programm, unter Windows ohne Konsole
-│   ├── job.rs                                   der Auftrag: Schritte, Pause, Wiederholungen, Richtlinien, Statistik und gespeicherter Zustand
-│   ├── lib.rs                                   die Bibliothek: was jeder Befehl nutzt
-│   ├── loadsheet.rs                             die Ladeliste: der Platz jeder Gurtart
-│   ├── main.rs                                  die Kommandozeile und der Einstieg des Fensters, wenn es ohne Befehl läuft
-│   ├── model.rs                                 die Teile einer Maschine als Traits: Maschine, Düse, Zuführer, Aktor, Kamera, Treiber
-│   ├── motion.rs                                die Zeit einer Bewegung, mit Beschleunigung und Ruck
-│   ├── panel.rs                                 Panels: Platinen und Panels in Panels, jede an ihrem Platz
-│   ├── parts.rs                                 die Positionsdatei und die nicht zu bestückenden Teile
-│   ├── plan.rs                                  ein Teil der Logik
-│   ├── planner.rs                               der Planer, der die Maschine kennt: Ränge, Reihenfolge, Spitzen und ihre Suche, Winkel und Zeit
-│   ├── preflight.rs                             die Prüfungen vor einem Auftrag, mit Schwere und dem, worauf sie zeigen
-│   ├── report.rs                                der Auftragsbericht: Phasen, Aufnahmen, Gruppen, Fehler; Text, HTML, CSV, JSON
-│   ├── rotation.rs                              Drehwinkelkorrekturen je Gehäuse und wie sich eine begrenzte Düse dreht
-│   ├── sim.rs                                   die simulierte Maschine: virtuelle Uhr und einspeisbare Fehler
-│   ├── units.rs                                 Längen und Orte, die ihre Einheit tragen
-│   └── vision.rs                                die Bildverarbeitung: Filter, Schwelle, Flecken, kleinstes gedrehtes Rechteck
-├── tests/
-│   ├── align.rs                                 Tests des Ausrichtschritts: Kamera, korrigierter Platz, Toleranz und Zeit
-│   ├── commands.rs                              Tests der Befehle, die die Konfiguration nutzen
-│   ├── feeding.rs                               Tests der Zuführer: Priorität, Trays und Streifen
-│   ├── gui.rs                                   Tests des Fensters ohne Bildschirm: Zustand, Plan, Auftrag, Karte, Tabellen und Assistent
-│   ├── job.rs                                   Tests des Auftrags: Schritte, Wiederholungen und gespeicherter Zustand
-│   ├── jobtab.rs                                Tests des Reiters Auftrag ohne Bildschirm: Zustände, Filter, Fortschritt, Dialog
-│   ├── loadsheet.rs                             Tests der Ladeliste und der Exporte
-│   ├── model.rs                                 Tests des Datenmodells: Codes, Längen, Konfiguration und Tabellen
-│   ├── more.rs                                  weitere Tests von Bibliothek und Kommandozeile
-│   ├── panel.rs                                 Tests der Panels und ihrer Passmarken
-│   ├── planner.rs                               Tests der Bewegungszeit und des Planers
-│   ├── pnp.rs                                   Tests von Bibliothek und Kommandozeile
-│   ├── preflight.rs                             Tests der Prüfungen vor einem Auftrag
-│   ├── readme.rs                                Tests, dass die README ausführbar und vollständig ist
-│   ├── report.rs                                Tests des Berichts: Phasen, Aufnahmen, Histogramme, Gruppen, Entscheidungen
-│   ├── sim.rs                                   Tests der simulierten Maschine
-│   ├── strict.rs                                Tests der Kommandozeile: Optionen und Wörter, die sie nicht kennt
-│   ├── tables.rs                                Tests der nicht zu bestückenden Teile, von tables-check und des Auftragsberichts als CSV
-│   ├── vision.rs                                Tests der Bildverarbeitung: von Hand geprüfte Bilder, Fehler, Einstellungen
-│   └── vision_job.rs                            Tests der Bildverarbeitung im Auftrag, vision-test: Messungen, Fehler, Zustand
-├── examples/
-│   ├── board.pos                                ein Beispiel zum Ausprobieren
-│   ├── board_dnp.csv                            eine Platine mit einer dnp-Spalte: zwei ihrer Teile werden nicht bestückt
-│   ├── catalog.csv                              eine Teiletabelle: Rang und Höhe
-│   ├── feeders.csv                              ein Beispiel zum Ausprobieren
-│   ├── feeders_kinds.csv                        Zuführer jeder Art: Gurt, Streifen, Tray und einer ausgeschaltet
-│   ├── machine.cfg                              die Maschineneinstellungen, jeder Schlüssel erklärt
-│   ├── marks.csv                                die gemessenen Lagen der Passmarken des Nutzens
-│   ├── packages.csv                             eine Gehäusetabelle: Höhe, Spitze, Rang und Gurt
-│   ├── packages_common.csv                      eine Tabelle üblicher Gehäuse, von 0201-Widerständen bis QFN, zum Anpassen an die eigenen Teile
-│   ├── panel.json                               ein Panel aus zwei Platinen
-│   ├── slots.csv                                die Plätze der Maschine
-│   └── vision.cfg                               die Einstellungen der Bildverarbeitung, jeder Schlüssel erklärt
-├── docs/
-│   ├── architecture.json                        Daten des Architektur-Bildes
-│   ├── structure.json                           Daten des Struktur-Bildes
-│   └── windows-console.md                       warum das Fenster unter Windows ein eigenes Programm ist
-├── tools/                                       CI-Prüfung, README-Prüfung und die Bildwerkzeuge
-├── images/                                      Banner, Bilder von Architektur und Struktur und Bilder des Fensters
-├── .github/                                     CI- und Release-Workflows, Vorlagen für Issues und Pull Requests
-├── eh3d.project.json                            Manifest: Version, Rolle, Reifegrad und Build-Befehl
-├── Cargo.toml Cargo.lock                        der Workspace und seine festgelegten Abhängigkeiten
-├── rust-toolchain.toml                          die festgelegte Rust-Toolchain
-├── CHANGELOG.md                                 was sich in jeder Version geändert hat
-├── SECURITY.md SUPPORT.md                       Schwachstellen melden und Fragen stellen
-└── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   Mitwirken, Verhaltenskodex und Lizenz
+phoenix-pnp [gui [FILES...]]                             das Fenster (gebaut mit --features gui)
+phoenix-pnp parts PARTS                                  die Teile einer Positionsdatei, in Millimetern
+phoenix-pnp check PARTS FEEDERS                          die Teile ohne Zuführer und die Zuführer, die leer laufen
+phoenix-pnp plan PARTS FEEDERS OUT.json                  der einfache Plan als JSON-Auftrag
+phoenix-pnp schedule PARTS FEEDERS OUT.json              der Plan mit der ganzen Konfiguration, Nutzen und Passmarken
+phoenix-pnp preflight PARTS FEEDERS                      die Prüfungen vor einem Auftrag
+phoenix-pnp simulate PARTS FEEDERS                       der Auftrag auf einer simulierten Maschine, mit seinen Berichten
+phoenix-pnp loadsheet PARTS SLOTS OUT.csv                die Ladeliste
+phoenix-pnp config-check FILE                            ob eine Konfigurationsdatei gültig ist
+phoenix-pnp check-bottom PARTS                           der Winkel, den jede Regel der Unterseite ergibt
+phoenix-pnp tables-check [--parts F] [--feeders F] ...   ob jede Tabelle gültig ist, mit Code und Zeile
+phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       misst das im Speicher erzeugte Bild eines Teils
 ```
+
+`phoenix-pnp help` listet alle Optionen auf. Die gemeinsamen Optionen von `schedule`, `preflight`, `simulate` und `loadsheet` sind `--config`, `--packages`, `--catalog`, `--panel`, `--fiducials`, `--x-out`, `--dnp`, `--side`, `--board-width`, `--origin-x`, `--nozzles`, `--speed`, `--order` und `--lang`; `--shot` und seine Begleiter nehmen ein Bild des Fensters auf (siehe Schnellstart).
 
 ## ⚙️ Konfiguration
 
@@ -406,15 +328,15 @@ EH3D-PHOENIX-PNP/
 
 **Bekannte Grenzen heute**
 
-* Die Zeichnung des Fensters wurde nicht auf einem Bildschirm geprüft; seine Tabellen merken sich die Spaltenbreiten nicht, und es hat keine Reiter für Panels und Platinen, keinen Jog und keine Kamera.
+* Die Zeichnung des Fensters hat keine Person an einem Bildschirm geprüft (die Bilder in `images/screens/` nimmt das Programm selbst mit `--shot` auf); das Fenster hat keinen Jog und keine echte Kamera und nutzt die Marken, die Bauteile einer Platine sind, noch nicht.
 * Es wurde weder auf einer Maschine noch mit einer Sammlung echter Dateien erprobt und hatte keine unabhängige Prüfung; alles, was es mit einer Maschine tut, ist eine Simulation.
 * Es liest nicht die Dateien anderer Bestückungsprogramme, und die Regel für den Winkel der Unterseite einer CSV (`bottom_rotation`) wurde nicht mit echten Dateien eines CAD-Programms verglichen.
-* Es gibt noch keine Kamera, keine Korrektur der Aufnahme per Bildverarbeitung und keinen Treiber für eine echte Maschine; der Plan ist eine JSON-Datei, die ein anderes Programm ausführen soll.
+* Kamera und Bildverarbeitung sind simuliert: Es gibt keine echte Kamera, keine Korrektur der Aufnahme nach einem echten Bild und keinen Treiber für eine echte Maschine; der Plan ist eine JSON-Datei, die ein anderes Programm ausführen soll.
 
 **Als Nächstes**
 
-* Das Fenster in das gemeinsame Aussehen der Programme der Suite bringen und ergänzen, was fehlt: Reiter für Panels und Platinen, gemerkte Spaltenbreiten und das Bearbeiten der Tabellen der Gehäuse.
-* Passmarken von Platine und Panel und die Korrektur per Kamera von EH3D-VISION-STUDIO; einen Plan erst an eine Maschine senden, nachdem er auf einer echten erprobt wurde.
+* Das Fenster in das gemeinsame Aussehen der Programme der Suite bringen und dafür sorgen, dass es die Marken nutzt, die Bauteile einer Platine sind, und die als schlecht markierten Platinen zeigt.
+* Die Bildverarbeitung mit Bildern einer echten Kamera und die Marken auf zwei Ebenen mit einem echten Nutzen erproben; einen Plan erst an eine Maschine senden, nachdem er auf einer echten erprobt wurde.
 * Mit echten Dateien und mit den anderen Programmen der Suite ausprobieren.
 
 ## 🌍 Sprachen
@@ -433,6 +355,7 @@ README und Texte gibt es auf Englisch, Spanisch, Französisch, Italienisch, Deut
 
 * [Changelog](CHANGELOG.md)
 * [Architektur- und Strukturdaten](docs/architecture.json): die Daten, aus denen die beiden Bilder gezeichnet werden.
+* [Warum das Fenster unter Windows ein eigenes Programm ist](docs/windows-console.md)
 
 ## 🤝 Mitwirken und Community
 
