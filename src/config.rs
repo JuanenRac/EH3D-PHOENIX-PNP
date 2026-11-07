@@ -17,7 +17,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 114] = [
+pub const KEYS: [&str; 116] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -132,6 +132,8 @@ pub const KEYS: [&str; 114] = [
     "head",
     "tip_compat",
     "tip_compat_mode",
+    "recipe_max_bytes",
+    "recipe_max_rules",
 ];
 
 /// The order in which the places are visited.
@@ -435,6 +437,10 @@ pub struct MachineConfig {
     pub tip_rules: Vec<TipRule>,
     /// What the planner prefers when a package accepts several tips.
     pub tip_choice: TipChoice,
+    /// The most bytes a file of a recipe may have.
+    pub recipe_max_bytes: u64,
+    /// The most rules (of package, feeder and tip) a recipe may have.
+    pub recipe_max_rules: usize,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -536,6 +542,8 @@ impl Default for MachineConfig {
             heads: Vec::new(),
             tip_rules: Vec::new(),
             tip_choice: TipChoice::FewestChanges,
+            recipe_max_bytes: 65_536,
+            recipe_max_rules: 64,
         }
     }
 }
@@ -1029,6 +1037,8 @@ impl MachineConfig {
                     tips,
                 });
             }
+            "recipe_max_bytes" => self.recipe_max_bytes = int(line, key, v, 256, 1_048_576)? as u64,
+            "recipe_max_rules" => self.recipe_max_rules = int(line, key, v, 1, 1000)? as usize,
             "tip_compat_mode" => {
                 self.tip_choice = TipChoice::parse(&v.to_ascii_lowercase())
                     .ok_or_else(|| bad(line, key, v, "fewest_changes or preferred"))?

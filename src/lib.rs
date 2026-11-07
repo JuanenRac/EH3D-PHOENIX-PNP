@@ -24,6 +24,7 @@ pub mod parts;
 pub mod plan;
 pub mod planner;
 pub mod preflight;
+pub mod recipe;
 pub mod report;
 pub mod rotation;
 pub mod sim;

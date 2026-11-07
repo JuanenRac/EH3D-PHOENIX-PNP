@@ -1,0 +1,6 @@
+# The shortest recipe: the steps every job has and no rules. The job does not look at the part with the camera and does not read the vacuum.
+recipe_version = 1
+name = basic
+step = prepare
+step = pick
+step = place

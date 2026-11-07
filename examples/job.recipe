@@ -1,0 +1,23 @@
+# A recipe fixes the steps a job goes through and the parameters that change for a package, a feeder or a nozzle tip. Use it with: phoenix-pnp simulate ... --recipe examples/job.recipe
+# (phoenix-pnp recipe-check FILE reads it and says whether it is valid). The first key is the version of the format.
+recipe_version = 1
+name = standard
+
+# The steps, in this order and none twice: prepare (mount or change the nozzle tip), pick, align (the camera looks at the part and the place is corrected), place and check (the vacuum is read
+# after the pick and after the place). prepare, pick and place are always there; a recipe without align or check does the job without that step.
+step = prepare
+step = pick
+step = align
+step = place
+step = check
+
+# A rule is package, feeder or tip, a pattern (* and ?, any case) and one or more key=value pairs. For each key the first rule that matches wins: the rules of the feeder first, then those of the
+# package and then those of the tip, each in the order of the file. A key that no rule gives keeps its value in machine.cfg.
+#   pick_retries (0 to 10)        the times a pick is tried again
+#   pick_tolerance_mm (0.001 to 50)  how far from the nozzle the camera may find the part
+#   vacuum_suck_s (0 to 10)       the seconds the pump sucks before the vacuum is read after a pick
+#   vacuum_blow_s (0 to 10)       the seconds of blowing before the vacuum is read after a place
+package = QFN-* : pick_retries=3, pick_tolerance_mm=0.3
+package = R_* : vacuum_suck_s=0.05
+feeder = F4 : pick_retries=1
+tip = N75 : vacuum_suck_s=0.12, vacuum_blow_s=0.1

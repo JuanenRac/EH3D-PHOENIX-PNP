@@ -101,10 +101,14 @@ pub enum Code {
     ActuatorUnknown = 46,
     FeederFaultWindow = 47,
     HeadUnreachable = 48,
+    RecipeBad = 49,
+    RecipeSteps = 50,
+    RecipeLimit = 51,
+    RecipeNewer = 52,
 }
 
 impl Code {
-    pub const ALL: [Code; 48] = [
+    pub const ALL: [Code; 52] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -153,6 +157,10 @@ impl Code {
         Code::ActuatorUnknown,
         Code::FeederFaultWindow,
         Code::HeadUnreachable,
+        Code::RecipeBad,
+        Code::RecipeSteps,
+        Code::RecipeLimit,
+        Code::RecipeNewer,
     ];
 
     pub fn number(self) -> u16 {
@@ -171,7 +179,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 48] = [
+static MESSAGES: [[&str; 8]; 52] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -651,6 +659,46 @@ static MESSAGES: [[&str; 8]; 48] = [
         "マシンのどのヘッドも部品に届きません",
         "机器的任何一个贴装头都够不到该零件",
         "Nenhuma cabeça da máquina alcança a peça",
+    ],
+    [
+        "A line of the recipe is not valid",
+        "Una línea de la receta no es válida",
+        "Eine Zeile des Rezepts ist ungültig",
+        "Une ligne de la recette n'est pas valide",
+        "Una riga della ricetta non è valida",
+        "レシピの行が無効です",
+        "配方中有一行无效",
+        "Uma linha da receita não é válida",
+    ],
+    [
+        "The steps of the recipe are not in the order of the job",
+        "Los pasos de la receta no están en el orden del trabajo",
+        "Die Schritte des Rezepts folgen nicht der Reihenfolge des Auftrags",
+        "Les étapes de la recette ne suivent pas l'ordre du travail",
+        "I passi della ricetta non seguono l'ordine del lavoro",
+        "レシピの手順がジョブの順序と一致しません",
+        "配方的步骤不符合作业的顺序",
+        "Os passos da receita não estão na ordem do trabalho",
+    ],
+    [
+        "The recipe is larger than its limits allow",
+        "La receta supera los límites permitidos",
+        "Das Rezept überschreitet die erlaubten Grenzen",
+        "La recette dépasse les limites autorisées",
+        "La ricetta supera i limiti consentiti",
+        "レシピが許容される上限を超えています",
+        "配方超出允许的限制",
+        "A receita excede os limites permitidos",
+    ],
+    [
+        "The recipe was written for a newer version of the program",
+        "La receta se escribió para una versión más nueva del programa",
+        "Das Rezept wurde für eine neuere Programmversion geschrieben",
+        "La recette a été écrite pour une version plus récente du programme",
+        "La ricetta è stata scritta per una versione più recente del programma",
+        "このレシピは新しいバージョンのプログラム用です",
+        "该配方是为更新版本的程序编写的",
+        "A receita foi escrita para uma versão mais recente do programa",
     ],
 ];
 

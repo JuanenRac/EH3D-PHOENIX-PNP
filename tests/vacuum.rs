@@ -476,7 +476,7 @@ fn the_new_codes_have_a_meaning_in_every_language() {
         assert_eq!(seen.len(), 8, "{}", code.label());
         assert!(Code::ALL.contains(code));
     }
-    assert_eq!(Code::ALL.len(), 48);
+    assert_eq!(Code::ALL.len(), 52);
     assert_eq!(
         Code::VacuumNoPart.message(Lang::Pt),
         "O vácuo não mostra nenhuma peça no bico depois da recolha"
