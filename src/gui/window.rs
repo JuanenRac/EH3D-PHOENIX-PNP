@@ -2190,10 +2190,7 @@ impl PnpApp {
             ("error_policy", format!("{:?}", cfg.error_policy)),
             ("fault_limit", cfg.fault_limit.to_string()),
             ("fault_action", cfg.fault_action.name().to_string()),
-            (
-                "vacuum",
-                if cfg.vacuum { "on" } else { "off" }.to_string(),
-            ),
+            ("vacuum", if cfg.vacuum { "on" } else { "off" }.to_string()),
             ("sim_seed", cfg.sim_seed.to_string()),
             ("gui_theme", cfg.gui_theme.clone()),
         ];
