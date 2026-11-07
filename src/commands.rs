@@ -22,6 +22,7 @@ use eh3d_phoenix_pnp::parts::{
 };
 use eh3d_phoenix_pnp::planner::{plan_advanced, AdvancedPlan, Options};
 use eh3d_phoenix_pnp::preflight::{has_errors, preflight, to_text, Check, Severity, Source};
+use eh3d_phoenix_pnp::recipe::{Limits, Recipe};
 use eh3d_phoenix_pnp::report::{self, ReportCheck, ReportInput};
 use eh3d_phoenix_pnp::sim::Rng;
 use eh3d_phoenix_pnp::vision::{measure_image, render, wrap, VisionConfig, MAX_VISION_BYTES};
@@ -507,6 +508,7 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let text_path = flag(&mut args, "--report-text")?;
     let html_path = flag(&mut args, "--report-html")?;
     let vision_path = flag(&mut args, "--vision")?;
+    let recipe_path = flag(&mut args, "--recipe")?;
     let steps = match flag(&mut args, "--steps")? {
         Some(v) => {
             let n = num(&v, "--steps")?;
@@ -518,10 +520,20 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
         None => None,
     };
     let partial = switch(&mut args, "--partial");
-    let p = prepare(args, 0)?;
+    let mut p = prepare(args, 0)?;
     let lang = p.c.lang;
     let l = move |e: PnpError| e.localized(lang);
     let mut inputs = p.inputs.clone();
+    // the steps of the recipe decide whether the align step and the vacuum check are on, before the plan is made
+    let recipe = match &recipe_path {
+        Some(rp) => {
+            let r = read_recipe(rp, &p.c.cfg, lang)?;
+            inputs.push(rp.clone());
+            p.c.cfg = r.apply(&p.c.cfg);
+            Some(r)
+        }
+        None => None,
+    };
     let vision = match &vision_path {
         Some(vp) => {
             let settings =
@@ -568,6 +580,9 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let mut job = Job::new(planned.plan, p.feeders.clone(), p.c.cfg.clone()).map_err(l)?;
     if let Some(settings) = vision {
         job.set_vision(settings);
+    }
+    if let Some(r) = recipe {
+        job.set_recipe(r).map_err(l)?;
     }
     if let Some(sp) = &state_path {
         if Path::new(sp).exists() {
@@ -711,6 +726,43 @@ pub fn config_check(mut args: Vec<String>) -> Result<(), String> {
         cfg.order.name(),
         cfg.rotation_rules.len()
     );
+    Ok(())
+}
+
+/// Reads a recipe within the limits of the configuration; an error shows its stable code.
+fn read_recipe(path: &str, cfg: &MachineConfig, lang: Lang) -> Result<Recipe, String> {
+    let size = fs::metadata(path)
+        .map_err(|e| format!("{path}: {e}"))?
+        .len();
+    if size > cfg.recipe_max_bytes {
+        return Err(PnpError::new(
+            Code::RecipeLimit,
+            format!(
+                "{path} has {size} bytes, the limit is {}",
+                cfg.recipe_max_bytes
+            ),
+        )
+        .localized(lang));
+    }
+    let text = read_text(path, cfg.recipe_max_bytes)?;
+    Recipe::parse(&text, &Limits::from_config(cfg)).map_err(|e| e.localized(lang))
+}
+
+/// `recipe-check`: reads a recipe and says whether it is valid, with the code and the line of an error.
+pub fn recipe_check(mut args: Vec<String>) -> Result<(), String> {
+    let lang = match flag(&mut args, "--lang")? {
+        Some(l) => Lang::from_code(&l)
+            .ok_or_else(|| format!("--lang '{l}' is not one of en es de fr it ja zh pt"))?,
+        None => Lang::En,
+    };
+    let cfg = match flag(&mut args, "--config")? {
+        Some(p) => MachineConfig::parse(&read_text(&p, MAX_CONFIG_BYTES as u64)?)
+            .map_err(|e| e.localized(lang))?,
+        None => MachineConfig::default(),
+    };
+    finish(&args, 1)?;
+    let path = args.first().ok_or("recipe-check needs a file")?;
+    println!("{}", read_recipe(path, &cfg, lang)?.summary());
     Ok(())
 }
 

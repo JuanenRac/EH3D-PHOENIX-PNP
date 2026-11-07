@@ -16,6 +16,7 @@ use crate::error::{Code, PnpError};
 use crate::feeding::{choose, FeederSpec};
 use crate::model::{Actuator, Camera, FeederDevice, Machine, Nozzle, Offset};
 use crate::planner::AdvancedPlan;
+use crate::recipe::{Params, Recipe, Step};
 use crate::rotation::glob_match;
 use crate::sim::{SimActuator, SimCamera, SimFeeder, SimMachine, SimOp, SimVacuum};
 use crate::vision::VisionConfig;
@@ -291,6 +292,10 @@ pub struct Job {
     last_feeder: Option<usize>,
     /// The part whose pick an error stopped, so that the pick tried again is not counted as one at the first attempt.
     stopped_pick: Option<usize>,
+    /// The recipe the job follows, when it has one.
+    recipe: Option<Recipe>,
+    /// The parameters of the recipe for the part that is being picked or placed.
+    now: Params,
 }
 
 fn fnv1a(text: &str) -> u64 {
@@ -435,7 +440,51 @@ impl Job {
             trace: Trace::default(),
             last_feeder: None,
             stopped_pick: None,
+            recipe: None,
+            now: Params::default(),
         })
+    }
+
+    /// Makes the job follow a recipe. The job must have been made with the configuration `recipe.apply(&cfg)`, so that the align step and the vacuum check are the ones the recipe says. The rules
+    /// of the recipe are part of the identity of the job: a state saved with other rules is not resumed by this one. A job takes a recipe once.
+    pub fn set_recipe(&mut self, recipe: Recipe) -> Result<(), PnpError> {
+        if self.recipe.is_some() {
+            return Err(PnpError::new(
+                Code::JobActionBad,
+                "the job follows a recipe already",
+            ));
+        }
+        if self.cfg.align != recipe.has(Step::Align) || self.cfg.vacuum != recipe.has(Step::Check) {
+            return Err(PnpError::new(
+                Code::RecipeSteps,
+                "the configuration of the job does not have the steps of the recipe",
+            ));
+        }
+        if recipe.has_rules() {
+            self.hash = format!(
+                "{:016x}",
+                fnv1a(&format!("{}|{}", self.hash, recipe.fingerprint()))
+            );
+        }
+        self.recipe = Some(recipe);
+        Ok(())
+    }
+
+    /// The recipe the job follows.
+    pub fn recipe(&self) -> Option<&Recipe> {
+        self.recipe.as_ref()
+    }
+
+    /// The parameters of the recipe for the placement `idx` when its part comes from the feeder `f`.
+    fn params_for(&self, f: usize, idx: usize) -> Params {
+        match &self.recipe {
+            Some(r) => r.resolve(
+                &self.feeders[f].base.id,
+                &self.feeders[f].base.package,
+                &self.plan.details[idx].tip,
+            ),
+            None => Params::default(),
+        }
     }
 
     /// The index in the statistics of the package of the feeder `f`.
@@ -855,7 +904,8 @@ impl Job {
             return Ok(());
         }
         self.vacuum.suck(nozzle);
-        self.machine.wait(self.vacuum.suck_s());
+        self.machine
+            .wait(self.now.vacuum_suck_s.unwrap_or(self.vacuum.suck_s()));
         let level = self.vacuum.read_after_pick(nozzle);
         let v = &mut self.stats.vacuum;
         v.pick_checks += 1;
@@ -890,7 +940,8 @@ impl Job {
         if !self.cfg.vacuum {
             return Ok(());
         }
-        self.machine.wait(self.vacuum.blow_s());
+        self.machine
+            .wait(self.now.vacuum_blow_s.unwrap_or(self.vacuum.blow_s()));
         let level = self.vacuum.read_after_place(nozzle);
         let v = &mut self.stats.vacuum;
         v.place_checks += 1;
@@ -1005,6 +1056,8 @@ impl Job {
             return self.give_up(idx, nozzle, e);
         };
         self.last_feeder = Some(f);
+        self.now = self.params_for(f, idx);
+        let retries = self.now.pick_retries.unwrap_or(det.pick_retries);
         let at = self.feeders[f].pick_point(self.taken[f]);
         self.travel(at)?;
         if !self.feed_part(f)? {
@@ -1029,7 +1082,7 @@ impl Job {
         let kind = self.kind_of(f);
         let chance = combined_chance(self.part_chances(f).0, self.feeder_chance(f));
         self.machine.set_extra_fail(SimOp::Pick, chance);
-        for attempt in 0..=det.pick_retries {
+        for attempt in 0..=retries {
             self.stats.pick_attempts += 1;
             let mut result = self.machine.pick(nozzle, &pl.reference);
             if result.is_ok() {
@@ -1056,7 +1109,7 @@ impl Job {
                         self.devices[f].take();
                         self.taken[f] += 1;
                         align_error = Some(e);
-                        if attempt < det.pick_retries {
+                        if attempt < retries {
                             if !self.usable(f) {
                                 break;
                             }
@@ -1142,6 +1195,10 @@ impl Job {
         let mut total = Offset::default();
         let mut first = Offset::default();
         let mut first_mm: f64 = 0.0;
+        let tolerance = self
+            .now
+            .pick_tolerance_mm
+            .unwrap_or(self.cfg.pick_tolerance_mm);
         for pass in 0..self.cfg.align_passes {
             self.machine.wait(self.cfg.align_settle_s);
             let seen = match self.camera.measure(nozzle) {
@@ -1177,7 +1234,7 @@ impl Job {
             if pass == 0 {
                 first = seen;
                 first_mm = away_mm;
-                if away_mm > self.cfg.pick_tolerance_mm {
+                if away_mm > tolerance {
                     self.stats.align.rejected += 1;
                     self.machine.note(format!(
                         "the part on nozzle {} is {:.3} mm from the nozzle: thrown away",
@@ -1188,7 +1245,7 @@ impl Job {
                         Code::AlignRejected,
                         format!(
                             "{:.3} mm from the nozzle, the tolerance is {} mm",
-                            away_mm, self.cfg.pick_tolerance_mm
+                            away_mm, tolerance
                         ),
                     ));
                 }
@@ -1257,6 +1314,7 @@ impl Job {
             ));
         }
         let source = self.index[&pl.feeder];
+        self.now = self.params_for(source, idx);
         let kind = self.kind_of(source);
         let place_chance = self.part_chances(source).1;
         self.machine.set_extra_fail(SimOp::Place, place_chance);
@@ -1576,6 +1634,13 @@ impl Job {
             "codes": codes,
             "readings": readings
         });
+        // the feeder of the last pick and the pick that was stopped: they let the person switch the feeder off, or try the pick again, after the state is loaded in another run
+        if let Some(f) = self.last_feeder {
+            doc["last_feeder"] = json!(self.feeders[f].base.id);
+        }
+        if let Some(i) = self.stopped_pick {
+            doc["stopped_pick"] = json!(i);
+        }
         if self.cfg.vacuum {
             let (rng, picks, places) = self.vacuum.save();
             let v = &s.vacuum;
@@ -2050,7 +2115,16 @@ impl Job {
         self.windows = windows;
         self.stats = stats;
         self.trace = trace;
-        self.last_feeder = None;
+        // a state saved before these two were kept has neither: the feeder planned for the step is the one that is used
+        self.last_feeder = v
+            .get("last_feeder")
+            .and_then(Value::as_str)
+            .and_then(|id| self.index.get(id).copied());
+        self.stopped_pick = v
+            .get("stopped_pick")
+            .and_then(Value::as_u64)
+            .map(|i| i as usize)
+            .filter(|i| *i < self.status.len());
         Ok(())
     }
 }
