@@ -89,13 +89,15 @@
       "level": "tested",
       "title": "planner",
       "lines": [
-        "ranks, order, nozzle tips, angles,",
-        "moves, panels, X-out, fiducials"
+        "ranks, order, tips, angles, moves,",
+        "panels, X-out, fiducials, heads"
       ],
       "code": [
         "src/planner.rs::pub fn plan_advanced",
         "src/fiducial.rs::pub fn fit_points",
-        "src/marks.rs::pub fn fit_levels"
+        "src/marks.rs::pub fn fit_levels",
+        "src/heads.rs::pub fn plan_heads",
+        "src/tips.rs::pub fn choose"
       ]
     },
     {
@@ -104,11 +106,12 @@
       "level": "tested",
       "title": "simulator and job",
       "lines": [
-        "virtual clock, failures, vision,",
+        "clock, failures, camera, vision,",
         "pause, steps, align, saved state"
       ],
       "code": [
-        "src/job.rs::pub fn step"
+        "src/job.rs::pub fn step",
+        "src/camera.rs::pub struct CameraModel"
       ]
     },
     {
@@ -187,7 +190,7 @@
     }
   ],
   "legend": {
-    "tested": "covered by tests on a computer (474 tests)",
+    "tested": "covered by tests on a computer (515 tests)",
     "config": "planned, not used today",
     "external": "a person, a file or another repository"
   },

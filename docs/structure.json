@@ -28,6 +28,19 @@
       "accent": "a",
       "rows": [
         {
+          "name": "camera.rs",
+          "desc": {
+            "en": "the model of a camera: size of a pixel, offsets, turn, mirror and lens",
+            "es": "el modelo de una cámara: tamaño del píxel, desplazamientos, giro, espejo y lente",
+            "de": "das Modell einer Kamera: Pixelgröße, Versatz, Drehung, Spiegelung und Objektiv",
+            "fr": "le modèle d'une caméra : taille du pixel, décalages, rotation, miroir et objectif",
+            "it": "il modello di una telecamera: dimensione del pixel, scostamenti, rotazione, specchio e obiettivo",
+            "ja": "カメラのモデル：ピクセルサイズ、オフセット、回転、ミラー、レンズ",
+            "zh": "相机模型：像素尺寸、偏移、旋转、镜像和镜头",
+            "pt": "o modelo de uma câmara: tamanho do pixel, deslocamentos, rotação, espelho e lente"
+          }
+        },
+        {
           "name": "catalog.rs",
           "desc": {
             "en": "the tables of parts and packages and the inheritance of their properties",
@@ -379,6 +392,19 @@
           }
         },
         {
+          "name": "heads.rs",
+          "desc": {
+            "en": "several heads: reach, sharing out the parts, waits for a feeder",
+            "es": "varias cabezas: alcance, reparto de piezas, esperas por un alimentador",
+            "de": "mehrere Köpfe: Reichweite, Verteilung der Teile, Warten auf eine Zuführung",
+            "fr": "plusieurs têtes : portée, répartition des pièces, attentes d'un alimentateur",
+            "it": "più teste: raggio d'azione, ripartizione dei componenti, attese di un alimentatore",
+            "ja": "複数ヘッド：到達範囲、部品の割り当て、フィーダー待ち",
+            "zh": "多贴装头：可达范围、零件分配、等待供料器",
+            "pt": "várias cabeças: alcance, distribuição das peças, esperas por um alimentador"
+          }
+        },
+        {
           "name": "job.rs",
           "desc": {
             "en": "the job: steps, pause, retries, policies, statistics and saved state",
@@ -418,19 +444,6 @@
           }
         },
         {
-          "name": "marks.rs",
-          "desc": {
-            "en": "marks of two levels: the parts that are marks, the fit of a panel and of each board",
-            "es": "marcas de dos niveles: las piezas que son marcas, el ajuste de un panel y de cada placa",
-            "de": "Marken auf zwei Ebenen: Bauteile, die Marken sind, und die Anpassung von Nutzen und Platine",
-            "fr": "repères à deux niveaux : les pièces qui sont des repères, l'ajustement du panneau et de chaque carte",
-            "it": "marche a due livelli: i componenti che sono marche e l'adattamento del pannello e di ogni scheda",
-            "ja": "2階層のマーク：マークである部品と、パネルと各基板のフィット",
-            "zh": "两级标记：作为标记的零件，以及拼板和每块电路板的拟合",
-            "pt": "marcas de dois níveis: as peças que são marcas e o ajuste do painel e de cada placa"
-          }
-        },
-        {
           "name": "main.rs",
           "desc": {
             "en": "the command line, and the entry of the window when it runs with no command",
@@ -441,6 +454,19 @@
             "ja": "コマンドラインと、コマンドなしで実行したときのウィンドウの入口",
             "zh": "命令行，以及不带命令运行时窗口的入口",
             "pt": "a linha de comandos e a entrada da janela quando corre sem comando"
+          }
+        },
+        {
+          "name": "marks.rs",
+          "desc": {
+            "en": "marks of two levels: the parts that are marks, the fit of a panel and of each board",
+            "es": "marcas de dos niveles: las piezas que son marcas, el ajuste de un panel y de cada placa",
+            "de": "Marken auf zwei Ebenen: Bauteile, die Marken sind, und die Anpassung von Nutzen und Platine",
+            "fr": "repères à deux niveaux : les pièces qui sont des repères, l'ajustement du panneau et de chaque carte",
+            "it": "marche a due livelli: i componenti che sono marche e l'adattamento del pannello e di ogni scheda",
+            "ja": "2階層のマーク：マークである部品と、パネルと各基板のフィット",
+            "zh": "两级标记：作为标记的零件，以及拼板和每块电路板的拟合",
+            "pt": "marcas de dois níveis: as peças que são marcas e o ajuste do painel e de cada placa"
           }
         },
         {
@@ -574,6 +600,19 @@
           }
         },
         {
+          "name": "tips.rs",
+          "desc": {
+            "en": "the nozzle tips that a package accepts and the choice of one for every kind of part",
+            "es": "las puntas que acepta un encapsulado y la elección de una para cada tipo de pieza",
+            "de": "die Düsenspitzen, die ein Gehäuse akzeptiert, und die Wahl einer für jede Teileart",
+            "fr": "les embouts qu'un boîtier accepte et le choix d'un pour chaque sorte de pièce",
+            "it": "le punte che un package accetta e la scelta di una per ogni tipo di componente",
+            "ja": "パッケージが受け付けるノズルチップと、部品の種類ごとの選択",
+            "zh": "封装可接受的吸嘴，以及为每类零件选择其一",
+            "pt": "as pontas que um encapsulamento aceita e a escolha de uma para cada tipo de peça"
+          }
+        },
+        {
           "name": "units.rs",
           "desc": {
             "en": "lengths and places that carry their unit",
@@ -620,6 +659,19 @@
           }
         },
         {
+          "name": "camera.rs",
+          "desc": {
+            "en": "tests of the camera model, the cameras of the heads and the camera of the simulator",
+            "es": "pruebas del modelo de cámara, las cámaras de las cabezas y la cámara del simulador",
+            "de": "Tests des Kameramodells, der Kameras der Köpfe und der Kamera des Simulators",
+            "fr": "tests du modèle de caméra, des caméras des têtes et de la caméra du simulateur",
+            "it": "test del modello della telecamera, delle telecamere delle teste e della telecamera del simulatore",
+            "ja": "カメラモデル、ヘッドのカメラ、シミュレーターのカメラのテスト",
+            "zh": "相机模型、各贴装头的相机和模拟器相机的测试",
+            "pt": "testes do modelo da câmara, das câmaras das cabeças e da câmara do simulador"
+          }
+        },
+        {
           "name": "commands.rs",
           "desc": {
             "en": "tests of the commands that use the configuration",
@@ -656,6 +708,19 @@
             "ja": "画面なしのウィンドウのテスト：状態、計画、ジョブ、地図、表、ガイド",
             "zh": "无屏幕的窗口测试：状态、规划、作业、地图、表格和向导",
             "pt": "testes da janela sem ecrã: estado, plano, trabalho, mapa, tabelas e assistente"
+          }
+        },
+        {
+          "name": "heads.rs",
+          "desc": {
+            "en": "tests of the heads: lines of the configuration, reach, sharing out, the clock and schedule",
+            "es": "pruebas de las cabezas: líneas de la configuración, alcance, reparto, el reloj y schedule",
+            "de": "Tests der Köpfe: Zeilen der Konfiguration, Reichweite, Verteilung, die Uhr und schedule",
+            "fr": "tests des têtes : lignes de la configuration, portée, répartition, l'horloge et schedule",
+            "it": "test delle teste: righe della configurazione, raggio d'azione, ripartizione, l'orologio e schedule",
+            "ja": "ヘッドのテスト：設定の行、到達範囲、割り当て、時計、schedule",
+            "zh": "贴装头测试：配置行、可达范围、分配、时钟和 schedule",
+            "pt": "testes das cabeças: linhas da configuração, alcance, distribuição, o relógio e schedule"
           }
         },
         {
@@ -864,6 +929,19 @@
             "ja": "実装しない部品、tables-check、ジョブのCSVレポートのテスト",
             "zh": "不贴装零件、tables-check 以及作业 CSV 报告的测试",
             "pt": "testes das peças que não se montam, de tables-check e do relatório de um trabalho em CSV"
+          }
+        },
+        {
+          "name": "tips.rs",
+          "desc": {
+            "en": "tests of the tips that a package accepts: the rules, the choice and the plan",
+            "es": "pruebas de las puntas que acepta un encapsulado: las reglas, la elección y el plan",
+            "de": "Tests der Spitzen, die ein Gehäuse akzeptiert: die Regeln, die Wahl und der Plan",
+            "fr": "tests des embouts qu'un boîtier accepte : les règles, le choix et le plan",
+            "it": "test delle punte che un package accetta: le regole, la scelta e il piano",
+            "ja": "パッケージが受け付けるチップのテスト：ルール、選択、計画",
+            "zh": "封装可接受吸嘴的测试：规则、选择和计划",
+            "pt": "testes das pontas que um encapsulamento aceita: as regras, a escolha e o plano"
           }
         },
         {

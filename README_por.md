@@ -18,7 +18,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 474 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e, embora o programa tire imagens da sua própria janela (`--shot`), nenhuma pessoa verificou o desenho num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
+**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 515 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e, embora o programa tire imagens da sua própria janela (`--shot`), nenhuma pessoa verificou o desenho num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versão | `0.0.6` |
 | Maturidade | Estrutura inicial |
-| Testes | 474 |
+| Testes | 515 |
 | Tecnologias | Rust |
 | Em hardware real | Não experimentado: nada disto correu numa máquina |
 
@@ -47,7 +47,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 |---|---|---|
 | Núcleo | 🟡 | lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (prioridade, tabuleiro, tira), planeia a ordem de colocação para uma cabeça de até seis bicos com níveis, pontas de bico, limites de ângulo e o tempo dos movimentos, planeia painéis e escreve a folha de carga; testado num computador com entradas normais e danificadas, não com uma coleção de ficheiros reais. |
 | Linha de comandos | 🟡 | `phoenix-pnp` executa as mesmas funções da biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `vision-test`) e imprime o resultado; cada erro volta como uma mensagem com o seu código `PHOENIX-PNP-NNN` e um código de saída diferente de zero. |
-| Testes | 🟡 | 474 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
+| Testes | 🟡 | 515 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
 | Configuração da máquina | 🟡 | um ficheiro `chave = valor` com versão, um validador que indica a linha e os limites de segurança (curso de Z, limites de X e Y, repetições, ângulos do bico); os valores não foram comparados com uma máquina real. |
 | Simulador e trabalho | 🟡 | um relógio virtual, falhas injetadas ao acaso (com semente) ou num sítio escolhido, repetições, as políticas alerta e adiar, alimentadores que se desligam após falhas repetidas, pausa, passo a passo e um estado guardado para retomar; apenas simula, nada moveu uma máquina. |
 | Segurança | 🟡 | Rust seguro e simples (`forbid(unsafe_code)`): nada entra em pânico com os ficheiros recebidos e um valor mau é um erro com o seu motivo; sem revisão independente. |
@@ -73,6 +73,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 * **O relatório de trabalho** (`src/report.rs`, `src/job.rs`): depois de simular um trabalho, `simulate` pode escrever o relatório como texto na língua de `--lang` (`--report-text`), como página HTML que contém tudo, sem scripts nem nada de fora, e que nunca é escrita por cima de um ficheiro que já existe (`--report-html`), como secções acrescentadas depois das linhas do CSV (`--report-csv`, o cabeçalho não muda) e como `work` no JSON (`--report`). Diz quantas peças foram colocadas, adiadas, saltadas pela pessoa, continuam pendentes ou não se montam; para onde foi o tempo de máquina (alimentar e recolher, olhares da câmara, colocações, deslocações da cabeça, trocas de ponta); quantas recolhas saíram à primeira tentativa; o mesmo por encapsulamento, alimentador, bico, ponta e placa de um painel; os erros ocorridos com os seus códigos; os avisos antes do trabalho; e um histograma do que a câmara corrigiu (X, Y e rotação). Simulado: nada disto foi medido numa máquina.
 * **O separador Trabalho e as decisões da pessoa** (`src/gui/jobtab.rs`, `src/gui/window.rs`, `src/job.rs`): a tabela mostra o estado de cada colocação (em espera, recolhida, alinhada, colocada, adiada, saltada, com falha) e as peças que não se montam, uma barra de progresso com o tempo de máquina e uma estimativa do tempo que falta, e filtros por estado, por texto e pelo que já está feito. Quando um erro para o trabalho, um diálogo nomeia o passo que falhou e oferece quatro ações executadas sobre o trabalho simulado, que depois continua: tentar de novo, saltar a peça, adiá-la ou desligar o alimentador para que outro do mesmo tipo assuma. Cada decisão é contada no relatório. A lógica não precisa de ecrã e está testada; nenhuma pessoa verificou o desenho num ecrã (as imagens deste separador em `images/screens/` são tiradas pelo próprio programa).
 * **O vácuo, os atuadores e a janela de falhas de um alimentador** (`src/sim.rs`, `src/job.rs`, `src/config.rs`): com `vacuum = on` a bomba simulada aspira durante `vacuum_suck_s` segundos depois de cada recolha e lê-se o nível do bico (quilopascais); um nível abaixo de `vacuum_pick_min_kpa` significa que o bico não segura nenhuma peça (`PHOENIX-PNP-044`, e a recolha repete-se como dizem as repetições) e, depois do sopro de `vacuum_blow_s` segundos em cada colocação, um nível acima de `vacuum_release_max_kpa` significa que a peça continua colada ao bico (`PHOENIX-PNP-045`). O sensor tem um gerador próprio (`sim_vacuum_noise_kpa`, `sim_vacuum_miss_rate`, `sim_vacuum_stuck_rate`) e vem desligado, pelo que um trabalho sem ele é exatamente o que era. Os dispositivos de ligar/desligar declaram-se com `actuator = NOME : ATRASO_S` e comutam-se com `Job::set_actuator`, que soma o seu atraso ao relógio (`PHOENIX-PNP-046` para um nome que a máquina não tem). Com `fault_action = alert`, um alimentador que atinge `fault_limit` falhas nas suas últimas `fault_window` recolhas já não se desliga sozinho: o trabalho para (`PHOENIX-PNP-047`) e o diálogo do separador Job oferece repetir, deixar a peça de fora, pô-la de lado ou desligar o alimentador.
+* **O modelo da câmara, as cabeças da máquina e as pontas de um encapsulamento** (`src/camera.rs`, `src/heads.rs`, `src/tips.rs`, `src/config.rs`): a câmara é descrita por `camera_units_per_px` (0 é o tamanho para que a visão está ajustada), `camera_offset_x_mm` e `camera_offset_y_mm` (onde está o eixo do bico na imagem), `camera_rotation_deg`, `camera_flip_x` e `camera_flip_y`, e pela lente (`camera_lens_scale`, `camera_lens_k1`); a câmara simulada do passo de alinhamento lê a peça através dela, com ou sem imagem, e com os valores por omissão um trabalho é exatamente o que era. `head = NOME : BICOS [: DESLOC_X : DESLOC_Y : CAMARA_X : CAMARA_Y : CAMARA_ROT : CAMARA_UNIDADES : CAMARA_LENTE]` declara até quatro cabeças, cada uma com os seus bicos, o seu deslocamento e a sua câmara; com duas ou mais cabeças, `schedule` dá cada peça a uma cabeça que a alcance (`PHOENIX-PNP-048` se nenhuma a alcançar), planeia cada cabeça e conta, no relógio da máquina, o tempo que uma cabeça espera por um alimentador que outra está a usar. `tip_compat = PADRÃO : PONTA, PONTA, ...` lista as pontas que um encapsulamento aceita e `tip_compat_mode` (`fewest_changes` ou `preferred`) escolhe uma ponta para cada tipo de peça, de modo que a máquina troque de ponta o menos vezes possível; uma ponta indicada nas tabelas é mantida.
 * **O simulador e o trabalho** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): as verificações antes de um trabalho, uma máquina com relógio virtual e falhas que se podem injetar, e um trabalho que se pode pôr em pausa, executar passo a passo, guardar e retomar.
 * **A janela** (`src/gui.rs`, `src/gui/`): o que a janela faz além de desenhar não precisa de ecrã (os ficheiros carregados, o plano e os seus problemas com correções, o trabalho simulado, a geometria do mapa, as tabelas com seleção partilhada, o assistente de cinco passos e os textos em oito idiomas) e é testado; só `src/gui/window.rs`, compilado com `--features gui`, a desenha com egui. A velocidade da simulação, o tema e o tamanho desenhado para uma peça de encapsulamento desconhecido são chaves de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -188,6 +189,7 @@ As tabelas de encapsulamentos e de peças (`--packages`, `--catalog`) são fiche
 | `PHOENIX-PNP-045` | O vácuo mostra que a peça continua no bico depois da colocação |
 | `PHOENIX-PNP-046` | A máquina não tem nenhum atuador com esse nome |
 | `PHOENIX-PNP-047` | Um alimentador tem demasiadas falhas nas últimas recolhas: a pessoa decide |
+| `PHOENIX-PNP-048` | Nenhuma cabeça da máquina alcança a peça |
 
 ## 🚀 Início rápido
 
@@ -223,7 +225,7 @@ A última linha abre a janela; `phoenix-pnp` sem comando também a abre se foi c
 
 ## 🧪 Testes
 
-O conjunto tem 474 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
+O conjunto tem 515 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilação e publicação
 
@@ -241,6 +243,7 @@ A versão está em `Cargo.toml` e em `eh3d.project.json`; cada versão tem a sua
 ```text
 EH3D-PHOENIX-PNP/
 ├── src/
+│   ├── camera.rs                                o modelo de uma câmara: tamanho do pixel, deslocamentos, rotação, espelho e lente
 │   ├── catalog.rs                               as tabelas de peças e de encapsulamentos e a herança das suas propriedades
 │   ├── cli_args.rs                              os argumentos da linha de comandos, estritos: uma opção desconhecida é um erro
 │   ├── commands.rs                              os comandos com configuração, tables-check e check-bottom
@@ -268,11 +271,12 @@ EH3D-PHOENIX-PNP/
 │   ├── gui/wizard.rs                            o assistente de cinco passos, do nada a um trabalho simulado
 │   ├── gui/workspace.rs                         os ficheiros carregados, o plano e as edições, sem janela
 │   ├── gui_main.rs                              a janela como programa à parte, sem consola no Windows
+│   ├── heads.rs                                 várias cabeças: alcance, distribuição das peças, esperas por um alimentador
 │   ├── job.rs                                   o trabalho: passos, pausa, repetições, políticas, estatísticas e estado guardado
 │   ├── lib.rs                                   a biblioteca: o que cada comando usa
 │   ├── loadsheet.rs                             a folha de carga: a ranhura de cada tipo de fita
-│   ├── marks.rs                                 marcas de dois níveis: as peças que são marcas e o ajuste do painel e de cada placa
 │   ├── main.rs                                  a linha de comandos e a entrada da janela quando corre sem comando
+│   ├── marks.rs                                 marcas de dois níveis: as peças que são marcas e o ajuste do painel e de cada placa
 │   ├── model.rs                                 as partes de uma máquina como traits: máquina, bico, alimentador, atuador, câmara, controlador
 │   ├── motion.rs                                o tempo de um movimento, com aceleração e arranque brusco
 │   ├── panel.rs                                 painéis: placas e painéis dentro de painéis, cada um no seu lugar
@@ -283,13 +287,16 @@ EH3D-PHOENIX-PNP/
 │   ├── report.rs                                o relatório de trabalho: fases, recolhas, grupos, erros; texto, HTML, CSV, JSON
 │   ├── rotation.rs                              correções da rotação por encapsulamento, e como roda um bico limitado
 │   ├── sim.rs                                   a máquina simulada: relógio virtual e falhas que se podem injetar
+│   ├── tips.rs                                  as pontas que um encapsulamento aceita e a escolha de uma para cada tipo de peça
 │   ├── units.rs                                 comprimentos e lugares que levam a sua unidade
 │   └── vision.rs                                a cadeia de visão: filtro, limiar, manchas, menor retângulo rodado
 ├── tests/
 │   ├── align.rs                                 testes do passo de alinhamento: câmara, lugar corrigido, tolerância e tempo
+│   ├── camera.rs                                testes do modelo da câmara, das câmaras das cabeças e da câmara do simulador
 │   ├── commands.rs                              testes dos comandos que usam a configuração
 │   ├── feeding.rs                               testes dos alimentadores: prioridade, tabuleiros e tiras
 │   ├── gui.rs                                   testes da janela sem ecrã: estado, plano, trabalho, mapa, tabelas e assistente
+│   ├── heads.rs                                 testes das cabeças: linhas da configuração, alcance, distribuição, o relógio e schedule
 │   ├── job.rs                                   testes do trabalho: passos, repetições e estado guardado
 │   ├── jobtab.rs                                testes do separador Trabalho sem ecrã: estados, filtros, progresso, diálogo
 │   ├── loadsheet.rs                             testes da folha de carga e das exportações
@@ -306,6 +313,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   testes da máquina simulada
 │   ├── strict.rs                                testes da linha de comandos: opções e palavras que não conhece
 │   ├── tables.rs                                testes das peças que não se montam, de tables-check e do relatório de um trabalho em CSV
+│   ├── tips.rs                                  testes das pontas que um encapsulamento aceita: as regras, a escolha e o plano
 │   ├── vacuum.rs                                testes do vácuo, dos atuadores e da janela de falhas de um alimentador
 │   ├── vision.rs                                testes da visão: imagens calculadas à mão, falhas, definições
 │   └── vision_job.rs                            testes da visão no trabalho e vision-test: leituras, falhas, estado guardado
