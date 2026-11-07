@@ -867,6 +867,19 @@
           }
         },
         {
+          "name": "vacuum.rs",
+          "desc": {
+            "en": "tests of the vacuum, the actuators and the window of faults of a feeder",
+            "es": "pruebas del vacío, los actuadores y la ventana de fallos de un alimentador",
+            "de": "Tests des Vakuums, der Aktoren und des Fehlerfensters einer Zuführung",
+            "fr": "tests du vide, des actionneurs et de la fenêtre de défauts d'un alimentateur",
+            "it": "test del vuoto, degli attuatori e della finestra dei guasti di un alimentatore",
+            "ja": "真空、アクチュエーター、フィーダーの故障ウィンドウのテスト",
+            "zh": "真空、执行器和供料器故障窗口的测试",
+            "pt": "testes do vácuo, dos atuadores e da janela de falhas de um alimentador"
+          }
+        },
+        {
           "name": "vision.rs",
           "desc": {
             "en": "tests of the vision pipeline: pictures checked by hand, failures, settings",

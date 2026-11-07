@@ -18,7 +18,7 @@
 
 ---
 
-**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`phoenix-pnp`) con 452 pruebas que se ejecutan en un ordenador: lee el fichero de posiciones de una placa, da a cada componente su alimentador (con prioridades, bandejas y tiras), lee los ajustes de la máquina de un fichero, planifica el orden de colocación para un cabezal de hasta seis boquillas (rangos, puntas de boquilla, límites de ángulo, tiempo de los movimientos, paneles), escribe una hoja de carga y, en una máquina simulada, ejecuta el plan paso a paso con fallos inyectados. También tiene una ventana (se compila con `--features gui`) cuya lógica se prueba sin pantalla; el dibujo en sí no está cubierto por pruebas y, aunque el programa hace capturas de su propia ventana (`--shot`), ninguna persona ha revisado el dibujo en una pantalla. No controla ninguna máquina: no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
+**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`phoenix-pnp`) con 474 pruebas que se ejecutan en un ordenador: lee el fichero de posiciones de una placa, da a cada componente su alimentador (con prioridades, bandejas y tiras), lee los ajustes de la máquina de un fichero, planifica el orden de colocación para un cabezal de hasta seis boquillas (rangos, puntas de boquilla, límites de ángulo, tiempo de los movimientos, paneles), escribe una hoja de carga y, en una máquina simulada, ejecuta el plan paso a paso con fallos inyectados. También tiene una ventana (se compila con `--features gui`) cuya lógica se prueba sin pantalla; el dibujo en sí no está cubierto por pruebas y, aunque el programa hace capturas de su propia ventana (`--shot`), ninguna persona ha revisado el dibujo en una pantalla. No controla ninguna máquina: no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versión | `0.0.6` |
 | Madurez | Andamiaje |
-| Pruebas | 452 |
+| Pruebas | 474 |
 | Pila tecnológica | Rust |
 | En hardware real | No probado: nada de esto se ha ejecutado en una máquina |
 
@@ -47,7 +47,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 |---|---|---|
 | Núcleo | 🟡 | lee el fichero de posiciones de una placa, da a cada componente su alimentador (prioridad, bandeja, tira), planifica el orden de colocación para un cabezal de hasta seis boquillas con rangos, puntas de boquilla, límites de ángulo y el tiempo de los movimientos, planifica paneles y escribe la hoja de carga; probado en un ordenador con entradas normales y dañadas, no con una colección de ficheros reales. |
 | Línea de comandos | 🟡 | `phoenix-pnp` ejecuta las mismas funciones que la biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `vision-test`) e imprime el resultado; cada error vuelve como un mensaje con su código `PHOENIX-PNP-NNN` y un código de salida distinto de cero. |
-| Pruebas | 🟡 | 452 pruebas pasan (`cargo test`), con casos normales, casos límite, entradas dañadas y pequeños casos generados. |
+| Pruebas | 🟡 | 474 pruebas pasan (`cargo test`), con casos normales, casos límite, entradas dañadas y pequeños casos generados. |
 | Configuración de la máquina | 🟡 | un fichero `clave = valor` con versión, un validador que nombra la línea y los límites de seguridad (recorrido de Z, límites de X e Y, reintentos, ángulos de boquilla); los valores no se han comparado con una máquina real. |
 | Simulador y trabajo | 🟡 | un reloj virtual, fallos inyectados al azar (con semilla) o en un lugar elegido, reintentos, las políticas alerta y aplazar, alimentadores que se apagan tras fallos repetidos, pausa, paso a paso y un estado guardado para reanudar; solo simula, nada ha movido una máquina. |
 | Seguridad | 🟡 | Rust seguro y simple (`forbid(unsafe_code)`): nada entra en pánico con los ficheros recibidos y un valor malo es un error con su motivo; sin revisión independiente. |
@@ -72,6 +72,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 * **La tubería de visión** (`src/vision.rs`, `src/sim.rs`, `examples/vision.cfg`): con `vision = pipeline` la cámara simulada dibuja en memoria una imagen de la pieza (su tamaño, su giro y lo lejos que está de la boquilla, con un ruido sacado de `sim_seed`) y la mide con los pasos de un archivo de ajustes (`--vision FILE`): una máscara, un filtro de mediana, un umbral fijo o de Otsu, un rango de área para la mancha y el rectángulo girado más pequeño, cuyo centro y ángulo son el desplazamiento que corrige el paso de alineación. Una pieza que no se halla, una mancha de área equivocada y varias manchas son miradas sin lectura, cada una con su código (`PHOENIX-PNP-037` a `PHOENIX-PNP-039`). `phoenix-pnp vision-test` dibuja una pieza con el tamaño, el giro, el desplazamiento y el ruido que se le dan e imprime lo medido con su error. Apagado por defecto: un trabajo es entonces el de siempre. No probado con una cámara real.
 * **El informe de trabajo** (`src/report.rs`, `src/job.rs`): tras simular un trabajo, `simulate` puede escribir el informe como texto en el idioma de `--lang` (`--report-text`), como una página HTML que lo contiene todo, sin scripts ni nada de fuera, y que nunca se escribe sobre un archivo que ya existe (`--report-html`), como secciones añadidas tras las filas del CSV (`--report-csv`, la cabecera no cambia) y como `work` en el JSON (`--report`). Dice cuántas piezas se colocaron, se aplazaron, saltó la persona, siguen pendientes o no se montan; en qué se fue el tiempo de máquina (alimentar y recoger, las miradas de la cámara, las colocaciones, los desplazamientos del cabezal, los cambios de punta); cuántas recogidas salieron al primer intento; lo mismo por paquete, alimentador, boquilla, punta y placa de un panel; los errores producidos con sus códigos; los avisos antes del trabajo; y un histograma de lo que corrigió la cámara (X, Y y giro). Simulado: nada de ello se midió en una máquina.
 * **La pestaña Trabajo y las decisiones de la persona** (`src/gui/jobtab.rs`, `src/gui/window.rs`, `src/job.rs`): la tabla muestra el estado de cada colocación (en espera, recogida, alineada, colocada, aplazada, saltada, con fallo) y las piezas que no se montan, una barra de progreso con el tiempo de máquina y una estimación del tiempo que falta, y filtros por estado, por texto y por lo que ya está hecho. Cuando un error detiene el trabajo, un diálogo nombra el paso que falló y ofrece cuatro acciones que se ejecutan sobre el trabajo simulado, que después sigue: reintentar, saltar la pieza, aplazarla o apagar el alimentador para que otro del mismo tipo tome el relevo. Cada decisión se cuenta en el informe. La lógica no necesita pantalla y está probada; ninguna persona ha revisado el dibujo en una pantalla (las imágenes de esta pestaña en `images/screens/` las hace el propio programa).
+* **El vacío, los actuadores y la ventana de fallos de un alimentador** (`src/sim.rs`, `src/job.rs`, `src/config.rs`): con `vacuum = on` la bomba simulada aspira durante `vacuum_suck_s` segundos tras cada recogida y se lee el nivel de la boquilla (kilopascales); un nivel por debajo de `vacuum_pick_min_kpa` significa que la boquilla no sujeta ninguna pieza (`PHOENIX-PNP-044`, y la recogida se repite como dicen los reintentos) y, tras el soplado de `vacuum_blow_s` segundos en cada colocación, un nivel por encima de `vacuum_release_max_kpa` significa que la pieza sigue pegada a la boquilla (`PHOENIX-PNP-045`). El sensor tiene un generador propio (`sim_vacuum_noise_kpa`, `sim_vacuum_miss_rate`, `sim_vacuum_stuck_rate`) y viene apagado, así que un trabajo sin él es exactamente el que era. Los dispositivos de encendido/apagado se declaran con `actuator = NOMBRE : RETARDO_S` y se conmutan con `Job::set_actuator`, que suma su retardo al reloj (`PHOENIX-PNP-046` si la máquina no tiene ese nombre). Con `fault_action = alert`, un alimentador que alcanza `fault_limit` fallos entre sus últimas `fault_window` recogidas ya no se apaga solo: el trabajo se detiene (`PHOENIX-PNP-047`) y el diálogo de la pestaña Job ofrece reintentar, dejar la pieza fuera, apartarla o apagar el alimentador.
 * **El simulador y el trabajo** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): las comprobaciones previas al trabajo, una máquina con reloj virtual y fallos que se pueden inyectar, y un trabajo que se puede pausar, ejecutar paso a paso, guardar y reanudar.
 * **La ventana** (`src/gui.rs`, `src/gui/`): lo que la ventana hace además de dibujar no necesita pantalla (los ficheros cargados, el plan y sus problemas con arreglos, el trabajo simulado, la geometría del mapa, las tablas con una selección compartida, el asistente de cinco pasos y los textos en ocho idiomas) y se prueba; solo `src/gui/window.rs`, que se compila con `--features gui`, lo dibuja con egui. La velocidad de la simulación, el tema y el tamaño dibujado para una pieza de encapsulado desconocido son claves de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -183,6 +184,10 @@ Las tablas de encapsulados y de componentes (`--packages`, `--catalog`) son fich
 | `PHOENIX-PNP-041` | La acción no corresponde al estado del trabajo |
 | `PHOENIX-PNP-042` | Una placa marcada como mala (X-out) no está en el panel |
 | `PHOENIX-PNP-043` | Todas las placas del panel están marcadas como malas (X-out): no queda nada que colocar |
+| `PHOENIX-PNP-044` | El vacío no muestra ninguna pieza en la boquilla tras recogerla |
+| `PHOENIX-PNP-045` | El vacío muestra que la pieza sigue en la boquilla tras colocarla |
+| `PHOENIX-PNP-046` | La máquina no tiene ningún actuador con ese nombre |
+| `PHOENIX-PNP-047` | Un alimentador tiene demasiados fallos entre sus últimas recogidas: decide la persona |
 
 ## 🚀 Inicio rápido
 
@@ -218,7 +223,7 @@ La última línea abre la ventana; también lo hace `phoenix-pnp` sin orden cuan
 
 ## 🧪 Pruebas
 
-La suite tiene 452 pruebas (`cargo test`, que se ejecutan en Windows y Linux en la CI). Comprueban los casos normales, los casos límite y las entradas dañadas: los ficheros vacíos, la basura y los ficheros cortados nunca provocan un pánico. Pequeños casos generados (desde una semilla fija, así que dan los mismos números en cada ejecución) comprueban que el plan no depende del orden de los ficheros, que un recorrido nunca se alarga, que un trabajo guardado y reanudado en cualquier punto acaba igual que el que nunca se detuvo, y que las longitudes y los ángulos se convierten de ida y vuelta. La CI también ejecuta `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
+La suite tiene 474 pruebas (`cargo test`, que se ejecutan en Windows y Linux en la CI). Comprueban los casos normales, los casos límite y las entradas dañadas: los ficheros vacíos, la basura y los ficheros cortados nunca provocan un pánico. Pequeños casos generados (desde una semilla fija, así que dan los mismos números en cada ejecución) comprueban que el plan no depende del orden de los ficheros, que un recorrido nunca se alarga, que un trabajo guardado y reanudado en cualquier punto acaba igual que el que nunca se detuvo, y que las longitudes y los ángulos se convierten de ida y vuelta. La CI también ejecuta `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilación y publicación
 
@@ -301,6 +306,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   pruebas de la máquina simulada
 │   ├── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
 │   ├── tables.rs                                pruebas de las piezas que no se montan, de tables-check y del informe de un trabajo en CSV
+│   ├── vacuum.rs                                pruebas del vacío, los actuadores y la ventana de fallos de un alimentador
 │   ├── vision.rs                                pruebas de la visión: imágenes calculadas a mano, fallos y ajustes
 │   └── vision_job.rs                            pruebas de la visión en el trabajo y vision-test: lecturas, fallos, estado
 ├── examples/
