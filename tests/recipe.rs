@@ -419,7 +419,7 @@ fn the_settings_of_the_limits_have_their_ranges_and_the_example_is_the_default()
 
 #[test]
 fn the_codes_have_their_meaning_in_the_eight_languages() {
-    assert_eq!(Code::ALL.len(), 52);
+    assert_eq!(Code::ALL.len(), 56);
     for (code, number) in [
         (Code::RecipeBad, 49),
         (Code::RecipeSteps, 50),

@@ -11,6 +11,7 @@ use eh3d_phoenix_pnp::export;
 use eh3d_phoenix_pnp::feeding::{self, FeederSpec, Picks};
 use eh3d_phoenix_pnp::fiducial;
 use eh3d_phoenix_pnp::heads::plan_heads;
+use eh3d_phoenix_pnp::import::{self, expand_references, ColumnMap, Format};
 use eh3d_phoenix_pnp::job::{Job, Phase};
 use eh3d_phoenix_pnp::loadsheet;
 use eh3d_phoenix_pnp::marks;
@@ -763,6 +764,62 @@ pub fn recipe_check(mut args: Vec<String>) -> Result<(), String> {
     finish(&args, 1)?;
     let path = args.first().ok_or("recipe-check needs a file")?;
     println!("{}", read_recipe(path, &cfg, lang)?.summary());
+    Ok(())
+}
+
+/// `import-centroid`: reads a position file of a CAD program (a centroid CSV with a map of its columns, the text of EAGLE or the `.pos` of KiCad) and writes the table of parts that the
+/// rest of the program reads, to `--out` (a file that exists is never written over) or to the standard output.
+pub fn import_centroid(mut args: Vec<String>) -> Result<(), String> {
+    let lang_option = match flag(&mut args, "--lang")? {
+        Some(l) => Some(
+            Lang::from_code(&l)
+                .ok_or_else(|| format!("--lang '{l}' is not one of en es de fr it ja zh pt"))?,
+        ),
+        None => None,
+    };
+    let early = lang_option.unwrap_or(Lang::En);
+    let cfg = match flag(&mut args, "--config")? {
+        Some(p) => MachineConfig::parse(&read_text(&p, MAX_CONFIG_BYTES as u64)?)
+            .map_err(|e| e.localized(early))?,
+        None => MachineConfig::default(),
+    };
+    let lang = lang_option.unwrap_or(cfg.language);
+    let l = move |e: PnpError| e.localized(lang);
+    let format = match flag(&mut args, "--format")? {
+        Some(f) => Format::parse(&f)
+            .ok_or_else(|| format!("--format '{f}' is not one of auto csv eagle kicad-pos"))?,
+        None => Format::Auto,
+    };
+    let map_path = flag(&mut args, "--map")?;
+    let out_path = flag(&mut args, "--out")?;
+    let dnp = flag(&mut args, "--dnp")?;
+    finish(&args, 1)?;
+    let path = args.first().ok_or("import-centroid needs a file")?.clone();
+    if let Some(out) = &out_path {
+        refuse_same_file(std::slice::from_ref(&path), out)?;
+    }
+    let map = match &map_path {
+        Some(p) => Some(ColumnMap::parse(&read_text(p, MAX_CONFIG_BYTES as u64)?).map_err(l)?),
+        None => None,
+    };
+    let text = read_text(&path, cfg.max_file_bytes)?;
+    let mut imported =
+        import::import(&text, format, map.as_ref(), &cfg.import_settings()).map_err(l)?;
+    if let Some(spec) = &dnp {
+        let items = expand_references(spec).map_err(l)?;
+        imported.apply_dnp(&items).map_err(l)?;
+    }
+    let csv = imported.to_csv();
+    match out_path {
+        Some(out) => {
+            report::write_new(&out, &csv).map_err(l)?;
+            println!("ok: {}; written to {out}", imported.summary());
+        }
+        None => {
+            print!("{csv}");
+            eprintln!("ok: {}", imported.summary());
+        }
+    }
     Ok(())
 }
 

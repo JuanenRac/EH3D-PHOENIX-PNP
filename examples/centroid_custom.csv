@@ -1,0 +1,6 @@
+Part Name,Part Value,Case,Pos X (mil),Pos Y (mil),Angle,Face,Placed
+R1,10k,R_0603,400,800,0,Up,yes
+R2,10k,R_0603,600,800,90,Up,no
+C1,100n,C_0603,400,1200,270,Up,yes
+U1,MCU,QFN-32,1600,1000,0,Up,yes
+D1,LED,LED_0603,1200,400,180,Down,yes

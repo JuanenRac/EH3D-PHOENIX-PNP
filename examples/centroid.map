@@ -1,0 +1,17 @@
+# The map of the columns of centroid_custom.csv. A line is key = value; a list of names replaces the names the program knows for that column.
+reference = part name
+value = part value
+package = case
+x = pos x
+y = pos y
+rotation = angle
+side = face
+# A no in this column leaves the part out (dnp = names does the opposite: a yes leaves it out).
+fitted = placed
+# Words that mean the top and the bottom side, besides top and bottom.
+top_words = up
+bottom_words = down
+# The unit of a number that has none and whose header names none (the headers here name mil).
+unit = mil
+delimiter = comma
+skip_lines = 0

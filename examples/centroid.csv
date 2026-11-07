@@ -1,0 +1,8 @@
+Designator;Comment;Footprint;Mid X;Mid Y;Layer;Rotation;DNP
+R1;10k;R_0603;10.0;20.0;Top;0;
+R2;10k;R_0603;15.0;20.0;Top;90;yes
+R3;10k;R_0603;20.0;20.0;Top;-180;
+C1;100n;C_0603;10.0;30.0;Top;0;
+C2;"100n, X7R";C_0603;15.0;30.0;Top;270;no
+U1;MCU;QFN-32;40.0;25.0;Top;0;
+D1;LED;LED_0603;30.0;10.0;Bottom;45;

@@ -7,6 +7,7 @@ use crate::catalog::Defaults;
 use crate::error::{Code, Lang, PnpError};
 use crate::feeding::TrayFill;
 use crate::fiducial::FitMode;
+use crate::import::{ImportUnit, Settings as ImportSettings};
 use crate::parts::{BottomRotation, PositionColumns, Profile};
 use crate::tips::{TipChoice, TipRule, MAX_RULE_TIPS, MAX_TIP_RULES};
 use std::collections::HashSet;
@@ -17,7 +18,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 116] = [
+pub const KEYS: [&str; 118] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -134,6 +135,8 @@ pub const KEYS: [&str; 116] = [
     "tip_compat_mode",
     "recipe_max_bytes",
     "recipe_max_rules",
+    "import_unit",
+    "import_bottom_mirror_width_mm",
 ];
 
 /// The order in which the places are visited.
@@ -441,6 +444,10 @@ pub struct MachineConfig {
     pub recipe_max_bytes: u64,
     /// The most rules (of package, feeder and tip) a recipe may have.
     pub recipe_max_rules: usize,
+    /// The unit of the numbers of a position file that gives none (the import of a centroid, EAGLE or KiCad file).
+    pub import_unit: ImportUnit,
+    /// When above 0, the X of the parts of the bottom side of an imported file becomes this width minus X; 0 leaves them as the file has them.
+    pub import_bottom_mirror_width_mm: f64,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -544,6 +551,8 @@ impl Default for MachineConfig {
             tip_choice: TipChoice::FewestChanges,
             recipe_max_bytes: 65_536,
             recipe_max_rules: 64,
+            import_unit: ImportUnit::Mm,
+            import_bottom_mirror_width_mm: 0.0,
         }
     }
 }
@@ -648,6 +657,15 @@ fn parse_head(line: usize, key: &str, v: &str) -> Result<HeadSpec, PnpError> {
 }
 
 impl MachineConfig {
+    /// What the import of a position file takes from the configuration: the unit, the mirror of the bottom side and the rule for its angle.
+    pub fn import_settings(&self) -> ImportSettings {
+        ImportSettings {
+            unit: self.import_unit,
+            mirror_width_mm: self.import_bottom_mirror_width_mm,
+            bottom_rotation: self.profile.bottom_rotation,
+        }
+    }
+
     /// The heads of the machine: the ones the file declares, or one head with `nozzles` nozzles.
     pub fn head_list(&self) -> Vec<HeadSpec> {
         if self.heads.is_empty() {
@@ -1039,6 +1057,13 @@ impl MachineConfig {
             }
             "recipe_max_bytes" => self.recipe_max_bytes = int(line, key, v, 256, 1_048_576)? as u64,
             "recipe_max_rules" => self.recipe_max_rules = int(line, key, v, 1, 1000)? as usize,
+            "import_unit" => {
+                self.import_unit =
+                    ImportUnit::parse(v).ok_or_else(|| bad(line, key, v, "mm, mil or inch"))?
+            }
+            "import_bottom_mirror_width_mm" => {
+                self.import_bottom_mirror_width_mm = n(0.0, 10_000.0)?
+            }
             "tip_compat_mode" => {
                 self.tip_choice = TipChoice::parse(&v.to_ascii_lowercase())
                     .ok_or_else(|| bad(line, key, v, "fewest_changes or preferred"))?

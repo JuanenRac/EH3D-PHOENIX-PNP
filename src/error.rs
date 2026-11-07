@@ -105,10 +105,14 @@ pub enum Code {
     RecipeSteps = 50,
     RecipeLimit = 51,
     RecipeNewer = 52,
+    ImportBad = 53,
+    ImportMap = 54,
+    ImportFormat = 55,
+    ImportRange = 56,
 }
 
 impl Code {
-    pub const ALL: [Code; 52] = [
+    pub const ALL: [Code; 56] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -161,6 +165,10 @@ impl Code {
         Code::RecipeSteps,
         Code::RecipeLimit,
         Code::RecipeNewer,
+        Code::ImportBad,
+        Code::ImportMap,
+        Code::ImportFormat,
+        Code::ImportRange,
     ];
 
     pub fn number(self) -> u16 {
@@ -179,7 +187,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 52] = [
+static MESSAGES: [[&str; 8]; 56] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -699,6 +707,46 @@ static MESSAGES: [[&str; 8]; 52] = [
         "このレシピは新しいバージョンのプログラム用です",
         "该配方是为更新版本的程序编写的",
         "A receita foi escrita para uma versão mais recente do programa",
+    ],
+    [
+        "A line of the position file is not valid",
+        "Una línea del archivo de posiciones no es válida",
+        "Eine Zeile der Positionsdatei ist ungültig",
+        "Une ligne du fichier de positions n'est pas valide",
+        "Una riga del file delle posizioni non è valida",
+        "位置ファイルの行が無効です",
+        "位置文件中有一行无效",
+        "Uma linha do ficheiro de posições não é válida",
+    ],
+    [
+        "The column map, or the header it is applied to, does not give the columns that are needed",
+        "El mapa de columnas, o la cabecera a la que se aplica, no da las columnas necesarias",
+        "Die Spaltenzuordnung oder die Kopfzeile, auf die sie angewendet wird, liefert nicht die nötigen Spalten",
+        "La carte des colonnes, ou l'en-tête à laquelle elle s'applique, ne donne pas les colonnes nécessaires",
+        "La mappa delle colonne, o l'intestazione a cui si applica, non fornisce le colonne necessarie",
+        "列マップ、またはそれを適用するヘッダーに、必要な列がありません",
+        "列映射或其所应用的表头没有给出所需的列",
+        "O mapa de colunas, ou o cabeçalho a que se aplica, não indica as colunas necessárias",
+    ],
+    [
+        "The format of the position file is not known",
+        "No se conoce el formato del archivo de posiciones",
+        "Das Format der Positionsdatei ist nicht bekannt",
+        "Le format du fichier de positions n'est pas connu",
+        "Il formato del file delle posizioni non è noto",
+        "位置ファイルの形式が不明です",
+        "无法识别位置文件的格式",
+        "O formato do ficheiro de posições não é conhecido",
+    ],
+    [
+        "A range of references is not valid",
+        "Un rango de referencias no es válido",
+        "Ein Bereich von Referenzen ist ungültig",
+        "Une plage de références n'est pas valide",
+        "Un intervallo di riferimenti non è valido",
+        "参照の範囲が無効です",
+        "位号范围无效",
+        "Um intervalo de referências não é válido",
     ],
 ];
 

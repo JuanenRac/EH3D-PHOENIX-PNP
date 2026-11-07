@@ -14,6 +14,7 @@ pub mod feeding;
 pub mod fiducial;
 pub mod gui;
 pub mod heads;
+pub mod import;
 pub mod job;
 pub mod loadsheet;
 pub mod marks;

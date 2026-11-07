@@ -39,7 +39,7 @@ pub struct Parsed {
 }
 
 /// The names of a column that says a part is not to be mounted: a yes in it leaves the part out.
-const DNP_NAMES: [&str; 7] = [
+pub(crate) const DNP_NAMES: [&str; 7] = [
     "dnp",
     "do not place",
     "do not populate",
@@ -49,7 +49,7 @@ const DNP_NAMES: [&str; 7] = [
     "no montar",
 ];
 /// The names of a column that says a part is to be mounted: a no in it leaves the part out.
-const FITTED_NAMES: [&str; 6] = [
+pub(crate) const FITTED_NAMES: [&str; 6] = [
     "fitted",
     "populate",
     "populated",
@@ -61,7 +61,11 @@ const YES_WORDS: [&str; 5] = ["yes", "y", "true", "1", "x"];
 const NO_WORDS: [&str; 5] = ["no", "n", "false", "0", "-"];
 
 /// Whether the cell of the column of mounting says the part is mounted. An empty cell says it is; a word that is neither yes nor no is an error with the stable code.
-fn is_mounted(text: &str, fitted_column: bool, profile: &Profile) -> Result<bool, String> {
+pub(crate) fn is_mounted(
+    text: &str,
+    fitted_column: bool,
+    profile: &Profile,
+) -> Result<bool, String> {
     let t = text.trim().to_ascii_lowercase();
     if t.is_empty() {
         return Ok(true);
@@ -174,11 +178,25 @@ pub fn detect_delimiter(head_line: &str) -> char {
 /// The records of a table, one reader for the parts and for the feeders: fields split by `delim`, a field in double quotes may hold the delimiter, a doubled quote and a line break,
 /// an empty row is left out, and every field is trimmed. A quote that is opened and never closed is an error.
 pub fn read_records(text: &str, delim: char) -> Result<Vec<Vec<String>>, String> {
-    let mut records: Vec<Vec<String>> = Vec::new();
+    read_records_numbered(text, delim)
+        .map(|rows| rows.into_iter().map(|(_, record)| record).collect())
+        .map_err(|(_, e)| e)
+}
+
+/// The records of a table with the number of the line (from 1) on which each one starts.
+pub type NumberedRecords = Vec<(usize, Vec<String>)>;
+
+/// The same, with the number of the line (from 1) on which each record starts; the error of a quote that is never closed comes with the line on which the quote was opened.
+pub fn read_records_numbered(text: &str, delim: char) -> Result<NumberedRecords, (usize, String)> {
+    let mut records: NumberedRecords = Vec::new();
     let mut record: Vec<String> = Vec::new();
     let (mut field, mut quoted) = (String::new(), false);
+    let (mut line, mut start) = (1usize, 1usize);
     let mut chars = text.chars().peekable();
     while let Some(c) = chars.next() {
+        if c == '\n' {
+            line += 1;
+        }
         if quoted {
             if c == '"' && chars.peek() == Some(&'"') {
                 field.push('"');
@@ -196,19 +214,20 @@ pub fn read_records(text: &str, delim: char) -> Result<Vec<Vec<String>>, String>
             record.push(std::mem::take(&mut field).trim().to_string());
             let row = std::mem::take(&mut record);
             if !(row.len() == 1 && row[0].is_empty()) {
-                records.push(row);
+                records.push((start, row));
             }
+            start = line;
         } else if c != '\r' {
             field.push(c);
         }
     }
     if quoted {
-        return Err("a quote is opened and never closed".into());
+        return Err((start, "a quote is opened and never closed".into()));
     }
     if !field.is_empty() || !record.is_empty() {
         record.push(field.trim().to_string());
         if !(record.len() == 1 && record[0].is_empty()) {
-            records.push(record);
+            records.push((start, record));
         }
     }
     Ok(records)
@@ -286,14 +305,14 @@ impl BottomRotation {
     }
 }
 
-fn names_of(base: &[&str], extra: &[String]) -> Vec<String> {
+pub(crate) fn names_of(base: &[&str], extra: &[String]) -> Vec<String> {
     base.iter()
         .map(|s| s.to_string())
         .chain(extra.iter().map(|s| s.trim().to_ascii_lowercase()))
         .collect()
 }
 
-fn position_names(axis: char, mode: PositionColumns, extra: &[String]) -> Vec<String> {
+pub(crate) fn position_names(axis: char, mode: PositionColumns, extra: &[String]) -> Vec<String> {
     let a = axis;
     let mut names = vec![
         a.to_string(),
@@ -322,7 +341,7 @@ fn position_names(axis: char, mode: PositionColumns, extra: &[String]) -> Vec<St
     names
 }
 
-fn column(header: &[String], names: &[String]) -> Option<usize> {
+pub(crate) fn column(header: &[String], names: &[String]) -> Option<usize> {
     header.iter().position(|h| {
         let lc = h.trim().to_ascii_lowercase();
         names.contains(&lc)
@@ -330,7 +349,7 @@ fn column(header: &[String], names: &[String]) -> Option<usize> {
 }
 
 /// Like `column`, for a position: a header may name its unit, `PosX(mil)`, `Center-X(in)` or `X [mm]`, and the unit (in millimetres per unit) is returned with the column.
-fn column_unit(header: &[String], names: &[String]) -> Option<(usize, f64)> {
+pub(crate) fn column_unit(header: &[String], names: &[String]) -> Option<(usize, f64)> {
     header.iter().enumerate().find_map(|(i, h)| {
         let lc = h.trim().to_ascii_lowercase();
         if names.contains(&lc) {
