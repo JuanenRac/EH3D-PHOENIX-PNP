@@ -2479,6 +2479,8 @@ pub fn run_shot(
         Box::new(move |cc| {
             install_fonts(&cc.egui_ctx);
             let mut app = PnpApp::new(ui_settings, &paths);
+            // the language that was asked for wins over the one that a configuration file loaded says
+            app.s.set_lang(lang);
             if let Some(tab) = view.0 {
                 app.s.tab = tab;
             }
