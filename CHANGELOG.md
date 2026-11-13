@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The CI validation checks the workflows and the lessons of past CI failures against a baseline:** `tools/workflow_hygiene.py` and `tools/lessons_lint.py` (copies of the shared tools) run in the validation, and only findings that are not in `tools/workflow_hygiene_baseline.json` and `tools/lessons_lint_baseline.json` fail it, so what exists today stays as it is and a new one is caught. `python tools/workflow_hygiene.py --root . --detail` and `python tools/lessons_lint.py --repo .` list the findings.
+
 ## [0.0.7] - Vacuum and actuators, several heads and the camera model, recipes of a job, the centroid import and panels with boards marked as bad
 
 - **The simulated vacuum:** with `vacuum = on` the pump of a nozzle sucks for `vacuum_suck_s` seconds after every pick and the level of the nozzle is read in kilopascals; a level under `vacuum_pick_min_kpa` says that the nozzle holds no part, the part is let go of and the pick is a failure that the retries, `error_policy` and the decisions of the person handle like any other. After every place the nozzle blows for `vacuum_blow_s` seconds and is read again; a level over `vacuum_release_max_kpa` says that the part is still stuck to the nozzle, the nozzle holds it again and the place is a failure. Off by default: with `vacuum = off` a job (its plan, its events, its reports and its saved state) is exactly what it was, whatever the other vacuum settings say.
