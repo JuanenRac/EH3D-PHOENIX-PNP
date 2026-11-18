@@ -27,6 +27,7 @@ use eh3d_phoenix_pnp::parts::{
 };
 use eh3d_phoenix_pnp::planner::{plan_advanced, AdvancedPlan, Options};
 use eh3d_phoenix_pnp::preflight::{has_errors, preflight, to_text, Check, Severity, Source};
+use eh3d_phoenix_pnp::preview;
 use eh3d_phoenix_pnp::recipe::{Limits, Recipe};
 use eh3d_phoenix_pnp::report::{self, ReportCheck, ReportInput};
 use eh3d_phoenix_pnp::setup;
@@ -470,6 +471,7 @@ pub fn schedule(mut args: Vec<String>) -> Result<(), String> {
     let report = flag(&mut args, "--report-text")?;
     let gcode = flag(&mut args, "--gcode")?;
     let missing = flag(&mut args, "--missing")?;
+    let svg = flag(&mut args, "--svg")?;
     let partial = switch(&mut args, "--partial");
     let p = prepare(args, 1)?;
     let out = p
@@ -482,11 +484,18 @@ pub fn schedule(mut args: Vec<String>) -> Result<(), String> {
         report.as_ref(),
         gcode.as_ref(),
         missing.as_ref(),
+        svg.as_ref(),
     ]
     .into_iter()
     .flatten()
     {
         refuse_same_file(&p.inputs, o)?;
+    }
+    // the picture is never written over a file: that is told before anything is written, not after
+    if let Some(s) = &svg {
+        if Path::new(s).exists() {
+            return Err(PnpError::new(Code::ReportExists, s.as_str()).localized(p.c.lang));
+        }
     }
     let planned = make_plan(&p)?;
     stop_on_errors(&p, &planned, partial)?;
@@ -531,6 +540,10 @@ pub fn schedule(mut args: Vec<String>) -> Result<(), String> {
     }
     if let Some(m) = &missing {
         write_atomic(m, &export::missing_csv(&p.picks, &planned.undefined))?;
+    }
+    if let Some(s) = &svg {
+        report::write_new(s, &preview::svg(&planned.plan, &p.feeders))
+            .map_err(|e| e.localized(p.c.lang))?;
     }
     let pl = &planned.plan.plan;
     println!(

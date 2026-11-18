@@ -24,7 +24,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp check PARTS FEEDERS              which parts have no feeder and which feeders will run out
   phoenix-pnp plan PARTS FEEDERS OUT.json [--nozzles 2] [--side top|bottom] [--board-width MM] [--origin-x MM] [--speed MM_S] [--partial]
 
-  phoenix-pnp schedule PARTS FEEDERS OUT.json [OPTIONS] [--report-text F] [--gcode F] [--missing F] [--partial]
+  phoenix-pnp schedule PARTS FEEDERS OUT.json [OPTIONS] [--report-text F] [--gcode F] [--missing F] [--svg F] [--partial]
   phoenix-pnp preflight PARTS FEEDERS [OPTIONS]            the checks before a job, without writing anything
   phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--report-csv F] [--report-text F] [--report-html F] [--report-feeders F] [--nozzle-life F] [--vision F] [--recipe F] [--partial]
   phoenix-pnp loadsheet PARTS SLOTS OUT.csv [OPTIONS] [--feeders-out F]

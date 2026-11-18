@@ -18,7 +18,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 787 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e, embora o programa tire imagens da sua própria janela (`--shot`), nenhuma pessoa verificou o desenho num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
+**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 792 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e, embora o programa tire imagens da sua própria janela (`--shot`), nenhuma pessoa verificou o desenho num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versão | `0.0.7` |
 | Maturidade | Estrutura inicial |
-| Testes | 787 |
+| Testes | 792 |
 | Tecnologias | Rust |
 | Em hardware real | Não experimentado: nada disto correu numa máquina |
 
@@ -47,7 +47,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 |---|---|---|
 | Núcleo | 🟡 | lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (prioridade, tabuleiro, tira), planeia a ordem de colocação para uma cabeça de até seis bicos com níveis, pontas de bico, limites de ângulo e o tempo dos movimentos, planeia painéis e escreve a folha de carga; testado num computador com entradas normais e danificadas, não com uma coleção de ficheiros reais. |
 | Linha de comandos | 🟡 | `phoenix-pnp` executa as mesmas funções da biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) e imprime o resultado; cada erro volta como uma mensagem com o seu código `PHOENIX-PNP-NNN` e um código de saída diferente de zero. |
-| Testes | 🟡 | 787 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
+| Testes | 🟡 | 792 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
 | Configuração da máquina | 🟡 | um ficheiro `chave = valor` com versão, um validador que indica a linha e os limites de segurança (curso de Z, limites de X e Y, repetições, ângulos do bico); os valores não foram comparados com uma máquina real. |
 | Simulador e trabalho | 🟡 | um relógio virtual, falhas injetadas ao acaso (com semente) ou num sítio escolhido, repetições, as políticas alerta e adiar, alimentadores que se desligam após falhas repetidas, pausa, passo a passo e um estado guardado para retomar; apenas simula, nada moveu uma máquina. |
 | Segurança | 🟡 | Rust seguro e simples (`forbid(unsafe_code)`): nada entra em pânico com os ficheiros recebidos e um valor mau é um erro com o seu motivo; sem revisão independente. |
@@ -92,6 +92,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 * **Peças colocadas e tempo por alimentador** (`src/job.rs`, `src/feedrep.rs`, `src/report.rs`): o trabalho anota de que alimentador cada bico tirou a sua peça (também quando outro alimentador do tipo assumiu) e conta a peça como colocada a partir desse alimentador, e soma o tempo dos passos que recolheram de cada alimentador (o caminho até ele, o avanço, a recolha e o olhar); o relatório de trabalho, o seu JSON e `simulate --report-feeders` (as colunas `placed` e `busy_s` no fim) mostram-nos, e um trabalho guardado conserva-os.
 * **Vida das pontas dos bicos** (`src/nozzlelife.rs`, `src/cmd_tools.rs`, `src/commands.rs`): `simulate --nozzle-life FICHEIRO` soma o que um trabalho levado até ao fim fez com cada ponta (as peças colocadas e as vezes que foi montada) a um pequeno CSV que a pessoa guarda junto da configuração; um trabalho conta-se uma vez, um ficheiro que não é um registo das pontas nunca é escrito por cima, o ficheiro substituído fica como `FICHEIRO.prev` e as contagens só descem quando `nozzle-life FICHEIRO --reset PONTA` regista que uma ponta foi substituída. `nozzle_life_warn` (por omissão 500000, 0 não avisa) é o número de peças a partir do qual se diz à pessoa para olhar para uma ponta, com `simulate` e `nozzle-life`. Novo código de erro `PHOENIX-PNP-059`.
 * **Que ordem é a mais rápida** (`src/compare.rs`, `src/commands.rs`): `phoenix-pnp order-compare PEÇAS ALIMENTADORES` planeia a mesma placa com cada `order` dos lugares (nearest, part, height_part, pick, tips, none) e cada `tip_strategy` (minimize, as_planned, optimize), e mostra-os lado a lado com os lotes, as trocas de ponta, o percurso da cabeça e os segundos, com a mais rápida de cada lista assinalada, a da configuração assinalada e uma linha que diz quantos segundos pouparia a melhor definição; aceita as opções de `schedule` e não altera nada.
+* **Uma imagem do plano** (`src/preview.rs`, `src/commands.rs`): `phoenix-pnp schedule PEÇAS ALIMENTADORES SAÍDA.json --svg SAÍDA.svg` escreve também o plano como um ficheiro SVG para ver antes de a máquina se mexer, para imprimir ou guardar com o trabalho: os alimentadores, o lugar de cada peça com o número da sua vez e a cor do seu bico, a linha que cada peça segue desde o seu alimentador, o percurso tracejado da cabeça por todo o trabalho e os totais; não tem scripts nem nada de fora, o que se escrever numa referência ou num id é protegido, e uma imagem que existe nunca é escrita por cima.
 * **A folha de preparação** (`src/setup.rs`, `src/commands.rs`, `src/gui/toolbox.rs`): `phoenix-pnp setup-sheet PEÇAS ALIMENTADORES --boards N` reúne numa página, nos oito idiomas, os alimentadores a carregar pela ordem das ranhuras (tipo, peça, fita, ponta, peças que tem, lugar), as peças em falta para N placas, as pontas dos bicos da série com o seu desgaste face a `nozzle_life_warn` (`--life` lê o registo de `simulate --nozzle-life`), as calibrações de que o trabalho depende e se cada uma está definida (câmara, excentricidade do bico, folga dos eixos, lugar do trocador de pontas, fiduciais de um painel) e os avisos (um alimentador desligado que tem uma peça de que a placa precisa, um alimentador a granel com uma peça que tem direção); `--out` escreve os alimentadores como CSV e o comando sai com 1 enquanto faltarem peças. O separador Ferramentas tem a mesma folha para imprimir como `setup_sheet.txt`.
 * **Separador de ferramentas** (`src/gui/toolbox.rs`): a folga dos eixos, a excentricidade do bico, a calibração da câmara, o ensino de alimentadores, a folha das peças com sentido, a verificação e a encomenda de uma lista de materiais, as existências para uma série e o painel de uma grelha de placas, cada uma com as funções da biblioteca do seu comando, um texto escrito ou lido de um ficheiro, o resultado no ecrã e, onde faz um ficheiro, um botão que o escreve na pasta de saída sem sobrescrever um ficheiro que exista; a câmara e a excentricidade podem ser postas na máquina. Os valores com que os formulários começam são chaves de `machine.cfg` (`order_boards`, `panel_cols`, `panel_rows`, `panel_pitch_x_mm`, `panel_pitch_y_mm`, `panel_fiducial_mm`, `panel_board_width_mm`, `panel_board_height_mm`).
 
@@ -272,7 +273,7 @@ A última linha abre a janela; `phoenix-pnp` sem comando também a abre se foi c
 
 ## 🧪 Testes
 
-O conjunto tem 787 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
+O conjunto tem 792 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilação e publicação
 
@@ -344,6 +345,7 @@ EH3D-PHOENIX-PNP/
 │   ├── planner.rs                               o planeador que conhece a máquina: níveis, ordem, pontas e a sua procura, ângulos e tempo
 │   ├── polarity.rs                              a folha das peças com sentido
 │   ├── preflight.rs                             as verificações antes de um trabalho, com gravidade e aquilo a que apontam
+│   ├── preview.rs                               uma imagem do plano: alimentadores, lugares, percurso da cabeça
 │   ├── recipe.rs                                a receita de um trabalho: o seu ficheiro, os seus passos e os parâmetros por encapsulamento, alimentador e ponta
 │   ├── report.rs                                o relatório de trabalho: fases, recolhas, grupos, erros; texto, HTML, CSV, JSON
 │   ├── rotation.rs                              correções da rotação por encapsulamento, e como roda um bico limitado
@@ -383,6 +385,7 @@ EH3D-PHOENIX-PNP/
 │   ├── pnp.rs                                   testes da biblioteca e da linha de comandos
 │   ├── polarity.rs                              testes da folha das peças com sentido
 │   ├── preflight.rs                             testes das verificações antes de um trabalho
+│   ├── preview.rs                               testes da imagem do plano: as partes, a proteção, o tamanho e --svg
 │   ├── readme.rs                                testes de que o README se pode executar e está completo
 │   ├── recipe.rs                                testes da receita: o ficheiro, os limites, os passos, as regras no trabalho e o estado guardado
 │   ├── report.rs                                testes do relatório: fases, recolhas, histogramas, grupos, decisões, formatos

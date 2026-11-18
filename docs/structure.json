@@ -730,6 +730,19 @@
           }
         },
         {
+          "name": "preview.rs",
+          "desc": {
+            "en": "a picture of the plan: feeders, places, the way of the head",
+            "es": "una imagen del plan: alimentadores, lugares, el recorrido de la cabeza",
+            "de": "ein Bild des Plans: Zuführungen, Plätze, der Weg des Kopfes",
+            "fr": "une image du plan : alimentateurs, places, trajet de la tête",
+            "it": "un'immagine del piano: alimentatori, posti, percorso della testa",
+            "ja": "計画の図：フィーダー、位置、ヘッドの経路",
+            "zh": "计划图：供料器、位置和贴装头路径",
+            "pt": "uma imagem do plano: alimentadores, lugares, percurso da cabeça"
+          }
+        },
+        {
           "name": "recipe.rs",
           "desc": {
             "en": "the recipe of a job: its file, its steps and the parameters by package, feeder and tip",
@@ -1228,6 +1241,19 @@
             "ja": "ジョブ前の確認のテスト",
             "zh": "作业前检查的测试",
             "pt": "testes das verificações antes de um trabalho"
+          }
+        },
+        {
+          "name": "preview.rs",
+          "desc": {
+            "en": "tests of the picture of the plan: its parts, escaping, size and --svg",
+            "es": "pruebas de la imagen del plan: sus partes, el escape, el tamaño y --svg",
+            "de": "Tests des Plan-Bildes: Teile, Maskierung, Größe und --svg",
+            "fr": "tests de l'image du plan : ses éléments, l'échappement, la taille et --svg",
+            "it": "test dell'immagine del piano: le parti, la protezione, la dimensione e --svg",
+            "ja": "計画図のテスト：要素、エスケープ、サイズ、--svg",
+            "zh": "计划图的测试：内容、转义、尺寸和 --svg",
+            "pt": "testes da imagem do plano: as partes, a proteção, o tamanho e --svg"
           }
         },
         {
