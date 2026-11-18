@@ -77,6 +77,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Ricette** (`src/recipe.rs`, `src/job.rs`, `src/commands.rs`): un file di testo con una versione (`examples/job.recipe`) fissa i passi che un lavoro attraversa (`prepare`, `pick`, `align`, `place` e `check`, in questo ordine e nessuno due volte; il passo di allineamento e il controllo del vuoto sono attivi solo se la ricetta li ha) e i parametri che cambiano per un package, un alimentatore o una punta (`pick_retries`, `pick_tolerance_mm`, `vacuum_suck_s` e `vacuum_blow_s`; per ogni chiave vince la prima regola che corrisponde, prima quelle degli alimentatori, poi quelle dei package e infine quelle delle punte). `phoenix-pnp recipe-check FILE` la legge e la controlla, e `simulate ... --recipe FILE` esegue il lavoro con essa. I suoi errori hanno i codici da `PHOENIX-PNP-049` a `PHOENIX-PNP-052` (una riga non valida, passi in ordine sbagliato, un file oltre i suoi limiti, una versione troppo recente) e i limiti sono le chiavi `recipe_max_bytes` e `recipe_max_rules` di `machine.cfg`. Uno stato salvato ricorda anche l'alimentatore dell'ultimo prelievo e il prelievo che si è fermato, così un lavoro caricato in un'altra esecuzione offre alla persona le stesse decisioni (uno stato più vecchio si carica ancora).
 * **Importazione di file di posizioni** (`src/import.rs`, `src/commands.rs`): `phoenix-pnp import-centroid FILE` legge un CSV di centroidi (`--map FILE` ne nomina le colonne, `examples/centroid.map`; `examples/centroid.csv` non ha bisogno di mappa), il testo di posizioni di EAGLE (`examples/board.mnt`: nome, x, y, rotazione `R90` o `MR90` per il lato inferiore, valore, package) o il `.pos` di KiCad (`--format auto|csv|eagle|kicad-pos`; `auto` li distingue dalla prima riga) e scrive la tabella dei componenti `ref,val,package,x,y,rot,side,dnp` in millimetri in `--out` (un file che esiste non viene mai sovrascritto: `PHOENIX-PNP-040`) o sullo standard output. Le unità sono mm, mil o pollici (nell'intestazione come `X (mil)`, nella cella come `0.5in`, in un commento come `## Unit = inch`, nella mappa o in `import_unit`); gli angoli escono da 0 a 360; la colonna del lato è facoltativa; una colonna `dnp` o `fitted` (o `--dnp R1-R5,C7` con intervalli di riferimenti) segna i componenti da non montare; `import_bottom_mirror_width_mm` specchia la X del lato inferiore e `bottom_rotation` ne ruota l'angolo. I tre lettori sono del programma (nessun altro repository ha un lettore utilizzabile senza aggiungere una dipendenza) e la disposizione del testo di EAGLE non è stata confrontata con un file scritto da un'installazione reale. Ogni errore ha un codice da `PHOENIX-PNP-053` a `PHOENIX-PNP-056` (una riga non valida, un'intestazione senza una colonna della mappa, un formato sconosciuto, un intervallo di riferimenti non valido) e il numero della riga.
 * **Distinta base** (`src/bom.rs`, `src/cmd_tools.rs`): `phoenix-pnp bom-check COMPONENTI BOM` legge una distinta base (`examples/bom.csv`: i riferimenti in una cella, come intervallo o uno per riga, e valore, package, quantità e codice del produttore se presenti) e dice quali riferimenti ha solo uno dei due lati, quali compaiono due volte, quali valori o package differiscono e quali quantità non tornano; un componente segnato come da non montare può stare o no nella distinta. Un errore del file ha il codice `PHOENIX-PNP-057` e la sua riga.
+* **Calibrazione della telecamera** (`src/calibrate.rs`): `phoenix-pnp camera-calibrate FILE` adatta il modello della telecamera (dimensione del pixel, rotazione, specchio e posizione dell'asse dell'ugello nell'immagine) ad avvistamenti di un segno in posizioni note della testa (`px,py,x_mm,y_mm`, almeno tre) e stampa la qualità dell'adattamento e le righe `camera_*` per la configurazione; l'obiettivo non viene adattato. Il suo errore è il codice `PHOENIX-PNP-058`.
 * **Il simulatore e il lavoro** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): i controlli prima di un lavoro, una macchina con orologio virtuale e guasti iniettabili, e un lavoro che si può mettere in pausa, eseguire passo dopo passo, salvare e riprendere.
 * **La finestra** (`src/gui.rs`, `src/gui/`): ciò che la finestra fa oltre a disegnare non ha bisogno di schermo (i file caricati, il piano e i suoi problemi con correzioni, il lavoro simulato, la geometria della mappa, le tabelle con selezione condivisa, la guida in cinque passi e i testi in otto lingue) ed è testato; solo `src/gui/window.rs`, compilato con `--features gui`, lo disegna con egui. La velocità della simulazione, il tema e la dimensione disegnata per una parte di package sconosciuto sono chiavi di `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -131,6 +132,7 @@ phoenix-pnp tables-check [--parts F] [--feeders F] ...   se ogni tabella è vali
 phoenix-pnp recipe-check FILE                            se una ricetta è valida, con il codice e la riga
 phoenix-pnp import-centroid FILE [--map F] [--out F]     un file di posizioni di un CAD come tabella dei componenti
 phoenix-pnp bom-check PARTS BOM [--config F]              se la distinta base e la tabella dei componenti coincidono
+phoenix-pnp camera-calibrate FILE [--config F]            le impostazioni della telecamera da avvistamenti di un segno, con la qualità dell'adattamento
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       misura l'immagine di un componente creata in memoria
 ```
 
@@ -205,6 +207,7 @@ Le tabelle di package e parti (`--packages`, `--catalog`) sono file CSV in cui u
 | `PHOENIX-PNP-055` | Il formato del file delle posizioni non è noto |
 | `PHOENIX-PNP-056` | Un intervallo di riferimenti non è valido |
 | `PHOENIX-PNP-057` | Una riga della distinta base non è valida |
+| `PHOENIX-PNP-058` | I punti di calibrazione non sono validi o non danno un risultato |
 
 ## 🚀 Avvio rapido
 
@@ -261,6 +264,7 @@ La versione sta in `Cargo.toml` e in `eh3d.project.json`; ogni versione ha la su
 EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── bom.rs                                   la distinta base: lettura, controllo con la scheda, ordine
+│   ├── calibrate.rs                             le calibrazioni della telecamera e della punta dell'ugello, e l'apprendimento dei feeder
 │   ├── camera.rs                                il modello di una telecamera: dimensione del pixel, scostamenti, rotazione, specchio e obiettivo
 │   ├── catalog.rs                               le tabelle di parti e package e l'ereditarietà delle loro proprietà
 │   ├── cli_args.rs                              gli argomenti della riga di comando, rigorosi: un'opzione sconosciuta è un errore
@@ -314,6 +318,7 @@ EH3D-PHOENIX-PNP/
 ├── tests/
 │   ├── align.rs                                 test del passo di allineamento: telecamera, posizione corretta, tolleranza e tempo
 │   ├── bom.rs                                   test della distinta base: lettura, controllo, codice, bom-check
+│   ├── calibrate.rs                             test delle calibrazioni: adattamenti, file, righe di configurazione, G-code
 │   ├── camera.rs                                test del modello della telecamera, delle telecamere delle teste e della telecamera del simulatore
 │   ├── commands.rs                              test dei comandi che usano la configurazione
 │   ├── feeding.rs                               test degli alimentatori: priorità, vassoi e strisce

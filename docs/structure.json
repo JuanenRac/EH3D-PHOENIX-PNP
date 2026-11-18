@@ -41,6 +41,19 @@
           }
         },
         {
+          "name": "calibrate.rs",
+          "desc": {
+            "en": "the calibrations of the camera and of the nozzle tip, and the teaching of feeders",
+            "es": "las calibraciones de la cámara y de la punta de la boquilla, y la enseñanza de alimentadores",
+            "de": "die Kalibrierungen von Kamera und Düsenspitze und das Einlernen von Zuführungen",
+            "fr": "les étalonnages de la caméra et de la pointe de buse, et l'apprentissage des alimentateurs",
+            "it": "le calibrazioni della telecamera e della punta dell'ugello, e l'apprendimento dei feeder",
+            "ja": "カメラとノズル先端の校正、フィーダーの教示",
+            "zh": "相机和吸嘴头的校准，以及供料器的示教",
+            "pt": "as calibrações da câmara e da ponta do bico, e o ensino dos alimentadores"
+          }
+        },
+        {
           "name": "camera.rs",
           "desc": {
             "en": "the model of a camera: size of a pixel, offsets, turn, mirror and lens",
@@ -721,6 +734,19 @@
             "ja": "部品表のテスト：読み込み、照合、コード、bom-check",
             "zh": "物料清单测试：读取、核对、代码、bom-check",
             "pt": "testes da lista de materiais: leitura, verificação, código, bom-check"
+          }
+        },
+        {
+          "name": "calibrate.rs",
+          "desc": {
+            "en": "tests of the calibrations: the fits, the files, the lines of the configuration, the G-code",
+            "es": "pruebas de las calibraciones: ajustes, ficheros, líneas de configuración, G-code",
+            "de": "Tests der Kalibrierungen: Anpassungen, Dateien, Konfigurationszeilen, G-Code",
+            "fr": "tests des étalonnages : ajustements, fichiers, lignes de configuration, G-code",
+            "it": "test delle calibrazioni: adattamenti, file, righe di configurazione, G-code",
+            "ja": "校正のテスト：当てはめ、ファイル、設定行、G コード",
+            "zh": "校准测试：拟合、文件、配置行、G 代码",
+            "pt": "testes das calibrações: ajustes, ficheiros, linhas de configuração, G-code"
           }
         },
         {

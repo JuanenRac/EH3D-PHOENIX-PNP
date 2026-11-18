@@ -77,6 +77,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 * **Receitas** (`src/recipe.rs`, `src/job.rs`, `src/commands.rs`): um ficheiro de texto com versão (`examples/job.recipe`) fixa os passos por que passa um trabalho (`prepare`, `pick`, `align`, `place` e `check`, nessa ordem e nenhum duas vezes; o passo de alinhamento e a verificação do vácuo só estão ativos se a receita os tiver) e os parâmetros que mudam para um encapsulamento, um alimentador ou uma ponta (`pick_retries`, `pick_tolerance_mm`, `vacuum_suck_s` e `vacuum_blow_s`; para cada chave ganha a primeira regra que corresponde, primeiro as dos alimentadores, depois as dos encapsulamentos e por fim as das pontas). `phoenix-pnp recipe-check FICHEIRO` lê-a e verifica-a, e `simulate ... --recipe FICHEIRO` executa o trabalho com ela. Os seus erros têm os códigos `PHOENIX-PNP-049` a `PHOENIX-PNP-052` (uma linha inválida, passos fora de ordem, um ficheiro acima dos seus limites, uma versão demasiado recente) e os limites são as chaves `recipe_max_bytes` e `recipe_max_rules` do `machine.cfg`. Um estado guardado também se lembra do alimentador da última recolha e da recolha que foi interrompida, pelo que um trabalho carregado noutra execução oferece à pessoa as mesmas decisões (um estado antigo continua a carregar).
 * **Importação de ficheiros de posições** (`src/import.rs`, `src/commands.rs`): `phoenix-pnp import-centroid FICHEIRO` lê um CSV de centroides (`--map FICHEIRO` nomeia as suas colunas, `examples/centroid.map`; `examples/centroid.csv` não precisa de mapa), o texto de posições do EAGLE (`examples/board.mnt`: nome, x, y, rotação `R90` ou `MR90` para a face inferior, valor, encapsulamento) ou o `.pos` do KiCad (`--format auto|csv|eagle|kicad-pos`; `auto` distingue-os pela primeira linha) e escreve a tabela de peças `ref,val,package,x,y,rot,side,dnp` em milímetros em `--out` (um ficheiro que já existe nunca é substituído: `PHOENIX-PNP-040`) ou na saída padrão. As unidades são mm, mil ou polegadas (no cabeçalho como `X (mil)`, na célula como `0.5in`, num comentário como `## Unit = inch`, no mapa ou em `import_unit`); os ângulos saem de 0 a 360; a coluna da face é opcional; uma coluna `dnp` ou `fitted` (ou `--dnp R1-R5,C7` com intervalos de referências) marca as peças que não se montam; `import_bottom_mirror_width_mm` espelha o X da face inferior e `bottom_rotation` roda o seu ângulo. Os três leitores são do próprio programa (nenhum outro repositório tem um leitor que se possa usar sem acrescentar uma dependência) e a disposição do texto do EAGLE não foi comparada com um ficheiro escrito por uma instalação real. Cada erro tem um código de `PHOENIX-PNP-053` a `PHOENIX-PNP-056` (uma linha inválida, um cabeçalho sem uma coluna do mapa, um formato desconhecido, um intervalo de referências inválido) e o número da linha.
 * **Lista de materiais** (`src/bom.rs`, `src/cmd_tools.rs`): `phoenix-pnp bom-check PEÇAS BOM` lê uma lista de materiais (`examples/bom.csv`: as referências numa célula, em intervalo ou uma por linha, e o valor, o encapsulamento, a quantidade e a referência do fabricante, se existirem) e diz que referências só um dos lados tem, quais aparecem duas vezes, que valores ou encapsulamentos diferem e que quantidades não batem certo; uma peça marcada como não montar pode estar na lista ou não. Um erro do ficheiro tem o código `PHOENIX-PNP-057` e a sua linha.
+* **Calibração da câmara** (`src/calibrate.rs`): `phoenix-pnp camera-calibrate FICHEIRO` ajusta o modelo da câmara (tamanho de um píxel, rotação, espelho e onde está o eixo do bico na imagem) a observações de uma marca em locais conhecidos da cabeça (`px,py,x_mm,y_mm`, pelo menos três) e imprime a qualidade do ajuste e as linhas `camera_*` para a configuração; a lente não é ajustada. O seu erro é o código `PHOENIX-PNP-058`.
 * **O simulador e o trabalho** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): as verificações antes de um trabalho, uma máquina com relógio virtual e falhas que se podem injetar, e um trabalho que se pode pôr em pausa, executar passo a passo, guardar e retomar.
 * **A janela** (`src/gui.rs`, `src/gui/`): o que a janela faz além de desenhar não precisa de ecrã (os ficheiros carregados, o plano e os seus problemas com correções, o trabalho simulado, a geometria do mapa, as tabelas com seleção partilhada, o assistente de cinco passos e os textos em oito idiomas) e é testado; só `src/gui/window.rs`, compilado com `--features gui`, a desenha com egui. A velocidade da simulação, o tema e o tamanho desenhado para uma peça de encapsulamento desconhecido são chaves de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -131,6 +132,7 @@ phoenix-pnp tables-check [--parts F] [--feeders F] ...   se cada tabela é váli
 phoenix-pnp recipe-check FILE                            se uma receita é válida, com o código e a linha
 phoenix-pnp import-centroid FILE [--map F] [--out F]     um ficheiro de posições de um CAD como tabela de peças
 phoenix-pnp bom-check PARTS BOM [--config F]              se a lista de materiais e a tabela de peças coincidem
+phoenix-pnp camera-calibrate FILE [--config F]            as definições da câmara a partir de observações de uma marca, com a qualidade do ajuste
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mede a imagem de uma peça feita em memória
 ```
 
@@ -205,6 +207,7 @@ As tabelas de encapsulamentos e de peças (`--packages`, `--catalog`) são fiche
 | `PHOENIX-PNP-055` | O formato do ficheiro de posições não é conhecido |
 | `PHOENIX-PNP-056` | Um intervalo de referências não é válido |
 | `PHOENIX-PNP-057` | Uma linha da lista de materiais não é válida |
+| `PHOENIX-PNP-058` | Os pontos de calibração não são válidos ou não dão resultado |
 
 ## 🚀 Início rápido
 
@@ -261,6 +264,7 @@ A versão está em `Cargo.toml` e em `eh3d.project.json`; cada versão tem a sua
 EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── bom.rs                                   a lista de materiais: leitura, verificação com a placa, encomenda
+│   ├── calibrate.rs                             as calibrações da câmara e da ponta do bico, e o ensino dos alimentadores
 │   ├── camera.rs                                o modelo de uma câmara: tamanho do pixel, deslocamentos, rotação, espelho e lente
 │   ├── catalog.rs                               as tabelas de peças e de encapsulamentos e a herança das suas propriedades
 │   ├── cli_args.rs                              os argumentos da linha de comandos, estritos: uma opção desconhecida é um erro
@@ -314,6 +318,7 @@ EH3D-PHOENIX-PNP/
 ├── tests/
 │   ├── align.rs                                 testes do passo de alinhamento: câmara, lugar corrigido, tolerância e tempo
 │   ├── bom.rs                                   testes da lista de materiais: leitura, verificação, código, bom-check
+│   ├── calibrate.rs                             testes das calibrações: ajustes, ficheiros, linhas de configuração, G-code
 │   ├── camera.rs                                testes do modelo da câmara, das câmaras das cabeças e da câmara do simulador
 │   ├── commands.rs                              testes dos comandos que usam a configuração
 │   ├── feeding.rs                               testes dos alimentadores: prioridade, tabuleiros e tiras

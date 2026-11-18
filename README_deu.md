@@ -77,6 +77,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 * **Rezepte** (`src/recipe.rs`, `src/job.rs`, `src/commands.rs`): Eine Textdatei mit Version (`examples/job.recipe`) legt die Schritte fest, die ein Auftrag durchläuft (`prepare`, `pick`, `align`, `place` und `check`, in dieser Reihenfolge und keiner doppelt; der Ausrichtungsschritt und die Vakuumprüfung sind nur aktiv, wenn das Rezept sie enthält), sowie die Parameter, die sich für ein Gehäuse, eine Zuführung oder eine Düsenspitze ändern (`pick_retries`, `pick_tolerance_mm`, `vacuum_suck_s` und `vacuum_blow_s`; für jeden Schlüssel gewinnt die erste passende Regel, zuerst die der Zuführungen, dann die der Gehäuse und dann die der Spitzen). `phoenix-pnp recipe-check DATEI` liest und prüft sie, und `simulate ... --recipe DATEI` führt den Auftrag damit aus. Ihre Fehler tragen die Codes `PHOENIX-PNP-049` bis `PHOENIX-PNP-052` (eine ungültige Zeile, Schritte in falscher Reihenfolge, eine Datei über ihren Grenzen, eine zu neue Version); die Grenzen sind die Schlüssel `recipe_max_bytes` und `recipe_max_rules` der `machine.cfg`. Ein gespeicherter Zustand merkt sich auch die Zuführung der letzten Aufnahme und die gestoppte Aufnahme, sodass ein in einem anderen Lauf geladener Auftrag der Person dieselben Entscheidungen anbietet (ein älterer Zustand lässt sich weiterhin laden).
 * **Import von Positionsdateien** (`src/import.rs`, `src/commands.rs`): `phoenix-pnp import-centroid DATEI` liest ein Centroid-CSV (`--map DATEI` benennt seine Spalten, `examples/centroid.map`; `examples/centroid.csv` braucht keine Zuordnung), den Positionstext von EAGLE (`examples/board.mnt`: Name, x, y, Drehung `R90` oder `MR90` für die Unterseite, Wert, Gehäuse) oder das `.pos` von KiCad (`--format auto|csv|eagle|kicad-pos`; `auto` erkennt sie an der ersten Zeile) und schreibt die Teiletabelle `ref,val,package,x,y,rot,side,dnp` in Millimetern nach `--out` (eine vorhandene Datei wird nie überschrieben: `PHOENIX-PNP-040`) oder auf die Standardausgabe. Einheiten sind mm, mil oder Zoll (in der Kopfzeile als `X (mil)`, in der Zelle als `0.5in`, in einem Kommentar als `## Unit = inch`, in der Zuordnung oder in `import_unit`); Winkel kommen von 0 bis 360 heraus; die Seitenspalte ist optional; eine Spalte `dnp` oder `fitted` (oder `--dnp R1-R5,C7` mit Bereichen von Referenzen) markiert die nicht zu bestückenden Teile; `import_bottom_mirror_width_mm` spiegelt das X der Unterseite und `bottom_rotation` dreht ihren Winkel. Die drei Leser gehören dem Programm selbst (kein anderes Repository hat einen Leser, den man ohne zusätzliche Abhängigkeit nutzen könnte), und das Layout des EAGLE-Textes wurde nicht mit einer Datei einer echten Installation verglichen. Jeder Fehler trägt einen Code von `PHOENIX-PNP-053` bis `PHOENIX-PNP-056` (eine ungültige Zeile, eine Kopfzeile, der eine Spalte der Zuordnung fehlt, ein unbekanntes Format, ein ungültiger Bereich von Referenzen) und die Zeilennummer.
 * **Stückliste** (`src/bom.rs`, `src/cmd_tools.rs`): `phoenix-pnp bom-check TEILE BOM` liest eine Stückliste (`examples/bom.csv`: die Referenzen in einer Zelle, als Bereich oder eine je Zeile, und Wert, Gehäuse, Menge und Teilenummer, wenn vorhanden) und nennt Referenzen, die nur eine Seite hat, doppelt aufgeführte, abweichende Werte oder Gehäuse und Mengen, die nicht aufgehen; ein als nicht zu bestücken markiertes Teil darf in der Stückliste stehen oder nicht. Ein Fehler der Datei trägt den Code `PHOENIX-PNP-057` und seine Zeile.
+* **Kamerakalibrierung** (`src/calibrate.rs`): `phoenix-pnp camera-calibrate DATEI` passt das Kameramodell (Pixelgröße, Drehung, Spiegelung und Lage der Düsenachse im Bild) an Sichtungen einer Marke an bekannten Orten des Kopfes an (`px,py,x_mm,y_mm`, mindestens drei) und gibt die Güte und die Zeilen `camera_*` für die Konfiguration aus; das Objektiv wird nicht angepasst. Sein Fehler ist der Code `PHOENIX-PNP-058`.
 * **Der Simulator und der Auftrag** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): die Prüfungen vor einem Auftrag, eine Maschine mit virtueller Uhr und einspeisbaren Fehlern und ein Auftrag, der pausiert, Schritt für Schritt ausgeführt, gespeichert und fortgesetzt werden kann.
 * **Das Fenster** (`src/gui.rs`, `src/gui/`): was das Fenster außer dem Zeichnen tut, braucht keinen Bildschirm (die geladenen Dateien, der Plan und seine Probleme mit Lösungen, der simulierte Auftrag, die Geometrie der Karte, die Tabellen mit gemeinsamer Auswahl, der Assistent in fünf Schritten und die Texte in acht Sprachen) und wird getestet; nur `src/gui/window.rs`, gebaut mit `--features gui`, zeichnet es mit egui. Die Geschwindigkeit der Simulation, das Design und die Größe, die für ein Teil mit unbekanntem Gehäuse gezeichnet wird, sind Schlüssel von `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -131,6 +132,7 @@ phoenix-pnp tables-check [--parts F] [--feeders F] ...   ob jede Tabelle gültig
 phoenix-pnp recipe-check FILE                            ob ein Rezept gültig ist, mit Code und Zeile
 phoenix-pnp import-centroid FILE [--map F] [--out F]     eine Positionsdatei eines CAD als Teiletabelle
 phoenix-pnp bom-check PARTS BOM [--config F]              ob die Stückliste und die Teiletabelle übereinstimmen
+phoenix-pnp camera-calibrate FILE [--config F]            die Kameraeinstellungen aus Sichtungen einer Marke, mit der Güte der Anpassung
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       misst das im Speicher erzeugte Bild eines Teils
 ```
 
@@ -205,6 +207,7 @@ Die Tabellen der Gehäuse und Teile (`--packages`, `--catalog`) sind CSV-Dateien
 | `PHOENIX-PNP-055` | Das Format der Positionsdatei ist nicht bekannt |
 | `PHOENIX-PNP-056` | Ein Bereich von Referenzen ist ungültig |
 | `PHOENIX-PNP-057` | Eine Zeile der Stückliste ist ungültig |
+| `PHOENIX-PNP-058` | Die Kalibrierpunkte sind ungültig oder ergeben kein Ergebnis |
 
 ## 🚀 Schnellstart
 
@@ -261,6 +264,7 @@ Die Version steht in `Cargo.toml` und in `eh3d.project.json`; jede Version hat i
 EH3D-PHOENIX-PNP/
 ├── src/
 │   ├── bom.rs                                   die Stückliste: Lesen, Abgleich mit der Platine, Bestellung
+│   ├── calibrate.rs                             die Kalibrierungen von Kamera und Düsenspitze und das Einlernen von Zuführungen
 │   ├── camera.rs                                das Modell einer Kamera: Pixelgröße, Versatz, Drehung, Spiegelung und Objektiv
 │   ├── catalog.rs                               die Tabellen von Teilen und Gehäusen und die Vererbung ihrer Eigenschaften
 │   ├── cli_args.rs                              die Argumente der Kommandozeile, streng: eine unbekannte Option ist ein Fehler
@@ -314,6 +318,7 @@ EH3D-PHOENIX-PNP/
 ├── tests/
 │   ├── align.rs                                 Tests des Ausrichtschritts: Kamera, korrigierter Platz, Toleranz und Zeit
 │   ├── bom.rs                                   Tests der Stückliste: Lesen, Abgleich, Code, bom-check
+│   ├── calibrate.rs                             Tests der Kalibrierungen: Anpassungen, Dateien, Konfigurationszeilen, G-Code
 │   ├── camera.rs                                Tests des Kameramodells, der Kameras der Köpfe und der Kamera des Simulators
 │   ├── commands.rs                              Tests der Befehle, die die Konfiguration nutzen
 │   ├── feeding.rs                               Tests der Zuführer: Priorität, Trays und Streifen
