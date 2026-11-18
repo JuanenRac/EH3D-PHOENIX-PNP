@@ -81,6 +81,7 @@
 * **ノズルの振れ**（`src/calibrate.rs`、`src/export.rs`）：`phoenix-pnp nozzle-calibrate ファイル` は複数の角度でのノズル先端の読み取り（`angle_deg,x_mm,y_mm`）に円を当てはめ、`nozzle_runout_mm` と `nozzle_runout_deg` を出力します。振れが 0 より大きいとき、`schedule --gcode` の G コードは各実装位置を部品の角度での振れと逆向きに動かします。
 * **基板を格子状に並べたパネル**（`src/panel.rs`、`src/cmd_tools.rs`）：`phoenix-pnp panelize 基板 --cols N --rows N --pitch-x MM --pitch-y MM` は、1 枚の基板のコピーを同じ回転で格子状に並べたパネルファイルを書き出します。余白を置いた 3 つのフィデューシャル（`--fiducials MM`）と、名前 `P1`、`P2`、… で不良の印を付けた基板（`--x-out P2,P5`）に対応します。既存のファイルは上書きしません。
 * **向きのある部品のシート**（`src/polarity.rs`）：`phoenix-pnp polarity-sheet 部品` は、リファレンスが `polarity_refs` に、またはパッケージが `polarity_packages` に一致する部品（既定ではダイオード、LED、IC、トランジスタ、有極性コンデンサ、コネクタ）を、位置・回転・チェック用の空欄とともに一覧にします。作業後の目視確認用で、`--side` で片面に絞れます。
+* **軸のバックラッシュ**（`src/sim.rs`、`src/motion.rs`）：`backlash_x_mm`、`backlash_y_mm`、`backlash_mode` により、シミュレートした機械は、軸が反転する移動をバックラッシュ分だけ手前で終える（`off`、`simulate` が数える）か、位置を通り過ぎて正の側から戻ります（`approach`、時間は増えますが誤差は残りません）。バックラッシュが 0 なら何も変わりません。
 * **シミュレーターとジョブ**（`src/sim.rs`、`src/job.rs`、`src/preflight.rs`、`src/model.rs`）：ジョブ前の確認、仮想時計と注入できる故障を持つ機械、一時停止・一手ずつの実行・保存・再開ができるジョブ。
 * **ウィンドウ**（`src/gui.rs`、`src/gui/`）：描画以外の処理は画面を必要とせず（読み込んだファイル、計画とその問題・修正、模擬ジョブ、地図の幾何、選択を共有する表、5ステップのガイド、8言語の文言）、テストされています。`--features gui` でビルドする `src/gui/window.rs` だけが egui で描画します。シミュレーションの速さ、テーマ、未知のパッケージの部品に描くサイズは `machine.cfg` のキー（`gui_steps_per_s`、`gui_theme`、`gui_part_size_mm`）です。
 
@@ -324,6 +325,7 @@ EH3D-PHOENIX-PNP/
 │   └── vision.rs                                画像処理：フィルタ、しきい値、領域、最小の回転矩形
 ├── tests/
 │   ├── align.rs                                 アライメント工程のテスト：カメラ、補正した位置、許容差、時間
+│   ├── backlash.rs                              シミュレート機械の軸バックラッシュのテスト
 │   ├── bom.rs                                   部品表のテスト：読み込み、照合、コード、bom-check
 │   ├── calibrate.rs                             校正のテスト：当てはめ、ファイル、設定行、G コード
 │   ├── camera.rs                                カメラモデル、ヘッドのカメラ、シミュレーターのカメラのテスト

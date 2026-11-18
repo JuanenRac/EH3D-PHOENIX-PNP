@@ -737,6 +737,19 @@
           }
         },
         {
+          "name": "backlash.rs",
+          "desc": {
+            "en": "tests of the slack of the axes of the simulated machine",
+            "es": "pruebas de la holgura de los ejes de la máquina simulada",
+            "de": "Tests des Achsspiels der simulierten Maschine",
+            "fr": "tests du jeu des axes de la machine simulée",
+            "it": "test del gioco degli assi della macchina simulata",
+            "ja": "シミュレート機械の軸バックラッシュのテスト",
+            "zh": "模拟机器轴间隙的测试",
+            "pt": "testes da folga dos eixos da máquina simulada"
+          }
+        },
+        {
           "name": "bom.rs",
           "desc": {
             "en": "tests of the bill of materials: reading, the check, the code, bom-check",

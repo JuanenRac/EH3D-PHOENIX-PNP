@@ -81,6 +81,7 @@
 * **吸嘴偏心**（`src/calibrate.rs`、`src/export.rs`）：`phoenix-pnp nozzle-calibrate 文件` 用多个角度下吸嘴头的读数（`angle_deg,x_mm,y_mm`）拟合圆，输出 `nozzle_runout_mm` 和 `nozzle_runout_deg`；偏心大于 0 时，`schedule --gcode` 的 G 代码会把每个贴装位置按零件角度处的偏心反方向移动。
 * **网格拼板**（`src/panel.rs`、`src/cmd_tools.rs`）：`phoenix-pnp panelize 电路板 --cols N --rows N --pitch-x MM --pitch-y MM` 为同一电路板按网格复制的拼板写出拼板文件，各板旋转相同，带有隔开一定边距的三个基准点（`--fiducials MM`），并可按名称 `P1`、`P2`……标记不良板（`--x-out P2,P5`）；已存在的文件绝不覆盖。
 * **有方向零件清单**（`src/polarity.rs`）：`phoenix-pnp polarity-sheet 零件` 列出位号匹配 `polarity_refs` 或封装匹配 `polarity_packages` 的零件（默认包括二极管、LED、芯片、晶体管、有极性电容和连接器），附位置、旋转和一列空白勾选栏，用于作业后的检查；`--side` 只保留一面。
+* **轴间隙（反向间隙）**（`src/sim.rs`、`src/motion.rs`）：`backlash_x_mm`、`backlash_y_mm` 和 `backlash_mode` 使模拟机器在轴反向的移动中要么短了一个间隙停下（`off`，由 `simulate` 计数），要么越过位置再从正方向返回（`approach`，耗时更多但没有误差）；间隙为 0 时一切不变。
 * **模拟器与作业**（`src/sim.rs`、`src/job.rs`、`src/preflight.rs`、`src/model.rs`）：作业前的检查、带虚拟时钟和可注入故障的机器，以及可暂停、单步执行、保存并恢复的作业。
 * **窗口**（`src/gui.rs`、`src/gui/`）：窗口除绘制之外的工作都不需要屏幕（已载入的文件、规划及其问题与修复、模拟作业、地图的几何、共享选择的表格、五步向导和八种语言的文字），并经过测试；只有用 `--features gui` 构建的 `src/gui/window.rs` 用 egui 绘制。模拟速度、主题以及为未知封装的零件绘制的大小是 `machine.cfg` 的键（`gui_steps_per_s`、`gui_theme`、`gui_part_size_mm`）。
 
@@ -324,6 +325,7 @@ EH3D-PHOENIX-PNP/
 │   └── vision.rs                                视觉处理：滤波、阈值、斑块、最小旋转矩形
 ├── tests/
 │   ├── align.rs                                 对位步骤的测试：相机、修正后的位置、容差和时间
+│   ├── backlash.rs                              模拟机器轴间隙的测试
 │   ├── bom.rs                                   物料清单测试：读取、核对、代码、bom-check
 │   ├── calibrate.rs                             校准测试：拟合、文件、配置行、G 代码
 │   ├── camera.rs                                相机模型、各贴装头的相机和模拟器相机的测试
