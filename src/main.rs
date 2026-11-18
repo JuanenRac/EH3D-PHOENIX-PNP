@@ -4,6 +4,7 @@
 
 mod cli_args;
 mod commands;
+mod commands_tools;
 
 use cli_args::{finish, flag, num, switch};
 use eh3d_phoenix_pnp::config::MachineConfig;
@@ -30,6 +31,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp check-bottom PARTS [--config FILE] [--lang CODE]   the angle each rule of the bottom side (keep, mirror, half_turn) gives to the parts of the bottom side
   phoenix-pnp tables-check [--parts F] [--packages F] [--catalog F] [--feeders F] [--slots F] [--config F] [--lang CODE]   whether each table is valid, with the code and the row of an error
   phoenix-pnp recipe-check FILE [--config F] [--lang CODE]   whether a recipe is valid, with the code and the line of an error
+  phoenix-pnp bom-check PARTS BOM [--config F] [--lang CODE]   whether the bill of materials and the table of parts agree (references, values, packages, quantities)
   phoenix-pnp import-centroid FILE [--format auto|csv|eagle|kicad-pos] [--map F] [--dnp R1-R5,C7] [--out F] [--config F] [--lang CODE]   a position file of a CAD program as the table of parts
   phoenix-pnp vision-test [--vision F] [--size WxH] [--part LxS] [--mm-per-px MM] [--dx MM] [--dy MM] [--turn DEG] [--noise N] [--seed N] [--lang CODE]   measures the picture of a part made in memory and prints the error
 
@@ -188,6 +190,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "tables-check" => commands::tables_check(args),
         "recipe-check" => commands::recipe_check(args),
         "import-centroid" => commands::import_centroid(args),
+        "bom-check" => commands_tools::bom_check(args),
         "vision-test" => commands::vision_test(args),
         other => Err(format!("{other}: unknown command (see help)")),
     }

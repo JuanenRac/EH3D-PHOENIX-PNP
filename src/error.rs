@@ -109,10 +109,11 @@ pub enum Code {
     ImportMap = 54,
     ImportFormat = 55,
     ImportRange = 56,
+    BomBad = 57,
 }
 
 impl Code {
-    pub const ALL: [Code; 56] = [
+    pub const ALL: [Code; 57] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -169,6 +170,7 @@ impl Code {
         Code::ImportMap,
         Code::ImportFormat,
         Code::ImportRange,
+        Code::BomBad,
     ];
 
     pub fn number(self) -> u16 {
@@ -187,7 +189,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 56] = [
+static MESSAGES: [[&str; 8]; 57] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -747,6 +749,16 @@ static MESSAGES: [[&str; 8]; 56] = [
         "参照の範囲が無効です",
         "位号范围无效",
         "Um intervalo de referências não é válido",
+    ],
+    [
+        "A line of the bill of materials is not valid",
+        "Una línea de la lista de materiales no es válida",
+        "Eine Zeile der Stückliste ist ungültig",
+        "Une ligne de la nomenclature n'est pas valide",
+        "Una riga della distinta base non è valida",
+        "部品表の行が無効です",
+        "物料清单中的某一行无效",
+        "Uma linha da lista de materiais não é válida",
     ],
 ];
 
