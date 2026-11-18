@@ -250,11 +250,12 @@ pub enum Text {
     ColBodyShort,
     KindTube,
     KindBulk,
+    ToolSetup,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::KindBulk as usize + 1;
+    pub const COUNT: usize = Text::ToolSetup as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -607,4 +608,5 @@ static TABLE: &[[&str; 8]] = &[
     ["Body short (mm)", "Cuerpo corto (mm)", "Körper kurz (mm)", "Corps court (mm)", "Corpo corto (mm)", "本体 短辺 (mm)", "本体短边 (mm)", "Corpo curto (mm)"],
     ["tube", "varilla", "Stange", "tube", "stecca", "チューブ", "料管", "tubo"],
     ["bulk", "a granel", "Schüttgut", "vrac", "alla rinfusa", "バルク", "散料", "a granel"],
+    ["Setup sheet", "Hoja de preparación", "Rüstliste", "Fiche de préparation", "Foglio di preparazione", "段取りシート", "准备清单", "Folha de preparação"],
 ];

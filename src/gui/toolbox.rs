@@ -18,6 +18,7 @@ use crate::panel::{grid_panel, Grid};
 use crate::parts::Side;
 use crate::polarity;
 use crate::report;
+use crate::setup::{self, PanelInfo};
 use crate::stock::stock_plan;
 use std::path::Path;
 
@@ -31,11 +32,12 @@ pub enum Tool {
     Polarity,
     Bom,
     Stock,
+    Setup,
     Panel,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 8] = [
+    pub const ALL: [Tool; 9] = [
         Tool::Backlash,
         Tool::Runout,
         Tool::Camera,
@@ -43,6 +45,7 @@ impl Tool {
         Tool::Polarity,
         Tool::Bom,
         Tool::Stock,
+        Tool::Setup,
         Tool::Panel,
     ];
 
@@ -56,6 +59,7 @@ impl Tool {
             Tool::Polarity => "polarity",
             Tool::Bom => "bom",
             Tool::Stock => "stock",
+            Tool::Setup => "setup",
             Tool::Panel => "panel",
         }
     }
@@ -75,6 +79,7 @@ impl Tool {
             Tool::Polarity => Text::ToolPolarity,
             Tool::Bom => Text::ToolBom,
             Tool::Stock => Text::ToolStock,
+            Tool::Setup => Text::ToolSetup,
             Tool::Panel => Text::ToolPanel,
         }
     }
@@ -94,6 +99,7 @@ impl Tool {
             Tool::Polarity => Some("polarity.csv"),
             Tool::Bom => Some("bom_order.csv"),
             Tool::Stock => Some("stock.csv"),
+            Tool::Setup => Some("setup_sheet.txt"),
             Tool::Panel => Some("panel.json"),
             _ => None,
         }
@@ -264,6 +270,7 @@ impl Toolbox {
             Tool::Polarity => Ok(polarity_text(ws, self.polarity_side)),
             Tool::Bom => bom_text(ws, &self.bom_text, self.boards, lang),
             Tool::Stock => stock_text(ws, self.polarity_side, self.boards, lang),
+            Tool::Setup => setup_text(ws, self.polarity_side, self.boards, lang),
             Tool::Panel => panel_text(ws, &self.panel, lang).map(|o| (String::new(), o)),
         };
         match result {
@@ -454,6 +461,32 @@ pub fn stock_text(
     let plan =
         stock_plan(&ws.active_parts(), &ws.feeders, side, boards).map_err(|e| failed(e, lang))?;
     Ok((plan.text().trim_end().to_string(), plan.csv()))
+}
+
+/// The setup sheet for `boards` boards of the parts of the plan: the lines that say whether the run can be loaded and what is not set (shown on the tab), and the whole sheet in the
+/// language of the window (what is written to the output folder, to be printed).
+pub fn setup_text(
+    ws: &Workspace,
+    side: Option<Side>,
+    boards: usize,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    let parts = ws.active_parts();
+    let panel = ws.panel.as_ref().map(|_| PanelInfo {
+        fiducials_measured: !ws.measured.is_empty(),
+    });
+    let sheet = setup::build(&setup::Inputs {
+        parts: &parts,
+        feeders: &ws.feeders,
+        catalog: &ws.catalog,
+        cfg: &ws.cfg,
+        side,
+        boards,
+        panel,
+        life: None,
+    })
+    .map_err(|e| failed(e, lang))?;
+    Ok((sheet.summary(lang), sheet.text(lang)))
 }
 
 /// The panel file for the form, naming the board by the file that was loaded unless the form names one.

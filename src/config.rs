@@ -532,7 +532,7 @@ pub struct MachineConfig {
     /// The pitch of a strip is a whole number of this many millimetres (0 does not check) and two feeders are at least this far apart (0 does not check): `feeder-check`.
     pub feeder_pitch_step_mm: f64,
     pub feeder_min_gap_mm: f64,
-    /// A nozzle tip that has placed this many parts is told to the person to look at (0 does not warn): `nozzle-life` and `simulate --nozzle-life`.
+    /// A nozzle tip that has placed this many parts is told to the person to look at (0 does not warn): `nozzle-life`, `setup-sheet` and `simulate --nozzle-life`.
     pub nozzle_life_warn: u64,
 }
 

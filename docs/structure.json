@@ -756,6 +756,19 @@
           }
         },
         {
+          "name": "setup.rs",
+          "desc": {
+            "en": "the setup sheet: feeders by slot, missing parts, tips, calibrations",
+            "es": "la hoja de preparación: alimentadores por ranura, piezas, puntas, calibraciones",
+            "de": "die Rüstliste: Zuführungen nach Platz, Teile, Spitzen, Kalibrierungen",
+            "fr": "la fiche de préparation : alimentateurs, pièces, pointes, étalonnages",
+            "it": "il foglio di preparazione: alimentatori, componenti, punte, calibrazioni",
+            "ja": "段取りシート：フィーダー、不足部品、チップ、校正",
+            "zh": "准备清单：按槽位的供料器、缺件、吸嘴头、校准",
+            "pt": "a folha de preparação: alimentadores, peças, pontas, calibrações"
+          }
+        },
+        {
           "name": "sim.rs",
           "desc": {
             "en": "the simulated machine: virtual clock and failures that can be injected",
@@ -1241,6 +1254,19 @@
             "ja": "校正の例とフィーダー測定ファイルのテスト",
             "zh": "校准示例与供料器测量文件的测试",
             "pt": "testes dos exemplos das calibrações e do ficheiro de medidas dos alimentadores"
+          }
+        },
+        {
+          "name": "setup.rs",
+          "desc": {
+            "en": "tests of the setup sheet: lists, languages, command and tool",
+            "es": "pruebas de la hoja de preparación: listas, idiomas, comando y herramienta",
+            "de": "Tests der Rüstliste: Listen, Sprachen, Befehl und Werkzeug",
+            "fr": "tests de la fiche de préparation : listes, langues, commande et outil",
+            "it": "test del foglio di preparazione: elenchi, lingue, comando e strumento",
+            "ja": "段取りシートのテスト：一覧、言語、コマンド、ツール",
+            "zh": "准备清单的测试：列表、语言、命令和工具",
+            "pt": "testes da folha de preparação: listas, idiomas, comando e ferramenta"
           }
         },
         {

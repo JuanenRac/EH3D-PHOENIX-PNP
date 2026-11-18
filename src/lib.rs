@@ -36,6 +36,7 @@ pub mod preflight;
 pub mod recipe;
 pub mod report;
 pub mod rotation;
+pub mod setup;
 pub mod sim;
 pub mod stock;
 pub mod tips;

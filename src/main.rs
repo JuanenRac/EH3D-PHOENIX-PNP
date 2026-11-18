@@ -28,6 +28,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp preflight PARTS FEEDERS [OPTIONS]            the checks before a job, without writing anything
   phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--report-csv F] [--report-text F] [--report-html F] [--report-feeders F] [--nozzle-life F] [--vision F] [--recipe F] [--partial]
   phoenix-pnp loadsheet PARTS SLOTS OUT.csv [OPTIONS] [--feeders-out F]
+  phoenix-pnp setup-sheet PARTS FEEDERS [OPTIONS] [--boards N] [--life F] [--out F]   what to load in which slot, the parts missing for N boards, the nozzle tips and how worn they are, the calibrations the job depends on and whether they are set, in the language of --lang; exits with 1 when parts are missing
   phoenix-pnp config-check FILE [--lang CODE]
   phoenix-pnp check-bottom PARTS [--config FILE] [--lang CODE]   the angle each rule of the bottom side (keep, mirror, half_turn) gives to the parts of the bottom side
   phoenix-pnp tables-check [--parts F] [--packages F] [--catalog F] [--feeders F] [--slots F] [--config F] [--lang CODE]   whether each table is valid, with the code and the row of an error
@@ -47,7 +48,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp import-centroid FILE [--format auto|csv|eagle|kicad-pos] [--map F] [--dnp R1-R5,C7] [--out F] [--config F] [--lang CODE]   a position file of a CAD program as the table of parts
   phoenix-pnp vision-test [--vision F] [--size WxH] [--part LxS] [--mm-per-px MM] [--dx MM] [--dy MM] [--turn DEG] [--noise N] [--seed N] [--lang CODE]   measures the picture of a part made in memory and prints the error
 
-OPTIONS of schedule, preflight, simulate and loadsheet: --config FILE (the machine settings), --packages FILE and --catalog FILE (the tables of packages and parts), --panel FILE (a panel in place of
+OPTIONS of schedule, preflight, simulate, loadsheet and setup-sheet: --config FILE (the machine settings), --packages FILE and --catalog FILE (the tables of packages and parts), --panel FILE (a panel in place of
 PARTS), --dnp R1,R2 (references to leave out as not to be mounted; a column dnp, fitted or populate in a CSV does the same), --fiducials FILE (with --panel: the measured places of the fiducials, a CSV id,x,y; an id is a mark of the panel, or board/reference for a part that is a mark of its board, such as A/FID1), --x-out A,B/C (with --panel: boards or panels of the panel to leave out as bad; a child with x_out set to true in the panel file is left out too), --side top|bottom, --board-width MM, --origin-x MM, --nozzles N, --speed MM_S, --order NAME and --lang CODE (the language of the error messages: en es de fr it ja zh pt). schedule and
 simulate use the whole configuration (ranks, nozzle tips, the limits of the nozzle, the time of the moves) and print the checks before the job; they stop on an error unless --partial is given.
 simulate runs the plan on a simulated machine; --vision FILE gives the steps of the vision pipeline (the settings vision = pipeline and align = on make the simulated camera measure a picture of each part); --recipe FILE gives the recipe of the job (the steps it goes through and the parameters by package, feeder and tip; a recipe with the align step and without it turns that step on and off). With --state the job is saved when it stops (after N steps, or on an error) and resumed from that file the next time. --report-text writes the work report as text in the language of --lang, --report-html the same as a page that holds everything it shows (a file that exists is never written over), --report-csv and --report with the sections of the report after the statistics. --report-feeders writes the picks of each feeder as a CSV (planned and made, failures, the share of failures; a feeder over feeder_fail_percent is marked and named in the output).
@@ -197,6 +198,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "preflight" => commands::run_preflight(args),
         "simulate" => commands::simulate(args),
         "loadsheet" => commands::run_loadsheet(args),
+        "setup-sheet" => commands::setup_sheet(args),
         "config-check" => commands::config_check(args),
         "check-bottom" => commands::check_bottom(args),
         "tables-check" => commands::tables_check(args),

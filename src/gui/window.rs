@@ -2280,8 +2280,8 @@ impl PnpApp {
             }
             Tool::Camera => self.tool_io(ui, Some(Text::HintCamera)),
             Tool::Feeders => self.tool_io(ui, Some(Text::HintFeeders)),
-            Tool::Polarity | Tool::Stock => {
-                if self.s.tools.tool == Tool::Stock {
+            Tool::Polarity | Tool::Stock | Tool::Setup => {
+                if matches!(self.s.tools.tool, Tool::Stock | Tool::Setup) {
                     ui.horizontal(|ui| {
                         ui.label(tr(Text::Boards, lang));
                         ui.add(egui::DragValue::new(&mut self.s.tools.boards).range(1..=1_000_000));

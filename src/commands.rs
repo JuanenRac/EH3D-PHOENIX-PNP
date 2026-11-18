@@ -28,6 +28,7 @@ use eh3d_phoenix_pnp::planner::{plan_advanced, AdvancedPlan, Options};
 use eh3d_phoenix_pnp::preflight::{has_errors, preflight, to_text, Check, Severity, Source};
 use eh3d_phoenix_pnp::recipe::{Limits, Recipe};
 use eh3d_phoenix_pnp::report::{self, ReportCheck, ReportInput};
+use eh3d_phoenix_pnp::setup;
 use eh3d_phoenix_pnp::sim::Rng;
 use eh3d_phoenix_pnp::vision::{measure_image, render, wrap, VisionConfig, MAX_VISION_BYTES};
 use std::cell::RefCell;
@@ -764,6 +765,74 @@ fn track_nozzle_life(job: &Job, phase: Phase, path: &str, lang: Lang) -> Result<
         }
     }
     Ok(())
+}
+
+/// `setup-sheet`: what the person who sets the machine up needs before a run of boards: the feeders to load (slot, kind, part, tape, tip), the parts that are missing for the run, the
+/// nozzle tips and how worn they are, and the calibrations the job depends on. The text is in the language of `--lang`; `--out` also writes the feeders as a CSV (never over a file that
+/// exists). The exit code is 1 when the feeders that are on do not hold enough for the run.
+pub fn setup_sheet(mut args: Vec<String>) -> Result<(), String> {
+    let out_path = flag(&mut args, "--out")?;
+    let life_path = flag(&mut args, "--life")?;
+    let boards_option = flag(&mut args, "--boards")?;
+    let c = common(&mut args)?;
+    let used = usize::from(c.panel.is_none());
+    finish(&args, used + 1)?;
+    let (parts, used, _dnp) = load_parts(&args, &c)?;
+    let lang = c.lang;
+    let l = move |e: PnpError| e.localized(lang);
+    let feeders_path = args
+        .get(used)
+        .ok_or("setup-sheet needs a table of feeders")?
+        .clone();
+    let feeders = feeding::from_csv_with(
+        &read_text(&feeders_path, c.cfg.max_file_bytes)?,
+        c.cfg.tray_fill,
+    )
+    .map_err(l)?;
+    let boards = match boards_option {
+        Some(v) => v
+            .trim()
+            .parse::<usize>()
+            .map_err(|_| format!("--boards '{v}' is not a whole number"))?,
+        None => c.cfg.order_boards,
+    };
+    let life = match &life_path {
+        Some(p) => Some(nozzlelife::read_file(p, c.cfg.max_file_bytes).map_err(l)?),
+        None => None,
+    };
+    let panel = c.panel.as_ref().map(|_| setup::PanelInfo {
+        fiducials_measured: c.fiducials.is_some(),
+    });
+    let sheet = setup::build(&setup::Inputs {
+        parts: &parts,
+        feeders: &feeders,
+        catalog: &c.catalog,
+        cfg: &c.cfg,
+        side: Some(c.opts.side),
+        boards,
+        panel,
+        life: life.as_ref(),
+    })
+    .map_err(l)?;
+    print!("{}", sheet.text(lang));
+    if let Some(out) = &out_path {
+        let mut inputs = c.inputs.clone();
+        inputs.push(feeders_path.clone());
+        if c.panel.is_none() {
+            inputs.push(args[0].clone());
+        }
+        refuse_same_file(&inputs, out)?;
+        report::write_new(out, &sheet.csv()).map_err(l)?;
+        println!("written to {out}");
+    }
+    if sheet.is_ready() {
+        Ok(())
+    } else {
+        Err(format!(
+            "the feeders lack {} parts for {boards} boards",
+            sheet.short_parts()
+        ))
+    }
 }
 
 /// `loadsheet`: which kind of part goes in which slot.
