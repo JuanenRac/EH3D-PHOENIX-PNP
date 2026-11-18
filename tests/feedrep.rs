@@ -15,6 +15,7 @@ fn stats(id: &str, picked: u32, pick_failures: u32, faults: u32, disabled: bool)
         faults,
         disabled,
         pick_failures,
+        ..FeederStats::default()
     }
 }
 
@@ -94,7 +95,7 @@ fn the_plan_gives_each_feeder_its_picks_and_its_busy_seconds() {
 }
 
 #[test]
-fn the_csv_keeps_its_header_and_the_order_of_the_feeders() {
+fn the_csv_keeps_its_columns_and_the_order_of_the_feeders() {
     let rows = rows_from(
         &[stats("F1", 8, 2, 1, false), stats("F,2", 5, 0, 0, true)],
         &[pick("F1", 0.5)],
@@ -105,11 +106,11 @@ fn the_csv_keeps_its_header_and_the_order_of_the_feeders() {
     let lines: Vec<&str> = out.lines().collect();
     assert_eq!(
         CSV_HEADER,
-        "feeder,planned_picks,planned_busy_s,picked,pick_failures,fail_percent,faults,disabled,flagged"
+        "feeder,planned_picks,planned_busy_s,picked,pick_failures,fail_percent,faults,disabled,flagged,placed,busy_s"
     );
     assert_eq!(lines[0], CSV_HEADER);
-    assert_eq!(lines[1], "F1,1,0.500,8,2,20.0,1,no,yes");
-    assert_eq!(lines[2], "\"F,2\",0,0.000,5,0,0.0,0,yes,no");
+    assert_eq!(lines[1], "F1,1,0.500,8,2,20.0,1,no,yes,0,0.000");
+    assert_eq!(lines[2], "\"F,2\",0,0.000,5,0,0.0,0,yes,no,0,0.000");
     assert_eq!(lines.len(), 3);
 }
 
@@ -172,4 +173,22 @@ fn the_settings_of_the_report_are_in_the_example_with_their_defaults_and_ranges(
             );
         }
     }
+}
+
+#[test]
+fn the_parts_placed_and_the_busy_seconds_of_a_feeder_are_in_the_rows_the_csv_and_the_text() {
+    let busy = FeederStats {
+        placed: 7,
+        busy_us: 2_500_000,
+        ..stats("F1", 8, 0, 0, false)
+    };
+    let rows = rows_from(&[busy], &[], 20.0, 10);
+    assert_eq!(rows[0].placed, 7);
+    assert!((rows[0].busy_s - 2.5).abs() < 1e-12);
+    assert_eq!(
+        csv(&rows).lines().nth(1).unwrap(),
+        "F1,0,0.000,8,0,0.0,0,no,no,7,2.500"
+    );
+    let t = text(&rows);
+    assert!(t.contains(", 7 placed, busy 2.5 s"), "{t}");
 }

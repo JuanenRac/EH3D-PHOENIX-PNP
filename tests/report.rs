@@ -348,6 +348,9 @@ fn switching_off_the_feeder_hands_the_parts_to_another_feeder_of_the_kind() {
     // the feeder failed at the first pick of the job, so it never gave a part
     assert_eq!(off.picked, 0);
     assert_eq!(r.feeders.iter().map(|x| x.picked).sum::<u32>(), 6);
+    // the parts that the other feeder took over are placed from it, not from the feeder that was planned
+    assert_eq!(off.placed, 0);
+    assert_eq!(r.feeders.iter().map(|x| x.placed).sum::<u32>(), 6);
     assert_eq!(r.actions, [0, 0, 0, 1]);
     assert!(j
         .machine()
@@ -768,4 +771,24 @@ fn simulate_writes_the_text_the_page_the_csv_and_the_json_of_the_report() {
         assert_eq!(same.status.code(), Some(1), "{option}");
     }
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_report_gives_each_feeder_the_parts_it_placed_and_the_seconds_of_its_picks() {
+    let mut j = job("");
+    j.run(None).unwrap();
+    let r = build(&j, &none());
+    assert_eq!(
+        r.feeders.iter().map(|f| f.placed).collect::<Vec<_>>(),
+        vec![3, 2, 1]
+    );
+    assert!(r.feeders.iter().all(|f| f.busy_s() > 0.0));
+    let text = r.text(Lang::En);
+    let section = text.split("By feeder").nth(1).expect("a section by feeder");
+    assert!(
+        section.contains("Placed") && section.contains("Seconds"),
+        "{text}"
+    );
+    let es = r.text(Lang::Es);
+    assert!(es.contains("Por alimentador"), "{es}");
 }

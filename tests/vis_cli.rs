@@ -247,7 +247,7 @@ fn simulate_writes_the_report_of_the_feeders_once() {
     assert!(o.status.success(), "{}", text(&o.stderr));
     let written = std::fs::read_to_string(&out_file).unwrap();
     assert!(
-        written.starts_with("feeder,planned_picks,planned_busy_s,picked,pick_failures,fail_percent,faults,disabled,flagged\n"),
+        written.starts_with("feeder,planned_picks,planned_busy_s,picked,pick_failures,fail_percent,faults,disabled,flagged,placed,busy_s\n"),
         "{written}"
     );
     assert!(written.lines().count() > 1, "{written}");

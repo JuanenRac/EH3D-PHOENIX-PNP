@@ -700,7 +700,9 @@ impl WorkReport {
                     word(K::ColName, lang),
                     word(K::ColPicked, lang),
                     word(K::ColPickFailed, lang),
+                    word(K::Placed, lang),
                     word(K::ColFaults, lang),
+                    word(K::Seconds, lang),
                     word(K::ColSwitchedOff, lang),
                 ],
                 self.feeders
@@ -710,7 +712,9 @@ impl WorkReport {
                             f.id.clone(),
                             f.picked.to_string(),
                             f.pick_failures.to_string(),
+                            f.placed.to_string(),
                             f.faults.to_string(),
+                            format!("{:.1}", f.busy_s()),
                             if f.disabled { "x" } else { "-" }.to_string(),
                         ]
                     })

@@ -681,3 +681,60 @@ fn a_saved_job_with_failures_by_package_resumes_with_the_same_statistics() {
     again.run(None).unwrap();
     assert_eq!(again.stats_json(), whole.stats_json());
 }
+
+#[test]
+fn each_feeder_counts_the_parts_it_gave_that_were_placed_and_the_time_of_its_picks() {
+    let mut j = job("");
+    j.run(None).unwrap();
+    let rows = &j.stats().feeders;
+    let placed: Vec<u32> = rows.iter().map(|f| f.placed).collect();
+    assert_eq!(placed, vec![3, 2, 1]);
+    assert!(rows.iter().all(|f| f.busy_us > 0 && f.busy_s() > 0.0));
+    // the steps that pick are a part of the time of the job
+    assert!(rows.iter().map(|f| f.busy_us).sum::<u64>() <= j.machine().now_us());
+    let s = stats(&j);
+    let f1 = &s["feeders"][0];
+    assert_eq!(f1["placed"], 3);
+    assert!(f1["busy_s"].as_f64().unwrap() > 0.0);
+}
+
+#[test]
+fn the_parts_placed_are_counted_for_the_feeder_they_came_from_also_when_failures_defer_some() {
+    let mut j = job(FAILING);
+    j.run(None).unwrap();
+    let total: u32 = j.stats().feeders.iter().map(|f| f.placed).sum();
+    assert_eq!(total as usize, j.stats().placed);
+    assert!(j.stats().feeders.iter().all(|f| f.placed <= f.picked));
+}
+
+#[test]
+fn the_feeder_a_nozzle_took_its_part_from_is_kept_in_the_saved_state() {
+    let mut a = job("");
+    // the pick of the first part
+    a.step().unwrap();
+    let state = a.save_state();
+    let v: Value = serde_json::from_str(&state).unwrap();
+    let first = a
+        .stats()
+        .feeders
+        .iter()
+        .find(|f| f.picked == 1)
+        .unwrap()
+        .id
+        .clone();
+    assert_eq!(v["held_from"][0], first.as_str());
+    // a job that takes the state up places the part and counts it for that feeder
+    let mut b = job("");
+    b.restore_state(&state).unwrap();
+    b.step().unwrap();
+    let f = b.stats().feeders.iter().find(|f| f.id == first).unwrap();
+    assert_eq!((f.picked, f.placed), (1, 1));
+    // a state saved before this was kept has no feeder for the part on the nozzle: it is placed, but counted for none
+    let mut old: Value = serde_json::from_str(&state).unwrap();
+    old.as_object_mut().unwrap().remove("held_from");
+    let mut c = job("");
+    c.restore_state(&old.to_string()).unwrap();
+    c.step().unwrap();
+    assert_eq!(c.stats().placed, 1);
+    assert!(c.stats().feeders.iter().all(|f| f.placed == 0));
+}

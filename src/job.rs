@@ -174,6 +174,17 @@ pub struct FeederStats {
     pub disabled: bool,
     /// Every pick from this feeder that failed, also those that a retry put right.
     pub pick_failures: u32,
+    /// The parts picked from this feeder that were placed.
+    pub placed: u32,
+    /// The time of the steps that picked from this feeder (the way to it, the feed, the pick and the look), in microseconds of the clock of the machine.
+    pub busy_us: u64,
+}
+
+impl FeederStats {
+    /// The time the feeder kept the machine busy, in seconds.
+    pub fn busy_s(&self) -> f64 {
+        self.busy_us as f64 / 1e6
+    }
 }
 
 /// What happened with the parts of one package.
@@ -290,6 +301,10 @@ pub struct Job {
     trace: Trace,
     /// The feeder that served the last pick, to be switched off when that pick stops the job.
     last_feeder: Option<usize>,
+    /// The feeder that each nozzle took the part it holds from, to count the part as placed from that feeder.
+    held_from: Vec<Option<usize>>,
+    /// The feeder that the pick step in progress takes from, to add the time of the step to the feeder.
+    picking_from: Option<usize>,
     /// The part whose pick an error stopped, so that the pick tried again is not counted as one at the first attempt.
     stopped_pick: Option<usize>,
     /// The recipe the job follows, when it has one.
@@ -415,6 +430,7 @@ impl Job {
             .map(|a| SimActuator::new(&a.name, a.delay_s))
             .collect();
         let corrections = vec![None; cfg.nozzles];
+        let held_from = vec![None; cfg.nozzles];
         Ok(Job {
             plan,
             windows: vec![Vec::new(); feeders.len()],
@@ -439,6 +455,8 @@ impl Job {
             corrections,
             trace: Trace::default(),
             last_feeder: None,
+            held_from,
+            picking_from: None,
             stopped_pick: None,
             recipe: None,
             now: Params::default(),
@@ -802,6 +820,7 @@ impl Job {
             Cursor::Pick { batch, k } => Some(self.batches[batch][k]),
             _ => None,
         };
+        self.picking_from = None;
         let done = match self.cursor {
             Cursor::Pick { batch, k } => self.do_pick(batch, k),
             Cursor::Place { batch, k } => self.do_place(batch, k),
@@ -809,6 +828,10 @@ impl Job {
         };
         // the time of the step that the moves, the looks and the change of tip did not take is the time of the pick or of the place itself
         let spent = self.machine.now_us().saturating_sub(started);
+        // the whole step of a pick keeps the feeder it took from busy
+        if let Some(f) = self.picking_from.take() {
+            self.stats.feeders[f].busy_us += spent;
+        }
         let counted =
             (self.trace.travel_us + self.trace.align_us + self.trace.tip_us).saturating_sub(inside);
         if at_pick {
@@ -977,6 +1000,7 @@ impl Job {
             ErrorPolicy::Defer => {
                 self.trace.count(e.code);
                 self.machine.discard(nozzle);
+                self.held_from[nozzle] = None;
                 self.vacuum.release(nozzle);
                 self.status[idx] = Status::Deferred;
                 self.reasons[idx] = e.to_string();
@@ -1056,6 +1080,7 @@ impl Job {
             return self.give_up(idx, nozzle, e);
         };
         self.last_feeder = Some(f);
+        self.picking_from = Some(f);
         self.now = self.params_for(f, idx);
         let retries = self.now.pick_retries.unwrap_or(det.pick_retries);
         let at = self.feeders[f].pick_point(self.taken[f]);
@@ -1158,6 +1183,7 @@ impl Job {
         self.taken[f] += 1;
         self.stats.feeders[f].picked += 1;
         self.stats.kinds[kind].picked += 1;
+        self.held_from[nozzle] = Some(f);
         Ok(())
     }
 
@@ -1334,6 +1360,9 @@ impl Job {
                     self.corrections[nozzle] = None;
                     self.stats.placed += 1;
                     self.stats.kinds[kind].placed += 1;
+                    if let Some(f) = self.held_from[nozzle].take() {
+                        self.stats.feeders[f].placed += 1;
+                    }
                     return Ok(());
                 }
                 Err(e) if e.code == Code::SimFault || e.code == Code::VacuumStuck => {
@@ -1363,7 +1392,7 @@ impl Job {
         let feeders: Vec<Value> = s
             .feeders
             .iter()
-            .map(|f| json!({"id": f.id, "picked": f.picked, "faults": f.faults, "disabled": f.disabled, "pick_failures": f.pick_failures}))
+            .map(|f| json!({"id": f.id, "picked": f.picked, "faults": f.faults, "disabled": f.disabled, "pick_failures": f.pick_failures, "placed": f.placed, "busy_s": f.busy_s()}))
             .collect();
         let kinds: Vec<Value> = s
             .kinds
@@ -1563,7 +1592,7 @@ impl Job {
         let feeders: Vec<Value> = s
             .feeders
             .iter()
-            .map(|f| json!({"picked": f.picked, "faults": f.faults, "disabled": f.disabled, "pick_failures": f.pick_failures}))
+            .map(|f| json!({"picked": f.picked, "faults": f.faults, "disabled": f.disabled, "pick_failures": f.pick_failures, "placed": f.placed, "busy_us": f.busy_us}))
             .collect();
         let kinds: Vec<Value> = s
             .kinds
@@ -1648,6 +1677,18 @@ impl Job {
         // the feeder of the last pick and the pick that was stopped: they let the person switch the feeder off, or try the pick again, after the state is loaded in another run
         if let Some(f) = self.last_feeder {
             doc["last_feeder"] = json!(self.feeders[f].base.id);
+        }
+        // the feeder that each nozzle took its part from, so that the part is counted as placed from that feeder after the state is loaded
+        if self.held_from.iter().any(Option::is_some) {
+            doc["held_from"] = Value::Array(
+                self.held_from
+                    .iter()
+                    .map(|h| match h {
+                        Some(f) => json!(self.feeders[*f].base.id),
+                        None => Value::Null,
+                    })
+                    .collect(),
+            );
         }
         if let Some(i) = self.stopped_pick {
             doc["stopped_pick"] = json!(i);
@@ -1860,6 +1901,9 @@ impl Job {
                 .get("pick_failures")
                 .and_then(Value::as_u64)
                 .unwrap_or(0) as u32;
+            // a state saved before these two were kept starts them again from zero
+            f.placed = saved.get("placed").and_then(Value::as_u64).unwrap_or(0) as u32;
+            f.busy_us = saved.get("busy_us").and_then(Value::as_u64).unwrap_or(0);
         }
         stats.skipped = s.get("skipped").and_then(Value::as_u64).unwrap_or(0) as usize;
         // a state saved before the report was kept has no trace: it starts again from zero
@@ -2165,6 +2209,13 @@ impl Job {
             .get("last_feeder")
             .and_then(Value::as_str)
             .and_then(|id| self.index.get(id).copied());
+        self.held_from = match v.get("held_from").and_then(Value::as_array) {
+            Some(list) if list.len() == self.held_from.len() => list
+                .iter()
+                .map(|h| h.as_str().and_then(|id| self.index.get(id).copied()))
+                .collect(),
+            _ => vec![None; self.held_from.len()],
+        };
         self.stopped_pick = v
             .get("stopped_pick")
             .and_then(Value::as_u64)
