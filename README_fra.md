@@ -83,6 +83,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 * **Feuille des pièces polarisées** (`src/polarity.rs`) : `phoenix-pnp polarity-sheet PIÈCES` liste les pièces dont la référence correspond à `polarity_refs` ou dont le boîtier correspond à `polarity_packages` (par défaut diodes, LED, circuits, transistors, condensateurs polarisés et connecteurs) avec leur position et leur rotation et une colonne vide à cocher, pour le contrôle après un travail ; `--side` garde un seul côté.
 * **Jeu des axes** (`src/sim.rs`, `src/motion.rs`) : `backlash_x_mm`, `backlash_y_mm` et `backlash_mode` font que la machine simulée termine un déplacement qui inverse un axe trop court du jeu (`off`, compté par `simulate`) ou le dépasse et revient par le côté positif (`approach`, plus long et sans erreur) ; avec un jeu de 0 rien ne change.
 * **Liste des pièces à acheter** (`src/bom.rs`) : `phoenix-pnp bom-order BOM --boards N` additionne les lignes d'une nomenclature qui sont la même pièce et donne à chaque ligne les pièces pour N cartes plus une réserve (`order_spare_percent` pour cent ou `order_spare_min`, le plus grand ; `--spare-percent` et `--spare-min` l'emportent), sans les pièces que `--parts PIÈCES` marque comme à ne pas monter ; il écrit un CSV trié par boîtier et valeur.
+* **Apprentissage des alimentateurs** (`src/calibrate.rs`) : `phoenix-pnp feeder-teach strip` donne le pas et l'angle d'une bande d'après les positions de sa première et de sa dernière pièce, et `feeder-teach tray` les deux pas et l'angle d'un plateau d'après trois de ses cases, avec l'écart à l'équerre ; les deux affichent les colonnes du fichier des alimentateurs qu'ils fixent.
 * **Le simulateur et le travail** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`) : les vérifications avant un travail, une machine à horloge virtuelle et pannes injectables, et un travail qu'on peut mettre en pause, exécuter pas à pas, enregistrer et reprendre.
 * **La fenêtre** (`src/gui.rs`, `src/gui/`) : ce que la fenêtre fait en dehors du dessin n'a pas besoin d'écran (les fichiers chargés, le plan et ses problèmes avec corrections, le travail simulé, la géométrie de la carte, les tableaux à sélection partagée, l'assistant en cinq étapes et les textes en huit langues) et est testé ; seul `src/gui/window.rs`, construit avec `--features gui`, le dessine avec egui. La vitesse de la simulation, le thème et la taille dessinée pour une pièce de boîtier inconnu sont des clés de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -142,6 +143,7 @@ phoenix-pnp nozzle-calibrate FILE [--config F]            le faux-rond de la poi
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] un fichier de panneau pour une grille de copies d'une carte
 phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] les pièces polarisées, en CSV pour le contrôle après un travail
 phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--out F] les pièces à acheter pour N cartes, avec une réserve
+phoenix-pnp feeder-teach strip|tray [places and counts]   le pas et l'angle d'une bande ou d'un plateau d'après des positions mesurées sur la machine
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mesure l'image d'une pièce créée en mémoire
 ```
 
@@ -356,6 +358,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   tests de la machine simulée
 │   ├── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
 │   ├── tables.rs                                tests des pièces à ne pas monter, de tables-check et du rapport d'un travail en CSV
+│   ├── teach.rs                                 tests de l'apprentissage des bandes et des plateaux
 │   ├── tips.rs                                  tests des embouts qu'un boîtier accepte : les règles, le choix et le plan
 │   ├── vacuum.rs                                tests du vide, des actionneurs et de la fenêtre de défauts d'un alimentateur
 │   ├── vision.rs                                tests de la vision : images calculées à la main, échecs, réglages

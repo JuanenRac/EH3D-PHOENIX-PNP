@@ -1114,6 +1114,19 @@
           }
         },
         {
+          "name": "teach.rs",
+          "desc": {
+            "en": "tests of the teaching of strips and trays",
+            "es": "pruebas de la enseñanza de tiras y bandejas",
+            "de": "Tests des Einlernens von Gurten und Trays",
+            "fr": "tests de l'apprentissage des bandes et des plateaux",
+            "it": "test dell'apprendimento di strisce e vassoi",
+            "ja": "テープとトレイの教示のテスト",
+            "zh": "料带与料盘示教的测试",
+            "pt": "testes do ensino de tiras e tabuleiros"
+          }
+        },
+        {
           "name": "tips.rs",
           "desc": {
             "en": "tests of the tips that a package accepts: the rules, the choice and the plan",

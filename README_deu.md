@@ -83,6 +83,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 * **Blatt der Teile mit Orientierung** (`src/polarity.rs`): `phoenix-pnp polarity-sheet TEILE` listet die Teile auf, deren Referenz zu `polarity_refs` oder deren Gehäuse zu `polarity_packages` passt (standardmäßig Dioden, LEDs, ICs, Transistoren, gepolte Kondensatoren und Steckverbinder), mit Ort, Drehung und einer leeren Spalte zum Abhaken für die Sichtprüfung nach einem Auftrag; `--side` behält eine Seite.
 * **Spiel der Achsen** (`src/sim.rs`, `src/motion.rs`): `backlash_x_mm`, `backlash_y_mm` und `backlash_mode` lassen die simulierte Maschine eine Bewegung mit Achsumkehr um das Spiel zu kurz enden (`off`, von `simulate` gezählt) oder über den Platz hinausfahren und von der positiven Seite zurückkommen (`approach`, das dauert länger und lässt keinen Fehler); bei Spiel 0 ändert sich nichts.
 * **Einkaufsliste** (`src/bom.rs`): `phoenix-pnp bom-order BOM --boards N` addiert die Zeilen einer Stückliste, die dasselbe Teil sind, und gibt jeder Zeile die Teile für N Platinen plus Reserve (`order_spare_percent` Prozent oder `order_spare_min`, je nachdem was größer ist; `--spare-percent` und `--spare-min` haben Vorrang), ohne die Teile, die `--parts TEILE` als nicht zu bestücken markiert; es schreibt eine nach Gehäuse und Wert sortierte CSV.
+* **Einlernen von Zuführungen** (`src/calibrate.rs`): `phoenix-pnp feeder-teach strip` gibt Teilung und Winkel eines Gurts aus den Orten des ersten und letzten Teils an, `feeder-teach tray` die beiden Teilungen und den Winkel eines Trays aus drei seiner Zellen, mit der Abweichung von der Rechtwinkligkeit; beide geben die Spalten der Zuführungsdatei aus, die sie festlegen.
 * **Der Simulator und der Auftrag** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): die Prüfungen vor einem Auftrag, eine Maschine mit virtueller Uhr und einspeisbaren Fehlern und ein Auftrag, der pausiert, Schritt für Schritt ausgeführt, gespeichert und fortgesetzt werden kann.
 * **Das Fenster** (`src/gui.rs`, `src/gui/`): was das Fenster außer dem Zeichnen tut, braucht keinen Bildschirm (die geladenen Dateien, der Plan und seine Probleme mit Lösungen, der simulierte Auftrag, die Geometrie der Karte, die Tabellen mit gemeinsamer Auswahl, der Assistent in fünf Schritten und die Texte in acht Sprachen) und wird getestet; nur `src/gui/window.rs`, gebaut mit `--features gui`, zeichnet es mit egui. Die Geschwindigkeit der Simulation, das Design und die Größe, die für ein Teil mit unbekanntem Gehäuse gezeichnet wird, sind Schlüssel von `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -142,6 +143,7 @@ phoenix-pnp nozzle-calibrate FILE [--config F]            der Rundlauffehler der
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] eine Panel-Datei für ein Raster aus Kopien einer Platine
 phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] die Teile mit Orientierung als CSV für die Sichtprüfung nach einem Auftrag
 phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--out F] die für N Platinen zu kaufenden Teile mit Reserve
+phoenix-pnp feeder-teach strip|tray [places and counts]   Teilung und Winkel eines Gurts oder Trays aus an der Maschine gemessenen Orten
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       misst das im Speicher erzeugte Bild eines Teils
 ```
 
@@ -356,6 +358,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   Tests der simulierten Maschine
 │   ├── strict.rs                                Tests der Kommandozeile: Optionen und Wörter, die sie nicht kennt
 │   ├── tables.rs                                Tests der nicht zu bestückenden Teile, von tables-check und des Auftragsberichts als CSV
+│   ├── teach.rs                                 Tests des Einlernens von Gurten und Trays
 │   ├── tips.rs                                  Tests der Spitzen, die ein Gehäuse akzeptiert: die Regeln, die Wahl und der Plan
 │   ├── vacuum.rs                                Tests des Vakuums, der Aktoren und des Fehlerfensters einer Zuführung
 │   ├── vision.rs                                Tests der Bildverarbeitung: von Hand geprüfte Bilder, Fehler, Einstellungen

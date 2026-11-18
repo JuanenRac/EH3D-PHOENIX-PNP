@@ -83,6 +83,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 * **Hoja de piezas con sentido** (`src/polarity.rs`): `phoenix-pnp polarity-sheet PIEZAS` lista las piezas cuya referencia coincide con `polarity_refs` o cuyo encapsulado coincide con `polarity_packages` (por defecto diodos, LED, chips, transistores, condensadores polarizados y conectores) con su lugar y giro y una columna vacía para marcar, para la revisión tras un trabajo; `--side` deja un solo lado.
 * **Holgura de los ejes** (`src/sim.rs`, `src/motion.rs`): `backlash_x_mm`, `backlash_y_mm` y `backlash_mode` hacen que la máquina simulada termine corta por la holgura un movimiento que invierte un eje (`off`, que `simulate` cuenta) o que pase del lugar y vuelva desde el lado positivo (`approach`, que tarda más y no deja error); con holgura 0 no cambia nada.
 * **Lista de piezas que comprar** (`src/bom.rs`): `phoenix-pnp bom-order BOM --boards N` suma las filas de una lista de materiales que son la misma pieza y da a cada línea las piezas para N placas más un sobrante (`order_spare_percent` por ciento o `order_spare_min`, el mayor; mandan `--spare-percent` y `--spare-min`), sin las piezas que `--parts PIEZAS` marca como no montar; escribe un CSV ordenado por encapsulado y valor.
+* **Enseñanza de alimentadores** (`src/calibrate.rs`): `phoenix-pnp feeder-teach strip` da el paso y el ángulo de una tira a partir de los lugares de su primera y última pieza, y `feeder-teach tray` los dos pasos y el ángulo de una bandeja a partir de tres de sus celdas, con cuánto se aleja de la escuadra; ambos imprimen las columnas del fichero de alimentadores que fijan.
 * **El simulador y el trabajo** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): las comprobaciones previas al trabajo, una máquina con reloj virtual y fallos que se pueden inyectar, y un trabajo que se puede pausar, ejecutar paso a paso, guardar y reanudar.
 * **La ventana** (`src/gui.rs`, `src/gui/`): lo que la ventana hace además de dibujar no necesita pantalla (los ficheros cargados, el plan y sus problemas con arreglos, el trabajo simulado, la geometría del mapa, las tablas con una selección compartida, el asistente de cinco pasos y los textos en ocho idiomas) y se prueba; solo `src/gui/window.rs`, que se compila con `--features gui`, lo dibuja con egui. La velocidad de la simulación, el tema y el tamaño dibujado para una pieza de encapsulado desconocido son claves de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -142,6 +143,7 @@ phoenix-pnp nozzle-calibrate FILE [--config F]            la excentricidad de la
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] un fichero de panel para una cuadrícula de copias de una placa
 phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] las piezas con sentido, como CSV para la revisión tras un trabajo
 phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--out F] las piezas que comprar para N placas, con un sobrante
+phoenix-pnp feeder-teach strip|tray [places and counts]   el paso y el ángulo de una tira o una bandeja a partir de lugares medidos en la máquina
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mide la imagen de una pieza hecha en memoria
 ```
 
@@ -356,6 +358,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   pruebas de la máquina simulada
 │   ├── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
 │   ├── tables.rs                                pruebas de las piezas que no se montan, de tables-check y del informe de un trabajo en CSV
+│   ├── teach.rs                                 pruebas de la enseñanza de tiras y bandejas
 │   ├── tips.rs                                  pruebas de las puntas que acepta un encapsulado: las reglas, la elección y el plan
 │   ├── vacuum.rs                                pruebas del vacío, los actuadores y la ventana de fallos de un alimentador
 │   ├── vision.rs                                pruebas de la visión: imágenes calculadas a mano, fallos y ajustes

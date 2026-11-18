@@ -83,6 +83,7 @@
 * **有方向零件清单**（`src/polarity.rs`）：`phoenix-pnp polarity-sheet 零件` 列出位号匹配 `polarity_refs` 或封装匹配 `polarity_packages` 的零件（默认包括二极管、LED、芯片、晶体管、有极性电容和连接器），附位置、旋转和一列空白勾选栏，用于作业后的检查；`--side` 只保留一面。
 * **轴间隙（反向间隙）**（`src/sim.rs`、`src/motion.rs`）：`backlash_x_mm`、`backlash_y_mm` 和 `backlash_mode` 使模拟机器在轴反向的移动中要么短了一个间隙停下（`off`，由 `simulate` 计数），要么越过位置再从正方向返回（`approach`，耗时更多但没有误差）；间隙为 0 时一切不变。
 * **采购清单**（`src/bom.rs`）：`phoenix-pnp bom-order BOM --boards N` 把物料清单中相同零件的行相加，给每一行 N 块板所需的数量加上备用量（`order_spare_percent` 百分比或 `order_spare_min`，取较大者；`--spare-percent` 和 `--spare-min` 优先），不计 `--parts 零件` 中标记为不贴装的零件；写出按封装和值排序的 CSV。
+* **供料器示教**（`src/calibrate.rs`）：`phoenix-pnp feeder-teach strip` 根据第一个和最后一个零件的位置求料带的间距与角度，`feeder-teach tray` 根据料盘的三个格位求两个间距与角度（并给出列与直角的偏差）；两者都会输出它们所设定的供料器文件的列。
 * **模拟器与作业**（`src/sim.rs`、`src/job.rs`、`src/preflight.rs`、`src/model.rs`）：作业前的检查、带虚拟时钟和可注入故障的机器，以及可暂停、单步执行、保存并恢复的作业。
 * **窗口**（`src/gui.rs`、`src/gui/`）：窗口除绘制之外的工作都不需要屏幕（已载入的文件、规划及其问题与修复、模拟作业、地图的几何、共享选择的表格、五步向导和八种语言的文字），并经过测试；只有用 `--features gui` 构建的 `src/gui/window.rs` 用 egui 绘制。模拟速度、主题以及为未知封装的零件绘制的大小是 `machine.cfg` 的键（`gui_steps_per_s`、`gui_theme`、`gui_part_size_mm`）。
 
@@ -142,6 +143,7 @@ phoenix-pnp nozzle-calibrate FILE [--config F]            根据多个角度的�
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] 由同一电路板按网格复制而成的拼板文件
 phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] 有方向的零件，以 CSV 形式用于作业后的检查
 phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--out F] N 块板所需采购的零件，含备用量
+phoenix-pnp feeder-teach strip|tray [places and counts]   根据在机器上测得的位置求料带或料盘的间距与角度
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       测量在内存中生成的零件图像
 ```
 
@@ -356,6 +358,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   模拟机器的测试
 │   ├── strict.rs                                命令行测试：它不认识的选项和词
 │   ├── tables.rs                                不贴装零件、tables-check 以及作业 CSV 报告的测试
+│   ├── teach.rs                                 料带与料盘示教的测试
 │   ├── tips.rs                                  封装可接受吸嘴的测试：规则、选择和计划
 │   ├── vacuum.rs                                真空、执行器和供料器故障窗口的测试
 │   ├── vision.rs                                视觉处理测试：手算图像、失败和设置

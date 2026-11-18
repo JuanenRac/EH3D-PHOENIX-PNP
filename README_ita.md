@@ -83,6 +83,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Foglio dei componenti con un verso** (`src/polarity.rs`): `phoenix-pnp polarity-sheet COMPONENTI` elenca i componenti il cui riferimento corrisponde a `polarity_refs` o il cui package corrisponde a `polarity_packages` (per default diodi, LED, circuiti integrati, transistor, condensatori polarizzati e connettori) con posizione e rotazione e una colonna vuota da spuntare, per il controllo dopo un lavoro; `--side` tiene un solo lato.
 * **Gioco degli assi** (`src/sim.rs`, `src/motion.rs`): `backlash_x_mm`, `backlash_y_mm` e `backlash_mode` fanno sì che la macchina simulata termini corto del gioco un movimento che inverte un asse (`off`, contato da `simulate`) o superi la posizione e torni dal lato positivo (`approach`, che richiede più tempo e non lascia errore); con gioco 0 non cambia nulla.
 * **Elenco dei componenti da acquistare** (`src/bom.rs`): `phoenix-pnp bom-order BOM --boards N` somma le righe di una distinta base che sono lo stesso componente e dà a ogni riga i componenti per N schede più una scorta (`order_spare_percent` per cento o `order_spare_min`, il maggiore; prevalgono `--spare-percent` e `--spare-min`), senza i componenti che `--parts COMPONENTI` segna come da non montare; scrive un CSV ordinato per package e valore.
+* **Apprendimento dei feeder** (`src/calibrate.rs`): `phoenix-pnp feeder-teach strip` dà il passo e l'angolo di una striscia dalle posizioni del primo e dell'ultimo componente, e `feeder-teach tray` i due passi e l'angolo di un vassoio da tre sue celle, con lo scostamento dalla squadra; entrambi stampano le colonne del file dei feeder che impostano.
 * **Il simulatore e il lavoro** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): i controlli prima di un lavoro, una macchina con orologio virtuale e guasti iniettabili, e un lavoro che si può mettere in pausa, eseguire passo dopo passo, salvare e riprendere.
 * **La finestra** (`src/gui.rs`, `src/gui/`): ciò che la finestra fa oltre a disegnare non ha bisogno di schermo (i file caricati, il piano e i suoi problemi con correzioni, il lavoro simulato, la geometria della mappa, le tabelle con selezione condivisa, la guida in cinque passi e i testi in otto lingue) ed è testato; solo `src/gui/window.rs`, compilato con `--features gui`, lo disegna con egui. La velocità della simulazione, il tema e la dimensione disegnata per una parte di package sconosciuto sono chiavi di `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -142,6 +143,7 @@ phoenix-pnp nozzle-calibrate FILE [--config F]            l'eccentricità della 
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] un file di pannello per una griglia di copie di una scheda
 phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] i componenti con un verso, come CSV per il controllo dopo un lavoro
 phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--out F] i componenti da acquistare per N schede, con una scorta
+phoenix-pnp feeder-teach strip|tray [places and counts]   il passo e l'angolo di una striscia o di un vassoio da posizioni misurate sulla macchina
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       misura l'immagine di un componente creata in memoria
 ```
 
@@ -356,6 +358,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   test della macchina simulata
 │   ├── strict.rs                                test della riga di comando: opzioni e parole che non conosce
 │   ├── tables.rs                                test delle parti da non montare, di tables-check e del rapporto di un lavoro in CSV
+│   ├── teach.rs                                 test dell'apprendimento di strisce e vassoi
 │   ├── tips.rs                                  test delle punte che un package accetta: le regole, la scelta e il piano
 │   ├── vacuum.rs                                test del vuoto, degli attuatori e della finestra dei guasti di un alimentatore
 │   ├── vision.rs                                test della visione: immagini calcolate a mano, errori, impostazioni

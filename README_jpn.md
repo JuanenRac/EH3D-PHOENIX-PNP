@@ -83,6 +83,7 @@
 * **向きのある部品のシート**（`src/polarity.rs`）：`phoenix-pnp polarity-sheet 部品` は、リファレンスが `polarity_refs` に、またはパッケージが `polarity_packages` に一致する部品（既定ではダイオード、LED、IC、トランジスタ、有極性コンデンサ、コネクタ）を、位置・回転・チェック用の空欄とともに一覧にします。作業後の目視確認用で、`--side` で片面に絞れます。
 * **軸のバックラッシュ**（`src/sim.rs`、`src/motion.rs`）：`backlash_x_mm`、`backlash_y_mm`、`backlash_mode` により、シミュレートした機械は、軸が反転する移動をバックラッシュ分だけ手前で終える（`off`、`simulate` が数える）か、位置を通り過ぎて正の側から戻ります（`approach`、時間は増えますが誤差は残りません）。バックラッシュが 0 なら何も変わりません。
 * **購入部品リスト**（`src/bom.rs`）：`phoenix-pnp bom-order BOM --boards N` は、部品表の同じ部品の行を合算し、各行に N 枚分の部品と予備（`order_spare_percent` パーセントまたは `order_spare_min` の大きい方。`--spare-percent` と `--spare-min` が優先）を付けます。`--parts 部品` で実装しない印の付いた部品は除き、パッケージと値で並べた CSV を書き出します。
+* **フィーダーの教示**（`src/calibrate.rs`）：`phoenix-pnp feeder-teach strip` は最初と最後の部品の位置からテープのピッチと角度を、`feeder-teach tray` はトレイの 3 つのセルから 2 つのピッチと角度を（列の直角からのずれとともに）求め、どちらもフィーダーファイルで設定される列を出力します。
 * **シミュレーターとジョブ**（`src/sim.rs`、`src/job.rs`、`src/preflight.rs`、`src/model.rs`）：ジョブ前の確認、仮想時計と注入できる故障を持つ機械、一時停止・一手ずつの実行・保存・再開ができるジョブ。
 * **ウィンドウ**（`src/gui.rs`、`src/gui/`）：描画以外の処理は画面を必要とせず（読み込んだファイル、計画とその問題・修正、模擬ジョブ、地図の幾何、選択を共有する表、5ステップのガイド、8言語の文言）、テストされています。`--features gui` でビルドする `src/gui/window.rs` だけが egui で描画します。シミュレーションの速さ、テーマ、未知のパッケージの部品に描くサイズは `machine.cfg` のキー（`gui_steps_per_s`、`gui_theme`、`gui_part_size_mm`）です。
 
@@ -142,6 +143,7 @@ phoenix-pnp nozzle-calibrate FILE [--config F]            複数の角度での�
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] 1 枚の基板のコピーを格子状に並べたパネルファイル
 phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] 向きのある部品を、作業後の目視確認用に CSV で出力
 phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--out F] N 枚分の購入部品を予備付きで一覧にする
+phoenix-pnp feeder-teach strip|tray [places and counts]   機械で測った位置からテープまたはトレイのピッチと角度を求める
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       メモリ内に作った部品の画像を測定
 ```
 
@@ -356,6 +358,7 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   模擬機械のテスト
 │   ├── strict.rs                                コマンドラインのテスト：知らないオプションと語
 │   ├── tables.rs                                実装しない部品、tables-check、ジョブのCSVレポートのテスト
+│   ├── teach.rs                                 テープとトレイの教示のテスト
 │   ├── tips.rs                                  パッケージが受け付けるチップのテスト：ルール、選択、計画
 │   ├── vacuum.rs                                真空、アクチュエーター、フィーダーの故障ウィンドウのテスト
 │   ├── vision.rs                                画像処理のテスト：手計算の画像、失敗、設定
