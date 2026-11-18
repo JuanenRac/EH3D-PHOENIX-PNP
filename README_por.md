@@ -82,6 +82,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 * **Painel de uma grelha de placas** (`src/panel.rs`, `src/cmd_tools.rs`): `phoenix-pnp panelize PLACA --cols N --rows N --pitch-x MM --pitch-y MM` escreve o ficheiro de painel para uma grelha de cópias de uma placa, todas com a mesma rotação, com três fiduciais a uma margem (`--fiducials MM`) e placas marcadas como más pelos nomes `P1`, `P2`, ... (`--x-out P2,P5`); um ficheiro que existe nunca é sobrescrito.
 * **Folha das peças com sentido** (`src/polarity.rs`): `phoenix-pnp polarity-sheet PEÇAS` lista as peças cuja referência coincide com `polarity_refs` ou cujo encapsulamento coincide com `polarity_packages` (por omissão díodos, LED, circuitos integrados, transístores, condensadores polarizados e conectores) com o lugar e a rotação e uma coluna vazia para assinalar, para a verificação após um trabalho; `--side` mantém um só lado.
 * **Folga dos eixos** (`src/sim.rs`, `src/motion.rs`): `backlash_x_mm`, `backlash_y_mm` e `backlash_mode` fazem a máquina simulada terminar curto da folga um movimento que inverte um eixo (`off`, contado por `simulate`) ou passar do lugar e voltar pelo lado positivo (`approach`, que demora mais e não deixa erro); com folga 0 nada muda.
+* **Lista de peças a comprar** (`src/bom.rs`): `phoenix-pnp bom-order BOM --boards N` soma as linhas de uma lista de materiais que são a mesma peça e dá a cada linha as peças para N placas mais uma margem (`order_spare_percent` por cento ou `order_spare_min`, o maior; prevalecem `--spare-percent` e `--spare-min`), sem as peças que `--parts PEÇAS` marca como não montar; escreve um CSV ordenado por encapsulamento e valor.
 * **O simulador e o trabalho** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): as verificações antes de um trabalho, uma máquina com relógio virtual e falhas que se podem injetar, e um trabalho que se pode pôr em pausa, executar passo a passo, guardar e retomar.
 * **A janela** (`src/gui.rs`, `src/gui/`): o que a janela faz além de desenhar não precisa de ecrã (os ficheiros carregados, o plano e os seus problemas com correções, o trabalho simulado, a geometria do mapa, as tabelas com seleção partilhada, o assistente de cinco passos e os textos em oito idiomas) e é testado; só `src/gui/window.rs`, compilado com `--features gui`, a desenha com egui. A velocidade da simulação, o tema e o tamanho desenhado para uma peça de encapsulamento desconhecido são chaves de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -140,6 +141,7 @@ phoenix-pnp camera-calibrate FILE [--config F]            as definições da câ
 phoenix-pnp nozzle-calibrate FILE [--config F]            a excentricidade da ponta do bico a partir de leituras em vários ângulos
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] um ficheiro de painel para uma grelha de cópias de uma placa
 phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] as peças com sentido, em CSV para a verificação após um trabalho
+phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--out F] as peças a comprar para N placas, com uma margem
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mede a imagem de uma peça feita em memória
 ```
 
@@ -327,6 +329,7 @@ EH3D-PHOENIX-PNP/
 │   ├── align.rs                                 testes do passo de alinhamento: câmara, lugar corrigido, tolerância e tempo
 │   ├── backlash.rs                              testes da folga dos eixos da máquina simulada
 │   ├── bom.rs                                   testes da lista de materiais: leitura, verificação, código, bom-check
+│   ├── bom_order.rs                             testes da lista de peças a comprar
 │   ├── calibrate.rs                             testes das calibrações: ajustes, ficheiros, linhas de configuração, G-code
 │   ├── camera.rs                                testes do modelo da câmara, das câmaras das cabeças e da câmara do simulador
 │   ├── commands.rs                              testes dos comandos que usam a configuração

@@ -82,6 +82,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Pannello da una griglia di schede** (`src/panel.rs`, `src/cmd_tools.rs`): `phoenix-pnp panelize SCHEDA --cols N --rows N --pitch-x MM --pitch-y MM` scrive il file di pannello per una griglia di copie di una scheda, tutte con la stessa rotazione, con tre fiduciali a un margine (`--fiducials MM`) e schede segnate come difettose dai nomi `P1`, `P2`, ... (`--x-out P2,P5`); un file esistente non viene mai sovrascritto.
 * **Foglio dei componenti con un verso** (`src/polarity.rs`): `phoenix-pnp polarity-sheet COMPONENTI` elenca i componenti il cui riferimento corrisponde a `polarity_refs` o il cui package corrisponde a `polarity_packages` (per default diodi, LED, circuiti integrati, transistor, condensatori polarizzati e connettori) con posizione e rotazione e una colonna vuota da spuntare, per il controllo dopo un lavoro; `--side` tiene un solo lato.
 * **Gioco degli assi** (`src/sim.rs`, `src/motion.rs`): `backlash_x_mm`, `backlash_y_mm` e `backlash_mode` fanno sì che la macchina simulata termini corto del gioco un movimento che inverte un asse (`off`, contato da `simulate`) o superi la posizione e torni dal lato positivo (`approach`, che richiede più tempo e non lascia errore); con gioco 0 non cambia nulla.
+* **Elenco dei componenti da acquistare** (`src/bom.rs`): `phoenix-pnp bom-order BOM --boards N` somma le righe di una distinta base che sono lo stesso componente e dà a ogni riga i componenti per N schede più una scorta (`order_spare_percent` per cento o `order_spare_min`, il maggiore; prevalgono `--spare-percent` e `--spare-min`), senza i componenti che `--parts COMPONENTI` segna come da non montare; scrive un CSV ordinato per package e valore.
 * **Il simulatore e il lavoro** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): i controlli prima di un lavoro, una macchina con orologio virtuale e guasti iniettabili, e un lavoro che si può mettere in pausa, eseguire passo dopo passo, salvare e riprendere.
 * **La finestra** (`src/gui.rs`, `src/gui/`): ciò che la finestra fa oltre a disegnare non ha bisogno di schermo (i file caricati, il piano e i suoi problemi con correzioni, il lavoro simulato, la geometria della mappa, le tabelle con selezione condivisa, la guida in cinque passi e i testi in otto lingue) ed è testato; solo `src/gui/window.rs`, compilato con `--features gui`, lo disegna con egui. La velocità della simulazione, il tema e la dimensione disegnata per una parte di package sconosciuto sono chiavi di `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -140,6 +141,7 @@ phoenix-pnp camera-calibrate FILE [--config F]            le impostazioni della 
 phoenix-pnp nozzle-calibrate FILE [--config F]            l'eccentricità della punta dell'ugello da letture a più angoli
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] un file di pannello per una griglia di copie di una scheda
 phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] i componenti con un verso, come CSV per il controllo dopo un lavoro
+phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--out F] i componenti da acquistare per N schede, con una scorta
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       misura l'immagine di un componente creata in memoria
 ```
 
@@ -327,6 +329,7 @@ EH3D-PHOENIX-PNP/
 │   ├── align.rs                                 test del passo di allineamento: telecamera, posizione corretta, tolleranza e tempo
 │   ├── backlash.rs                              test del gioco degli assi della macchina simulata
 │   ├── bom.rs                                   test della distinta base: lettura, controllo, codice, bom-check
+│   ├── bom_order.rs                             test dell'elenco dei componenti da acquistare
 │   ├── calibrate.rs                             test delle calibrazioni: adattamenti, file, righe di configurazione, G-code
 │   ├── camera.rs                                test del modello della telecamera, delle telecamere delle teste e della telecamera del simulatore
 │   ├── commands.rs                              test dei comandi che usano la configurazione

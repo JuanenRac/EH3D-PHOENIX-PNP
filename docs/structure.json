@@ -763,6 +763,19 @@
           }
         },
         {
+          "name": "bom_order.rs",
+          "desc": {
+            "en": "tests of the list of parts to buy",
+            "es": "pruebas de la lista de piezas que comprar",
+            "de": "Tests der Einkaufsliste",
+            "fr": "tests de la liste des pièces à acheter",
+            "it": "test dell'elenco dei componenti da acquistare",
+            "ja": "購入部品リストのテスト",
+            "zh": "采购清单的测试",
+            "pt": "testes da lista de peças a comprar"
+          }
+        },
+        {
           "name": "calibrate.rs",
           "desc": {
             "en": "tests of the calibrations: the fits, the files, the lines of the configuration, the G-code",

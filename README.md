@@ -82,6 +82,7 @@ Each line is one part of this repository and the light says how far it is today.
 * **Panel of a grid of boards** (`src/panel.rs`, `src/cmd_tools.rs`): `phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM` writes the panel file for a grid of copies of one board, with the same turn for each, three fiducials at a margin (`--fiducials MM`) and boards marked as bad by their names `P1`, `P2`, ... (`--x-out P2,P5`); a file that exists is never written over.
 * **Sheet of the parts with a direction** (`src/polarity.rs`): `phoenix-pnp polarity-sheet PARTS` lists the parts whose reference matches `polarity_refs` or whose package matches `polarity_packages` (diodes, LEDs, chips, transistors, polarized capacitors and connectors by default) with their place and turn and an empty column to tick, for the look after a job; `--side` keeps one side.
 * **Slack of the axes** (`src/sim.rs`, `src/motion.rs`): `backlash_x_mm`, `backlash_y_mm` and `backlash_mode` make the simulated machine end a move that reverses an axis short of the place by the slack (`off`, counted by `simulate`) or go past the place and come back from the positive side (`approach`, which takes more time and leaves no error); with a slack of 0 nothing changes.
+* **List of parts to buy** (`src/bom.rs`): `phoenix-pnp bom-order BOM --boards N` adds the rows of a BOM that are the same part and gives each line the parts for N boards plus a spare (`order_spare_percent` per cent or `order_spare_min`, whichever is larger; `--spare-percent` and `--spare-min` win), leaving out the parts that `--parts PARTS` marks as not to be mounted; it writes a CSV sorted by package and value.
 * **The simulator and the job** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): the checks before a job, a machine with a virtual clock and failures that can be injected, and a job that can be paused, taken step by step, saved and resumed.
 * **The window** (`src/gui.rs`, `src/gui/`): what the window does besides drawing needs no screen (the files that were loaded, the plan and its problems with fixes, the simulated job, the geometry of the map, the tables with a shared selection, the guide of five steps and the words in eight languages) and is tested; only `src/gui/window.rs`, built with `--features gui`, draws it with egui. The speed of the simulation, the theme and the size drawn for a part of an unknown package are keys of `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -140,6 +141,7 @@ phoenix-pnp camera-calibrate FILE [--config F]            the settings of the ca
 phoenix-pnp nozzle-calibrate FILE [--config F]            the runout of the nozzle tip from readings at several angles
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] a panel file for a grid of copies of one board
 phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] the parts that have a direction, as a CSV for the look after a job
+phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--out F] the parts to buy for N boards, with a spare
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       measures the picture of a part made in memory
 ```
 
@@ -327,6 +329,7 @@ EH3D-PHOENIX-PNP/
 │   ├── align.rs                                 tests of the align step: camera, corrected place, tolerance and time
 │   ├── backlash.rs                              tests of the slack of the axes of the simulated machine
 │   ├── bom.rs                                   tests of the bill of materials: reading, the check, the code, bom-check
+│   ├── bom_order.rs                             tests of the list of parts to buy
 │   ├── calibrate.rs                             tests of the calibrations: the fits, the files, the lines of the configuration, the G-code
 │   ├── camera.rs                                tests of the camera model, the cameras of the heads and the camera of the simulator
 │   ├── commands.rs                              tests of the commands that use the configuration
