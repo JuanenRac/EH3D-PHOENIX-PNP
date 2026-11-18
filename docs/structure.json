@@ -1153,6 +1153,19 @@
           }
         },
         {
+          "name": "names.rs",
+          "desc": {
+            "en": "tests of the names of the files: no two that differ only in case, none that Windows cannot hold",
+            "es": "pruebas de los nombres de los ficheros: ninguno que solo difiera en mayúsculas, ninguno que Windows no admita",
+            "de": "Tests der Dateinamen: keine, die sich nur in der Groß-/Kleinschreibung unterscheiden, keine, die Windows nicht kann",
+            "fr": "tests des noms de fichiers : aucun qui ne diffère que par la casse, aucun que Windows refuse",
+            "it": "test dei nomi dei file: nessuno che differisca solo per le maiuscole, nessuno che Windows non accetti",
+            "ja": "ファイル名のテスト：大文字小文字だけが違う名前や Windows で使えない名前がない",
+            "zh": "文件名测试：没有仅大小写不同的名称，也没有 Windows 无法使用的名称",
+            "pt": "testes dos nomes dos ficheiros: nenhum que só difira nas maiúsculas, nenhum que o Windows não aceite"
+          }
+        },
+        {
           "name": "nozzlelife.rs",
           "desc": {
             "en": "tests of the use of the nozzle tips: the file, what a job adds, the commands",
