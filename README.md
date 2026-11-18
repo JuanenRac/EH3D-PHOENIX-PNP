@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 684 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 694 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.7` |
 | Maturity | Scaffolding |
-| Tests | 684 |
+| Tests | 694 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder (priority, tray, strip), plans the order of the placements for a head with up to six nozzles with ranks, nozzle tips, angle limits and the time of the moves, plans panels and writes the load sheet; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
-| Tests | 🟡 | 684 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
+| Tests | 🟡 | 694 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
 | Machine configuration | 🟡 | a `key = value` file with a version, a validator that names the line, and the safety limits (travel of Z, limits of X and Y, retries, nozzle angles); the values have not been compared with a real machine. |
 | Simulator and job | 🟡 | a virtual clock, failures injected by chance (with a seed) or at a chosen place, retries, the policies alert and defer, feeders that switch off after repeated faults, pause, step by step, and a saved state to resume from; it only simulates, nothing has driven a machine. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
@@ -77,6 +77,7 @@ Each line is one part of this repository and the light says how far it is today.
 * **Recipes** (`src/recipe.rs`, `src/job.rs`, `src/commands.rs`): a text file with a version (`examples/job.recipe`) fixes the steps a job goes through (`prepare`, `pick`, `align`, `place` and `check`, in that order and none twice; the align step and the vacuum check are on only when the recipe has them) and the parameters that change for a package, a feeder or a nozzle tip (`pick_retries`, `pick_tolerance_mm`, `vacuum_suck_s` and `vacuum_blow_s`; for each key the first rule that matches wins, the feeders first, then the packages and then the tips). `phoenix-pnp recipe-check FILE` reads and checks it and `simulate ... --recipe FILE` carries the job out with it. Its errors have the codes `PHOENIX-PNP-049` to `PHOENIX-PNP-052` (a line that is not valid, steps out of order, a file over its limits, a version that is too new) and the limits are the keys `recipe_max_bytes` and `recipe_max_rules` of `machine.cfg`. A saved state also remembers the feeder of the last pick and the pick that was stopped, so a job loaded in another run offers the same decisions to the person (an older state still loads).
 * **Import of position files** (`src/import.rs`, `src/commands.rs`): `phoenix-pnp import-centroid FILE` reads a centroid CSV (`--map FILE` names its columns, `examples/centroid.map`; `examples/centroid.csv` needs no map), the text of positions of EAGLE (`examples/board.mnt`: name, x, y, rotation `R90` or `MR90` for the bottom side, value, package) or the `.pos` of KiCad (`--format auto|csv|eagle|kicad-pos`; `auto` tells them from the first row) and writes the table of parts `ref,val,package,x,y,rot,side,dnp` in millimetres to `--out` (a file that exists is never written over: `PHOENIX-PNP-040`) or to the standard output. The units are mm, mil or inch (in the header as `X (mil)`, in the cell as `0.5in`, in a comment as `## Unit = inch`, in the map or in `import_unit`); angles come out from 0 up to 360; the column of the side is optional; a column `dnp` or `fitted` (or `--dnp R1-R5,C7` with ranges of references) marks the parts that are not to be mounted; `import_bottom_mirror_width_mm` mirrors the X of the bottom side and `bottom_rotation` turns its angle. The three readers are the program's own (no other repository has a reader that can be used without adding a dependency) and the layout of the EAGLE text has not been compared with a file written by a real installation. Every error has a code from `PHOENIX-PNP-053` to `PHOENIX-PNP-056` (a line that is not valid, a header that lacks a column of the map, a format that is not known, a range of references that is not valid) and the number of the line.
 * **Bill of materials** (`src/bom.rs`, `src/cmd_tools.rs`): `phoenix-pnp bom-check PARTS BOM` reads a BOM (`examples/bom.csv`: the references in a cell, as a range or one for each row, and the value, package, quantity and part number when it has them) and says which references only one side has, which are listed twice, which values or packages differ and which quantities do not add up; a part marked as not to be mounted may be in the BOM or not. An error of the file has the code `PHOENIX-PNP-057` and its line.
+* **Stock for a run** (`src/stock.rs`): `phoenix-pnp stock PARTS FEEDERS --boards N` adds the boards up and says, kind of part by kind, how many parts N boards need against the parts in the feeders that are on, which kinds fall short, by how much and after how many boards the first reel runs out; it exits with 1 when something falls short and writes the table with `--out`. `bom-order --have FEEDERS` sets what the feeders already hold against the list of parts to buy and gives the columns `on_hand` and `to_buy`.
 * **Camera calibration** (`src/calibrate.rs`): `phoenix-pnp camera-calibrate FILE` fits the model of the camera (size of a pixel, turn, mirror, and where the axis of the nozzle is in the picture) to sightings of a mark at known places of the head (`px,py,x_mm,y_mm` [see `examples/camera_points.csv`], at least three) and prints how well they fit and the `camera_*` lines for the configuration; the lens is not fitted. Its error is the code `PHOENIX-PNP-058`.
 * **Nozzle runout** (`src/calibrate.rs`, `src/export.rs`): `phoenix-pnp nozzle-calibrate FILE` fits a circle to readings of the nozzle tip at several angles (`angle_deg,x_mm,y_mm` [see `examples/nozzle_readings.csv`]) and prints `nozzle_runout_mm` and `nozzle_runout_deg`; with the runout above 0 the G-code of `schedule --gcode` moves each place by the opposite of the runout at the angle of the part.
 * **Panel of a grid of boards** (`src/panel.rs`, `src/cmd_tools.rs`): `phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM` writes the panel file for a grid of copies of one board, with the same turn for each, three fiducials at a margin (`--fiducials MM`, around the real size of the board given by `--board-size W,H`) and boards marked as bad by their names `P1`, `P2`, ... (`--x-out P2,P5`); a file that exists is never written over.
@@ -145,6 +146,7 @@ phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F]
 phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] the parts that have a direction, as a CSV for the look after a job
 phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--out F] the parts to buy for N boards, with a spare
 phoenix-pnp feeder-teach strip|tray [places and counts] | --measures FILE   the pitch and the angle of a strip or a tray from places measured on the machine
+phoenix-pnp stock PARTS FEEDERS [--boards N] [--side top|bottom] [--out F] whether the feeders hold enough parts for N boards, kind by kind (exits with 1 if not)
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       measures the picture of a part made in memory
 ```
 
@@ -257,7 +259,7 @@ The last line opens the window; so does `phoenix-pnp` with no command when it wa
 
 ## 🧪 Testing
 
-The suite has 684 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 694 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -326,6 +328,7 @@ EH3D-PHOENIX-PNP/
 │   ├── report.rs                                the report of a job: phases, picks, groups, errors; text, HTML, CSV, JSON
 │   ├── rotation.rs                              corrections of the rotation by package, and how a limited nozzle turns
 │   ├── sim.rs                                   the simulated machine: virtual clock and failures that can be injected
+│   ├── stock.rs                                 the parts the feeders hold against the parts a run of boards needs
 │   ├── tips.rs                                  the nozzle tips that a package accepts and the choice of one for every kind of part
 │   ├── units.rs                                 lengths and places that carry their unit
 │   └── vision.rs                                the vision pipeline: filter, threshold, spots and the smallest turned rectangle
@@ -359,6 +362,7 @@ EH3D-PHOENIX-PNP/
 │   ├── samples.rs                               tests of the examples of the calibrations and of the file of measures of the feeders
 │   ├── shot.rs                                  tests of the picture mode of the window: its arguments, read and checked without a screen
 │   ├── sim.rs                                   tests of the simulated machine
+│   ├── stock.rs                                 tests of the stock for a run and of the parts to buy
 │   ├── strict.rs                                tests of the command line: options and words it does not know
 │   ├── tables.rs                                tests of the parts not to be mounted, of tables-check and of the report of a job as a CSV
 │   ├── teach.rs                                 tests of the teaching of strips and trays

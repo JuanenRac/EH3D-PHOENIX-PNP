@@ -34,7 +34,8 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp bom-check PARTS BOM [--config F] [--lang CODE]   whether the bill of materials and the table of parts agree (references, values, packages, quantities)
   phoenix-pnp camera-calibrate FILE [--config F] [--lang CODE]   the settings of the camera from sightings of a mark (px,py,x_mm,y_mm), with how well they fit
   phoenix-pnp nozzle-calibrate FILE [--config F] [--lang CODE]   the runout of the nozzle tip from readings at several angles (angle_deg,x_mm,y_mm)
-  phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--spare-min N] [--parts PARTS] [--out F] [--config F] [--lang CODE]   the parts to buy for N boards, with a spare
+  phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--spare-min N] [--parts PARTS] [--have FEEDERS] [--out F] [--config F] [--lang CODE]   the parts to buy for N boards, with a spare (less what the feeders already hold)
+  phoenix-pnp stock PARTS FEEDERS [--boards N] [--side top|bottom] [--out F] [--config F] [--lang CODE]   whether the feeders hold enough parts for N boards, kind by kind; exits with 1 when some fall short
   phoenix-pnp feeder-teach strip|tray [places and counts] | --measures FILE [--lang CODE]   the pitch and the angle of a strip or a tray from places measured on the machine
   phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--rotation DEG] [--fiducials MM] [--board-size W,H] [--x-out P2,P5] [--out F] [--lang CODE]   a panel file for a grid of copies of one board
   phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] [--config F] [--lang CODE]   the parts that have a direction, with their place and turn, as a CSV for the look after a job
@@ -202,6 +203,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "polarity-sheet" => cmd_tools::polarity_sheet(args),
         "bom-order" => cmd_tools::bom_order(args),
         "feeder-teach" => cmd_tools::feeder_teach(args),
+        "stock" => cmd_tools::stock(args),
         "bom-check" => cmd_tools::bom_check(args),
         "vision-test" => commands::vision_test(args),
         other => Err(format!("{other}: unknown command (see help)")),

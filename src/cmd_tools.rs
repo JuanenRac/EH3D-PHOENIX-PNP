@@ -5,17 +5,21 @@
 
 use crate::cli_args::{finish, flag, num};
 use crate::commands::{read_text, refuse_same_file};
-use eh3d_phoenix_pnp::bom::{compare, order as bom_order_lines, order_csv, Bom};
+use eh3d_phoenix_pnp::bom::{
+    buy_after_stock, buy_csv, compare, order as bom_order_lines, order_csv, Bom,
+};
 use eh3d_phoenix_pnp::calibrate::{
     calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples, taught_csv,
     teach_file, teach_strip, teach_tray, Taught,
 };
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
+use eh3d_phoenix_pnp::feeding;
 use eh3d_phoenix_pnp::panel::{grid_panel, Grid};
 use eh3d_phoenix_pnp::parts::{parse_all, Side};
 use eh3d_phoenix_pnp::polarity;
 use eh3d_phoenix_pnp::report;
+use eh3d_phoenix_pnp::stock::stock_plan;
 use std::path::Path;
 
 /// The language and the configuration of a command: `--lang` wins over the key `language` of `--config`.
@@ -247,6 +251,7 @@ pub fn bom_order(mut args: Vec<String>) -> Result<(), String> {
         None => cfg.order_spare_percent,
     };
     let parts_path = flag(&mut args, "--parts")?;
+    let have_path = flag(&mut args, "--have")?;
     let out_path = flag(&mut args, "--out")?;
     finish(&args, 1)?;
     let path = args.first().ok_or("bom-order needs a BOM")?.clone();
@@ -261,12 +266,30 @@ pub fn bom_order(mut args: Vec<String>) -> Result<(), String> {
         None => Vec::new(),
     };
     let lines = bom_order_lines(&bom, boards, spare_percent, spare_min, &skipped).map_err(l)?;
-    let csv = order_csv(&lines);
     let total: usize = lines.iter().map(|x| x.total).sum();
-    let summary = format!(
+    let mut summary = format!(
         "{} lines, {total} parts for {boards} boards with {spare_percent}% spare (at least {spare_min})",
         lines.len()
     );
+    // with the feeders that are loaded, only what is missing is to be bought
+    let csv = match &have_path {
+        Some(h) => {
+            let feeders = feeding::from_csv_with(&read_text(h, cfg.max_file_bytes)?, cfg.tray_fill)
+                .map_err(l)?;
+            let stock: Vec<(String, String, u32)> = feeders
+                .iter()
+                .filter(|f| f.enabled)
+                .map(|f| (f.base.value.clone(), f.base.package.clone(), f.base.count))
+                .collect();
+            let rows = buy_after_stock(&lines, &stock);
+            let (held, buy): (usize, usize) = rows
+                .iter()
+                .fold((0, 0), |(h, b), r| (h + r.on_hand, b + r.to_buy));
+            summary.push_str(&format!("; {held} are in the feeders, {buy} to buy"));
+            buy_csv(&rows)
+        }
+        None => order_csv(&lines),
+    };
     match out_path {
         Some(out) => {
             refuse_same_file(std::slice::from_ref(&path), &out)?;
@@ -279,6 +302,47 @@ pub fn bom_order(mut args: Vec<String>) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// `stock`: whether the feeders that are loaded hold enough parts for a number of boards, kind by kind. The findings go to the standard output (or the table as a CSV to `--out`, never over a
+/// file that exists); the exit code is 1 when a kind falls short.
+pub fn stock(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let boards = whole(&mut args, "--boards", cfg.order_boards)?;
+    let side = match flag(&mut args, "--side")?.as_deref() {
+        None => None,
+        Some("top") => Some(Side::Top),
+        Some("bottom") => Some(Side::Bottom),
+        Some(other) => return Err(format!("--side '{other}' is not top or bottom")),
+    };
+    let out_path = flag(&mut args, "--out")?;
+    finish(&args, 2)?;
+    let (parts_path, feeders_path) = match (args.first(), args.get(1)) {
+        (Some(a), Some(b)) => (a.clone(), b.clone()),
+        _ => return Err("stock needs a table of parts and a table of feeders".into()),
+    };
+    let l = |e: PnpError| e.localized(lang);
+    let parsed = parse_all(&read_text(&parts_path, cfg.max_file_bytes)?, &cfg.profile)?;
+    let feeders = feeding::from_csv_with(
+        &read_text(&feeders_path, cfg.max_file_bytes)?,
+        cfg.tray_fill,
+    )
+    .map_err(l)?;
+    let plan = stock_plan(&parsed.parts, &feeders, side, boards).map_err(l)?;
+    print!("{}", plan.text());
+    if let Some(out) = out_path {
+        refuse_same_file(&[parts_path, feeders_path], &out)?;
+        report::write_new(&out, &plan.csv()).map_err(l)?;
+        println!("written to {out}");
+    }
+    if plan.is_enough() {
+        Ok(())
+    } else {
+        Err(format!(
+            "the feeders lack {} parts for {boards} boards",
+            plan.short_parts()
+        ))
+    }
 }
 
 /// A place written `X,Y` (millimetres).

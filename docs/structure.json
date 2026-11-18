@@ -691,6 +691,19 @@
           }
         },
         {
+          "name": "stock.rs",
+          "desc": {
+            "en": "the parts the feeders hold against the parts a run of boards needs",
+            "es": "las piezas que tienen los alimentadores frente a las que necesita una tirada de placas",
+            "de": "die Teile der Zuführungen gegenüber dem Bedarf eines Laufs von Platinen",
+            "fr": "les pièces des alimentateurs face à celles qu'une série de cartes demande",
+            "it": "le parti dei feeder rispetto a quelle che servono a una produzione di schede",
+            "ja": "フィーダーにある部品と基板ロットに必要な部品の比較",
+            "zh": "供料器中的零件与一批板所需零件的对比",
+            "pt": "as peças dos alimentadores face às que uma série de placas pede"
+          }
+        },
+        {
           "name": "tips.rs",
           "desc": {
             "en": "the nozzle tips that a package accepts and the choice of one for every kind of part",
@@ -1111,6 +1124,19 @@
             "ja": "模擬機械のテスト",
             "zh": "模拟机器的测试",
             "pt": "testes da máquina simulada"
+          }
+        },
+        {
+          "name": "stock.rs",
+          "desc": {
+            "en": "tests of the stock for a run and of the parts to buy",
+            "es": "pruebas de las existencias de una tirada y de lo que comprar",
+            "de": "Tests des Bestands für einen Lauf und der Einkaufsliste",
+            "fr": "tests du stock d'une série et des pièces à acheter",
+            "it": "test delle scorte di una produzione e degli acquisti",
+            "ja": "ロットの在庫と購入部品のテスト",
+            "zh": "批量库存与待购零件的测试",
+            "pt": "testes das existências de uma série e das compras"
           }
         },
         {

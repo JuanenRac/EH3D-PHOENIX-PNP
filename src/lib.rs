@@ -32,6 +32,7 @@ pub mod recipe;
 pub mod report;
 pub mod rotation;
 pub mod sim;
+pub mod stock;
 pub mod tips;
 pub mod units;
 pub mod vision;

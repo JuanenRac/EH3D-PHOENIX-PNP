@@ -412,3 +412,67 @@ pub fn order_csv(lines: &[OrderLine]) -> String {
     }
     out
 }
+
+/// A line of the order with the parts that the feeders already hold of it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BuyLine {
+    pub line: OrderLine,
+    /// The parts of the feeders that are set against this line.
+    pub on_hand: usize,
+    /// What is left to buy (`line.total` less `on_hand`).
+    pub to_buy: usize,
+}
+
+/// Sets the parts that are already in the feeders (`stock`: the value, the package and the parts left of each feeder) against the lines of an order. A line takes what is held of its value
+/// (`10 kΩ` and `10k` are the same) and package, without regard to case, in the order of the lines; a part held is counted for one line only.
+pub fn buy_after_stock(lines: &[OrderLine], stock: &[(String, String, u32)]) -> Vec<BuyLine> {
+    let mut pool: BTreeMap<(String, String), usize> = BTreeMap::new();
+    for (value, package, count) in stock {
+        *pool
+            .entry((normalize_value(value), package.trim().to_lowercase()))
+            .or_insert(0) += *count as usize;
+    }
+    lines
+        .iter()
+        .map(|l| {
+            let held = pool
+                .get_mut(&(normalize_value(&l.value), l.package.trim().to_lowercase()))
+                .map(|have| {
+                    let take = (*have).min(l.total);
+                    *have -= take;
+                    take
+                })
+                .unwrap_or(0);
+            BuyLine {
+                line: l.clone(),
+                on_hand: held,
+                to_buy: l.total - held,
+            }
+        })
+        .collect()
+}
+
+/// The lines to buy as a CSV: `value,package,part_number,per_board,boards,spare,total,on_hand,to_buy,references`, the lines with nothing left to buy included.
+pub fn buy_csv(rows: &[BuyLine]) -> String {
+    use crate::parts::csv_field;
+    let mut out = String::from(
+        "value,package,part_number,per_board,boards,spare,total,on_hand,to_buy,references\n",
+    );
+    for r in rows {
+        let l = &r.line;
+        out.push_str(&format!(
+            "{},{},{},{},{},{},{},{},{},{}\n",
+            csv_field(&l.value),
+            csv_field(&l.package),
+            csv_field(&l.part_number),
+            l.per_board,
+            l.boards,
+            l.spare,
+            l.total,
+            r.on_hand,
+            r.to_buy,
+            csv_field(&l.references.join(" "))
+        ));
+    }
+    out
+}
