@@ -6,8 +6,11 @@
 use crate::cli_args::{finish, flag};
 use crate::commands::read_text;
 use eh3d_phoenix_pnp::bom::{compare, Bom};
+use eh3d_phoenix_pnp::calibrate::{
+    calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples,
+};
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
-use eh3d_phoenix_pnp::error::Lang;
+use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::parts::parse_all;
 
 /// The language and the configuration of a command: `--lang` wins over the key `language` of `--config`.
@@ -49,4 +52,40 @@ pub fn bom_check(mut args: Vec<String>) -> Result<(), String> {
             report.problems()
         ))
     }
+}
+
+/// `camera-calibrate`: the settings of the camera from sightings of a mark at known places of the head; prints how good the fit is and the lines to put in the configuration.
+pub fn camera_calibrate(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    finish(&args, 1)?;
+    let path = args
+        .first()
+        .ok_or("camera-calibrate needs a file of sightings")?;
+    let l = |e: PnpError| e.localized(lang);
+    let points = parse_camera_points(&read_text(path, cfg.max_file_bytes)?).map_err(l)?;
+    let found = calibrate_camera(&points).map_err(l)?;
+    println!("{}", found.summary());
+    print!("{}", found.config_lines());
+    Ok(())
+}
+
+/// `nozzle-calibrate`: the runout of the nozzle tip from readings of its place at several angles; prints how good the fit is and the lines to put in the configuration.
+pub fn nozzle_calibrate(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    finish(&args, 1)?;
+    let path = args
+        .first()
+        .ok_or("nozzle-calibrate needs a file of readings")?;
+    let l = |e: PnpError| e.localized(lang);
+    let samples = parse_runout_samples(&read_text(path, cfg.max_file_bytes)?).map_err(l)?;
+    let found = fit_runout(&samples).map_err(l)?;
+    if found.radius_mm > 5.0 {
+        return Err(format!(
+            "the runout is {:.3} mm, above the 5 mm that nozzle_runout_mm accepts: check the readings",
+            found.radius_mm
+        ));
+    }
+    println!("{}", found.summary());
+    print!("{}", found.config_lines());
+    Ok(())
 }

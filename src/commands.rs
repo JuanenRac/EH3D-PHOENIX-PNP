@@ -462,7 +462,14 @@ pub fn schedule(mut args: Vec<String>) -> Result<(), String> {
         write_atomic(r, &text)?;
     }
     if let Some(g) = &gcode {
-        write_atomic(g, &export::gcode(&planned.plan))?;
+        write_atomic(
+            g,
+            &export::gcode_with_runout(
+                &planned.plan,
+                p.c.cfg.nozzle_runout_mm,
+                p.c.cfg.nozzle_runout_deg,
+            ),
+        )?;
     }
     if let Some(m) = &missing {
         write_atomic(m, &export::missing_csv(&p.picks, &planned.undefined))?;

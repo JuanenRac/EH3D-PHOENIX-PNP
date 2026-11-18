@@ -110,10 +110,11 @@ pub enum Code {
     ImportFormat = 55,
     ImportRange = 56,
     BomBad = 57,
+    CalibrationBad = 58,
 }
 
 impl Code {
-    pub const ALL: [Code; 57] = [
+    pub const ALL: [Code; 58] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -171,6 +172,7 @@ impl Code {
         Code::ImportFormat,
         Code::ImportRange,
         Code::BomBad,
+        Code::CalibrationBad,
     ];
 
     pub fn number(self) -> u16 {
@@ -189,7 +191,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 57] = [
+static MESSAGES: [[&str; 8]; 58] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -759,6 +761,16 @@ static MESSAGES: [[&str; 8]; 57] = [
         "部品表の行が無効です",
         "物料清单中的某一行无效",
         "Uma linha da lista de materiais não é válida",
+    ],
+    [
+        "The calibration points are not valid or do not give a result",
+        "Los puntos de calibración no son válidos o no dan un resultado",
+        "Die Kalibrierpunkte sind ungültig oder ergeben kein Ergebnis",
+        "Les points d'étalonnage ne sont pas valides ou ne donnent pas de résultat",
+        "I punti di calibrazione non sono validi o non danno un risultato",
+        "校正点が無効か、結果が得られません",
+        "校准点无效或无法得出结果",
+        "Os pontos de calibração não são válidos ou não dão resultado",
     ],
 ];
 

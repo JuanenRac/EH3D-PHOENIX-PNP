@@ -18,7 +18,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 118] = [
+pub const KEYS: [&str; 120] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -137,6 +137,8 @@ pub const KEYS: [&str; 118] = [
     "recipe_max_rules",
     "import_unit",
     "import_bottom_mirror_width_mm",
+    "nozzle_runout_mm",
+    "nozzle_runout_deg",
 ];
 
 /// The order in which the places are visited.
@@ -448,6 +450,10 @@ pub struct MachineConfig {
     pub import_unit: ImportUnit,
     /// When above 0, the X of the parts of the bottom side of an imported file becomes this width minus X; 0 leaves them as the file has them.
     pub import_bottom_mirror_width_mm: f64,
+    /// How far the tip of the nozzle is from the axis it turns about; the G-code of a plan moves each place by the opposite of the runout at the angle of the part. 0 does nothing.
+    pub nozzle_runout_mm: f64,
+    /// The direction of the tip from the axis when the nozzle is at 0 degrees.
+    pub nozzle_runout_deg: f64,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -553,6 +559,8 @@ impl Default for MachineConfig {
             recipe_max_rules: 64,
             import_unit: ImportUnit::Mm,
             import_bottom_mirror_width_mm: 0.0,
+            nozzle_runout_mm: 0.0,
+            nozzle_runout_deg: 0.0,
         }
     }
 }
@@ -1064,6 +1072,8 @@ impl MachineConfig {
             "import_bottom_mirror_width_mm" => {
                 self.import_bottom_mirror_width_mm = n(0.0, 10_000.0)?
             }
+            "nozzle_runout_mm" => self.nozzle_runout_mm = n(0.0, 5.0)?,
+            "nozzle_runout_deg" => self.nozzle_runout_deg = n(-180.0, 180.0)?,
             "tip_compat_mode" => {
                 self.tip_choice = TipChoice::parse(&v.to_ascii_lowercase())
                     .ok_or_else(|| bad(line, key, v, "fewest_changes or preferred"))?
