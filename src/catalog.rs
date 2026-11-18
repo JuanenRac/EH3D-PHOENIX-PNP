@@ -19,6 +19,8 @@ const PROP_COLUMNS: [&str; 9] = [
     "origin_dy_mm",
     "tape_mm",
 ];
+/// The columns of the size of the body, which a table may have besides the others.
+const BODY_COLUMNS: [&str; 2] = ["body_long_mm", "body_short_mm"];
 
 /// What a part or a package says about itself; an empty cell says nothing and the value is inherited.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -35,6 +37,9 @@ pub struct PartProps {
     pub origin_dy_mm: Option<f64>,
     /// The width of the tape the part comes in, in millimetres.
     pub tape_mm: Option<f64>,
+    /// The two sides of the body of the part, in millimetres (the look at the part on the nozzle judges what the camera measures against them); a row gives both or neither.
+    pub body_long_mm: Option<f64>,
+    pub body_short_mm: Option<f64>,
 }
 
 /// The values of every property, whatever its source.
@@ -115,7 +120,10 @@ fn read_table(text: &str, key_cols: &[&str], what: &str) -> Result<Vec<Row>, Pnp
         .map(|h| h.to_ascii_lowercase())
         .collect();
     for (i, h) in header.iter().enumerate() {
-        if !key_cols.contains(&h.as_str()) && !PROP_COLUMNS.contains(&h.as_str()) {
+        if !key_cols.contains(&h.as_str())
+            && !PROP_COLUMNS.contains(&h.as_str())
+            && !BODY_COLUMNS.contains(&h.as_str())
+        {
             return Err(err(format!("{what}: the column '{h}' is not known")));
         }
         if header[..i].contains(h) {
@@ -184,7 +192,14 @@ fn read_table(text: &str, key_cols: &[&str], what: &str) -> Result<Vec<Row>, Pnp
             origin_dx_mm: opt_num(cell("origin_dx_mm"), -50.0, 50.0, "origin_dx_mm", row)?,
             origin_dy_mm: opt_num(cell("origin_dy_mm"), -50.0, 50.0, "origin_dy_mm", row)?,
             tape_mm: opt_num(cell("tape_mm"), 1.0, 100.0, "tape_mm", row)?,
+            body_long_mm: opt_num(cell("body_long_mm"), 0.01, 1000.0, "body_long_mm", row)?,
+            body_short_mm: opt_num(cell("body_short_mm"), 0.01, 1000.0, "body_short_mm", row)?,
         };
+        if props.body_long_mm.is_some() != props.body_short_mm.is_some() {
+            return Err(err(format!(
+                "{what} row {row}: body_long_mm and body_short_mm are given together or not at all"
+            )));
+        }
         out.push((keys, props));
     }
     Ok(out)
@@ -283,19 +298,53 @@ impl Catalog {
             .collect()
     }
 
-    /// The table of packages as a CSV that `add_packages` reads back.
+    /// The table of packages as a CSV that `add_packages` reads back. The columns of the size of the body are there only when some package has one.
     pub fn packages_csv(&self) -> String {
-        let mut out = format!("package,{}\n", PROP_COLUMNS.join(","));
+        let with_body = self
+            .packages
+            .values()
+            .any(|p| p.body_long_mm.is_some() || p.body_short_mm.is_some());
+        let mut head = format!("package,{}", PROP_COLUMNS.join(","));
+        if with_body {
+            head.push(',');
+            head.push_str(&BODY_COLUMNS.join(","));
+        }
+        let mut out = format!("{head}\n");
         for name in self.package_names() {
             if let Some(p) = self.package(&name) {
-                out.push_str(&format!(
-                    "{},{}\n",
-                    csv_field(&name),
-                    props_cells(p).join(",")
-                ));
+                let mut cells = props_cells(p);
+                if with_body {
+                    cells.push(p.body_long_mm.map_or(String::new(), |v| v.to_string()));
+                    cells.push(p.body_short_mm.map_or(String::new(), |v| v.to_string()));
+                }
+                out.push_str(&format!("{},{}\n", csv_field(&name), cells.join(",")));
             }
         }
         out
+    }
+
+    /// The two sides of the body of a package that has them, the long one first, as the table of packages gives them.
+    pub fn package_body(&self, name: &str) -> Option<(f64, f64)> {
+        let p = self.package(name)?;
+        let (a, b) = (p.body_long_mm?, p.body_short_mm?);
+        Some((a.max(b), a.min(b)))
+    }
+
+    /// The size of the body of a part: the row of the part, else the row of its package, the long side first.
+    pub fn body_size(&self, part: &Part) -> Option<(f64, f64)> {
+        let own = self.parts.get(&part.key()).and_then(|p| {
+            let (a, b) = (p.body_long_mm?, p.body_short_mm?);
+            Some((a.max(b), a.min(b)))
+        });
+        own.or_else(|| self.package_body(&part.package))
+    }
+
+    /// The packages that have the size of a body, as written, in alphabetical order, with the long side and the short one.
+    pub fn package_bodies(&self) -> Vec<(String, f64, f64)> {
+        self.package_names()
+            .into_iter()
+            .filter_map(|n| self.package_body(&n).map(|(l, s)| (n, l, s)))
+            .collect()
     }
 
     pub fn is_empty(&self) -> bool {

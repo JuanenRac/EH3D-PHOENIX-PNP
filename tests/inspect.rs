@@ -302,3 +302,122 @@ fn the_settings_of_the_look_are_in_the_example_with_their_defaults_and_ranges() 
         }
     }
 }
+
+// ---- the size of the body in the table of packages
+
+const BODIES: &str = include_str!("../examples/packages_bodies.csv");
+
+fn part(value: &str, package: &str) -> eh3d_phoenix_pnp::parts::Part {
+    eh3d_phoenix_pnp::parts::Part {
+        reference: "X1".into(),
+        value: value.into(),
+        package: package.into(),
+        x: 0.0,
+        y: 0.0,
+        rotation: 0.0,
+        side: eh3d_phoenix_pnp::parts::Side::Top,
+    }
+}
+
+#[test]
+fn a_table_of_packages_gives_the_size_of_the_body_long_side_first() {
+    use eh3d_phoenix_pnp::catalog::Catalog;
+    let mut c = Catalog::new();
+    c.add_packages(BODIES).unwrap();
+    assert_eq!(c.package_body("r_0603"), Some((1.6, 0.8)));
+    assert_eq!(c.package_body("QFN-32"), Some((5.0, 5.0)));
+    assert_eq!(c.package_body("DO-214"), None);
+    assert_eq!(c.package_bodies().len(), 6);
+    // the sides given the wrong way round are kept with the long one first
+    let mut c = Catalog::new();
+    c.add_packages("package,body_short_mm,body_long_mm\nA,2,1\n")
+        .unwrap();
+    assert_eq!(c.package_body("A"), Some((2.0, 1.0)));
+    // the row of the part wins over the row of its package
+    let mut c = Catalog::new();
+    c.add_packages("package,body_long_mm,body_short_mm\nR_0603,1.6,0.8\n")
+        .unwrap();
+    c.add_parts("value,package,body_long_mm,body_short_mm\n10k,R_0603,1.7,0.9\n")
+        .unwrap();
+    assert_eq!(c.body_size(&part("10k", "R_0603")), Some((1.7, 0.9)));
+    assert_eq!(c.body_size(&part("1k", "R_0603")), Some((1.6, 0.8)));
+    assert_eq!(c.body_size(&part("1k", "C_0603")), None);
+}
+
+#[test]
+fn a_row_gives_both_sides_of_the_body_or_none_and_a_side_must_be_a_size() {
+    use eh3d_phoenix_pnp::catalog::Catalog;
+    for text in [
+        "package,body_long_mm\nA,2\n",
+        "package,body_long_mm,body_short_mm\nA,2,\n",
+        "package,body_long_mm,body_short_mm\nA,0,1\n",
+        "package,body_long_mm,body_short_mm\nA,2,x\n",
+        "package,body_long_mm,body_short_mm\nA,1001,1\n",
+    ] {
+        assert_eq!(
+            Catalog::new().add_packages(text).unwrap_err().code,
+            Code::CatalogBadRow,
+            "{text}"
+        );
+    }
+    assert!(Catalog::new()
+        .add_packages("package,body_long_mm,body_short_mm\nA,,\n")
+        .is_ok());
+}
+
+#[test]
+fn the_table_of_packages_is_written_with_the_body_only_when_some_package_has_one() {
+    use eh3d_phoenix_pnp::catalog::{Catalog, PartProps};
+    let mut c = Catalog::new();
+    c.set_package("R", PartProps::default());
+    assert_eq!(
+        c.packages_csv(),
+        "package,height_mm,through_board_mm,pick_retries,bin,nozzle_tip,rank,origin_dx_mm,origin_dy_mm,tape_mm\nR,,,,,,,,,\n"
+    );
+    c.set_package(
+        "Q",
+        PartProps {
+            body_long_mm: Some(2.5),
+            body_short_mm: Some(1.25),
+            ..PartProps::default()
+        },
+    );
+    let csv = c.packages_csv();
+    assert!(csv.starts_with("package,height_mm,"), "{csv}");
+    assert!(csv
+        .lines()
+        .next()
+        .unwrap()
+        .ends_with(",body_long_mm,body_short_mm"));
+    assert!(csv.contains("\nQ,,,,,,,,,,2.5,1.25\n"), "{csv}");
+    assert!(csv.contains("\nR,,,,,,,,,,,\n"), "{csv}");
+    let mut back = Catalog::new();
+    back.add_packages(&csv).unwrap();
+    assert_eq!(back.package("Q"), c.package("Q"));
+    assert_eq!(back.package("R"), c.package("R"));
+}
+
+#[test]
+fn the_sizes_of_the_bodies_judge_a_reading_as_the_table_of_sizes_does() {
+    use eh3d_phoenix_pnp::catalog::Catalog;
+    let mut c = Catalog::new();
+    c.add_packages(BODIES).unwrap();
+    let from_catalog = SizeTable::from_catalog(&c);
+    let reads = parse_readings(READS).unwrap();
+    let by_sizes = tally(&judge(
+        &reads,
+        &SizeTable::parse(SIZES).unwrap(),
+        &Limits::default(),
+    ));
+    // the table of packages has the exact names; the table of sizes also has a pattern for SOT-23, which the packages spell out
+    assert_eq!(
+        tally(&judge(&reads, &from_catalog, &Limits::default())),
+        by_sizes
+    );
+    // the table of sizes wins; the table of packages fills in what it does not have
+    let own = SizeTable::parse("package,long_mm,short_mm\nr_0603,9,9\n").unwrap();
+    let merged = own.with_missing_from(&from_catalog);
+    assert_eq!(merged.lookup("R_0603").unwrap().long_mm, 9.0);
+    assert_eq!(merged.lookup("C_0603").unwrap().long_mm, 1.6);
+    assert_eq!(merged.rows.len(), 6);
+}

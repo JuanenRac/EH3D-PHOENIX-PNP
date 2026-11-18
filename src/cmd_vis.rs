@@ -31,17 +31,35 @@ fn language_and_config(args: &mut Vec<String>) -> Result<(Lang, MachineConfig), 
 /// `part-inspect`: the readings of the parts on the nozzle against the sizes of their packages. The exit code is 1 when a part is refused or has no size to be judged against.
 pub fn part_inspect(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
-    let sizes = flag(&mut args, "--sizes")?.ok_or("part-inspect needs --sizes FILE")?;
+    let sizes = flag(&mut args, "--sizes")?;
+    let packages = flag(&mut args, "--packages")?;
     let out = flag(&mut args, "--out")?;
     finish(&args, 1)?;
     let path = args
         .first()
         .ok_or("part-inspect needs a file of readings")?;
+    if sizes.is_none() && packages.is_none() {
+        return Err("part-inspect needs --sizes FILE or --packages FILE".into());
+    }
     if let Some(o) = &out {
-        refuse_same_file(&[path.clone(), sizes.clone()], o)?;
+        let mut inputs = vec![path.clone()];
+        inputs.extend(sizes.iter().cloned());
+        inputs.extend(packages.iter().cloned());
+        refuse_same_file(&inputs, o)?;
     }
     let l = |e: eh3d_phoenix_pnp::error::PnpError| e.localized(lang);
-    let table = inspect::SizeTable::parse(&read_text(&sizes, cfg.max_file_bytes)?).map_err(l)?;
+    // the table of sizes wins; the packages that it has no row for take the size of the body from the table of packages
+    let mut table = match &sizes {
+        Some(s) => inspect::SizeTable::parse(&read_text(s, cfg.max_file_bytes)?).map_err(l)?,
+        None => inspect::SizeTable::default(),
+    };
+    if let Some(p) = &packages {
+        let mut catalog = Catalog::new();
+        catalog
+            .add_packages(&read_text(p, cfg.max_file_bytes)?)
+            .map_err(l)?;
+        table = table.with_missing_from(&inspect::SizeTable::from_catalog(&catalog));
+    }
     let readings = inspect::parse_readings(&read_text(path, cfg.max_file_bytes)?).map_err(l)?;
     let limits = inspect::Limits {
         size_tol_mm: cfg.part_size_tol_mm,

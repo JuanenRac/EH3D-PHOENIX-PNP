@@ -1667,6 +1667,19 @@
           }
         },
         {
+          "name": "packages_bodies.csv",
+          "desc": {
+            "en": "a table of packages with the size of the body of each, for part-inspect",
+            "es": "una tabla de encapsulados con el tamaño del cuerpo de cada uno, para part-inspect",
+            "de": "eine Gehäusetabelle mit der Körpergröße jeder Bauform, für part-inspect",
+            "fr": "une table de boîtiers avec la taille du corps de chacun, pour part-inspect",
+            "it": "una tabella di package con la dimensione del corpo di ciascuno, per part-inspect",
+            "ja": "各パッケージ本体の大きさを含むパッケージの表（part-inspect 用）",
+            "zh": "含各封装本体尺寸的封装表，供 part-inspect 使用",
+            "pt": "uma tabela de encapsulamentos com o tamanho do corpo de cada um, para o part-inspect"
+          }
+        },
+        {
           "name": "packages_common.csv",
           "desc": {
             "en": "a table of common packages, from 0201 resistors to QFN, to adjust to your own parts",

@@ -1739,3 +1739,29 @@ fn a_tray_takes_the_order_of_the_configuration_when_its_row_says_nothing() {
     assert_eq!(ws.feeders[0].pick_point(3), (20.0, 10.0));
     assert_eq!(ws.feeders[1].pick_point(3), (0.0, 10.0));
 }
+
+#[test]
+fn the_body_of_a_package_is_set_with_both_sides_or_none() {
+    use eh3d_phoenix_pnp::gui::tables::set_body;
+    let mut p = PartProps::default();
+    set_body(&mut p, 2.0, 1.0);
+    assert_eq!((p.body_long_mm, p.body_short_mm), (Some(2.0), Some(1.0)));
+    // one side alone is a square body
+    set_body(&mut p, 3.0, 0.0);
+    assert_eq!((p.body_long_mm, p.body_short_mm), (Some(3.0), Some(3.0)));
+    set_body(&mut p, 0.0, 1.5);
+    assert_eq!((p.body_long_mm, p.body_short_mm), (Some(1.5), Some(1.5)));
+    // a side over the largest is kept in range, a number that is not one is no side
+    set_body(&mut p, 5000.0, f64::NAN);
+    assert_eq!(
+        (p.body_long_mm, p.body_short_mm),
+        (Some(1000.0), Some(1000.0))
+    );
+    set_body(&mut p, 0.0, 0.001);
+    assert_eq!((p.body_long_mm, p.body_short_mm), (None, None));
+    // the words of the two columns are in the eight languages
+    for lang in Lang::ALL {
+        assert!(tr(Text::ColBodyLong, lang).contains("mm"));
+        assert!(tr(Text::ColBodyShort, lang).contains("mm"));
+    }
+}

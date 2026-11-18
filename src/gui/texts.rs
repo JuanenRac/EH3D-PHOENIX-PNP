@@ -246,11 +246,13 @@ pub enum Text {
     BoardFile,
     BothSides,
     ToolStock,
+    ColBodyLong,
+    ColBodyShort,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::ToolStock as usize + 1;
+    pub const COUNT: usize = Text::ColBodyShort as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -599,4 +601,6 @@ static TABLE: &[[&str; 8]] = &[
     ["File of the board in the panel", "Fichero de la placa en el panel", "Datei der Platine im Nutzen", "Fichier de la carte dans le panneau", "File della scheda nel pannello", "パネル内の基板ファイル", "拼板中的板文件", "Ficheiro da placa no painel"],
     ["Both sides", "Ambos lados", "Beide Seiten", "Les deux faces", "Entrambi i lati", "両面", "两面", "Ambos os lados"],
     ["Stock for a run", "Existencias para una tirada", "Bestand für einen Lauf", "Stock pour une série", "Scorte per una produzione", "ロットの在庫", "批量库存", "Existências para uma série"],
+    ["Body long (mm)", "Cuerpo largo (mm)", "Körper lang (mm)", "Corps long (mm)", "Corpo lungo (mm)", "本体 長辺 (mm)", "本体长边 (mm)", "Corpo comprido (mm)"],
+    ["Body short (mm)", "Cuerpo corto (mm)", "Körper kurz (mm)", "Corps court (mm)", "Corpo corto (mm)", "本体 短辺 (mm)", "本体短边 (mm)", "Corpo curto (mm)"],
 ];

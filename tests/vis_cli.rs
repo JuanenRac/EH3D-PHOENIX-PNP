@@ -260,3 +260,31 @@ fn simulate_writes_the_report_of_the_feeders_once() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn part_inspect_takes_the_sizes_from_the_bodies_of_the_table_of_packages() {
+    let o = run(&[
+        "part-inspect",
+        "examples/nozzle_reads.csv",
+        "--packages",
+        "examples/packages_bodies.csv",
+    ]);
+    assert_eq!(o.status.code(), Some(1));
+    let out = text(&o.stdout);
+    assert!(out.contains("R1,R_0603,ok,"), "{out}");
+    assert!(out.contains("C1,C_0603,reject,"), "{out}");
+    assert!(out.contains("D9,DO-214,unknown,"), "{out}");
+    assert!(
+        text(&o.stderr).contains("4 accepted, 1 refused, 1 without a size"),
+        "{}",
+        text(&o.stderr)
+    );
+    // with neither table there is nothing to judge against
+    let none = run(&["part-inspect", "examples/nozzle_reads.csv"]);
+    assert_eq!(none.status.code(), Some(1));
+    assert!(
+        text(&none.stderr).contains("--sizes"),
+        "{}",
+        text(&none.stderr)
+    );
+}

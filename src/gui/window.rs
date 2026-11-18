@@ -13,8 +13,8 @@ use super::session::Next;
 use super::settings::{self, UiSettings};
 use super::shot::{self, ShotRequest, PATIENCE_FRAMES};
 use super::tables::{
-    board_rows, feeder_rows, fiducial_rows, kind_rows, package_rows, part_rows, sort_feeders,
-    sort_parts, FeederColumn, PartColumn, PlanColumn, SortState,
+    board_rows, feeder_rows, fiducial_rows, kind_rows, package_rows, part_rows, set_body,
+    sort_feeders, sort_parts, FeederColumn, PartColumn, PlanColumn, SortState,
 };
 use super::texts::{lang_name, tr, Text};
 use super::theme::{Palette, Rgb, ThemeId};
@@ -1233,8 +1233,10 @@ impl PnpApp {
         }
         ui.label(RichText::new(tr(Text::EditedNote, lang)).color(col(pal.dim)));
         let mut widths = self.s.ui.column_widths(
-            "pkgs",
-            &[130.0, 50.0, 80.0, 60.0, 100.0, 80.0, 50.0, 70.0, 30.0],
+            "pkgs2",
+            &[
+                130.0, 50.0, 80.0, 60.0, 100.0, 80.0, 50.0, 70.0, 70.0, 70.0, 30.0,
+            ],
         );
         if let Some(i) = header(
             ui,
@@ -1250,10 +1252,12 @@ impl PnpApp {
                 tr(Text::ColTape, lang),
                 tr(Text::ColBin, lang),
                 tr(Text::ColRetries, lang),
+                tr(Text::ColBodyLong, lang),
+                tr(Text::ColBodyShort, lang),
                 "",
             ],
         ) {
-            self.s.ui.set_column_width("pkgs", i, widths[i]);
+            self.s.ui.set_column_width("pkgs2", i, widths[i]);
         }
         let mut pending: Option<(String, PartProps)> = None;
         let mut remove: Option<String> = None;
@@ -1346,6 +1350,32 @@ impl PnpApp {
                             .changed()
                         {
                             props.pick_retries = Some(retries);
+                            changed = true;
+                        }
+                        let mut body = (
+                            r.props.body_long_mm.unwrap_or(0.0),
+                            r.props.body_short_mm.unwrap_or(0.0),
+                        );
+                        let long_changed = ui
+                            .add_sized(
+                                [widths[8], ROW_H - 2.0],
+                                egui::DragValue::new(&mut body.0)
+                                    .range(0.0..=1000.0)
+                                    .speed(0.05)
+                                    .max_decimals(2),
+                            )
+                            .changed();
+                        let short_changed = ui
+                            .add_sized(
+                                [widths[9], ROW_H - 2.0],
+                                egui::DragValue::new(&mut body.1)
+                                    .range(0.0..=1000.0)
+                                    .speed(0.05)
+                                    .max_decimals(2),
+                            )
+                            .changed();
+                        if long_changed || short_changed {
+                            set_body(&mut props, body.0, body.1);
                             changed = true;
                         }
                         if r.defined && ui.small_button("x").clicked() {

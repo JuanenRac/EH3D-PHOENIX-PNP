@@ -39,7 +39,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp stock PARTS FEEDERS [--boards N] [--side top|bottom] [--out F] [--config F] [--lang CODE]   whether the feeders hold enough parts for N boards, kind by kind; exits with 1 when some fall short
   phoenix-pnp feeder-teach strip|tray [places and counts] | --measures FILE [--lang CODE]   the pitch and the angle of a strip or a tray from places measured on the machine
   phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--rotation DEG] [--fiducials MM] [--board-size W,H] [--x-out P2,P5] [--out F] [--lang CODE]   a panel file for a grid of copies of one board
-  phoenix-pnp part-inspect READINGS --sizes F [--out F] [--config F] [--lang CODE]   the parts on the nozzle (ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg) against the sizes of their packages
+  phoenix-pnp part-inspect READINGS [--sizes F] [--packages F] [--out F] [--config F] [--lang CODE]   the parts on the nozzle (ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg) against the sizes of their packages (a table of sizes, or the columns body_long_mm and body_short_mm of a table of packages)
   phoenix-pnp fiducial-check DESIGN MEASURED [--config F] [--lang CODE]   the turn, scale, shear and shift that the measured marks (id,x,y) put on the panel, against the limits
   phoenix-pnp feeder-check FEEDERS [--packages F] [--catalog F] [--config F] [--lang CODE]   whether the table of feeders agrees with itself (slots, pitches, cells, places that clash or are out of reach)
   phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] [--config F] [--lang CODE]   the parts that have a direction, with their place and turn, as a CSV for the look after a job

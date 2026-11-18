@@ -4,6 +4,7 @@
 //! limits for the size, the turn and the distance from the axis. A part that is the wrong size is most likely the wrong part (another value in the tape, a part upside down or on its
 //! side); a part that hangs too far from the axis, or is turned too much, will not land on its pads even after the correction. Plain arithmetic and text: no files, no screen.
 
+use crate::catalog::Catalog;
 use crate::error::{Code, PnpError};
 use crate::parts::{detect_delimiter, read_records};
 use crate::rotation::glob_match;
@@ -127,6 +128,31 @@ impl SizeTable {
             });
         }
         Ok(SizeTable { rows })
+    }
+
+    /// The sizes that a table of packages gives in its columns `body_long_mm` and `body_short_mm`, one row for each package that has them.
+    pub fn from_catalog(catalog: &Catalog) -> SizeTable {
+        SizeTable {
+            rows: catalog
+                .package_bodies()
+                .into_iter()
+                .map(|(name, long_mm, short_mm)| SizeRow {
+                    pattern: name.trim().to_ascii_lowercase(),
+                    long_mm,
+                    short_mm,
+                })
+                .collect(),
+        }
+    }
+
+    /// This table with the rows of `other` for the packages it has no row for: what this table says wins.
+    pub fn with_missing_from(mut self, other: &SizeTable) -> SizeTable {
+        for r in &other.rows {
+            if !self.rows.iter().any(|x| x.pattern == r.pattern) {
+                self.rows.push(r.clone());
+            }
+        }
+        self
     }
 
     /// The size of a package: an exact name wins over a pattern, and among patterns the first row does.

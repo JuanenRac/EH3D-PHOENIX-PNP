@@ -505,6 +505,22 @@ pub fn with_defaults(p: &PartProps, d: &Resolved) -> Resolved {
     }
 }
 
+/// Puts the size of the body of a package in its row: a row gives both sides or none, so one side alone is taken for a square body and two sides under 0.01 mm take the size away.
+pub fn set_body(props: &mut PartProps, long_mm: f64, short_mm: f64) {
+    let given = |v: f64| v >= 0.01;
+    // a number that is not one is no side
+    let clean = |v: f64| if v.is_nan() { 0.0 } else { v.min(1000.0) };
+    let (l, s) = (clean(long_mm), clean(short_mm));
+    let (long, short) = match (given(l), given(s)) {
+        (true, true) => (Some(l), Some(s)),
+        (true, false) => (Some(l), Some(l)),
+        (false, true) => (Some(s), Some(s)),
+        (false, false) => (None, None),
+    };
+    props.body_long_mm = long;
+    props.body_short_mm = short;
+}
+
 /// The packages of the board together with those of the table of packages, in natural order of their names (the case of a name does not make two packages).
 pub fn package_rows(ws: &Workspace) -> Vec<PackageRow> {
     let defaults = ws.cfg.part_defaults();
