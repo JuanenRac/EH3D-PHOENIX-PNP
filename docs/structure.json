@@ -28,6 +28,19 @@
       "accent": "a",
       "rows": [
         {
+          "name": "bom.rs",
+          "desc": {
+            "en": "the bill of materials: reading, the check against the board, the order",
+            "es": "la lista de materiales: lectura, comprobación con la placa, pedido",
+            "de": "die Stückliste: Lesen, Abgleich mit der Platine, Bestellung",
+            "fr": "la nomenclature : lecture, vérification avec la carte, commande",
+            "it": "la distinta base: lettura, controllo con la scheda, ordine",
+            "ja": "部品表：読み込み、基板との照合、発注",
+            "zh": "物料清单：读取、与电路板核对、订购",
+            "pt": "a lista de materiais: leitura, verificação com a placa, encomenda"
+          }
+        },
+        {
           "name": "camera.rs",
           "desc": {
             "en": "the model of a camera: size of a pixel, offsets, turn, mirror and lens",
@@ -64,6 +77,19 @@
             "ja": "コマンドライン引数（厳格：未知のオプションはエラー）",
             "zh": "命令行参数，严格：未知选项即错误",
             "pt": "os argumentos da linha de comandos, estritos: uma opção desconhecida é um erro"
+          }
+        },
+        {
+          "name": "cmd_tools.rs",
+          "desc": {
+            "en": "the commands that check, calibrate and make files: BOM, calibration, panel",
+            "es": "los comandos que comprueban, calibran y crean ficheros: BOM, calibración, panel",
+            "de": "die Befehle zum Prüfen, Kalibrieren und Erzeugen: Stückliste, Kalibrierung, Panel",
+            "fr": "les commandes qui vérifient, étalonnent et créent : nomenclature, étalonnage, panneau",
+            "it": "i comandi che controllano, calibrano e creano file: distinta, calibrazione, pannello",
+            "ja": "確認・校正・ファイル作成のコマンド：部品表、校正、パネル",
+            "zh": "检查、校准和生成文件的命令：物料清单、校准、拼板",
+            "pt": "os comandos que verificam, calibram e criam ficheiros: lista de materiais, calibração, painel"
           }
         },
         {
@@ -685,6 +711,19 @@
           }
         },
         {
+          "name": "bom.rs",
+          "desc": {
+            "en": "tests of the bill of materials: reading, the check, the code, bom-check",
+            "es": "pruebas de la lista de materiales: lectura, comprobación, código, bom-check",
+            "de": "Tests der Stückliste: Lesen, Abgleich, Code, bom-check",
+            "fr": "tests de la nomenclature : lecture, vérification, code, bom-check",
+            "it": "test della distinta base: lettura, controllo, codice, bom-check",
+            "ja": "部品表のテスト：読み込み、照合、コード、bom-check",
+            "zh": "物料清单测试：读取、核对、代码、bom-check",
+            "pt": "testes da lista de materiais: leitura, verificação, código, bom-check"
+          }
+        },
+        {
           "name": "camera.rs",
           "desc": {
             "en": "tests of the camera model, the cameras of the heads and the camera of the simulator",
@@ -1079,6 +1118,19 @@
             "ja": "dnp 列を持つ基板：2つの部品は実装しない",
             "zh": "带 dnp 列的电路板：其中两个零件不贴装",
             "pt": "uma placa com uma coluna dnp: duas das suas peças não se montam"
+          }
+        },
+        {
+          "name": "bom.csv",
+          "desc": {
+            "en": "a bill of materials that agrees with board.pos",
+            "es": "una lista de materiales que coincide con board.pos",
+            "de": "eine Stückliste, die zu board.pos passt",
+            "fr": "une nomenclature qui concorde avec board.pos",
+            "it": "una distinta base che coincide con board.pos",
+            "ja": "board.pos と一致する部品表",
+            "zh": "与 board.pos 一致的物料清单",
+            "pt": "uma lista de materiais que coincide com board.pos"
           }
         },
         {

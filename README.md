@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 572 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 659 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.7` |
 | Maturity | Scaffolding |
-| Tests | 572 |
+| Tests | 659 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder (priority, tray, strip), plans the order of the placements for a head with up to six nozzles with ranks, nozzle tips, angle limits and the time of the moves, plans panels and writes the load sheet; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
-| Tests | 🟡 | 572 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
+| Tests | 🟡 | 659 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
 | Machine configuration | 🟡 | a `key = value` file with a version, a validator that names the line, and the safety limits (travel of Z, limits of X and Y, retries, nozzle angles); the values have not been compared with a real machine. |
 | Simulator and job | 🟡 | a virtual clock, failures injected by chance (with a seed) or at a chosen place, retries, the policies alert and defer, feeders that switch off after repeated faults, pause, step by step, and a saved state to resume from; it only simulates, nothing has driven a machine. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
@@ -76,6 +76,7 @@ Each line is one part of this repository and the light says how far it is today.
 * **The camera model, the heads of the machine and the nozzle tips of a package** (`src/camera.rs`, `src/heads.rs`, `src/tips.rs`, `src/config.rs`): the camera is described by `camera_units_per_px` (0 is the size the pipeline is set to), `camera_offset_x_mm` and `camera_offset_y_mm` (where the axis of the nozzle is in the picture), `camera_rotation_deg`, `camera_flip_x` and `camera_flip_y`, and the lens (`camera_lens_scale`, `camera_lens_k1`); the simulated camera of the align step reads the part through it, with or without a picture, and with the default values a job is exactly what it was. `head = NAME : NOZZLES [: OFFSET_X : OFFSET_Y : CAMERA_X : CAMERA_Y : CAMERA_ROT : CAMERA_UNITS : CAMERA_LENS]` declares up to four heads, each with its nozzles, its offset and its camera; with two or more heads `schedule` gives every part to a head that reaches it (`PHOENIX-PNP-048` when none does), plans each head and counts, on the clock of the machine, the time a head waits for a feeder that another head is using. `tip_compat = PATTERN : TIP, TIP, ...` lists the tips that a package accepts and `tip_compat_mode` (`fewest_changes` or `preferred`) chooses one tip for every kind of part so that the machine changes tip as few times as it can; a tip named in the tables is kept.
 * **Recipes** (`src/recipe.rs`, `src/job.rs`, `src/commands.rs`): a text file with a version (`examples/job.recipe`) fixes the steps a job goes through (`prepare`, `pick`, `align`, `place` and `check`, in that order and none twice; the align step and the vacuum check are on only when the recipe has them) and the parameters that change for a package, a feeder or a nozzle tip (`pick_retries`, `pick_tolerance_mm`, `vacuum_suck_s` and `vacuum_blow_s`; for each key the first rule that matches wins, the feeders first, then the packages and then the tips). `phoenix-pnp recipe-check FILE` reads and checks it and `simulate ... --recipe FILE` carries the job out with it. Its errors have the codes `PHOENIX-PNP-049` to `PHOENIX-PNP-052` (a line that is not valid, steps out of order, a file over its limits, a version that is too new) and the limits are the keys `recipe_max_bytes` and `recipe_max_rules` of `machine.cfg`. A saved state also remembers the feeder of the last pick and the pick that was stopped, so a job loaded in another run offers the same decisions to the person (an older state still loads).
 * **Import of position files** (`src/import.rs`, `src/commands.rs`): `phoenix-pnp import-centroid FILE` reads a centroid CSV (`--map FILE` names its columns, `examples/centroid.map`; `examples/centroid.csv` needs no map), the text of positions of EAGLE (`examples/board.mnt`: name, x, y, rotation `R90` or `MR90` for the bottom side, value, package) or the `.pos` of KiCad (`--format auto|csv|eagle|kicad-pos`; `auto` tells them from the first row) and writes the table of parts `ref,val,package,x,y,rot,side,dnp` in millimetres to `--out` (a file that exists is never written over: `PHOENIX-PNP-040`) or to the standard output. The units are mm, mil or inch (in the header as `X (mil)`, in the cell as `0.5in`, in a comment as `## Unit = inch`, in the map or in `import_unit`); angles come out from 0 up to 360; the column of the side is optional; a column `dnp` or `fitted` (or `--dnp R1-R5,C7` with ranges of references) marks the parts that are not to be mounted; `import_bottom_mirror_width_mm` mirrors the X of the bottom side and `bottom_rotation` turns its angle. The three readers are the program's own (no other repository has a reader that can be used without adding a dependency) and the layout of the EAGLE text has not been compared with a file written by a real installation. Every error has a code from `PHOENIX-PNP-053` to `PHOENIX-PNP-056` (a line that is not valid, a header that lacks a column of the map, a format that is not known, a range of references that is not valid) and the number of the line.
+* **Bill of materials** (`src/bom.rs`, `src/cmd_tools.rs`): `phoenix-pnp bom-check PARTS BOM` reads a BOM (`examples/bom.csv`: the references in a cell, as a range or one for each row, and the value, package, quantity and part number when it has them) and says which references only one side has, which are listed twice, which values or packages differ and which quantities do not add up; a part marked as not to be mounted may be in the BOM or not. An error of the file has the code `PHOENIX-PNP-057` and its line.
 * **The simulator and the job** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): the checks before a job, a machine with a virtual clock and failures that can be injected, and a job that can be paused, taken step by step, saved and resumed.
 * **The window** (`src/gui.rs`, `src/gui/`): what the window does besides drawing needs no screen (the files that were loaded, the plan and its problems with fixes, the simulated job, the geometry of the map, the tables with a shared selection, the guide of five steps and the words in eight languages) and is tested; only `src/gui/window.rs`, built with `--features gui`, draws it with egui. The speed of the simulation, the theme and the size drawn for a part of an unknown package are keys of `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -129,6 +130,7 @@ phoenix-pnp check-bottom PARTS                           the angle each rule of 
 phoenix-pnp tables-check [--parts F] [--feeders F] ...   whether each table is valid, with the code and the row
 phoenix-pnp recipe-check FILE                            whether a recipe is valid, with the code and the line
 phoenix-pnp import-centroid FILE [--map F] [--out F]     an import of a CAD position file as the table of parts
+phoenix-pnp bom-check PARTS BOM [--config F]              whether the bill of materials and the table of parts agree
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       measures the picture of a part made in memory
 ```
 
@@ -202,6 +204,7 @@ The tables of packages and parts (`--packages`, `--catalog`) are CSV files in wh
 | `PHOENIX-PNP-054` | The column map, or the header it is applied to, does not give the columns that are needed |
 | `PHOENIX-PNP-055` | The format of the position file is not known |
 | `PHOENIX-PNP-056` | A range of references is not valid |
+| `PHOENIX-PNP-057` | A line of the bill of materials is not valid |
 
 ## 🚀 Quick start
 
@@ -239,7 +242,7 @@ The last line opens the window; so does `phoenix-pnp` with no command when it wa
 
 ## 🧪 Testing
 
-The suite has 572 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 659 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -257,9 +260,11 @@ The version lives in `Cargo.toml` and in `eh3d.project.json`; each version has i
 ```text
 EH3D-PHOENIX-PNP/
 ├── src/
+│   ├── bom.rs                                   the bill of materials: reading, the check against the board, the order
 │   ├── camera.rs                                the model of a camera: size of a pixel, offsets, turn, mirror and lens
 │   ├── catalog.rs                               the tables of parts and packages and the inheritance of their properties
 │   ├── cli_args.rs                              the arguments of the command line, strict: an unknown option is an error
+│   ├── cmd_tools.rs                             the commands that check, calibrate and make files: BOM, calibration, panel
 │   ├── commands.rs                              the commands that use the configuration, tables-check and check-bottom
 │   ├── config.rs                                the configuration file of the machine: keys, ranges and safety limits
 │   ├── error.rs                                 the error codes PHOENIX-PNP-NNN and their meaning in eight languages
@@ -308,6 +313,7 @@ EH3D-PHOENIX-PNP/
 │   └── vision.rs                                the vision pipeline: filter, threshold, spots and the smallest turned rectangle
 ├── tests/
 │   ├── align.rs                                 tests of the align step: camera, corrected place, tolerance and time
+│   ├── bom.rs                                   tests of the bill of materials: reading, the check, the code, bom-check
 │   ├── camera.rs                                tests of the camera model, the cameras of the heads and the camera of the simulator
 │   ├── commands.rs                              tests of the commands that use the configuration
 │   ├── feeding.rs                               tests of the feeders: priority, trays and strips
@@ -339,6 +345,7 @@ EH3D-PHOENIX-PNP/
 │   ├── board.mnt                                the positions of a board as the text of EAGLE has them
 │   ├── board.pos                                a sample to try the program with
 │   ├── board_dnp.csv                            a board with a dnp column: two of its parts are not to be mounted
+│   ├── bom.csv                                  a bill of materials that agrees with board.pos
 │   ├── catalog.csv                              a table of parts: rank and height
 │   ├── centroid.csv                             a centroid CSV with a column of parts not to be mounted and a value with a comma
 │   ├── centroid.map                             the map of the columns of centroid_custom.csv

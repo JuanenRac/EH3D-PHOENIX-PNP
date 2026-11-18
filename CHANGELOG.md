@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The bill of materials check:** `bom::Bom::parse` reads a BOM (the references in a cell, as a range such as `R1-R5` or one for each row; the value, package, quantity and part number when it has them, found by name in any order, with a comma or a semicolon) and `bom::compare` says which references only the BOM or only the board has, which are listed twice, which values (`10 kΩ` and `10k` are the same value) or packages differ and which quantities do not add up; a part marked as not to be mounted may be in the BOM or not. `phoenix-pnp bom-check PARTS BOM` prints it and exits with 1 when anything disagrees (`examples/bom.csv` agrees with `examples/board.pos`).
+- **New error code:** `PHOENIX-PNP-057` (a line of the bill of materials is not valid), with its meaning in the eight languages and in the eight READMEs.
 - **The shared validation tools are updated:** the validator also runs the workflow and lessons checks of the suite with their latest rules, including a check to run before every push.
 - **The CI validation checks the workflows and the lessons of past CI failures against a baseline:** `tools/workflow_hygiene.py` and `tools/lessons_lint.py` (copies of the shared tools) run in the validation, and only findings that are not in `tools/workflow_hygiene_baseline.json` and `tools/lessons_lint_baseline.json` fail it, so what exists today stays as it is and a new one is caught. `python tools/workflow_hygiene.py --root . --detail` and `python tools/lessons_lint.py --repo .` list the findings.
 
