@@ -393,3 +393,98 @@ fn a_lens_that_reads_short_is_corrected_in_steps_by_the_passes_of_the_align_step
         "{seen:?}"
     );
 }
+
+// ---- a lens that was calibrated is corrected
+
+#[test]
+fn the_bending_of_a_lens_is_taken_out_of_what_the_camera_sees() {
+    for k1 in [0.002, -0.002, 0.0, 0.009, -0.009] {
+        let m = CameraModel {
+            units_per_px: 0.02,
+            offset_x_mm: 0.4,
+            rotation_deg: 25.0,
+            flip_y: true,
+            lens_k1: k1,
+            ..CameraModel::default()
+        };
+        for place in [(0.0, 0.0), (1.0, 2.0), (-2.5, 0.5), (3.0, -3.0)] {
+            let back = m.read_corrected(place, 0.02);
+            assert!(
+                near(back.0, place.0, 1e-9) && near(back.1, place.1, 1e-9),
+                "k1 {k1} place {place:?}: {back:?}"
+            );
+            if k1 != 0.0 && place != (0.0, 0.0) {
+                let bent = m.read(place, 0.02);
+                assert!(
+                    (bent.0 - place.0).hypot(bent.1 - place.1) > 1e-4,
+                    "{bent:?}"
+                );
+            }
+        }
+        // a pixel read straight is the same as without the correction when the lens does not bend
+        if k1 == 0.0 {
+            assert_eq!(
+                m.to_machine_corrected((10.0, -4.0), 0.02),
+                m.to_machine((10.0, -4.0), 0.02)
+            );
+        }
+    }
+}
+
+#[test]
+fn a_bending_that_cannot_be_undone_leaves_the_pixel_alone_and_nothing_panics() {
+    // a strong negative bending: a ring far from the middle where the picture folds back
+    let m = CameraModel {
+        lens_k1: -0.01,
+        ..CameraModel::default()
+    };
+    for px in [
+        (1.0e6, 0.0),
+        (0.0, -1.0e9),
+        (f64::MAX, 1.0),
+        (f64::NAN, 0.0),
+        (0.0, 0.0),
+    ] {
+        let _ = m.to_machine_corrected(px, 1.0);
+        let _ = m.read_corrected(px, 1.0);
+    }
+    let p = m.to_machine_corrected((1.0e6, 0.0), 1.0);
+    assert!(p.0.is_finite() && p.1.is_finite());
+}
+
+#[test]
+fn the_simulated_camera_reports_the_part_where_it_is_when_the_lens_is_corrected() {
+    let truth =
+        "sim_align_dx_mm = 1\nsim_align_dy_mm = 2\nsim_align_deg = 7\ncamera_lens_k1 = 0.004\n";
+    let (x, y, _) = reading(truth);
+    assert!(!near(x, 1.0, 1e-3) || !near(y, 2.0, 1e-3), "{x} {y}");
+    let (x, y, r) = reading(&format!("{truth}camera_correct_lens = on\n"));
+    assert!(
+        near(x, 1.0, 1e-9) && near(y, 2.0, 1e-9) && near(r, 7.0, 1e-9),
+        "{x} {y} {r}"
+    );
+    // with a picture, the pipeline measures the bent part and the correction brings it back, to the precision of the pixels
+    let pic = "vision = pipeline\nsim_align_dx_mm = 0.6\nsim_align_dy_mm = -0.4\nsim_align_deg = 5\ncamera_units_per_px = 0.05\ncamera_lens_k1 = 0.004\n";
+    let bent = reading(pic);
+    let fixed = reading(&format!("{pic}camera_correct_lens = on\n"));
+    let err = |r: (f64, f64, f64)| (r.0 - 0.6).hypot(r.1 + 0.4);
+    assert!(err(fixed) <= err(bent) + 1e-9, "{bent:?} {fixed:?}");
+    assert!(err(fixed) < 0.05, "{fixed:?}");
+}
+
+#[test]
+fn the_setting_that_corrects_the_lens_is_off_by_default_and_in_the_example() {
+    assert!(!MachineConfig::default().camera_correct_lens);
+    assert!(!MachineConfig::parse(EXAMPLE).unwrap().camera_correct_lens);
+    assert!(KEYS.contains(&"camera_correct_lens"));
+    assert!(EXAMPLE.contains("\ncamera_correct_lens = off"));
+    assert!(
+        MachineConfig::parse("camera_correct_lens = yes")
+            .unwrap()
+            .camera_correct_lens
+    );
+    assert_eq!(
+        code_of("camera_correct_lens = sometimes"),
+        Code::ConfigBadValue
+    );
+}

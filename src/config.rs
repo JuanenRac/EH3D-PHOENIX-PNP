@@ -20,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 154] = [
+pub const KEYS: [&str; 155] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -175,6 +175,7 @@ pub const KEYS: [&str; 154] = [
     "camera_pattern_max_residual_mm",
     "queue_confirm",
     "queue_stop_on_failure",
+    "camera_correct_lens",
 ];
 
 /// The order in which the places are visited.
@@ -545,6 +546,8 @@ pub struct MachineConfig {
     pub queue_confirm: bool,
     /// The queue stops at the first job that fails; off goes on to the next ones.
     pub queue_stop_on_failure: bool,
+    /// The camera takes the bending of the lens (`camera_lens_k1`) out of what it sees; for a lens that `camera-pattern` calibrated (off: the bending goes into the readings).
+    pub camera_correct_lens: bool,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -693,6 +696,7 @@ impl Default for MachineConfig {
             camera_pattern_max_residual_mm: 0.05,
             queue_confirm: true,
             queue_stop_on_failure: true,
+            camera_correct_lens: false,
         }
     }
 }
@@ -1247,6 +1251,7 @@ impl MachineConfig {
             }
             "queue_confirm" => self.queue_confirm = flag(line, key, v)?,
             "queue_stop_on_failure" => self.queue_stop_on_failure = flag(line, key, v)?,
+            "camera_correct_lens" => self.camera_correct_lens = flag(line, key, v)?,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

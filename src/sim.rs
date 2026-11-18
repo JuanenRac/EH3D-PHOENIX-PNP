@@ -770,6 +770,8 @@ pub struct SimCamera {
     image_seed: u64,
     /// How the camera is set on the machine and what its lens does (the identity by default: nothing changes).
     model: CameraModel,
+    /// The software takes the bending of the lens out of what the camera sees.
+    correct_lens: bool,
 }
 
 impl Default for SimCamera {
@@ -785,6 +787,7 @@ impl Default for SimCamera {
             vision: None,
             image_seed: 1,
             model: CameraModel::default(),
+            correct_lens: false,
         }
     }
 }
@@ -812,6 +815,7 @@ impl SimCamera {
             vision: (cfg.vision == VisionMode::Pipeline).then(VisionConfig::default),
             image_seed: cfg.sim_seed ^ 0x51CA_7E57_0000_0002,
             model: cfg.camera,
+            correct_lens: cfg.camera_correct_lens,
             ..SimCamera::default()
         }
     }
@@ -917,13 +921,15 @@ impl Camera for SimCamera {
             drawn.sim_part_short_mm *= size;
             let picture = render(&drawn, seen, &mut noise_rng);
             let measured = measure_image(settings, &picture)?.offset;
-            let place = m.to_machine(
-                (
-                    measured.dx_mm / settings.mm_per_px,
-                    measured.dy_mm / settings.mm_per_px,
-                ),
-                units,
+            let seen_px = (
+                measured.dx_mm / settings.mm_per_px,
+                measured.dy_mm / settings.mm_per_px,
             );
+            let place = if self.correct_lens {
+                m.to_machine_corrected(seen_px, units)
+            } else {
+                m.to_machine(seen_px, units)
+            };
             return Ok(Offset {
                 dx_mm: place.0,
                 dy_mm: place.1,
@@ -937,7 +943,11 @@ impl Camera for SimCamera {
         );
         if !self.model.is_default() {
             // the optics and the software, without a picture: the lens makes the camera report the place scaled and bent
-            place = self.model.read(place, 1.0);
+            place = if self.correct_lens {
+                self.model.read_corrected(place, 1.0)
+            } else {
+                self.model.read(place, 1.0)
+            };
         }
         Ok(Offset {
             dx_mm: place.0 + spread(noise[0]),

@@ -12,6 +12,32 @@
 
 use crate::units::rotate_xy;
 
+/// The point `d` (millimetres from the middle of the picture) whose bent image is `v`, for the bending `k1`: the length `r` with `r * (1 + k1 * r * r)` equal to that of `v`, found by
+/// Newton's method (a bending that has no such length leaves `v` as it is).
+fn unbend(v: (f64, f64), k1: f64) -> (f64, f64) {
+    let target = v.0.hypot(v.1);
+    if k1 == 0.0 || target == 0.0 {
+        return v;
+    }
+    let mut r = target;
+    for _ in 0..20 {
+        let slope = 1.0 + 3.0 * k1 * r * r;
+        if slope <= 1e-9 {
+            return v;
+        }
+        let step = (r * (1.0 + k1 * r * r) - target) / slope;
+        r -= step;
+        if step.abs() < 1e-14 {
+            break;
+        }
+    }
+    if !r.is_finite() || r < 0.0 {
+        return v;
+    }
+    let k = r / target;
+    (v.0 * k, v.1 * k)
+}
+
 /// How a camera is set on the machine and how its lens differs from the ideal.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CameraModel {
@@ -91,6 +117,20 @@ impl CameraModel {
         let bend = 1.0 + self.lens_k1 * (d.0 * d.0 + d.1 * d.1);
         let size = units * self.lens_scale;
         (d.0 * bend / size, d.1 * bend / size)
+    }
+
+    /// The place, in millimetres from the axis of the nozzle in the frame of the machine, of a pixel once the bending of the lens (`lens_k1`) is taken out: what a camera whose lens was
+    /// calibrated reports. The pixel is taken to be `units` millimetres, as `to_machine` takes it, so `units` should be the true size of a pixel (the one `camera-pattern` finds).
+    pub fn to_machine_corrected(&self, px: (f64, f64), units: f64) -> (f64, f64) {
+        let v = (px.0 * units, px.1 * units);
+        let d = unbend(v, self.lens_k1);
+        let m = self.image_to_machine(d);
+        (m.0 - self.offset_x_mm, m.1 - self.offset_y_mm)
+    }
+
+    /// What a camera whose lens was calibrated reports for a part that is truly at `place`: the optics, then the software that takes the bending out.
+    pub fn read_corrected(&self, place: (f64, f64), units: f64) -> (f64, f64) {
+        self.to_machine_corrected(self.to_pixels(place, units), units)
     }
 
     /// What the software reports for a part that is truly at `place`: the place goes through the optics and back through the software.
