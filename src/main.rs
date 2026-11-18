@@ -3,8 +3,8 @@
 #![forbid(unsafe_code)]
 
 mod cli_args;
+mod cmd_tools;
 mod commands;
-mod commands_tools;
 
 use cli_args::{finish, flag, num, switch};
 use eh3d_phoenix_pnp::config::MachineConfig;
@@ -196,13 +196,13 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "tables-check" => commands::tables_check(args),
         "recipe-check" => commands::recipe_check(args),
         "import-centroid" => commands::import_centroid(args),
-        "camera-calibrate" => commands_tools::camera_calibrate(args),
-        "nozzle-calibrate" => commands_tools::nozzle_calibrate(args),
-        "panelize" => commands_tools::panelize(args),
-        "polarity-sheet" => commands_tools::polarity_sheet(args),
-        "bom-order" => commands_tools::bom_order(args),
-        "feeder-teach" => commands_tools::feeder_teach(args),
-        "bom-check" => commands_tools::bom_check(args),
+        "camera-calibrate" => cmd_tools::camera_calibrate(args),
+        "nozzle-calibrate" => cmd_tools::nozzle_calibrate(args),
+        "panelize" => cmd_tools::panelize(args),
+        "polarity-sheet" => cmd_tools::polarity_sheet(args),
+        "bom-order" => cmd_tools::bom_order(args),
+        "feeder-teach" => cmd_tools::feeder_teach(args),
+        "bom-check" => cmd_tools::bom_check(args),
         "vision-test" => commands::vision_test(args),
         other => Err(format!("{other}: unknown command (see help)")),
     }

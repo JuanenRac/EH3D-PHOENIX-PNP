@@ -1,4 +1,4 @@
-// EH3D-PHOENIX-PNP - the commands that check and calibrate: bom-check, camera-calibrate, nozzle-calibrate, panelize and polarity-sheet.
+// EH3D-PHOENIX-PNP - the commands that check, calibrate and make files: bom-check, bom-order, camera-calibrate, nozzle-calibrate, feeder-teach, panelize and polarity-sheet.
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 //
 // Each one reads its files, calls the library and prints; none of them moves or writes anything but the file named by --out, and a file that exists is never written over.
