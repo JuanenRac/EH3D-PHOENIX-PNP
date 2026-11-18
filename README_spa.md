@@ -80,6 +80,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 * **Calibración de la cámara** (`src/calibrate.rs`): `phoenix-pnp camera-calibrate FICHERO` ajusta el modelo de la cámara (tamaño de un píxel, giro, espejo y dónde está el eje de la boquilla en la imagen) a avistamientos de una marca en lugares conocidos del cabezal (`px,py,x_mm,y_mm`, al menos tres) e imprime lo bien que encajan y las líneas `camera_*` para la configuración; la lente no se ajusta. Su error es el código `PHOENIX-PNP-058`.
 * **Excentricidad de la boquilla** (`src/calibrate.rs`, `src/export.rs`): `phoenix-pnp nozzle-calibrate FICHERO` ajusta un círculo a lecturas de la punta de la boquilla en varios ángulos (`angle_deg,x_mm,y_mm`) e imprime `nozzle_runout_mm` y `nozzle_runout_deg`; con la excentricidad por encima de 0, el G-code de `schedule --gcode` mueve cada lugar en sentido contrario a la excentricidad al ángulo de la pieza.
 * **Panel de una cuadrícula de placas** (`src/panel.rs`, `src/cmd_tools.rs`): `phoenix-pnp panelize PLACA --cols N --rows N --pitch-x MM --pitch-y MM` escribe el fichero de panel para una cuadrícula de copias de una placa, con el mismo giro para todas, tres fiduciales a un margen (`--fiducials MM`) y placas marcadas como malas por sus nombres `P1`, `P2`, ... (`--x-out P2,P5`); un fichero que existe no se sobrescribe nunca.
+* **Hoja de piezas con sentido** (`src/polarity.rs`): `phoenix-pnp polarity-sheet PIEZAS` lista las piezas cuya referencia coincide con `polarity_refs` o cuyo encapsulado coincide con `polarity_packages` (por defecto diodos, LED, chips, transistores, condensadores polarizados y conectores) con su lugar y giro y una columna vacía para marcar, para la revisión tras un trabajo; `--side` deja un solo lado.
 * **El simulador y el trabajo** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): las comprobaciones previas al trabajo, una máquina con reloj virtual y fallos que se pueden inyectar, y un trabajo que se puede pausar, ejecutar paso a paso, guardar y reanudar.
 * **La ventana** (`src/gui.rs`, `src/gui/`): lo que la ventana hace además de dibujar no necesita pantalla (los ficheros cargados, el plan y sus problemas con arreglos, el trabajo simulado, la geometría del mapa, las tablas con una selección compartida, el asistente de cinco pasos y los textos en ocho idiomas) y se prueba; solo `src/gui/window.rs`, que se compila con `--features gui`, lo dibuja con egui. La velocidad de la simulación, el tema y el tamaño dibujado para una pieza de encapsulado desconocido son claves de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -137,6 +138,7 @@ phoenix-pnp bom-check PARTS BOM [--config F]              si la lista de materia
 phoenix-pnp camera-calibrate FILE [--config F]            los ajustes de la cámara a partir de avistamientos de una marca, con lo bien que encajan
 phoenix-pnp nozzle-calibrate FILE [--config F]            la excentricidad de la punta de la boquilla a partir de lecturas en varios ángulos
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] un fichero de panel para una cuadrícula de copias de una placa
+phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] las piezas con sentido, como CSV para la revisión tras un trabajo
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mide la imagen de una pieza hecha en memoria
 ```
 
@@ -311,6 +313,7 @@ EH3D-PHOENIX-PNP/
 │   ├── parts.rs                                 el archivo de posiciones y las piezas que no se montan
 │   ├── plan.rs                                  una parte de la lógica
 │   ├── planner.rs                               el planificador que conoce la máquina: rangos, orden, puntas y su búsqueda, ángulos y tiempo
+│   ├── polarity.rs                              la hoja de las piezas con sentido
 │   ├── preflight.rs                             las comprobaciones previas al trabajo, con gravedad y aquello a lo que apuntan
 │   ├── recipe.rs                                la receta de un trabajo: su fichero, sus pasos y los parámetros por encapsulado, alimentador y punta
 │   ├── report.rs                                el informe del trabajo: fases, recogidas, grupos, errores; texto, HTML, CSV, JSON
@@ -339,6 +342,7 @@ EH3D-PHOENIX-PNP/
 │   ├── panelize.rs                              pruebas del panel de una cuadrícula de placas y de panelize
 │   ├── planner.rs                               pruebas del tiempo de los movimientos y del planificador
 │   ├── pnp.rs                                   pruebas de la biblioteca y la línea de comandos
+│   ├── polarity.rs                              pruebas de la hoja de las piezas con sentido
 │   ├── preflight.rs                             pruebas de las comprobaciones previas al trabajo
 │   ├── readme.rs                                pruebas de que el README se puede ejecutar y está completo
 │   ├── recipe.rs                                pruebas de la receta: el fichero, los límites, los pasos, las reglas en el trabajo y el estado guardado

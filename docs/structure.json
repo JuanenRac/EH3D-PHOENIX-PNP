@@ -600,6 +600,19 @@
           }
         },
         {
+          "name": "polarity.rs",
+          "desc": {
+            "en": "the sheet of the parts that have a direction",
+            "es": "la hoja de las piezas con sentido",
+            "de": "das Blatt der Teile mit Orientierung",
+            "fr": "la feuille des pièces polarisées",
+            "it": "il foglio dei componenti con un verso",
+            "ja": "向きのある部品のシート",
+            "zh": "有方向零件的清单",
+            "pt": "a folha das peças com sentido"
+          }
+        },
+        {
           "name": "preflight.rs",
           "desc": {
             "en": "the checks before a job, with a severity and what they point at",
@@ -955,6 +968,19 @@
             "ja": "ライブラリとコマンドラインのテスト",
             "zh": "库和命令行的测试",
             "pt": "testes da biblioteca e da linha de comandos"
+          }
+        },
+        {
+          "name": "polarity.rs",
+          "desc": {
+            "en": "tests of the sheet of the parts that have a direction",
+            "es": "pruebas de la hoja de las piezas con sentido",
+            "de": "Tests des Blatts der Teile mit Orientierung",
+            "fr": "tests de la feuille des pièces polarisées",
+            "it": "test del foglio dei componenti con un verso",
+            "ja": "向きのある部品のシートのテスト",
+            "zh": "有方向零件清单的测试",
+            "pt": "testes da folha das peças com sentido"
           }
         },
         {

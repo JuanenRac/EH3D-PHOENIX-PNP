@@ -80,6 +80,7 @@ Each line is one part of this repository and the light says how far it is today.
 * **Camera calibration** (`src/calibrate.rs`): `phoenix-pnp camera-calibrate FILE` fits the model of the camera (size of a pixel, turn, mirror, and where the axis of the nozzle is in the picture) to sightings of a mark at known places of the head (`px,py,x_mm,y_mm`, at least three) and prints how well they fit and the `camera_*` lines for the configuration; the lens is not fitted. Its error is the code `PHOENIX-PNP-058`.
 * **Nozzle runout** (`src/calibrate.rs`, `src/export.rs`): `phoenix-pnp nozzle-calibrate FILE` fits a circle to readings of the nozzle tip at several angles (`angle_deg,x_mm,y_mm`) and prints `nozzle_runout_mm` and `nozzle_runout_deg`; with the runout above 0 the G-code of `schedule --gcode` moves each place by the opposite of the runout at the angle of the part.
 * **Panel of a grid of boards** (`src/panel.rs`, `src/cmd_tools.rs`): `phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM` writes the panel file for a grid of copies of one board, with the same turn for each, three fiducials at a margin (`--fiducials MM`) and boards marked as bad by their names `P1`, `P2`, ... (`--x-out P2,P5`); a file that exists is never written over.
+* **Sheet of the parts with a direction** (`src/polarity.rs`): `phoenix-pnp polarity-sheet PARTS` lists the parts whose reference matches `polarity_refs` or whose package matches `polarity_packages` (diodes, LEDs, chips, transistors, polarized capacitors and connectors by default) with their place and turn and an empty column to tick, for the look after a job; `--side` keeps one side.
 * **The simulator and the job** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): the checks before a job, a machine with a virtual clock and failures that can be injected, and a job that can be paused, taken step by step, saved and resumed.
 * **The window** (`src/gui.rs`, `src/gui/`): what the window does besides drawing needs no screen (the files that were loaded, the plan and its problems with fixes, the simulated job, the geometry of the map, the tables with a shared selection, the guide of five steps and the words in eight languages) and is tested; only `src/gui/window.rs`, built with `--features gui`, draws it with egui. The speed of the simulation, the theme and the size drawn for a part of an unknown package are keys of `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -137,6 +138,7 @@ phoenix-pnp bom-check PARTS BOM [--config F]              whether the bill of ma
 phoenix-pnp camera-calibrate FILE [--config F]            the settings of the camera from sightings of a mark, with how well they fit
 phoenix-pnp nozzle-calibrate FILE [--config F]            the runout of the nozzle tip from readings at several angles
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] a panel file for a grid of copies of one board
+phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] the parts that have a direction, as a CSV for the look after a job
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       measures the picture of a part made in memory
 ```
 
@@ -311,6 +313,7 @@ EH3D-PHOENIX-PNP/
 │   ├── parts.rs                                 the position file and the parts that are not to be mounted
 │   ├── plan.rs                                  a part of the logic
 │   ├── planner.rs                               the planner that knows the machine: ranks, order, tips and their search, angles and time
+│   ├── polarity.rs                              the sheet of the parts that have a direction
 │   ├── preflight.rs                             the checks before a job, with a severity and what they point at
 │   ├── recipe.rs                                the recipe of a job: its file, its steps and the parameters by package, feeder and tip
 │   ├── report.rs                                the report of a job: phases, picks, groups, errors; text, HTML, CSV, JSON
@@ -339,6 +342,7 @@ EH3D-PHOENIX-PNP/
 │   ├── panelize.rs                              tests of the panel of a grid of boards and of panelize
 │   ├── planner.rs                               tests of the time of the moves and of the planner
 │   ├── pnp.rs                                   tests of the library and the command line
+│   ├── polarity.rs                              tests of the sheet of the parts that have a direction
 │   ├── preflight.rs                             tests of the checks before a job
 │   ├── readme.rs                                tests that the README can be run and is complete
 │   ├── recipe.rs                                tests of the recipe: the file, the limits, the steps, the rules in the job and the saved state
