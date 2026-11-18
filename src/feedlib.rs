@@ -3,7 +3,7 @@
 //! A table of feeders can be valid row by row and still make no sense as a whole: two feeders whose pick places are on top of each other, a tray with more parts than cells, a strip
 //! whose pitch no tape has, a pick place outside the area the machine reaches, the same slot given twice, or a package with no entry in the catalog. This module reads the whole
 //! library and lists what does not agree, each finding with the feeder, a severity and the words to fix it. Plain arithmetic: no files, no screen. A feeder that holds its parts in a
-//! stick (a tube) is a tape feeder with one pick place in this program: its count is the parts in the stick.
+//! stick (a tube) or loose (bulk) has one pick place, like a tape: its count is the parts in the stick or in the bin.
 
 use crate::catalog::Catalog;
 use crate::feeding::{FeederKind, FeederSpec};
@@ -74,7 +74,7 @@ pub const MAX_FEEDERS: usize = crate::feeding::MAX_FEEDERS;
 /// The places a feeder is picked from now and when its last part is taken: the ends of the line a strip or a tray lays its parts on.
 fn ends(f: &FeederSpec) -> Vec<(f64, f64)> {
     let mut v = vec![f.pick_point(0)];
-    if f.kind != FeederKind::Tape {
+    if !f.kind.is_fixed() {
         v.push(f.pick_point(f.base.count.saturating_sub(1)));
     }
     v
@@ -97,7 +97,7 @@ pub fn check(feeders: &[FeederSpec], catalog: Option<&Catalog>, rules: &Rules) -
             }
         }
         match f.kind {
-            FeederKind::Tape => {}
+            FeederKind::Tape | FeederKind::Tube | FeederKind::Bulk => {}
             FeederKind::Strip { pitch, .. } => {
                 if rules.pitch_step_mm > 0.0 {
                     let steps = pitch.abs() / rules.pitch_step_mm;

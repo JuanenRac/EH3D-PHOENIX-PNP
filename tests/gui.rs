@@ -1765,3 +1765,25 @@ fn the_body_of_a_package_is_set_with_both_sides_or_none() {
         assert!(tr(Text::ColBodyShort, lang).contains("mm"));
     }
 }
+
+#[test]
+fn a_feeder_can_be_changed_to_a_tube_or_a_bulk_feeder_and_the_table_says_so() {
+    let mut a = state();
+    let mut spec = a.ws.feeders[0].clone();
+    spec.kind = FeederKind::Tube;
+    assert!(a.edit_feeder(0, spec.clone()));
+    assert_eq!(feeder_rows(&a.ws, a.session.job())[0].kind, "tube");
+    spec.kind = FeederKind::Bulk;
+    assert!(a.edit_feeder(0, spec));
+    assert_eq!(feeder_rows(&a.ws, a.session.job())[0].kind, "bulk");
+    // the file written from the edit holds the kind and reads back
+    let files = a.ws.edited_files();
+    let (_, text) = files.iter().find(|f| f.0 == "feeders_edited.csv").unwrap();
+    assert!(text.contains(",bulk,"), "{text}");
+    assert_eq!(feeding::from_csv(text).unwrap()[0].kind, FeederKind::Bulk);
+    for lang in Lang::ALL {
+        assert!(!tr(Text::KindTube, lang).is_empty() && !tr(Text::KindBulk, lang).is_empty());
+    }
+    assert_eq!(tr(Text::KindTube, Lang::Es), "varilla");
+    assert_eq!(tr(Text::KindBulk, Lang::Pt), "a granel");
+}

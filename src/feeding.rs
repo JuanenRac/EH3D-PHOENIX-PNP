@@ -28,6 +28,10 @@ const OPTIONAL: [&str; 12] = [
 pub enum FeederKind {
     /// A tape: the next part is always at the same place (`x`, `y`).
     Tape,
+    /// A tube (a stick or rail): the parts slide to a stop at its end, so the next part is always at the same place (`x`, `y`), as on a tape.
+    Tube,
+    /// Loose parts in a bin or a bowl that a vibrating tray brings to one pick place (`x`, `y`): the place does not move, but the parts do not come in any fixed direction.
+    Bulk,
     /// A tray of `cols` by `rows` cells, filled row by row from the cell at (`x`, `y`); the cells are `pitch_x` and `pitch_y` apart, along axes turned by `rotation`.
     Tray {
         cols: u32,
@@ -38,6 +42,29 @@ pub enum FeederKind {
     },
     /// A strip: the next part is at (`x`, `y`) and each one after it a `pitch` further along a line turned by `rotation`.
     Strip { pitch: f64, rotation: f64 },
+}
+
+impl FeederKind {
+    /// The word for the kind in the file of feeders.
+    pub fn name(self) -> &'static str {
+        match self {
+            FeederKind::Tape => "tape",
+            FeederKind::Tube => "tube",
+            FeederKind::Bulk => "bulk",
+            FeederKind::Tray { .. } => "tray",
+            FeederKind::Strip { .. } => "strip",
+        }
+    }
+
+    /// Whether the pick place stays where it is however many parts are taken (a tape, a tube or a bulk feeder).
+    pub fn is_fixed(self) -> bool {
+        matches!(self, FeederKind::Tape | FeederKind::Tube | FeederKind::Bulk)
+    }
+
+    /// Whether the parts come in a known direction (a bulk feeder does not give one).
+    pub fn keeps_direction(self) -> bool {
+        !matches!(self, FeederKind::Bulk)
+    }
 }
 
 /// The order in which the cells of a tray are emptied.
@@ -128,7 +155,7 @@ impl FeederSpec {
     pub fn pick_point(&self, taken: u32) -> (f64, f64) {
         let origin = (self.base.x, self.base.y);
         match self.kind {
-            FeederKind::Tape => origin,
+            FeederKind::Tape | FeederKind::Tube | FeederKind::Bulk => origin,
             FeederKind::Strip { pitch, rotation } => {
                 let (dx, dy) = rotate_xy(pitch * f64::from(taken), 0.0, rotation);
                 (origin.0 + dx, origin.1 + dy)
@@ -185,9 +212,9 @@ pub fn normalize(f: &mut FeederSpec) {
     f.warn_below = f.warn_below.min(1_000_000);
     f.priority = f.priority.clamp(-1, 1);
     f.kind = match f.kind {
-        FeederKind::Tape => {
+        k @ (FeederKind::Tape | FeederKind::Tube | FeederKind::Bulk) => {
             f.tape_rotation = angle(f.tape_rotation);
-            FeederKind::Tape
+            k
         }
         FeederKind::Tray {
             cols,
@@ -322,6 +349,8 @@ pub fn from_csv_with(text: &str, default_fill: TrayFill) -> Result<Vec<FeederSpe
         };
         let kind = match cell("kind").to_ascii_lowercase().as_str() {
             "" | "tape" => FeederKind::Tape,
+            "tube" => FeederKind::Tube,
+            "bulk" => FeederKind::Bulk,
             "tray" => {
                 let dim = |name: &str| -> Result<u32, PnpError> {
                     let v = number(row, name, cell(name), 1.0, 1000.0)?;
@@ -365,7 +394,7 @@ pub fn from_csv_with(text: &str, default_fill: TrayFill) -> Result<Vec<FeederSpe
             other => {
                 return Err(bad(
                     row,
-                    format!("kind '{other}' is not tape, tray or strip"),
+                    format!("kind '{other}' is not tape, tube, bulk, tray or strip"),
                 ))
             }
         };
@@ -379,11 +408,7 @@ pub fn from_csv_with(text: &str, default_fill: TrayFill) -> Result<Vec<FeederSpe
         } else {
             number(row, "warn_below", cell("warn_below"), 0.0, 1_000_000.0)? as u32
         };
-        let tape_rotation = if kind == FeederKind::Tape {
-            rotation
-        } else {
-            0.0
-        };
+        let tape_rotation = if kind.is_fixed() { rotation } else { 0.0 };
         let slot = (!cell("slot").is_empty()).then(|| cell("slot").to_string());
         let fill = match cell("fill").to_ascii_lowercase().as_str() {
             "" => default_fill,
@@ -416,8 +441,8 @@ pub fn to_csv(feeders: &[FeederSpec]) -> String {
             _ => "high",
         };
         let (kind, cols, rows, pitch_x, pitch_y, pitch, rotation) = match f.kind {
-            FeederKind::Tape => (
-                "tape",
+            FeederKind::Tape | FeederKind::Tube | FeederKind::Bulk => (
+                f.kind.name(),
                 String::new(),
                 String::new(),
                 String::new(),

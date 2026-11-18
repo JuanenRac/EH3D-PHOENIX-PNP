@@ -1537,6 +1537,19 @@
           }
         },
         {
+          "name": "feeders_tubes.csv",
+          "desc": {
+            "en": "a table of feeders with a tube and a bulk feeder besides a tape",
+            "es": "una tabla de alimentadores con una varilla y uno a granel además de una cinta",
+            "de": "eine Zuführungstabelle mit einer Stange und einer Schüttgut-Zuführung neben einem Gurt",
+            "fr": "une table d'alimentateurs avec un tube et un alimentateur en vrac en plus d'une bande",
+            "it": "una tabella di alimentatori con una stecca e uno alla rinfusa oltre a un nastro",
+            "ja": "テープに加えてチューブとバルクのフィーダーを含むフィーダー表",
+            "zh": "除料带外还含料管和散料供料器的供料器表",
+            "pt": "uma tabela de alimentadores com um tubo e um a granel além de uma fita"
+          }
+        },
+        {
           "name": "fid_design.csv",
           "desc": {
             "en": "the designed places of four fiducials",

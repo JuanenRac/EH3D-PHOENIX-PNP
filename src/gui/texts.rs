@@ -248,11 +248,13 @@ pub enum Text {
     ToolStock,
     ColBodyLong,
     ColBodyShort,
+    KindTube,
+    KindBulk,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::ColBodyShort as usize + 1;
+    pub const COUNT: usize = Text::KindBulk as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -603,4 +605,6 @@ static TABLE: &[[&str; 8]] = &[
     ["Stock for a run", "Existencias para una tirada", "Bestand für einen Lauf", "Stock pour une série", "Scorte per una produzione", "ロットの在庫", "批量库存", "Existências para uma série"],
     ["Body long (mm)", "Cuerpo largo (mm)", "Körper lang (mm)", "Corps long (mm)", "Corpo lungo (mm)", "本体 長辺 (mm)", "本体长边 (mm)", "Corpo comprido (mm)"],
     ["Body short (mm)", "Cuerpo corto (mm)", "Körper kurz (mm)", "Corps court (mm)", "Corpo corto (mm)", "本体 短辺 (mm)", "本体短边 (mm)", "Corpo curto (mm)"],
+    ["tube", "varilla", "Stange", "tube", "stecca", "チューブ", "料管", "tubo"],
+    ["bulk", "a granel", "Schüttgut", "vrac", "alla rinfusa", "バルク", "散料", "a granel"],
 ];

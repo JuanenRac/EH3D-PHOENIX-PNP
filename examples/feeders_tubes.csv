@@ -1,0 +1,4 @@
+id,value,package,x,y,count,kind,rotation,slot
+T1,TL431,SOT-23-3,-60,70,25,tube,90,S8
+B1,100n,C_0603,-60,90,500,bulk,0,S9
+F1,10k,R_0603,-20,10,100,tape,0,S1

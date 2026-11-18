@@ -5,7 +5,6 @@
 
 use super::workspace::{Planned, Workspace};
 use crate::catalog::{PartProps, Resolved};
-use crate::feeding::FeederKind;
 use crate::job::{Job, Status};
 use crate::parts::Side;
 use std::cmp::Ordering;
@@ -407,11 +406,7 @@ pub fn feeder_rows(ws: &Workspace, job: Option<&Job>) -> Vec<FeederRow> {
                 left: f.base.count.saturating_sub(taken),
                 slot: f.slot.clone().unwrap_or_default(),
                 enabled: f.enabled,
-                kind: match f.kind {
-                    FeederKind::Tape => "tape",
-                    FeederKind::Tray { .. } => "tray",
-                    FeederKind::Strip { .. } => "strip",
-                },
+                kind: f.kind.name(),
                 priority: f.priority,
             }
         })

@@ -502,3 +502,80 @@ fn an_edited_feeder_is_brought_back_into_what_the_file_format_allows() {
     normalize(&mut ok);
     assert_eq!(ok, before);
 }
+
+// ---- the tube and the bulk feeder
+
+const TUBES: &str = include_str!("../examples/feeders_tubes.csv");
+
+#[test]
+fn a_tube_and_a_bulk_feeder_have_one_pick_place_whatever_is_taken() {
+    let f = from_csv(TUBES).unwrap();
+    assert_eq!(f.len(), 3);
+    assert_eq!(
+        (f[0].kind, f[1].kind, f[2].kind),
+        (FeederKind::Tube, FeederKind::Bulk, FeederKind::Tape)
+    );
+    // the rotation of the parts in the stick is the one of the row, as for a tape
+    assert_eq!(f[0].tape_rotation, 90.0);
+    for spec in &f[..2] {
+        assert_eq!(spec.pick_point(0), (spec.base.x, spec.base.y));
+        assert_eq!(spec.pick_point(24), (spec.base.x, spec.base.y));
+        assert_eq!(spec.capacity(), spec.base.count);
+    }
+    assert!(f[0].kind.is_fixed() && f[1].kind.is_fixed() && f[2].kind.is_fixed());
+    assert!(!FeederKind::Strip {
+        pitch: 4.0,
+        rotation: 0.0
+    }
+    .is_fixed());
+    assert!(f[0].kind.keeps_direction() && !f[1].kind.keeps_direction());
+    let names: Vec<&str> = f.iter().map(|s| s.kind.name()).collect();
+    assert_eq!(names, ["tube", "bulk", "tape"]);
+}
+
+#[test]
+fn the_kinds_of_feeder_are_written_and_read_back() {
+    let f = from_csv(TUBES).unwrap();
+    let text = to_csv(&f);
+    assert!(text.contains(",tube,"), "{text}");
+    assert!(text.contains(",bulk,"), "{text}");
+    assert_eq!(from_csv(&text).unwrap(), f);
+    // a kind in capitals is read, and one that does not exist says which ones do
+    assert_eq!(
+        from_csv("id,value,package,x,y,count,kind\nA,v,p,1,2,3,TUBE\n").unwrap()[0].kind,
+        FeederKind::Tube
+    );
+    let e = from_csv("id,value,package,x,y,count,kind\nA,v,p,1,2,3,reel\n").unwrap_err();
+    assert_eq!(e.code, Code::FeederBadRow);
+    assert!(
+        e.detail.contains("tape, tube, bulk, tray or strip"),
+        "{}",
+        e.detail
+    );
+}
+
+#[test]
+fn a_tube_is_chosen_and_emptied_like_a_tape() {
+    let mut f = from_csv(TUBES).unwrap();
+    let parts: Vec<Part> = (1..=3)
+        .map(|n| part(&format!("U{n}"), "TL431", "SOT-23-3", 10.0, 10.0))
+        .collect();
+    let picks = assign(&parts, &f, None);
+    assert!(
+        picks
+            .picks
+            .iter()
+            .all(|p| p.feeder == 0 && p.at == (-60.0, 70.0)),
+        "{picks:?}"
+    );
+    assert!(picks.short.is_empty() && picks.without_feeder.is_empty());
+    // a tube with two parts left is short of one
+    f[0].base.count = 2;
+    assert_eq!(assign(&parts, &f, None).short, vec![("T1".to_string(), 1)]);
+    // an editing that goes too far is brought back into range, the rotation of the parts with it
+    f[0].base.x = 99_999.0;
+    f[0].tape_rotation = 450.0;
+    normalize(&mut f[0]);
+    assert_eq!((f[0].base.x, f[0].tape_rotation), (10_000.0, 90.0));
+    assert_eq!(f[0].kind, FeederKind::Tube);
+}

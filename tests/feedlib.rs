@@ -284,3 +284,35 @@ fn the_settings_of_the_library_are_in_the_example_with_their_defaults_and_ranges
         }
     }
 }
+
+#[test]
+fn a_tube_and_a_bulk_feeder_are_checked_with_the_one_place_they_pick_from() {
+    let feeders = from_csv(include_str!("../examples/feeders_tubes.csv")).unwrap();
+    let found = check(&feeders, None, &Rules::default());
+    assert!(found.is_empty(), "{found:?}");
+    // a tube out of reach is an error at its one place; a tube on top of another feeder clashes
+    let mut far = feeders.clone();
+    far[0].base.x = 5000.0;
+    let found = check(&far, None, &Rules::default());
+    assert_eq!(counts(&found), (1, 0), "{found:?}");
+    let mut close = feeders.clone();
+    close[1].base.x = -60.0;
+    close[1].base.y = 71.0;
+    let found = check(&close, None, &Rules::default());
+    assert!(
+        messages(&found)
+            .iter()
+            .any(|m| m.contains("less than the 3 mm")),
+        "{found:?}"
+    );
+    // a tube that is on and empty is told, as a tape is
+    let mut empty = feeders;
+    empty[0].base.count = 0;
+    let found = check(&empty, None, &Rules::default());
+    assert!(
+        messages(&found)
+            .iter()
+            .any(|m| m.contains("holds no parts")),
+        "{found:?}"
+    );
+}

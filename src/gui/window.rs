@@ -1561,6 +1561,8 @@ impl PnpApp {
                             let kind = match r.kind {
                                 "tray" => Text::KindTray,
                                 "strip" => Text::KindStrip,
+                                "tube" => Text::KindTube,
+                                "bulk" => Text::KindBulk,
                                 _ => Text::KindTape,
                             };
                             cell(ui, widths[8], tr(kind, lang));
@@ -1669,12 +1671,16 @@ impl PnpApp {
                     FeederKind::Tape => 0,
                     FeederKind::Tray { .. } => 1,
                     FeederKind::Strip { .. } => 2,
+                    FeederKind::Tube => 3,
+                    FeederKind::Bulk => 4,
                 };
                 let was = kind;
                 let kind_text = [
                     tr(Text::KindTape, lang),
                     tr(Text::KindTray, lang),
                     tr(Text::KindStrip, lang),
+                    tr(Text::KindTube, lang),
+                    tr(Text::KindBulk, lang),
                 ];
                 egui::ComboBox::from_id_salt("feeder_kind")
                     .selected_text(kind_text[kind])
@@ -1696,11 +1702,13 @@ impl PnpApp {
                             pitch: 4.0,
                             rotation: 0.0,
                         },
+                        3 => FeederKind::Tube,
+                        4 => FeederKind::Bulk,
                         _ => FeederKind::Tape,
                     };
                 }
                 match &mut spec.kind {
-                    FeederKind::Tape => {
+                    FeederKind::Tape | FeederKind::Tube | FeederKind::Bulk => {
                         ui.label(tr(Text::ColRot, lang));
                         ui.add(
                             egui::DragValue::new(&mut spec.tape_rotation)
