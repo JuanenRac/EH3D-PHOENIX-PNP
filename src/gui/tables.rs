@@ -550,6 +550,20 @@ pub fn package_rows(ws: &Workspace) -> Vec<PackageRow> {
     rows
 }
 
+/// How a measured mark stands against the fit of the others.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MarkState {
+    /// The mark was not measured, or there is no fit.
+    #[default]
+    Unknown,
+    /// The fit leaves the mark within `fiducial_max_residual_mm`.
+    Ok,
+    /// The fit leaves the mark farther than `fiducial_max_residual_mm`.
+    Over,
+    /// The only mark that, left out, brings all the others within the limit: most likely taken at the wrong place.
+    Suspect,
+}
+
 /// A fiducial of the panel with the place that was measured for it and how far the fit leaves it from there.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FiducialRow {
@@ -558,6 +572,28 @@ pub struct FiducialRow {
     pub y: f64,
     pub measured: Option<(f64, f64)>,
     pub residual: Option<f64>,
+    pub state: MarkState,
+}
+
+/// How far the fit leaves the mark `id`, and where the mark is among the marks that were judged.
+fn mark_index(ws: &Workspace, id: &str) -> Option<(f64, usize)> {
+    let a = ws.fit_analysis.as_ref()?;
+    let k = ws.fit_ids.iter().position(|i| i == id)?;
+    a.fit.residuals.get(k).map(|r| (*r, k))
+}
+
+/// How the mark `id` stands against the limit `fiducial_max_residual_mm` and against the other marks (also when the fit was refused).
+pub fn mark_state(ws: &Workspace, id: &str) -> MarkState {
+    let Some((residual, k)) = mark_index(ws, id) else {
+        return MarkState::Unknown;
+    };
+    if ws.fit_analysis.as_ref().and_then(|a| a.suspect) == Some(k) {
+        MarkState::Suspect
+    } else if residual > ws.cfg.fiducial_max_residual_mm {
+        MarkState::Over
+    } else {
+        MarkState::Ok
+    }
 }
 
 /// The fiducials of the panel, in the order of the design.
@@ -569,12 +605,8 @@ pub fn fiducial_rows(ws: &Workspace) -> Vec<FiducialRow> {
             x: *x,
             y: *y,
             measured: ws.measured.iter().find(|m| m.0 == *id).map(|m| (m.1, m.2)),
-            residual: ws.fit.as_ref().and_then(|f| {
-                f.ids
-                    .iter()
-                    .position(|i| i == id)
-                    .and_then(|k| f.residuals.get(k).copied())
-            }),
+            residual: mark_index(ws, id).map(|(r, _)| r),
+            state: mark_state(ws, id),
         })
         .collect()
 }

@@ -9,6 +9,7 @@ use crate::config::{MachineConfig, OrderStrategy};
 use crate::error::{Code, Lang, PnpError};
 use crate::feeders::Feeder;
 use crate::feeding::{self, FeederSpec, Picks};
+use crate::fidcheck::{self, Analysis};
 use crate::fiducial::{self, Fit};
 use crate::loadsheet::{self, LoadSheet, Slot};
 use crate::panel::Panel;
@@ -190,6 +191,12 @@ pub struct Workspace {
     pub fit: Option<Fit>,
     /// Why the fit was refused, in the language of the window.
     pub fit_error: Option<String>,
+    /// What the measured marks say, also when the fit was refused: the turn, the scales, the mark that does not agree.
+    pub fit_analysis: Option<Analysis>,
+    /// The names of the marks that `fit_analysis` is made of, in the order of its residuals.
+    pub fit_ids: Vec<String>,
+    /// What is wrong with the marks (a mark far from the fit, the mark that does not agree, a turn or a scale over its limit); empty when all is well.
+    pub fit_warnings: Vec<String>,
     parts_text: Option<String>,
     panel_parts: Option<Vec<Part>>,
     packages_text: Option<String>,
@@ -225,6 +232,9 @@ impl Workspace {
             measured: Vec::new(),
             fit: None,
             fit_error: None,
+            fit_analysis: None,
+            fit_ids: Vec::new(),
+            fit_warnings: Vec::new(),
             parts_text: None,
             panel_parts: None,
             packages_text: None,
@@ -403,10 +413,21 @@ impl Workspace {
 
     /// Fits the measured fiducials again with the current configuration.
     fn refit(&mut self) {
+        self.fit_analysis = None;
+        self.fit_ids.clear();
+        self.fit_warnings.clear();
         if self.measured.is_empty() {
             self.fit = None;
             self.fit_error = None;
             return;
+        }
+        // what the marks say is worked out even when the fit is refused, so that the person can see which mark is off
+        if let Ok((a, ids)) =
+            fidcheck::analyze_marks(&self.design_fiducials, &self.measured, &self.cfg)
+        {
+            self.fit_warnings = fidcheck::warnings(&a, &ids, self.cfg.fiducial_max_residual_mm);
+            self.fit_analysis = Some(a);
+            self.fit_ids = ids;
         }
         match fiducial::solve(
             &self.design_fiducials,

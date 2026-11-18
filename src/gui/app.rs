@@ -712,10 +712,16 @@ impl AppState {
                         f.transform.rotation_deg()
                     ));
                 }
+                for w in self.ws.fit_warnings.clone() {
+                    self.log.warn(w);
+                }
                 true
             }
             Err(e) => {
                 self.log.error(e);
+                for w in self.ws.fit_warnings.clone() {
+                    self.log.warn(w);
+                }
                 false
             }
         }

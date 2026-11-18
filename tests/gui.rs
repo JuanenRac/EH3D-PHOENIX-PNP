@@ -14,8 +14,8 @@ use eh3d_phoenix_pnp::gui::samples;
 use eh3d_phoenix_pnp::gui::session::{Next, Session};
 use eh3d_phoenix_pnp::gui::settings::{settings_path, Layers, UiSettings};
 use eh3d_phoenix_pnp::gui::tables::{
-    board_rows, feeder_rows, fiducial_rows, kind_rows, natural_cmp, package_rows, part_rows,
-    plan_rows, sort_parts, CellEdit, PartColumn, Selection, SortState,
+    board_rows, feeder_rows, fiducial_rows, kind_rows, mark_state, natural_cmp, package_rows,
+    part_rows, plan_rows, sort_parts, CellEdit, MarkState, PartColumn, Selection, SortState,
 };
 use eh3d_phoenix_pnp::gui::texts::{table, tr, Text};
 use eh3d_phoenix_pnp::gui::theme::ThemeId;
@@ -1798,4 +1798,68 @@ fn a_feeder_can_be_changed_to_a_tube_or_a_bulk_feeder_and_the_table_says_so() {
     }
     assert_eq!(tr(Text::KindTube, Lang::Es), "varilla");
     assert_eq!(tr(Text::KindBulk, Lang::Pt), "a granel");
+}
+
+const FIDUCIALS_6: &str = r#"{"id":"f1","x":-5,"y":-5},{"id":"f2","x":105,"y":-5},{"id":"f3","x":-5,"y":45},{"id":"f4","x":105,"y":45},{"id":"f5","x":50,"y":-5},{"id":"f6","x":50,"y":45}"#;
+
+#[test]
+fn a_refused_fit_still_says_which_mark_is_off_and_every_mark_has_its_state() {
+    let dir = panel_dir("fiducials_state", FIDUCIALS_6);
+    let mut ws = Workspace::new(Lang::En);
+    ws.load_path(&dir.join("panel.json")).unwrap();
+    assert!(ws.fit_analysis.is_none() && ws.fit_warnings.is_empty());
+    assert!(fiducial_rows(&ws)
+        .iter()
+        .all(|r| r.state == MarkState::Unknown));
+    // the panel is one millimetre to the right and two up, but the mark f4 was taken eight and six millimetres away from where it is
+    let bad = marks(&[
+        ("f1", -4.0, -3.0),
+        ("f2", 106.0, -3.0),
+        ("f3", -4.0, 47.0),
+        ("f4", 114.0, 53.0),
+        ("f5", 51.0, -3.0),
+        ("f6", 51.0, 47.0),
+    ]);
+    assert!(ws.set_measured(bad.clone()).is_err());
+    assert!(!ws.has_fit());
+    let rows = fiducial_rows(&ws);
+    let suspects: Vec<&str> = rows
+        .iter()
+        .filter(|r| r.state == MarkState::Suspect)
+        .map(|r| r.id.as_str())
+        .collect();
+    assert_eq!(suspects, ["f4"]);
+    assert!(rows.iter().all(|r| r.residual.is_some()));
+    assert!(ws
+        .fit_warnings
+        .iter()
+        .any(|w| w.contains("the mark f4 is the only one that does not agree")));
+    assert!(ws
+        .fit_warnings
+        .iter()
+        .any(|w| w.contains("over the 0.5 mm")));
+    assert_eq!(mark_state(&ws, "f4"), MarkState::Suspect);
+    assert_eq!(mark_state(&ws, "zz"), MarkState::Unknown);
+    // marks that agree: all ok, nothing to warn about
+    let good = marks(&[
+        ("f1", -4.0, -3.0),
+        ("f2", 106.0, -3.0),
+        ("f3", -4.0, 47.0),
+        ("f4", 106.0, 47.0),
+        ("f5", 51.0, -3.0),
+        ("f6", 51.0, 47.0),
+    ]);
+    ws.set_measured(good).unwrap();
+    assert!(ws.has_fit() && ws.fit_warnings.is_empty());
+    assert!(fiducial_rows(&ws).iter().all(|r| r.state == MarkState::Ok));
+    // taking the correction away takes what the marks said away too
+    ws.set_measured(Vec::new()).unwrap();
+    assert!(ws.fit_analysis.is_none() && ws.fit_ids.is_empty() && ws.fit_warnings.is_empty());
+    // a stricter limit puts the marks that were fine over it
+    ws.set_measured(bad).unwrap_err();
+    ws.load_text("machine.cfg", "fiducial_max_residual_mm = 100\n")
+        .unwrap();
+    assert!(ws.has_fit());
+    assert!(!ws.fit_warnings.iter().any(|w| w.contains("over the")));
+    let _ = std::fs::remove_dir_all(&dir);
 }

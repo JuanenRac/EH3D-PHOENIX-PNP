@@ -14,7 +14,7 @@ use super::settings::{self, UiSettings};
 use super::shot::{self, ShotRequest, PATIENCE_FRAMES};
 use super::tables::{
     board_rows, feeder_rows, fiducial_rows, kind_rows, package_rows, part_rows, set_body,
-    sort_feeders, sort_parts, FeederColumn, PartColumn, PlanColumn, SortState,
+    sort_feeders, sort_parts, FeederColumn, MarkState, PartColumn, PlanColumn, SortState,
 };
 use super::texts::{lang_name, tr, Text};
 use super::theme::{Palette, Rgb, ThemeId};
@@ -1882,6 +1882,16 @@ impl PnpApp {
         } else {
             ui.label(RichText::new(tr(Text::FitNone, lang)).color(col(pal.dim)));
         }
+        if !self.s.ws.fit_warnings.is_empty() {
+            ui.label(
+                RichText::new(tr(Text::FitCheckMarks, lang))
+                    .strong()
+                    .color(col(pal.warn)),
+            );
+            for w in &self.s.ws.fit_warnings {
+                ui.label(RichText::new(w.as_str()).color(col(pal.warn)));
+            }
+        }
         let rows = fiducial_rows(&self.s.ws);
         let mut fw = self
             .s
@@ -1927,7 +1937,16 @@ impl PnpApp {
                             egui::DragValue::new(&mut e.y).speed(0.05).max_decimals(3),
                         );
                         let residual = r.residual.map_or(String::new(), |v| format!("{v:.3}"));
-                        cell(ui, fw[6], residual);
+                        let shown = match r.state {
+                            MarkState::Suspect => {
+                                RichText::new(format!("{residual} ?")).color(col(pal.danger))
+                            }
+                            MarkState::Over => {
+                                RichText::new(format!("{residual} !")).color(col(pal.warn))
+                            }
+                            _ => RichText::new(residual),
+                        };
+                        cell(ui, fw[6], shown);
                     });
                 }
             });
