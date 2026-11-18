@@ -289,3 +289,126 @@ pub fn compare(bom: &Bom, parts: &[Part], not_mounted: &[Part]) -> BomReport {
     report.package_differs.sort();
     report
 }
+
+/// The most boards an order can be for.
+pub const MAX_ORDER_BOARDS: usize = 100_000;
+
+/// One line of the list to order: a part that the board uses, how many for one board, and how many to buy for the boards and the spare.
+#[derive(Debug, Clone, PartialEq)]
+pub struct OrderLine {
+    pub value: String,
+    pub package: String,
+    pub part_number: String,
+    pub per_board: usize,
+    pub boards: usize,
+    /// The parts added to the ones the boards use, for the ones that are lost in the feeder, on the floor or in a failed pick.
+    pub spare: usize,
+    pub total: usize,
+    pub references: Vec<String>,
+}
+
+/// The parts to buy for `boards` boards: the rows of the BOM that are the same part (the same part number when they have one, else the same value and package) are added together, and
+/// each line gets `spare_percent` per cent more (rounded up) or `spare_min` more, whichever is larger. A reference in `not_mounted` is not counted, and a line that ends up with no part
+/// is left out.
+pub fn order(
+    bom: &Bom,
+    boards: usize,
+    spare_percent: f64,
+    spare_min: usize,
+    not_mounted: &[String],
+) -> Result<Vec<OrderLine>, PnpError> {
+    let setting = |m: String| PnpError::new(Code::PlanSetting, m);
+    if !(1..=MAX_ORDER_BOARDS).contains(&boards) {
+        return Err(setting(format!(
+            "the number of boards must be from 1 to {MAX_ORDER_BOARDS}"
+        )));
+    }
+    if !spare_percent.is_finite() || !(0.0..=100.0).contains(&spare_percent) {
+        return Err(setting("the spare per cent must be from 0 to 100".into()));
+    }
+    if spare_min > 1000 {
+        return Err(setting(
+            "the least spare parts must be from 0 to 1000".into(),
+        ));
+    }
+    let skipped: BTreeSet<&str> = not_mounted.iter().map(String::as_str).collect();
+    let mut lines: BTreeMap<(String, String, String), OrderLine> = BTreeMap::new();
+    let mut seen: BTreeSet<&str> = BTreeSet::new();
+    for row in &bom.lines {
+        let refs: Vec<String> = row
+            .references
+            .iter()
+            .filter(|r| !skipped.contains(r.as_str()) && seen.insert(r.as_str()))
+            .cloned()
+            .collect();
+        if refs.is_empty() {
+            continue;
+        }
+        let key = if row.part_number.trim().is_empty() {
+            (
+                String::new(),
+                normalize_value(&row.value),
+                row.package.trim().to_lowercase(),
+            )
+        } else {
+            (
+                row.part_number.trim().to_lowercase(),
+                String::new(),
+                String::new(),
+            )
+        };
+        let line = lines.entry(key).or_insert_with(|| OrderLine {
+            value: row.value.clone(),
+            package: row.package.clone(),
+            part_number: row.part_number.trim().to_string(),
+            per_board: 0,
+            boards,
+            spare: 0,
+            total: 0,
+            references: Vec::new(),
+        });
+        line.per_board += refs.len();
+        line.references.extend(refs);
+    }
+    let mut out: Vec<OrderLine> = lines.into_values().collect();
+    for l in &mut out {
+        let used = l.per_board * boards;
+        let by_percent = (used as f64 * spare_percent / 100.0).ceil() as usize;
+        l.spare = by_percent.max(spare_min);
+        l.total = used + l.spare;
+    }
+    out.sort_by(|a, b| {
+        (
+            a.package.to_lowercase(),
+            a.value.to_lowercase(),
+            &a.part_number,
+        )
+            .cmp(&(
+                b.package.to_lowercase(),
+                b.value.to_lowercase(),
+                &b.part_number,
+            ))
+    });
+    Ok(out)
+}
+
+/// The list as a CSV: `value,package,part_number,per_board,boards,spare,total,references`.
+pub fn order_csv(lines: &[OrderLine]) -> String {
+    use crate::parts::csv_field;
+    let mut out =
+        String::from("value,package,part_number,per_board,boards,spare,total,references\n");
+    for l in lines {
+        out.push_str(&format!(
+            "{},{},{},{},{},{},{},{}\n",
+            csv_field(&l.value),
+            csv_field(&l.package),
+            csv_field(&l.part_number),
+            l.per_board,
+            l.boards,
+            l.spare,
+            l.total,
+            csv_field(&l.references.join(" "))
+        ));
+    }
+    out
+}

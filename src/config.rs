@@ -19,7 +19,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 125] = [
+pub const KEYS: [&str; 127] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -145,6 +145,8 @@ pub const KEYS: [&str; 125] = [
     "backlash_x_mm",
     "backlash_y_mm",
     "backlash_mode",
+    "order_spare_percent",
+    "order_spare_min",
 ];
 
 /// The order in which the places are visited.
@@ -469,6 +471,10 @@ pub struct MachineConfig {
     pub backlash_y_mm: f64,
     /// What the simulated machine does about the slack.
     pub backlash_mode: BacklashMode,
+    /// The per cent of parts added to an order for the parts lost in the feeders and in failed picks (`bom-order`).
+    pub order_spare_percent: f64,
+    /// The fewest parts added to each line of an order.
+    pub order_spare_min: usize,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -588,6 +594,8 @@ impl Default for MachineConfig {
             backlash_x_mm: 0.0,
             backlash_y_mm: 0.0,
             backlash_mode: BacklashMode::Off,
+            order_spare_percent: 0.0,
+            order_spare_min: 0,
         }
     }
 }
@@ -1101,6 +1109,8 @@ impl MachineConfig {
             }
             "nozzle_runout_mm" => self.nozzle_runout_mm = n(0.0, 5.0)?,
             "nozzle_runout_deg" => self.nozzle_runout_deg = n(-180.0, 180.0)?,
+            "order_spare_percent" => self.order_spare_percent = n(0.0, 100.0)?,
+            "order_spare_min" => self.order_spare_min = int(line, key, v, 0, 1000)? as usize,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

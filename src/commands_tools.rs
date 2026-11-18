@@ -5,7 +5,7 @@
 
 use crate::cli_args::{finish, flag, num};
 use crate::commands::{read_text, refuse_same_file};
-use eh3d_phoenix_pnp::bom::{compare, Bom};
+use eh3d_phoenix_pnp::bom::{compare, order as bom_order_lines, order_csv, Bom};
 use eh3d_phoenix_pnp::calibrate::{
     calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples,
 };
@@ -214,6 +214,61 @@ pub fn polarity_sheet(mut args: Vec<String>) -> Result<(), String> {
         None => {
             print!("{csv}");
             eprintln!("ok: {}", polarity::summary(&rows, total));
+        }
+    }
+    Ok(())
+}
+
+fn whole(args: &mut Vec<String>, name: &str, default: usize) -> Result<usize, String> {
+    match flag(args, name)? {
+        Some(v) => v
+            .trim()
+            .parse::<usize>()
+            .map_err(|_| format!("{name} '{v}' is not a whole number")),
+        None => Ok(default),
+    }
+}
+
+/// `bom-order`: the list of parts to buy for a number of boards, with a spare; `--parts` leaves out the parts that table marks as not to be mounted. To `--out` (a file that exists is never
+/// written over) or to the standard output.
+pub fn bom_order(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let boards = whole(&mut args, "--boards", 1)?;
+    let spare_min = whole(&mut args, "--spare-min", cfg.order_spare_min)?;
+    let spare_percent = match flag(&mut args, "--spare-percent")? {
+        Some(v) => num(&v, "--spare-percent")?,
+        None => cfg.order_spare_percent,
+    };
+    let parts_path = flag(&mut args, "--parts")?;
+    let out_path = flag(&mut args, "--out")?;
+    finish(&args, 1)?;
+    let path = args.first().ok_or("bom-order needs a BOM")?.clone();
+    let l = |e: PnpError| e.localized(lang);
+    let bom = Bom::parse(&read_text(&path, cfg.max_file_bytes)?, cfg.max_parts).map_err(l)?;
+    let skipped: Vec<String> = match &parts_path {
+        Some(p) => parse_all(&read_text(p, cfg.max_file_bytes)?, &cfg.profile)?
+            .dnp
+            .into_iter()
+            .map(|p| p.reference)
+            .collect(),
+        None => Vec::new(),
+    };
+    let lines = bom_order_lines(&bom, boards, spare_percent, spare_min, &skipped).map_err(l)?;
+    let csv = order_csv(&lines);
+    let total: usize = lines.iter().map(|x| x.total).sum();
+    let summary = format!(
+        "{} lines, {total} parts for {boards} boards with {spare_percent}% spare (at least {spare_min})",
+        lines.len()
+    );
+    match out_path {
+        Some(out) => {
+            refuse_same_file(std::slice::from_ref(&path), &out)?;
+            report::write_new(&out, &csv).map_err(l)?;
+            println!("ok: {summary}; written to {out}");
+        }
+        None => {
+            print!("{csv}");
+            eprintln!("ok: {summary}");
         }
     }
     Ok(())
