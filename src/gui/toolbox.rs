@@ -22,6 +22,7 @@ use crate::inspect;
 use crate::nozzlelife::NozzleLife;
 use crate::panel::{grid_panel, Grid};
 use crate::parts::Side;
+use crate::pattern::{calibrate_pattern, parse_pattern, PatternCalibration};
 use crate::polarity;
 use crate::preview;
 use crate::report;
@@ -47,10 +48,11 @@ pub enum Tool {
     FeederCheck,
     Compare,
     Preview,
+    CameraPattern,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 15] = [
+    pub const ALL: [Tool; 16] = [
         Tool::Backlash,
         Tool::Runout,
         Tool::Camera,
@@ -66,6 +68,7 @@ impl Tool {
         Tool::FeederCheck,
         Tool::Compare,
         Tool::Preview,
+        Tool::CameraPattern,
     ];
 
     /// The name of the tool on the command line of the window (`--tool`) and in the log.
@@ -86,6 +89,7 @@ impl Tool {
             Tool::FeederCheck => "feedercheck",
             Tool::Compare => "compare",
             Tool::Preview => "preview",
+            Tool::CameraPattern => "pattern",
         }
     }
 
@@ -112,6 +116,7 @@ impl Tool {
             Tool::FeederCheck => Text::ToolFeederCheck,
             Tool::Compare => Text::ToolCompare,
             Tool::Preview => Text::ToolPreview,
+            Tool::CameraPattern => Text::ToolCameraPattern,
         }
     }
 
@@ -127,6 +132,7 @@ impl Tool {
                 | Tool::NozzleLife
                 | Tool::Inspect
                 | Tool::FidCheck
+                | Tool::CameraPattern
         )
     }
 
@@ -145,6 +151,7 @@ impl Tool {
             Tool::FeederCheck => Some("feeder_check.txt"),
             Tool::Compare => Some("order_compare.txt"),
             Tool::Preview => Some("plan.svg"),
+            Tool::CameraPattern => Some("camera_pattern.cfg"),
             _ => None,
         }
     }
@@ -202,6 +209,8 @@ pub struct Toolbox {
     pub inspect_text: String,
     /// The measured places of the fiducials (the ones that were loaded when it is empty).
     pub fiducials_text: String,
+    /// The points of a pattern seen by the camera.
+    pub pattern_text: String,
     /// A path typed to read the text of the tool from.
     pub path_text: String,
     /// The side the sheet of polarity and the stock are limited to (both when none).
@@ -233,6 +242,7 @@ impl Toolbox {
             life_text: String::new(),
             inspect_text: String::new(),
             fiducials_text: String::new(),
+            pattern_text: String::new(),
             path_text: String::new(),
             polarity_side: None,
             boards: cfg.order_boards,
@@ -267,6 +277,7 @@ impl Toolbox {
             Tool::Setup | Tool::NozzleLife => Some(&mut self.life_text),
             Tool::Inspect => Some(&mut self.inspect_text),
             Tool::FidCheck => Some(&mut self.fiducials_text),
+            Tool::CameraPattern => Some(&mut self.pattern_text),
             _ => None,
         }
     }
@@ -345,6 +356,9 @@ impl Toolbox {
             Tool::FeederCheck => Ok(feeder_check_text(ws)),
             Tool::Compare => compare_text(ws, lang),
             Tool::Preview => preview_text(ws, lang),
+            Tool::CameraPattern => {
+                pattern_text(&self.pattern_text, &ws.cfg, lang).map(|(_, i, o)| (i, o))
+            }
         };
         match result {
             Ok((info, output)) => {
@@ -366,6 +380,22 @@ impl Toolbox {
                     apply_camera(cfg, &found);
                     true
                 }
+                Err(e) => {
+                    self.error = e;
+                    false
+                }
+            },
+            Tool::CameraPattern => match pattern_text(&self.pattern_text, cfg, lang) {
+                Ok((found, _, _)) => match found.warning(cfg.camera_pattern_max_residual_mm) {
+                    None => {
+                        apply_pattern(cfg, &found);
+                        true
+                    }
+                    Some(w) => {
+                        self.error = w;
+                        false
+                    }
+                },
                 Err(e) => {
                     self.error = e;
                     false
@@ -461,6 +491,31 @@ pub fn apply_camera(cfg: &mut MachineConfig, found: &CameraCalibration) {
     cfg.camera.rotation_deg = found.model.rotation_deg;
     cfg.camera.flip_x = found.model.flip_x;
     cfg.camera.flip_y = found.model.flip_y;
+}
+
+/// The size of a pixel and the bending of the lens from the points of the pattern in `text`, with the pitch of the configuration: the fit, the summary (with the warning when a point is
+/// over `camera_pattern_max_residual_mm`) and the lines for the configuration.
+pub fn pattern_text(
+    text: &str,
+    cfg: &MachineConfig,
+    lang: Lang,
+) -> Result<(PatternCalibration, String, String), String> {
+    let points = parse_pattern(text).map_err(|e| failed(e, lang))?;
+    let found =
+        calibrate_pattern(&points, cfg.camera_pattern_pitch_mm).map_err(|e| failed(e, lang))?;
+    let mut summary = found.summary();
+    if let Some(w) = found.warning(cfg.camera_pattern_max_residual_mm) {
+        summary.push_str("\nwarning: ");
+        summary.push_str(&w);
+    }
+    let lines = found.config_lines();
+    Ok((found, summary, lines))
+}
+
+/// Puts the size of a pixel and the bending of the lens that the pattern gave in the configuration; the turn, the mirror and the offset are left as they were.
+pub fn apply_pattern(cfg: &mut MachineConfig, found: &PatternCalibration) {
+    cfg.camera.units_per_px = found.units_per_px;
+    cfg.camera.lens_k1 = found.lens_k1.clamp(-0.01, 0.01);
 }
 
 /// Puts the runout that the calibration found in the configuration.

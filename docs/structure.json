@@ -678,6 +678,19 @@
           }
         },
         {
+          "name": "pattern.rs",
+          "desc": {
+            "en": "the calibration of the camera from a pattern: pixel size, lens bending, residual",
+            "es": "la calibración de la cámara con un patrón: tamaño del píxel, curvatura de la lente, residuo",
+            "de": "die Kamerakalibrierung mit einem Muster: Pixelgröße, Verzeichnung, Abweichung",
+            "fr": "l'étalonnage de la caméra avec une mire : taille du pixel, distorsion, résidu",
+            "it": "la calibrazione della telecamera con un motivo: dimensione del pixel, distorsione, residuo",
+            "ja": "パターンによるカメラ校正：ピクセルの大きさ、レンズの歪み、残差",
+            "zh": "用图案标定相机：像素大小、镜头畸变、残差",
+            "pt": "a calibração da câmara com um padrão: tamanho do píxel, distorção da lente, resíduo"
+          }
+        },
+        {
           "name": "plan.rs",
           "desc": {
             "en": "a part of the logic",
@@ -1205,6 +1218,19 @@
           }
         },
         {
+          "name": "pattern.rs",
+          "desc": {
+            "en": "tests of the calibration from a pattern: the file, the fit, the limit, the command and the tool",
+            "es": "pruebas de la calibración con un patrón: el fichero, el ajuste, el límite, el comando y la herramienta",
+            "de": "Tests der Kalibrierung mit einem Muster: Datei, Anpassung, Grenzwert, Befehl und Werkzeug",
+            "fr": "tests de l'étalonnage avec une mire : le fichier, l'ajustement, la limite, la commande et l'outil",
+            "it": "test della calibrazione con un motivo: il file, l'adattamento, il limite, il comando e lo strumento",
+            "ja": "パターン校正のテスト：ファイル、あてはめ、上限、コマンド、ツール",
+            "zh": "图案标定的测试：文件、拟合、限值、命令和工具",
+            "pt": "testes da calibração com um padrão: o ficheiro, o ajuste, o limite, o comando e a ferramenta"
+          }
+        },
+        {
           "name": "planner.rs",
           "desc": {
             "en": "tests of the time of the moves and of the planner",
@@ -1560,6 +1586,19 @@
             "ja": "camera-calibrate 用のマークの観測",
             "zh": "camera-calibrate 用的标记观测点",
             "pt": "observações de uma marca para camera-calibrate"
+          }
+        },
+        {
+          "name": "camera_pattern.csv",
+          "desc": {
+            "en": "points of a pattern on a grid for camera-pattern",
+            "es": "puntos de un patrón en una cuadrícula para camera-pattern",
+            "de": "Punkte eines Musters auf einem Raster für camera-pattern",
+            "fr": "points d'une mire sur une grille pour camera-pattern",
+            "it": "punti di un motivo su una griglia per camera-pattern",
+            "ja": "camera-pattern 用の格子上のパターンの点",
+            "zh": "camera-pattern 用的网格图案上的点",
+            "pt": "pontos de um padrão numa grelha para camera-pattern"
           }
         },
         {

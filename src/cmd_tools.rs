@@ -1,4 +1,4 @@
-// EH3D-PHOENIX-PNP - the commands that check, calibrate and make files: bom-check, bom-order, camera-calibrate, nozzle-calibrate, feeder-teach, panelize and polarity-sheet.
+// EH3D-PHOENIX-PNP - the commands that check, calibrate and make files: bom-check, bom-order, camera-calibrate, camera-pattern, nozzle-calibrate, feeder-teach, panelize and polarity-sheet.
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 //
 // Each one reads its files, calls the library and prints; none of them moves or writes anything but the file named by --out, and a file that exists is never written over.
@@ -18,6 +18,7 @@ use eh3d_phoenix_pnp::feeding;
 use eh3d_phoenix_pnp::nozzlelife;
 use eh3d_phoenix_pnp::panel::{grid_panel, Grid};
 use eh3d_phoenix_pnp::parts::{parse_all, Side};
+use eh3d_phoenix_pnp::pattern::{calibrate_pattern, parse_pattern};
 use eh3d_phoenix_pnp::polarity;
 use eh3d_phoenix_pnp::report;
 use eh3d_phoenix_pnp::stock::stock_plan;
@@ -77,6 +78,29 @@ pub fn camera_calibrate(mut args: Vec<String>) -> Result<(), String> {
     println!("{}", found.summary());
     print!("{}", found.config_lines());
     Ok(())
+}
+
+/// `camera-pattern`: the size of a pixel and the bending of the lens from the points of a pattern on a grid seen by the camera; prints how good the fit is, with the bending and without it,
+/// and the lines to put in the configuration. The exit code is 1 when a point is farther from the model than `camera_pattern_max_residual_mm`.
+pub fn camera_pattern(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let pitch = match flag(&mut args, "--pitch")? {
+        Some(v) => num(&v, "--pitch")?,
+        None => cfg.camera_pattern_pitch_mm,
+    };
+    finish(&args, 1)?;
+    let path = args
+        .first()
+        .ok_or("camera-pattern needs a file of the points of the pattern")?;
+    let l = |e: PnpError| e.localized(lang);
+    let points = parse_pattern(&read_text(path, cfg.max_file_bytes)?).map_err(l)?;
+    let found = calibrate_pattern(&points, pitch).map_err(l)?;
+    println!("{}", found.summary());
+    print!("{}", found.config_lines());
+    match found.warning(cfg.camera_pattern_max_residual_mm) {
+        Some(w) => Err(w),
+        None => Ok(()),
+    }
 }
 
 /// `nozzle-calibrate`: the runout of the nozzle tip from readings of its place at several angles; prints how good the fit is and the lines to put in the configuration.

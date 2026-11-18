@@ -18,7 +18,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 800 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e, sebbene il programma acquisisca immagini della propria finestra (`--shot`), nessuna persona ha verificato il disegno su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 814 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e, sebbene il programma acquisisca immagini della propria finestra (`--shot`), nessuna persona ha verificato il disegno su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versione | `0.0.8` |
 | Maturità | Impalcatura |
-| Test | 800 |
+| Test | 814 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -47,7 +47,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (priorità, vassoio, striscia), pianifica l'ordine di posizionamento per una testa fino a sei ugelli con ranghi, punte degli ugelli, limiti d'angolo e il tempo dei movimenti, pianifica pannelli e scrive il foglio di carico; provato su un computer con ingressi normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `phoenix-pnp` esegue le stesse funzioni della libreria (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) e stampa il risultato; ogni errore torna come messaggio con il suo codice `PHOENIX-PNP-NNN` e un codice di uscita diverso da zero. |
-| Test | 🟡 | 800 test passano (`cargo test`), con casi normali, casi limite, ingressi danneggiati e piccoli casi generati. |
+| Test | 🟡 | 814 test passano (`cargo test`), con casi normali, casi limite, ingressi danneggiati e piccoli casi generati. |
 | Configurazione della macchina | 🟡 | un file `chiave = valore` con versione, un validatore che nomina la riga e i limiti di sicurezza (corsa di Z, limiti di X e Y, nuovi tentativi, angoli dell'ugello); i valori non sono stati confrontati con una macchina reale. |
 | Simulatore e lavoro | 🟡 | un orologio virtuale, guasti iniettati a caso (con un seme) o in un punto scelto, nuovi tentativi, le politiche allerta e rinvio, alimentatori che si spengono dopo guasti ripetuti, pausa, passo dopo passo e uno stato salvato da cui riprendere; simula soltanto, nulla ha mosso una macchina. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
@@ -93,6 +93,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Vita delle punte degli ugelli** (`src/nozzlelife.rs`, `src/cmd_tools.rs`, `src/commands.rs`): `simulate --nozzle-life FILE` aggiunge ciò che un lavoro arrivato in fondo ha fatto con ogni punta (i componenti posizionati e i montaggi) a un piccolo CSV che la persona tiene accanto alla configurazione; un lavoro è contato una sola volta, un file che non è un registro delle punte non viene mai sovrascritto, il file sostituito resta come `FILE.prev` e i conteggi scendono solo quando `nozzle-life FILE --reset PUNTA` annota che una punta è stata sostituita. `nozzle_life_warn` (predefinito 500000, 0 non avvisa) è il numero di componenti oltre il quale si dice alla persona di controllare una punta, con `simulate` e `nozzle-life`. Nuovo codice di errore `PHOENIX-PNP-059`.
 * **Quale ordine è il più veloce** (`src/compare.rs`, `src/commands.rs`): `phoenix-pnp order-compare COMPONENTI ALIMENTATORI` pianifica la stessa scheda con ogni `order` dei posti (nearest, part, height_part, pick, tips, none) e ogni `tip_strategy` (minimize, as_planned, optimize), e li mostra affiancati con i lotti, i cambi di punta, il percorso della testa e i secondi, con la più veloce di ogni elenco segnata, quella della configurazione segnata e una riga che dice quanti secondi farebbe risparmiare l'impostazione migliore; prende le opzioni di `schedule` e non cambia nulla.
 * **Un'immagine del piano** (`src/preview.rs`, `src/commands.rs`): `phoenix-pnp schedule COMPONENTI ALIMENTATORI USCITA.json --svg USCITA.svg` scrive anche il piano come un file SVG da guardare prima che la macchina si muova, da stampare o da tenere con il lavoro: gli alimentatori, il posto di ogni componente con il numero del suo turno e il colore del suo ugello, la linea che ogni componente segue dal suo alimentatore, il percorso tratteggiato della testa su tutto il lavoro e i totali; non ha script né nulla dall'esterno, ciò che è scritto in un riferimento o in un id viene protetto, e un'immagine che esiste non viene mai sovrascritta.
+* **Calibrazione della telecamera con un motivo** (`src/pattern.rs`, `src/cmd_tools.rs`): `phoenix-pnp camera-pattern FILE [--pitch MM]` legge i punti di una griglia (gli angoli interni di una scacchiera o i centri di punti) come `col,row,px,py` (`examples/camera_pattern.csv`) e adatta la dimensione di un pixel (`camera_units_per_px`) e la distorsione radiale dell'obiettivo (`camera_lens_k1`) insieme a rotazione, spostamento e specchio del foglio nell'immagine, poi dice quanto i punti si discostano dal modello con e senza la distorsione e quale punto è il più lontano; le righe per la configurazione vengono stampate e il codice di uscita è 1 quando un punto supera `camera_pattern_max_residual_mm`. I punti distano `camera_pattern_pitch_mm`. La rotazione e lo scostamento della telecamera continuano a venire da `camera-calibrate`, che muove la testa. La scheda Strumenti ha la stessa calibrazione e rifiuta di mettere nella macchina un adattamento oltre il limite.
 * **Più pannelli nella scheda Strumenti** (`src/gui/toolbox.rs`): l'uso delle punte degli ugelli (il registro che tiene `nozzle-life`, con le punte arrivate a `nozzle_life_warn` segnate), l'ispezione dei componenti sull'ugello rispetto alle dimensioni dei package caricati, il controllo dei fiduciali (il residuo di ogni marca, la marca che non concorda e un avviso per una marca oltre `fiducial_max_residual_mm`), il controllo della tabella dei feeder, il confronto degli ordini e dei cambi di punta (quanto farebbe risparmiare il più rapido) e il disegno del piano come SVG; ognuno scrive il risultato nella cartella di uscita con il proprio nome senza sovrascrivere un file esistente. Il foglio di preparazione della scheda legge il registro delle punte quando ne viene digitato o letto uno, e dice allora quale punta è usurata.
 * **Il foglio di preparazione** (`src/setup.rs`, `src/commands.rs`, `src/gui/toolbox.rs`): `phoenix-pnp setup-sheet COMPONENTI ALIMENTATORI --boards N` riunisce in una pagina, nelle otto lingue, gli alimentatori da caricare nell'ordine dei loro alloggiamenti (tipo, componente, nastro, punta, componenti contenuti, posizione), i componenti mancanti per N schede, le punte degli ugelli della produzione con la loro usura rispetto a `nozzle_life_warn` (`--life` legge il registro di `simulate --nozzle-life`), le calibrazioni da cui dipende il lavoro e se ciascuna è impostata (telecamera, eccentricità dell'ugello, gioco degli assi, posizione del cambio punte, fiduciali di un pannello) e gli avvisi (un alimentatore spento che contiene un componente necessario alla scheda, un alimentatore alla rinfusa che contiene un componente con una direzione); `--out` scrive gli alimentatori come CSV e il comando esce con 1 finché mancano componenti. La scheda Strumenti ha lo stesso foglio da stampare come `setup_sheet.txt`.
 * **Scheda degli strumenti** (`src/gui/toolbox.rs`): il gioco degli assi, l'eccentricità dell'ugello, la calibrazione della telecamera, l'apprendimento dei feeder, il foglio delle parti con un verso, il controllo e l'ordine di una distinta base, le scorte per una produzione e il pannello di una griglia di schede, ognuno con le funzioni della libreria del suo comando, un testo digitato o letto da un file, il risultato a schermo e, dove fa un file, un pulsante che lo scrive nella cartella di uscita senza sovrascrivere un file esistente; la telecamera e l'eccentricità si possono mettere nella macchina. I valori con cui partono i moduli sono chiavi di `machine.cfg` (`order_boards`, `panel_cols`, `panel_rows`, `panel_pitch_x_mm`, `panel_pitch_y_mm`, `panel_fiducial_mm`, `panel_board_width_mm`, `panel_board_height_mm`).
@@ -161,6 +162,7 @@ phoenix-pnp feeder-check FEEDERS [--packages F] [--catalog F] se la tabella dei 
 phoenix-pnp nozzle-life FILE [--warn N] [--reset TIP] i componenti che ogni punta di ugello ha posizionato, da un file accanto alla configurazione (esce con 1 se una punta raggiunge il livello di avviso)
 phoenix-pnp setup-sheet PARTS FEEDERS [--boards N] [--life F] [--out F] cosa caricare in quale alloggiamento, i componenti mancanti per N schede, le punte degli ugelli e la loro usura, le calibrazioni da cui dipende il lavoro (nella lingua di --lang; esce con 1 se mancano componenti)
 phoenix-pnp order-compare PARTS FEEDERS [OPTIONS] la scheda pianificata con ogni ordine dei posti e ogni modo di cambiare le punte, affiancati, con la più veloce segnata
+phoenix-pnp camera-pattern FILE [--pitch MM]             la dimensione di un pixel e la distorsione dell'obiettivo dai punti di un motivo su una griglia
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       misura l'immagine di un componente creata in memoria
 ```
 
@@ -274,7 +276,7 @@ L'ultima riga apre la finestra; lo fa anche `phoenix-pnp` senza comando se è st
 
 ## 🧪 Test
 
-La suite ha 800 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli ingressi danneggiati: file vuoti, spazzatura e file tagliati non provocano mai un panic. Piccoli casi generati (da un seme fisso, quindi con gli stessi numeri a ogni esecuzione) verificano che il piano non dipenda dall'ordine dei file, che un percorso non si allunghi mai, che un lavoro salvato e ripreso in qualsiasi punto finisca come quello che non si è mai fermato, e che lunghezze e angoli si convertano avanti e indietro. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 814 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli ingressi danneggiati: file vuoti, spazzatura e file tagliati non provocano mai un panic. Piccoli casi generati (da un seme fisso, quindi con gli stessi numeri a ogni esecuzione) verificano che il piano non dipenda dall'ordine dei file, che un percorso non si allunghi mai, che un lavoro salvato e ripreso in qualsiasi punto finisca come quello che non si è mai fermato, e che lunghezze e angoli si convertano avanti e indietro. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -342,6 +344,7 @@ EH3D-PHOENIX-PNP/
 │   ├── nozzlelife.rs                            l'uso delle punte degli ugelli: componenti posizionati, montaggi, sostituzioni, il livello di avviso
 │   ├── panel.rs                                 pannelli: schede e pannelli dentro pannelli, ciascuno al suo posto
 │   ├── parts.rs                                 il file delle posizioni e le parti da non montare
+│   ├── pattern.rs                               la calibrazione della telecamera con un motivo: dimensione del pixel, distorsione, residuo
 │   ├── plan.rs                                  una parte della logica
 │   ├── planner.rs                               il pianificatore che conosce la macchina: ranghi, ordine, punte e la loro ricerca, angoli e tempo
 │   ├── polarity.rs                              il foglio dei componenti con un verso
@@ -383,6 +386,7 @@ EH3D-PHOENIX-PNP/
 │   ├── nozzlelife.rs                            test dell'uso delle punte degli ugelli: il file, ciò che aggiunge un lavoro, i comandi
 │   ├── panel.rs                                 test dei pannelli e dei loro fiduciali
 │   ├── panelize.rs                              test del pannello di una griglia di schede e di panelize
+│   ├── pattern.rs                               test della calibrazione con un motivo: il file, l'adattamento, il limite, il comando e lo strumento
 │   ├── planner.rs                               test del tempo dei movimenti e del pianificatore
 │   ├── pnp.rs                                   test della libreria e della riga di comando
 │   ├── polarity.rs                              test del foglio dei componenti con un verso
@@ -411,6 +415,7 @@ EH3D-PHOENIX-PNP/
 │   ├── board_dnp.csv                            una scheda con una colonna dnp: due delle sue parti non vanno montate
 │   ├── bom.csv                                  una distinta base che coincide con board.pos
 │   ├── camera_points.csv                        rilevazioni di un segno per camera-calibrate
+│   ├── camera_pattern.csv                       punti di un motivo su una griglia per camera-pattern
 │   ├── catalog.csv                              una tabella di parti: rango e altezza
 │   ├── centroid.csv                             un CSV di centroidi con una colonna di parti da non montare e un valore con una virgola
 │   ├── centroid.map                             la mappa delle colonne di centroid_custom.csv

@@ -20,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 150] = [
+pub const KEYS: [&str; 152] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -171,6 +171,8 @@ pub const KEYS: [&str; 150] = [
     "feeder_pitch_step_mm",
     "feeder_min_gap_mm",
     "nozzle_life_warn",
+    "camera_pattern_pitch_mm",
+    "camera_pattern_max_residual_mm",
 ];
 
 /// The order in which the places are visited.
@@ -534,6 +536,9 @@ pub struct MachineConfig {
     pub feeder_min_gap_mm: f64,
     /// A nozzle tip that has placed this many parts is told to the person to look at (0 does not warn): `nozzle-life`, `setup-sheet` and `simulate --nozzle-life`.
     pub nozzle_life_warn: u64,
+    /// The distance between neighbouring points of the pattern of the camera calibration (millimetres) and how far a point may be from the model of the calibration (millimetres): `camera-pattern`.
+    pub camera_pattern_pitch_mm: f64,
+    pub camera_pattern_max_residual_mm: f64,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -678,6 +683,8 @@ impl Default for MachineConfig {
             feeder_pitch_step_mm: 2.0,
             feeder_min_gap_mm: 3.0,
             nozzle_life_warn: 500_000,
+            camera_pattern_pitch_mm: 1.0,
+            camera_pattern_max_residual_mm: 0.05,
         }
     }
 }
@@ -1225,6 +1232,10 @@ impl MachineConfig {
             "feeder_min_gap_mm" => self.feeder_min_gap_mm = n(0.0, 1000.0)?,
             "nozzle_life_warn" => {
                 self.nozzle_life_warn = int(line, key, v, 0, 1_000_000_000)? as u64
+            }
+            "camera_pattern_pitch_mm" => self.camera_pattern_pitch_mm = n(0.01, 100.0)?,
+            "camera_pattern_max_residual_mm" => {
+                self.camera_pattern_max_residual_mm = n(0.0001, 5.0)?
             }
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,

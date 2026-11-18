@@ -261,11 +261,13 @@ pub enum Text {
     HintInspect,
     HintFidCheck,
     HintSetupLife,
+    ToolCameraPattern,
+    HintCameraPattern,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::HintSetupLife as usize + 1;
+    pub const COUNT: usize = Text::HintCameraPattern as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -629,4 +631,6 @@ static TABLE: &[[&str; 8]] = &[
     ["One reading per line: ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (judged against the sizes of the packages that are loaded)", "Una lectura por línea: ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (se juzga con los tamaños de los encapsulados cargados)", "Eine Messung pro Zeile: ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (beurteilt nach den Größen der geladenen Gehäuse)", "Une mesure par ligne : ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (jugée selon les tailles des boîtiers chargés)", "Una lettura per riga: ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (giudicata con le dimensioni dei package caricati)", "1 行に 1 回の読み取り：ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg（読み込んだパッケージの寸法で判定）", "每行一个读数：ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg（按已加载封装的尺寸判断）", "Uma leitura por linha: ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (julgada pelas dimensões dos encapsulamentos carregados)"],
     ["Measured marks, one per line: id,x,y (blank: the ones that were loaded)", "Marcas medidas, una por línea: id,x,y (en blanco: las cargadas)", "Gemessene Marken, eine pro Zeile: id,x,y (leer: die geladenen)", "Repères mesurés, un par ligne : id,x,y (vide : ceux qui sont chargés)", "Marcature misurate, una per riga: id,x,y (vuoto: quelle caricate)", "測定したマーク（1 行に 1 つ）：id,x,y（空欄：読み込み済みのもの）", "实测标记，每行一个：id,x,y（留空：使用已加载的）", "Marcas medidas, uma por linha: id,x,y (em branco: as carregadas)"],
     ["Optional: the record of the nozzle tips (tip,uses,mounts,replaced) so that the sheet says which tip is worn", "Opcional: el registro de las puntas de boquilla (tip,uses,mounts,replaced) para que la hoja diga qué punta está gastada", "Optional: die Aufzeichnung der Düsenspitzen (tip,uses,mounts,replaced), damit die Liste sagt, welche Spitze verschlissen ist", "Facultatif : le relevé des pointes de buse (tip,uses,mounts,replaced) pour que la fiche dise quelle pointe est usée", "Facoltativo: il registro delle punte degli ugelli (tip,uses,mounts,replaced) perché il foglio dica quale punta è usurata", "任意：ノズル先端の記録（tip,uses,mounts,replaced）。どの先端が摩耗しているかをシートに表示します", "可选：吸嘴头记录（tip,uses,mounts,replaced），清单会指出哪个吸嘴头已磨损", "Opcional: o registo das pontas de bico (tip,uses,mounts,replaced) para que a folha diga que ponta está gasta"],
+    ["Camera pattern", "Patrón de la cámara", "Kamera-Muster", "Mire de la caméra", "Motivo della telecamera", "カメラのパターン", "相机标定图案", "Padrão da câmara"],
+    ["One point per line: col,row,px,py (its place in the grid and where the camera saw it, at least six; the pitch is camera_pattern_pitch_mm)", "Un punto por línea: col,row,px,py (su lugar en la cuadrícula y dónde lo vio la cámara, al menos seis; el paso es camera_pattern_pitch_mm)", "Ein Punkt pro Zeile: col,row,px,py (sein Platz im Raster und wo die Kamera ihn sah, mindestens sechs; der Rasterabstand ist camera_pattern_pitch_mm)", "Un point par ligne : col,row,px,py (sa place dans la grille et où la caméra l'a vu, au moins six ; le pas est camera_pattern_pitch_mm)", "Un punto per riga: col,row,px,py (il suo posto nella griglia e dove l'ha visto la telecamera, almeno sei; il passo è camera_pattern_pitch_mm)", "1 行に 1 点：col,row,px,py（格子内の位置とカメラで見えた位置、6 点以上。ピッチは camera_pattern_pitch_mm）", "每行一个点：col,row,px,py（其在网格中的位置和相机看到的位置，至少六个；间距为 camera_pattern_pitch_mm）", "Um ponto por linha: col,row,px,py (o seu lugar na grelha e onde a câmara o viu, pelo menos seis; o passo é camera_pattern_pitch_mm)"],
 ];

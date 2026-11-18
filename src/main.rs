@@ -36,6 +36,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp recipe-check FILE [--config F] [--lang CODE]   whether a recipe is valid, with the code and the line of an error
   phoenix-pnp bom-check PARTS BOM [--config F] [--lang CODE]   whether the bill of materials and the table of parts agree (references, values, packages, quantities)
   phoenix-pnp camera-calibrate FILE [--config F] [--lang CODE]   the settings of the camera from sightings of a mark (px,py,x_mm,y_mm), with how well they fit
+  phoenix-pnp camera-pattern FILE [--pitch MM] [--config F] [--lang CODE]   the size of a pixel and the bending of the lens from the points of a pattern on a grid (col,row,px,py), with how well they fit; exits with 1 when a point is over camera_pattern_max_residual_mm
   phoenix-pnp nozzle-calibrate FILE [--config F] [--lang CODE]   the runout of the nozzle tip from readings at several angles (angle_deg,x_mm,y_mm)
   phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--spare-min N] [--parts PARTS] [--have FEEDERS] [--out F] [--config F] [--lang CODE]   the parts to buy for N boards, with a spare (less what the feeders already hold)
   phoenix-pnp stock PARTS FEEDERS [--boards N] [--side top|bottom] [--out F] [--config F] [--lang CODE]   whether the feeders hold enough parts for N boards, kind by kind; exits with 1 when some fall short
@@ -207,6 +208,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "recipe-check" => commands::recipe_check(args),
         "import-centroid" => commands::import_centroid(args),
         "camera-calibrate" => cmd_tools::camera_calibrate(args),
+        "camera-pattern" => cmd_tools::camera_pattern(args),
         "nozzle-calibrate" => cmd_tools::nozzle_calibrate(args),
         "panelize" => cmd_tools::panelize(args),
         "polarity-sheet" => cmd_tools::polarity_sheet(args),
