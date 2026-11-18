@@ -13,6 +13,7 @@ use super::settings::UiSettings;
 use super::tables::{CellEdit, FeederColumn, PartColumn, PlanColumn, Selection, SortState};
 use super::texts::{tr, Text};
 use super::theme::ThemeId;
+use super::toolbox::Toolbox;
 use super::view::{Scene, Viewport};
 use super::wizard::{PlanState, Wizard};
 use super::workspace::{FileKind, Planned, Workspace};
@@ -37,6 +38,7 @@ pub enum Tab {
     Boards,
     LoadSheet,
     Machine,
+    Tools,
     Problems,
     Log,
 }
@@ -53,6 +55,7 @@ impl Tab {
             Tab::Boards => "boards",
             Tab::LoadSheet => "loadsheet",
             Tab::Machine => "machine",
+            Tab::Tools => "tools",
             Tab::Problems => "problems",
             Tab::Log => "log",
         }
@@ -64,7 +67,7 @@ impl Tab {
         Tab::ALL.into_iter().find(|tab| tab.key() == t)
     }
 
-    pub const ALL: [Tab; 10] = [
+    pub const ALL: [Tab; 11] = [
         Tab::Job,
         Tab::Parts,
         Tab::Packages,
@@ -73,6 +76,7 @@ impl Tab {
         Tab::Boards,
         Tab::LoadSheet,
         Tab::Machine,
+        Tab::Tools,
         Tab::Problems,
         Tab::Log,
     ];
@@ -87,6 +91,7 @@ impl Tab {
             Tab::Boards => Text::TabBoards,
             Tab::LoadSheet => Text::TabLoadSheet,
             Tab::Machine => Text::TabMachine,
+            Tab::Tools => Text::TabTools,
             Tab::Problems => Text::TabProblems,
             Tab::Log => Text::TabLog,
         }
@@ -159,6 +164,8 @@ pub struct AppState {
     pub browser: Option<Browser>,
     /// The name typed for a new package.
     pub new_package: String,
+    /// The Tools tab: the forms, the text of each tool and the last result.
+    pub tools: Toolbox,
     /// The paths of the files that were loaded, to keep an output from landing on an input.
     paths: Vec<PathBuf>,
     reported: Option<PnpError>,
@@ -193,6 +200,7 @@ impl AppState {
             fid_edit: Vec::new(),
             browser: None,
             new_package: String::new(),
+            tools: Toolbox::new(&crate::config::MachineConfig::default()),
             paths: Vec::new(),
             reported: None,
             finish_logged: false,
@@ -277,6 +285,7 @@ impl AppState {
             tr(Text::Loaded, self.ui.lang)
         ));
         if kind == FileKind::Config {
+            self.tools.take_defaults(&self.ws.cfg);
             // the configuration may choose the language and the colours
             self.ui.lang = self.ws.lang;
             if let Some(theme) = ThemeId::from_key(&self.ws.cfg.gui_theme) {
@@ -778,6 +787,84 @@ impl AppState {
         self.ws.set_nozzles(nozzles);
         self.ws.set_speed(speed_mm_s);
         self.changed();
+    }
+
+    /// Sets the slack of the axes of the simulated machine and the way it is dealt with, keeping them in the ranges of the settings, and plans again.
+    pub fn set_backlash(&mut self, x_mm: f64, y_mm: f64, mode: crate::motion::BacklashMode) {
+        let keep = |v: f64, old: f64| if v.is_finite() { v.clamp(0.0, 2.0) } else { old };
+        self.ws.cfg.backlash_x_mm = keep(x_mm, self.ws.cfg.backlash_x_mm);
+        self.ws.cfg.backlash_y_mm = keep(y_mm, self.ws.cfg.backlash_y_mm);
+        self.ws.cfg.backlash_mode = mode;
+        self.changed();
+    }
+
+    /// Sets the runout of the nozzle tip (0 to 5 mm, and a direction from -180 to 180 degrees) and plans again.
+    pub fn set_runout(&mut self, mm: f64, deg: f64) {
+        if mm.is_finite() {
+            self.ws.cfg.nozzle_runout_mm = mm.clamp(0.0, 5.0);
+        }
+        if deg.is_finite() {
+            self.ws.cfg.nozzle_runout_deg = deg.clamp(-180.0, 180.0);
+        }
+        self.changed();
+    }
+
+    /// Sets the spare of the list of parts to buy (per cent from 0 to 100, parts from 0 to 1000) and the number of boards (1 to 100000).
+    pub fn set_spare(&mut self, percent: f64, least: usize, boards: usize) {
+        if percent.is_finite() {
+            self.ws.cfg.order_spare_percent = percent.clamp(0.0, 100.0);
+        }
+        self.ws.cfg.order_spare_min = least.min(1000);
+        self.tools.boards = boards.clamp(1, 100_000);
+    }
+
+    /// Runs the open tool on what was loaded and typed.
+    pub fn tools_run(&mut self) {
+        let lang = self.ui.lang;
+        self.tools.run(&self.ws, lang);
+        if !self.tools.error.is_empty() {
+            self.log.error(self.tools.error.clone());
+        }
+    }
+
+    /// Reads the text of the open tool from the file typed in its box.
+    pub fn tools_read_file(&mut self) {
+        if !self.tools.read_file() {
+            if !self.tools.error.is_empty() {
+                self.log.error(self.tools.error.clone());
+            }
+            return;
+        }
+        self.tools_run();
+    }
+
+    /// Puts what the open tool fits (the camera or the runout) in the configuration and plans again.
+    pub fn tools_apply(&mut self) {
+        let lang = self.ui.lang;
+        if self.tools.apply(&mut self.ws.cfg, lang) {
+            self.tools.notice = tr(Text::ToolApplied, lang).to_string();
+            self.log.info(self.tools.notice.clone());
+            self.changed();
+        } else if !self.tools.error.is_empty() {
+            self.log.error(self.tools.error.clone());
+        }
+    }
+
+    /// Writes the result of the open tool to the output folder.
+    pub fn tools_save(&mut self) {
+        let lang = self.ui.lang;
+        let dir = self.ui.out_dir.clone();
+        match self.tools.save(&dir, lang) {
+            Some(path) => {
+                self.tools.notice = format!("{} {path}", tr(Text::ToolSaved, lang));
+                self.log.info(self.tools.notice.clone());
+            }
+            None => {
+                if !self.tools.error.is_empty() {
+                    self.log.error(self.tools.error.clone());
+                }
+            }
+        }
     }
 
     pub fn set_side(&mut self, side: crate::parts::Side) {

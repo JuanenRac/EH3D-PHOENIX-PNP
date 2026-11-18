@@ -1001,11 +1001,11 @@ fn the_tabs_have_a_word_each_and_the_window_starts_on_the_job() {
     };
     assert!(!AppState::new(seen).wizard.open);
     let words: Vec<&str> = Tab::ALL.iter().map(|t| tr(t.text(), Lang::En)).collect();
-    assert_eq!(words.len(), 10);
+    assert_eq!(words.len(), 11);
     let mut sorted = words.clone();
     sorted.sort_unstable();
     sorted.dedup();
-    assert_eq!(sorted.len(), 10);
+    assert_eq!(sorted.len(), 11);
 }
 
 #[test]

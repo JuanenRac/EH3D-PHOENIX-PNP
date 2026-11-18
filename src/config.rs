@@ -19,7 +19,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 127] = [
+pub const KEYS: [&str; 135] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -147,6 +147,14 @@ pub const KEYS: [&str; 127] = [
     "backlash_mode",
     "order_spare_percent",
     "order_spare_min",
+    "order_boards",
+    "panel_cols",
+    "panel_rows",
+    "panel_pitch_x_mm",
+    "panel_pitch_y_mm",
+    "panel_fiducial_mm",
+    "panel_board_width_mm",
+    "panel_board_height_mm",
 ];
 
 /// The order in which the places are visited.
@@ -475,6 +483,16 @@ pub struct MachineConfig {
     pub order_spare_percent: f64,
     /// The fewest parts added to each line of an order.
     pub order_spare_min: usize,
+    /// The number of boards that the window asks for in the list of parts to buy.
+    pub order_boards: usize,
+    /// What the panel form of the window starts with: the boards along X and along Y, their pitch, the margin of the fiducials (0 puts none) and the real size of a board (0 is the pitch).
+    pub panel_cols: usize,
+    pub panel_rows: usize,
+    pub panel_pitch_x_mm: f64,
+    pub panel_pitch_y_mm: f64,
+    pub panel_fiducial_mm: f64,
+    pub panel_board_width_mm: f64,
+    pub panel_board_height_mm: f64,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -596,6 +614,14 @@ impl Default for MachineConfig {
             backlash_mode: BacklashMode::Off,
             order_spare_percent: 0.0,
             order_spare_min: 0,
+            order_boards: 1,
+            panel_cols: 2,
+            panel_rows: 2,
+            panel_pitch_x_mm: 50.0,
+            panel_pitch_y_mm: 50.0,
+            panel_fiducial_mm: 0.0,
+            panel_board_width_mm: 0.0,
+            panel_board_height_mm: 0.0,
         }
     }
 }
@@ -1111,6 +1137,14 @@ impl MachineConfig {
             "nozzle_runout_deg" => self.nozzle_runout_deg = n(-180.0, 180.0)?,
             "order_spare_percent" => self.order_spare_percent = n(0.0, 100.0)?,
             "order_spare_min" => self.order_spare_min = int(line, key, v, 0, 1000)? as usize,
+            "order_boards" => self.order_boards = int(line, key, v, 1, 100_000)? as usize,
+            "panel_cols" => self.panel_cols = int(line, key, v, 1, 100)? as usize,
+            "panel_rows" => self.panel_rows = int(line, key, v, 1, 100)? as usize,
+            "panel_pitch_x_mm" => self.panel_pitch_x_mm = n(0.001, 10_000.0)?,
+            "panel_pitch_y_mm" => self.panel_pitch_y_mm = n(0.001, 10_000.0)?,
+            "panel_fiducial_mm" => self.panel_fiducial_mm = n(0.0, 1000.0)?,
+            "panel_board_width_mm" => self.panel_board_width_mm = n(0.0, 10_000.0)?,
+            "panel_board_height_mm" => self.panel_board_height_mm = n(0.0, 10_000.0)?,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

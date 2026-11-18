@@ -16,6 +16,7 @@ pub mod shot;
 pub mod tables;
 pub mod texts;
 pub mod theme;
+pub mod toolbox;
 pub mod view;
 pub mod wizard;
 pub mod workspace;

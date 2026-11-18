@@ -366,6 +366,19 @@
           }
         },
         {
+          "name": "gui/toolbox.rs",
+          "desc": {
+            "en": "the Tools tab without the window: the tools, their forms and what they write",
+            "es": "la pestaña de herramientas sin la ventana: las herramientas, sus formularios y lo que escriben",
+            "de": "der Werkzeug-Reiter ohne das Fenster: die Werkzeuge, ihre Formulare und was sie schreiben",
+            "fr": "l'onglet des outils sans la fenêtre : les outils, leurs formulaires et ce qu'ils écrivent",
+            "it": "la scheda degli strumenti senza la finestra: gli strumenti, i loro moduli e ciò che scrivono",
+            "ja": "ウィンドウなしのツールタブ：ツール、フォーム、書き出すもの",
+            "zh": "不含窗口的工具页：工具、表单及其写出的内容",
+            "pt": "o separador de ferramentas sem a janela: as ferramentas, os seus formulários e o que escrevem"
+          }
+        },
+        {
           "name": "gui/view.rs",
           "desc": {
             "en": "the geometry of the map: bodies, polarity marks, fit, zoom and hit",
@@ -1150,6 +1163,19 @@
             "ja": "パッケージが受け付けるチップのテスト：ルール、選択、計画",
             "zh": "封装可接受吸嘴的测试：规则、选择和计划",
             "pt": "testes das pontas que um encapsulamento aceita: as regras, a escolha e o plano"
+          }
+        },
+        {
+          "name": "toolbox.rs",
+          "desc": {
+            "en": "tests of the Tools tab: its settings, each tool on the examples, what it applies and writes",
+            "es": "pruebas de la pestaña de herramientas: sus ajustes, cada herramienta con los ejemplos, lo que aplica y escribe",
+            "de": "Tests des Werkzeug-Reiters: seine Einstellungen, jedes Werkzeug mit den Beispielen, was es anwendet und schreibt",
+            "fr": "tests de l'onglet des outils : ses réglages, chaque outil sur les exemples, ce qu'il applique et écrit",
+            "it": "test della scheda degli strumenti: le sue impostazioni, ogni strumento sugli esempi, ciò che applica e scrive",
+            "ja": "ツールタブのテスト：設定、例に対する各ツール、反映と書き出し",
+            "zh": "工具页的测试：其设置、各工具对示例的处理、所应用与写出的内容",
+            "pt": "testes do separador de ferramentas: as suas definições, cada ferramenta com os exemplos, o que aplica e escreve"
           }
         },
         {

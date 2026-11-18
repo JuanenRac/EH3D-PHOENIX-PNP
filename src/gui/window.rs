@@ -18,6 +18,7 @@ use super::tables::{
 };
 use super::texts::{lang_name, tr, Text};
 use super::theme::{Palette, Rgb, ThemeId};
+use super::toolbox::{self, Tool};
 use super::view::{Point, Transform};
 use super::wizard::Step;
 use super::workspace::FileKind;
@@ -26,6 +27,7 @@ use crate::config::OrderStrategy;
 use crate::error::Lang;
 use crate::feeding::{FeederKind, TrayFill};
 use crate::job::{Action, Phase, Status};
+use crate::motion::BacklashMode;
 use crate::parts::Side;
 use crate::preflight::Severity;
 use eframe::egui::{
@@ -573,6 +575,7 @@ impl PnpApp {
                 Tab::Boards => self.boards_tab(ui),
                 Tab::LoadSheet => self.load_sheet_tab(ui),
                 Tab::Machine => self.machine_tab(ui),
+                Tab::Tools => self.tools_tab(ui),
                 Tab::Problems => self.problems_tab(ui),
                 Tab::Log => self.log_tab(ui),
             }
@@ -2213,6 +2216,311 @@ impl PnpApp {
                     ui.label(v);
                     ui.end_row();
                 }
+            });
+    }
+
+    fn tools_tab(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        ui.horizontal_wrapped(|ui| {
+            for tool in Tool::ALL {
+                if ui
+                    .selectable_label(self.s.tools.tool == tool, tr(tool.text(), lang))
+                    .clicked()
+                    && self.s.tools.tool != tool
+                {
+                    self.s.tools.tool = tool;
+                    self.s.tools.clear_result();
+                }
+            }
+        });
+        ui.separator();
+        match self.s.tools.tool {
+            Tool::Backlash => self.tool_backlash(ui),
+            Tool::Runout => {
+                self.tool_runout_settings(ui);
+                self.tool_io(ui, Some(Text::HintRunout));
+            }
+            Tool::Camera => self.tool_io(ui, Some(Text::HintCamera)),
+            Tool::Feeders => self.tool_io(ui, Some(Text::HintFeeders)),
+            Tool::Polarity => {
+                let mut side = self.s.tools.polarity_side;
+                egui::ComboBox::from_id_salt("polarity_side")
+                    .selected_text(match side {
+                        None => tr(Text::BothSides, lang),
+                        Some(Side::Top) => tr(Text::SideTop, lang),
+                        Some(Side::Bottom) => tr(Text::SideBottom, lang),
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut side, None, tr(Text::BothSides, lang));
+                        ui.selectable_value(&mut side, Some(Side::Top), tr(Text::SideTop, lang));
+                        ui.selectable_value(
+                            &mut side,
+                            Some(Side::Bottom),
+                            tr(Text::SideBottom, lang),
+                        );
+                    });
+                self.s.tools.polarity_side = side;
+                self.tool_io(ui, None);
+            }
+            Tool::Bom => {
+                self.tool_order_settings(ui);
+                self.tool_io(ui, Some(Text::HintBom));
+            }
+            Tool::Panel => {
+                self.tool_panel_form(ui);
+                self.tool_io(ui, None);
+            }
+        }
+    }
+
+    fn tool_backlash(&mut self, ui: &mut egui::Ui) {
+        let pal = self.s.ui.theme.palette();
+        let lang = self.s.lang();
+        let cfg = &self.s.ws.cfg;
+        let (mut x, mut y, mut mode) = (cfg.backlash_x_mm, cfg.backlash_y_mm, cfg.backlash_mode);
+        let mut changed = false;
+        egui::Grid::new("tool_backlash")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                ui.label(tr(Text::BacklashX, lang));
+                changed |= ui
+                    .add(egui::DragValue::new(&mut x).range(0.0..=2.0).speed(0.005))
+                    .changed();
+                ui.end_row();
+                ui.label(tr(Text::BacklashY, lang));
+                changed |= ui
+                    .add(egui::DragValue::new(&mut y).range(0.0..=2.0).speed(0.005))
+                    .changed();
+                ui.end_row();
+                ui.label(tr(Text::BacklashMode, lang));
+                egui::ComboBox::from_id_salt("backlash_mode")
+                    .selected_text(mode.name())
+                    .show_ui(ui, |ui| {
+                        for m in BacklashMode::ALL {
+                            changed |= ui.selectable_value(&mut mode, m, m.name()).changed();
+                        }
+                    });
+                ui.end_row();
+            });
+        if changed {
+            self.s.set_backlash(x, y, mode);
+        }
+        ui.separator();
+        ui.label(
+            RichText::new(toolbox::backlash_text(&self.s.ws.cfg))
+                .monospace()
+                .color(col(pal.dim)),
+        );
+    }
+
+    fn tool_runout_settings(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        let (mut mm, mut deg) = (
+            self.s.ws.cfg.nozzle_runout_mm,
+            self.s.ws.cfg.nozzle_runout_deg,
+        );
+        let mut changed = false;
+        egui::Grid::new("tool_runout")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                ui.label(tr(Text::RunoutMm, lang));
+                changed |= ui
+                    .add(egui::DragValue::new(&mut mm).range(0.0..=5.0).speed(0.005))
+                    .changed();
+                ui.end_row();
+                ui.label(tr(Text::RunoutDeg, lang));
+                changed |= ui
+                    .add(
+                        egui::DragValue::new(&mut deg)
+                            .range(-180.0..=180.0)
+                            .speed(0.5),
+                    )
+                    .changed();
+                ui.end_row();
+            });
+        if changed {
+            self.s.set_runout(mm, deg);
+        }
+        ui.separator();
+    }
+
+    fn tool_order_settings(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        let (mut percent, mut least, mut boards) = (
+            self.s.ws.cfg.order_spare_percent,
+            self.s.ws.cfg.order_spare_min,
+            self.s.tools.boards,
+        );
+        egui::Grid::new("tool_order")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                ui.label(tr(Text::Boards, lang));
+                ui.add(egui::DragValue::new(&mut boards).range(1..=100_000));
+                ui.end_row();
+                ui.label(tr(Text::SparePercent, lang));
+                ui.add(
+                    egui::DragValue::new(&mut percent)
+                        .range(0.0..=100.0)
+                        .speed(0.5),
+                );
+                ui.end_row();
+                ui.label(tr(Text::SpareLeast, lang));
+                ui.add(egui::DragValue::new(&mut least).range(0..=1000));
+                ui.end_row();
+            });
+        self.s.set_spare(percent, least, boards);
+        ui.separator();
+    }
+
+    fn tool_panel_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        let loaded = self
+            .s
+            .ws
+            .names
+            .get(&FileKind::Parts)
+            .cloned()
+            .unwrap_or_default();
+        let form = &mut self.s.tools.panel;
+        egui::Grid::new("tool_panel")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                ui.label(tr(Text::PanelCols, lang));
+                ui.add(egui::DragValue::new(&mut form.cols).range(1..=100));
+                ui.end_row();
+                ui.label(tr(Text::PanelRows, lang));
+                ui.add(egui::DragValue::new(&mut form.rows).range(1..=100));
+                ui.end_row();
+                ui.label(tr(Text::PitchX, lang));
+                ui.add(
+                    egui::DragValue::new(&mut form.pitch_x_mm)
+                        .range(0.001..=10_000.0)
+                        .speed(0.5),
+                );
+                ui.end_row();
+                ui.label(tr(Text::PitchY, lang));
+                ui.add(
+                    egui::DragValue::new(&mut form.pitch_y_mm)
+                        .range(0.001..=10_000.0)
+                        .speed(0.5),
+                );
+                ui.end_row();
+                ui.label(tr(Text::PanelTurn, lang));
+                ui.add(
+                    egui::DragValue::new(&mut form.rotation_deg)
+                        .range(-360.0..=360.0)
+                        .speed(1.0),
+                );
+                ui.end_row();
+                ui.label(tr(Text::FiducialMargin, lang));
+                ui.add(
+                    egui::DragValue::new(&mut form.fiducial_mm)
+                        .range(0.0..=1000.0)
+                        .speed(0.5),
+                );
+                ui.end_row();
+                ui.label(tr(Text::BoardWidth, lang));
+                ui.add(
+                    egui::DragValue::new(&mut form.board_width_mm)
+                        .range(0.0..=10_000.0)
+                        .speed(0.5),
+                );
+                ui.end_row();
+                ui.label(tr(Text::BoardHeight, lang));
+                ui.add(
+                    egui::DragValue::new(&mut form.board_height_mm)
+                        .range(0.0..=10_000.0)
+                        .speed(0.5),
+                );
+                ui.end_row();
+                ui.label(tr(Text::XOutList, lang));
+                ui.add(egui::TextEdit::singleline(&mut form.x_out).desired_width(180.0));
+                ui.end_row();
+                ui.label(tr(Text::BoardFile, lang));
+                ui.add(
+                    egui::TextEdit::singleline(&mut form.board_file)
+                        .desired_width(180.0)
+                        .hint_text(loaded),
+                );
+                ui.end_row();
+            });
+        ui.separator();
+    }
+
+    /// The part that every tool shares: the box for its text (and the file to read it from), the buttons, what it said and what it made.
+    fn tool_io(&mut self, ui: &mut egui::Ui, hint: Option<Text>) {
+        let pal = self.s.ui.theme.palette();
+        let lang = self.s.lang();
+        let tool = self.s.tools.tool;
+        if let (Some(hint), true) = (hint, tool.reads_text()) {
+            ui.label(RichText::new(tr(hint, lang)).color(col(pal.dim)));
+            if let Some(text) = self.s.tools.text_mut() {
+                ui.add(
+                    egui::TextEdit::multiline(text)
+                        .font(egui::TextStyle::Monospace)
+                        .desired_rows(6)
+                        .desired_width(f32::INFINITY),
+                );
+            }
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.s.tools.path_text)
+                        .desired_width(300.0)
+                        .hint_text(tr(Text::ToolPathHint, lang)),
+                );
+                if ui.button(tr(Text::ToolRead, lang)).clicked() {
+                    self.s.tools_read_file();
+                }
+            });
+        }
+        let made = self.s.tools.made_by == Some(tool);
+        ui.horizontal(|ui| {
+            if ui.button(tr(Text::ToolRun, lang)).clicked() {
+                self.s.tools_run();
+            }
+            let can_apply = made && matches!(tool, Tool::Camera | Tool::Runout);
+            if ui
+                .add_enabled(can_apply, egui::Button::new(tr(Text::ToolApply, lang)))
+                .clicked()
+            {
+                self.s.tools_apply();
+            }
+            let can_save = made && tool.output_name().is_some();
+            if ui
+                .add_enabled(can_save, egui::Button::new(tr(Text::ToolSave, lang)))
+                .clicked()
+            {
+                self.s.tools_save();
+            }
+            let can_copy = !self.s.tools.output.is_empty();
+            if ui
+                .add_enabled(can_copy, egui::Button::new(tr(Text::ToolCopy, lang)))
+                .clicked()
+            {
+                let text = self.s.tools.output.clone();
+                ui.ctx().copy_text(text);
+            }
+        });
+        if !self.s.tools.notice.is_empty() {
+            ui.label(RichText::new(&self.s.tools.notice).color(col(pal.ok)));
+        }
+        if !self.s.tools.error.is_empty() {
+            ui.label(RichText::new(&self.s.tools.error).color(col(pal.danger)));
+        }
+        if !self.s.tools.info.is_empty() {
+            ui.label(RichText::new(&self.s.tools.info).monospace());
+        }
+        ui.separator();
+        ui.label(RichText::new(tr(Text::ToolResult, lang)).strong());
+        egui::ScrollArea::vertical()
+            .id_salt("tool_output")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                ui.label(RichText::new(&self.s.tools.output).monospace());
             });
     }
 
