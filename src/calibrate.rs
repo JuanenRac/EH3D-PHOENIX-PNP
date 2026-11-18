@@ -343,3 +343,160 @@ pub fn fit_runout(samples: &[RunoutSample]) -> Result<NozzleRunout, PnpError> {
         samples: n,
     })
 }
+
+/// What the teaching of a strip found: where the first part is and how the next ones follow.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StripTeach {
+    pub x_mm: f64,
+    pub y_mm: f64,
+    pub count: u32,
+    /// The distance between two parts along the strip.
+    pub pitch_mm: f64,
+    /// The angle of the strip, 0 up to 360.
+    pub rotation_deg: f64,
+}
+
+const MAX_PLACE: f64 = 10_000.0;
+const MIN_PITCH: f64 = 0.01;
+const MAX_PITCH: f64 = 1000.0;
+
+fn place(p: (f64, f64), what: &str) -> Result<(f64, f64), PnpError> {
+    if !p.0.is_finite() || !p.1.is_finite() || p.0.abs() > MAX_PLACE || p.1.abs() > MAX_PLACE {
+        return Err(bad(format!(
+            "the place of {what} is not a number up to {MAX_PLACE}"
+        )));
+    }
+    Ok(p)
+}
+
+fn pitch(value: f64, what: &str) -> Result<f64, PnpError> {
+    if value.abs() < MIN_PITCH || value.abs() > MAX_PITCH {
+        return Err(bad(format!(
+            "the pitch {what} would be {value:.4} mm, outside {MIN_PITCH} to {MAX_PITCH} mm: check the places and the count"
+        )));
+    }
+    Ok(value)
+}
+
+/// The pitch and the angle of a strip from the places of its first and last parts, which hold `count` parts in all (at least 2 and at most 1000000).
+pub fn teach_strip(
+    first: (f64, f64),
+    last: (f64, f64),
+    count: u32,
+) -> Result<StripTeach, PnpError> {
+    if !(2..=1_000_000).contains(&count) {
+        return Err(bad("a strip is taught with 2 to 1000000 parts"));
+    }
+    let (first, last) = (
+        place(first, "the first part")?,
+        place(last, "the last part")?,
+    );
+    let (dx, dy) = (last.0 - first.0, last.1 - first.1);
+    let pitch_mm = pitch(dx.hypot(dy) / f64::from(count - 1), "of the strip")?;
+    Ok(StripTeach {
+        x_mm: first.0,
+        y_mm: first.1,
+        count,
+        pitch_mm,
+        rotation_deg: dy.atan2(dx).to_degrees().rem_euclid(360.0),
+    })
+}
+
+impl StripTeach {
+    /// The columns of the file of feeders that this sets, as a header and a row.
+    pub fn csv(&self) -> String {
+        format!(
+            "kind,x,y,count,pitch,rotation\nstrip,{:.3},{:.3},{},{:.4},{:.3}\n",
+            self.x_mm, self.y_mm, self.count, self.pitch_mm, self.rotation_deg
+        )
+    }
+
+    pub fn summary(&self) -> String {
+        format!(
+            "a strip of {} parts from X {:.3} Y {:.3}: a pitch of {:.4} mm along {:.3} degrees",
+            self.count, self.x_mm, self.y_mm, self.pitch_mm, self.rotation_deg
+        )
+    }
+}
+
+/// What the teaching of a tray found.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TrayTeach {
+    pub x_mm: f64,
+    pub y_mm: f64,
+    pub cols: u32,
+    pub rows: u32,
+    pub pitch_x_mm: f64,
+    /// Negative when the rows go the other way (downwards in the frame of the tray).
+    pub pitch_y_mm: f64,
+    pub rotation_deg: f64,
+    /// How far the columns are from being at right angles to the rows, in degrees (the feeders file has no field for it; a large value says that a place was measured badly).
+    pub skew_deg: f64,
+}
+
+/// The pitches and the angle of a tray from the places of its first cell, of the last cell of the first row and of the last cell of the first column. The axes of a tray are at right
+/// angles, so the third place is used for the pitch along the rows and for the check of the angle.
+pub fn teach_tray(
+    origin: (f64, f64),
+    col_end: (f64, f64),
+    row_end: (f64, f64),
+    cols: u32,
+    rows: u32,
+) -> Result<TrayTeach, PnpError> {
+    if !(2..=1000).contains(&cols) || !(2..=1000).contains(&rows) {
+        return Err(bad(
+            "a tray is taught with 2 to 1000 cells in each direction (a single row is a strip)",
+        ));
+    }
+    let origin = place(origin, "the first cell")?;
+    let col_end = place(col_end, "the last cell of the first row")?;
+    let row_end = place(row_end, "the last cell of the first column")?;
+    let (ax, ay) = (col_end.0 - origin.0, col_end.1 - origin.1);
+    let pitch_x = pitch(ax.hypot(ay) / f64::from(cols - 1), "along the rows")?;
+    let rotation = ay.atan2(ax);
+    let (c, s) = (rotation.cos(), rotation.sin());
+    let (bx, by) = (row_end.0 - origin.0, row_end.1 - origin.1);
+    let along = bx * c + by * s;
+    let across = -bx * s + by * c;
+    let pitch_y = pitch(across / f64::from(rows - 1), "along the columns")?;
+    Ok(TrayTeach {
+        x_mm: origin.0,
+        y_mm: origin.1,
+        cols,
+        rows,
+        pitch_x_mm: pitch_x,
+        pitch_y_mm: pitch_y,
+        rotation_deg: rotation.to_degrees().rem_euclid(360.0),
+        skew_deg: along.atan2(across.abs()).to_degrees(),
+    })
+}
+
+impl TrayTeach {
+    /// The columns of the file of feeders that this sets, as a header and a row.
+    pub fn csv(&self) -> String {
+        format!(
+            "kind,x,y,cols,rows,pitch_x,pitch_y,rotation\ntray,{:.3},{:.3},{},{},{:.4},{:.4},{:.3}\n",
+            self.x_mm,
+            self.y_mm,
+            self.cols,
+            self.rows,
+            self.pitch_x_mm,
+            self.pitch_y_mm,
+            self.rotation_deg
+        )
+    }
+
+    pub fn summary(&self) -> String {
+        format!(
+            "a tray of {} by {} cells from X {:.3} Y {:.3}: pitches of {:.4} and {:.4} mm along {:.3} degrees, the columns {:+.3} degrees from square",
+            self.cols,
+            self.rows,
+            self.x_mm,
+            self.y_mm,
+            self.pitch_x_mm,
+            self.pitch_y_mm,
+            self.rotation_deg,
+            self.skew_deg
+        )
+    }
+}

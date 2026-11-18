@@ -7,7 +7,8 @@ use crate::cli_args::{finish, flag, num};
 use crate::commands::{read_text, refuse_same_file};
 use eh3d_phoenix_pnp::bom::{compare, order as bom_order_lines, order_csv, Bom};
 use eh3d_phoenix_pnp::calibrate::{
-    calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples,
+    calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples, teach_strip,
+    teach_tray,
 };
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
@@ -270,6 +271,60 @@ pub fn bom_order(mut args: Vec<String>) -> Result<(), String> {
             print!("{csv}");
             eprintln!("ok: {summary}");
         }
+    }
+    Ok(())
+}
+
+/// A place written `X,Y` (millimetres).
+fn pair(text: &str, what: &str) -> Result<(f64, f64), String> {
+    let (a, b) = text
+        .split_once(',')
+        .ok_or_else(|| format!("{what} '{text}' is not X,Y"))?;
+    Ok((num(a, what)?, num(b, what)?))
+}
+
+/// `feeder-teach strip|tray`: the pitch and the angle of a strip, or the pitches and the angle of a tray, from places that were measured on the machine; prints the columns of the file of
+/// feeders that they set.
+pub fn feeder_teach(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, _cfg) = language_and_config(&mut args)?;
+    let l = |e: PnpError| e.localized(lang);
+    let kind = args
+        .first()
+        .cloned()
+        .ok_or("feeder-teach needs strip or tray")?;
+    args.remove(0);
+    let place = |args: &mut Vec<String>, name: &str| -> Result<(f64, f64), String> {
+        let v = flag(args, name)?.ok_or_else(|| format!("feeder-teach {kind} needs {name}"))?;
+        pair(&v, name)
+    };
+    let count = |args: &mut Vec<String>, name: &str| -> Result<u32, String> {
+        let v = flag(args, name)?.ok_or_else(|| format!("feeder-teach {kind} needs {name}"))?;
+        v.trim()
+            .parse::<u32>()
+            .map_err(|_| format!("{name} '{v}' is not a whole number"))
+    };
+    match kind.as_str() {
+        "strip" => {
+            let (first, last) = (place(&mut args, "--first")?, place(&mut args, "--last")?);
+            let n = count(&mut args, "--count")?;
+            finish(&args, 0)?;
+            let found = teach_strip(first, last, n).map_err(l)?;
+            println!("{}", found.summary());
+            print!("{}", found.csv());
+        }
+        "tray" => {
+            let (origin, col_end, row_end) = (
+                place(&mut args, "--origin")?,
+                place(&mut args, "--col-end")?,
+                place(&mut args, "--row-end")?,
+            );
+            let (cols, rows) = (count(&mut args, "--cols")?, count(&mut args, "--rows")?);
+            finish(&args, 0)?;
+            let found = teach_tray(origin, col_end, row_end, cols, rows).map_err(l)?;
+            println!("{}", found.summary());
+            print!("{}", found.csv());
+        }
+        other => return Err(format!("feeder-teach '{other}' is not strip or tray")),
     }
     Ok(())
 }
