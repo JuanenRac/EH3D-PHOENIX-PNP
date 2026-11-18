@@ -79,6 +79,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 * **Stückliste** (`src/bom.rs`, `src/cmd_tools.rs`): `phoenix-pnp bom-check TEILE BOM` liest eine Stückliste (`examples/bom.csv`: die Referenzen in einer Zelle, als Bereich oder eine je Zeile, und Wert, Gehäuse, Menge und Teilenummer, wenn vorhanden) und nennt Referenzen, die nur eine Seite hat, doppelt aufgeführte, abweichende Werte oder Gehäuse und Mengen, die nicht aufgehen; ein als nicht zu bestücken markiertes Teil darf in der Stückliste stehen oder nicht. Ein Fehler der Datei trägt den Code `PHOENIX-PNP-057` und seine Zeile.
 * **Kamerakalibrierung** (`src/calibrate.rs`): `phoenix-pnp camera-calibrate DATEI` passt das Kameramodell (Pixelgröße, Drehung, Spiegelung und Lage der Düsenachse im Bild) an Sichtungen einer Marke an bekannten Orten des Kopfes an (`px,py,x_mm,y_mm`, mindestens drei) und gibt die Güte und die Zeilen `camera_*` für die Konfiguration aus; das Objektiv wird nicht angepasst. Sein Fehler ist der Code `PHOENIX-PNP-058`.
 * **Rundlauffehler der Düse** (`src/calibrate.rs`, `src/export.rs`): `phoenix-pnp nozzle-calibrate DATEI` passt einen Kreis an Messungen der Düsenspitze bei mehreren Winkeln an (`angle_deg,x_mm,y_mm`) und gibt `nozzle_runout_mm` und `nozzle_runout_deg` aus; bei einem Rundlauffehler über 0 verschiebt der G-Code von `schedule --gcode` jeden Platz um das Gegenteil des Fehlers beim Winkel des Teils.
+* **Panel aus einem Raster von Platinen** (`src/panel.rs`, `src/cmd_tools.rs`): `phoenix-pnp panelize PLATINE --cols N --rows N --pitch-x MM --pitch-y MM` schreibt die Panel-Datei für ein Raster von Kopien einer Platine, alle gleich gedreht, mit drei Fiducials in einem Abstand (`--fiducials MM`) und als schlecht markierten Platinen mit den Namen `P1`, `P2`, ... (`--x-out P2,P5`); eine vorhandene Datei wird nie überschrieben.
 * **Der Simulator und der Auftrag** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): die Prüfungen vor einem Auftrag, eine Maschine mit virtueller Uhr und einspeisbaren Fehlern und ein Auftrag, der pausiert, Schritt für Schritt ausgeführt, gespeichert und fortgesetzt werden kann.
 * **Das Fenster** (`src/gui.rs`, `src/gui/`): was das Fenster außer dem Zeichnen tut, braucht keinen Bildschirm (die geladenen Dateien, der Plan und seine Probleme mit Lösungen, der simulierte Auftrag, die Geometrie der Karte, die Tabellen mit gemeinsamer Auswahl, der Assistent in fünf Schritten und die Texte in acht Sprachen) und wird getestet; nur `src/gui/window.rs`, gebaut mit `--features gui`, zeichnet es mit egui. Die Geschwindigkeit der Simulation, das Design und die Größe, die für ein Teil mit unbekanntem Gehäuse gezeichnet wird, sind Schlüssel von `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -135,6 +136,7 @@ phoenix-pnp import-centroid FILE [--map F] [--out F]     eine Positionsdatei ein
 phoenix-pnp bom-check PARTS BOM [--config F]              ob die Stückliste und die Teiletabelle übereinstimmen
 phoenix-pnp camera-calibrate FILE [--config F]            die Kameraeinstellungen aus Sichtungen einer Marke, mit der Güte der Anpassung
 phoenix-pnp nozzle-calibrate FILE [--config F]            der Rundlauffehler der Düsenspitze aus Messungen bei mehreren Winkeln
+phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] eine Panel-Datei für ein Raster aus Kopien einer Platine
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       misst das im Speicher erzeugte Bild eines Teils
 ```
 
@@ -334,6 +336,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 Tests des Datenmodells: Codes, Längen, Konfiguration und Tabellen
 │   ├── more.rs                                  weitere Tests von Bibliothek und Kommandozeile
 │   ├── panel.rs                                 Tests der Panels und ihrer Passmarken
+│   ├── panelize.rs                              Tests des Panels aus einem Plattenraster und von panelize
 │   ├── planner.rs                               Tests der Bewegungszeit und des Planers
 │   ├── pnp.rs                                   Tests von Bibliothek und Kommandozeile
 │   ├── preflight.rs                             Tests der Prüfungen vor einem Auftrag

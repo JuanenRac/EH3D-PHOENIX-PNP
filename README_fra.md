@@ -79,6 +79,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 * **Nomenclature** (`src/bom.rs`, `src/cmd_tools.rs`) : `phoenix-pnp bom-check PIÈCES BOM` lit une nomenclature (`examples/bom.csv` : les références dans une cellule, en plage ou une par ligne, et la valeur, le boîtier, la quantité et la référence fabricant si elles existent) et dit quelles références n'existent que d'un côté, lesquelles sont listées deux fois, quelles valeurs ou quels boîtiers diffèrent et quelles quantités ne concordent pas ; une pièce marquée comme à ne pas monter peut figurer ou non dans la nomenclature. Une erreur du fichier porte le code `PHOENIX-PNP-057` et sa ligne.
 * **Étalonnage de la caméra** (`src/calibrate.rs`) : `phoenix-pnp camera-calibrate FICHIER` ajuste le modèle de la caméra (taille d'un pixel, rotation, miroir et position de l'axe de la buse dans l'image) à des observations d'un repère à des endroits connus de la tête (`px,py,x_mm,y_mm`, au moins trois) et affiche la qualité de l'ajustement et les lignes `camera_*` pour la configuration ; l'objectif n'est pas ajusté. Son erreur est le code `PHOENIX-PNP-058`.
 * **Faux-rond de la buse** (`src/calibrate.rs`, `src/export.rs`) : `phoenix-pnp nozzle-calibrate FICHIER` ajuste un cercle à des lectures de la pointe de buse à plusieurs angles (`angle_deg,x_mm,y_mm`) et affiche `nozzle_runout_mm` et `nozzle_runout_deg` ; avec un faux-rond supérieur à 0, le G-code de `schedule --gcode` déplace chaque emplacement de l'opposé du faux-rond à l'angle de la pièce.
+* **Panneau d'une grille de cartes** (`src/panel.rs`, `src/cmd_tools.rs`) : `phoenix-pnp panelize CARTE --cols N --rows N --pitch-x MM --pitch-y MM` écrit le fichier de panneau d'une grille de copies d'une carte, toutes tournées pareil, avec trois repères à une marge (`--fiducials MM`) et des cartes marquées mauvaises par leurs noms `P1`, `P2`, ... (`--x-out P2,P5`) ; un fichier qui existe n'est jamais écrasé.
 * **Le simulateur et le travail** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`) : les vérifications avant un travail, une machine à horloge virtuelle et pannes injectables, et un travail qu'on peut mettre en pause, exécuter pas à pas, enregistrer et reprendre.
 * **La fenêtre** (`src/gui.rs`, `src/gui/`) : ce que la fenêtre fait en dehors du dessin n'a pas besoin d'écran (les fichiers chargés, le plan et ses problèmes avec corrections, le travail simulé, la géométrie de la carte, les tableaux à sélection partagée, l'assistant en cinq étapes et les textes en huit langues) et est testé ; seul `src/gui/window.rs`, construit avec `--features gui`, le dessine avec egui. La vitesse de la simulation, le thème et la taille dessinée pour une pièce de boîtier inconnu sont des clés de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -135,6 +136,7 @@ phoenix-pnp import-centroid FILE [--map F] [--out F]     un fichier de positions
 phoenix-pnp bom-check PARTS BOM [--config F]              si la nomenclature et la table des pièces concordent
 phoenix-pnp camera-calibrate FILE [--config F]            les réglages de la caméra d'après des observations d'un repère, avec la qualité de l'ajustement
 phoenix-pnp nozzle-calibrate FILE [--config F]            le faux-rond de la pointe de buse d'après des lectures à plusieurs angles
+phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] un fichier de panneau pour une grille de copies d'une carte
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mesure l'image d'une pièce créée en mémoire
 ```
 
@@ -334,6 +336,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 tests du modèle de données : codes, longueurs, configuration et tables
 │   ├── more.rs                                  d'autres tests de la bibliothèque et de la ligne de commande
 │   ├── panel.rs                                 tests des panneaux et de leurs repères
+│   ├── panelize.rs                              tests du panneau d'une grille de cartes et de panelize
 │   ├── planner.rs                               tests du temps des déplacements et du planificateur
 │   ├── pnp.rs                                   tests de la bibliothèque et de la ligne de commande
 │   ├── preflight.rs                             tests des vérifications avant un travail

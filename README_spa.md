@@ -79,6 +79,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 * **Lista de materiales** (`src/bom.rs`, `src/cmd_tools.rs`): `phoenix-pnp bom-check PIEZAS BOM` lee una lista de materiales (`examples/bom.csv`: las referencias en una celda, como rango o una por fila, y el valor, el encapsulado, la cantidad y la referencia del fabricante si los tiene) y dice qué referencias tiene solo uno de los lados, cuáles aparecen dos veces, qué valores o encapsulados difieren y qué cantidades no cuadran; una pieza marcada como no montar puede estar en la lista o no. Un error del fichero lleva el código `PHOENIX-PNP-057` y su línea.
 * **Calibración de la cámara** (`src/calibrate.rs`): `phoenix-pnp camera-calibrate FICHERO` ajusta el modelo de la cámara (tamaño de un píxel, giro, espejo y dónde está el eje de la boquilla en la imagen) a avistamientos de una marca en lugares conocidos del cabezal (`px,py,x_mm,y_mm`, al menos tres) e imprime lo bien que encajan y las líneas `camera_*` para la configuración; la lente no se ajusta. Su error es el código `PHOENIX-PNP-058`.
 * **Excentricidad de la boquilla** (`src/calibrate.rs`, `src/export.rs`): `phoenix-pnp nozzle-calibrate FICHERO` ajusta un círculo a lecturas de la punta de la boquilla en varios ángulos (`angle_deg,x_mm,y_mm`) e imprime `nozzle_runout_mm` y `nozzle_runout_deg`; con la excentricidad por encima de 0, el G-code de `schedule --gcode` mueve cada lugar en sentido contrario a la excentricidad al ángulo de la pieza.
+* **Panel de una cuadrícula de placas** (`src/panel.rs`, `src/cmd_tools.rs`): `phoenix-pnp panelize PLACA --cols N --rows N --pitch-x MM --pitch-y MM` escribe el fichero de panel para una cuadrícula de copias de una placa, con el mismo giro para todas, tres fiduciales a un margen (`--fiducials MM`) y placas marcadas como malas por sus nombres `P1`, `P2`, ... (`--x-out P2,P5`); un fichero que existe no se sobrescribe nunca.
 * **El simulador y el trabajo** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): las comprobaciones previas al trabajo, una máquina con reloj virtual y fallos que se pueden inyectar, y un trabajo que se puede pausar, ejecutar paso a paso, guardar y reanudar.
 * **La ventana** (`src/gui.rs`, `src/gui/`): lo que la ventana hace además de dibujar no necesita pantalla (los ficheros cargados, el plan y sus problemas con arreglos, el trabajo simulado, la geometría del mapa, las tablas con una selección compartida, el asistente de cinco pasos y los textos en ocho idiomas) y se prueba; solo `src/gui/window.rs`, que se compila con `--features gui`, lo dibuja con egui. La velocidad de la simulación, el tema y el tamaño dibujado para una pieza de encapsulado desconocido son claves de `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -135,6 +136,7 @@ phoenix-pnp import-centroid FILE [--map F] [--out F]     un fichero de posicione
 phoenix-pnp bom-check PARTS BOM [--config F]              si la lista de materiales y la tabla de piezas coinciden
 phoenix-pnp camera-calibrate FILE [--config F]            los ajustes de la cámara a partir de avistamientos de una marca, con lo bien que encajan
 phoenix-pnp nozzle-calibrate FILE [--config F]            la excentricidad de la punta de la boquilla a partir de lecturas en varios ángulos
+phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] un fichero de panel para una cuadrícula de copias de una placa
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mide la imagen de una pieza hecha en memoria
 ```
 
@@ -334,6 +336,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 pruebas del modelo de datos: códigos, longitudes, configuración y tablas
 │   ├── more.rs                                  más pruebas de la biblioteca y la línea de comandos
 │   ├── panel.rs                                 pruebas de los paneles y de sus fiduciales
+│   ├── panelize.rs                              pruebas del panel de una cuadrícula de placas y de panelize
 │   ├── planner.rs                               pruebas del tiempo de los movimientos y del planificador
 │   ├── pnp.rs                                   pruebas de la biblioteca y la línea de comandos
 │   ├── preflight.rs                             pruebas de las comprobaciones previas al trabajo

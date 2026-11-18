@@ -79,6 +79,7 @@ Each line is one part of this repository and the light says how far it is today.
 * **Bill of materials** (`src/bom.rs`, `src/cmd_tools.rs`): `phoenix-pnp bom-check PARTS BOM` reads a BOM (`examples/bom.csv`: the references in a cell, as a range or one for each row, and the value, package, quantity and part number when it has them) and says which references only one side has, which are listed twice, which values or packages differ and which quantities do not add up; a part marked as not to be mounted may be in the BOM or not. An error of the file has the code `PHOENIX-PNP-057` and its line.
 * **Camera calibration** (`src/calibrate.rs`): `phoenix-pnp camera-calibrate FILE` fits the model of the camera (size of a pixel, turn, mirror, and where the axis of the nozzle is in the picture) to sightings of a mark at known places of the head (`px,py,x_mm,y_mm`, at least three) and prints how well they fit and the `camera_*` lines for the configuration; the lens is not fitted. Its error is the code `PHOENIX-PNP-058`.
 * **Nozzle runout** (`src/calibrate.rs`, `src/export.rs`): `phoenix-pnp nozzle-calibrate FILE` fits a circle to readings of the nozzle tip at several angles (`angle_deg,x_mm,y_mm`) and prints `nozzle_runout_mm` and `nozzle_runout_deg`; with the runout above 0 the G-code of `schedule --gcode` moves each place by the opposite of the runout at the angle of the part.
+* **Panel of a grid of boards** (`src/panel.rs`, `src/cmd_tools.rs`): `phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM` writes the panel file for a grid of copies of one board, with the same turn for each, three fiducials at a margin (`--fiducials MM`) and boards marked as bad by their names `P1`, `P2`, ... (`--x-out P2,P5`); a file that exists is never written over.
 * **The simulator and the job** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): the checks before a job, a machine with a virtual clock and failures that can be injected, and a job that can be paused, taken step by step, saved and resumed.
 * **The window** (`src/gui.rs`, `src/gui/`): what the window does besides drawing needs no screen (the files that were loaded, the plan and its problems with fixes, the simulated job, the geometry of the map, the tables with a shared selection, the guide of five steps and the words in eight languages) and is tested; only `src/gui/window.rs`, built with `--features gui`, draws it with egui. The speed of the simulation, the theme and the size drawn for a part of an unknown package are keys of `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -135,6 +136,7 @@ phoenix-pnp import-centroid FILE [--map F] [--out F]     an import of a CAD posi
 phoenix-pnp bom-check PARTS BOM [--config F]              whether the bill of materials and the table of parts agree
 phoenix-pnp camera-calibrate FILE [--config F]            the settings of the camera from sightings of a mark, with how well they fit
 phoenix-pnp nozzle-calibrate FILE [--config F]            the runout of the nozzle tip from readings at several angles
+phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] a panel file for a grid of copies of one board
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       measures the picture of a part made in memory
 ```
 
@@ -334,6 +336,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 tests of the data model: codes, lengths, configuration and tables
 │   ├── more.rs                                  more tests of the library and the command line
 │   ├── panel.rs                                 tests of panels and of their fiducials
+│   ├── panelize.rs                              tests of the panel of a grid of boards and of panelize
 │   ├── planner.rs                               tests of the time of the moves and of the planner
 │   ├── pnp.rs                                   tests of the library and the command line
 │   ├── preflight.rs                             tests of the checks before a job

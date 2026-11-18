@@ -79,6 +79,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Distinta base** (`src/bom.rs`, `src/cmd_tools.rs`): `phoenix-pnp bom-check COMPONENTI BOM` legge una distinta base (`examples/bom.csv`: i riferimenti in una cella, come intervallo o uno per riga, e valore, package, quantità e codice del produttore se presenti) e dice quali riferimenti ha solo uno dei due lati, quali compaiono due volte, quali valori o package differiscono e quali quantità non tornano; un componente segnato come da non montare può stare o no nella distinta. Un errore del file ha il codice `PHOENIX-PNP-057` e la sua riga.
 * **Calibrazione della telecamera** (`src/calibrate.rs`): `phoenix-pnp camera-calibrate FILE` adatta il modello della telecamera (dimensione del pixel, rotazione, specchio e posizione dell'asse dell'ugello nell'immagine) ad avvistamenti di un segno in posizioni note della testa (`px,py,x_mm,y_mm`, almeno tre) e stampa la qualità dell'adattamento e le righe `camera_*` per la configurazione; l'obiettivo non viene adattato. Il suo errore è il codice `PHOENIX-PNP-058`.
 * **Eccentricità dell'ugello** (`src/calibrate.rs`, `src/export.rs`): `phoenix-pnp nozzle-calibrate FILE` adatta un cerchio a letture della punta dell'ugello a più angoli (`angle_deg,x_mm,y_mm`) e stampa `nozzle_runout_mm` e `nozzle_runout_deg`; con l'eccentricità sopra 0 il G-code di `schedule --gcode` sposta ogni posizione dell'opposto dell'eccentricità all'angolo del componente.
+* **Pannello da una griglia di schede** (`src/panel.rs`, `src/cmd_tools.rs`): `phoenix-pnp panelize SCHEDA --cols N --rows N --pitch-x MM --pitch-y MM` scrive il file di pannello per una griglia di copie di una scheda, tutte con la stessa rotazione, con tre fiduciali a un margine (`--fiducials MM`) e schede segnate come difettose dai nomi `P1`, `P2`, ... (`--x-out P2,P5`); un file esistente non viene mai sovrascritto.
 * **Il simulatore e il lavoro** (`src/sim.rs`, `src/job.rs`, `src/preflight.rs`, `src/model.rs`): i controlli prima di un lavoro, una macchina con orologio virtuale e guasti iniettabili, e un lavoro che si può mettere in pausa, eseguire passo dopo passo, salvare e riprendere.
 * **La finestra** (`src/gui.rs`, `src/gui/`): ciò che la finestra fa oltre a disegnare non ha bisogno di schermo (i file caricati, il piano e i suoi problemi con correzioni, il lavoro simulato, la geometria della mappa, le tabelle con selezione condivisa, la guida in cinque passi e i testi in otto lingue) ed è testato; solo `src/gui/window.rs`, compilato con `--features gui`, lo disegna con egui. La velocità della simulazione, il tema e la dimensione disegnata per una parte di package sconosciuto sono chiavi di `machine.cfg` (`gui_steps_per_s`, `gui_theme`, `gui_part_size_mm`).
 
@@ -135,6 +136,7 @@ phoenix-pnp import-centroid FILE [--map F] [--out F]     un file di posizioni di
 phoenix-pnp bom-check PARTS BOM [--config F]              se la distinta base e la tabella dei componenti coincidono
 phoenix-pnp camera-calibrate FILE [--config F]            le impostazioni della telecamera da avvistamenti di un segno, con la qualità dell'adattamento
 phoenix-pnp nozzle-calibrate FILE [--config F]            l'eccentricità della punta dell'ugello da letture a più angoli
+phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] un file di pannello per una griglia di copie di una scheda
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       misura l'immagine di un componente creata in memoria
 ```
 
@@ -334,6 +336,7 @@ EH3D-PHOENIX-PNP/
 │   ├── model.rs                                 test del modello dei dati: codici, lunghezze, configurazione e tabelle
 │   ├── more.rs                                  altri test della libreria e della riga di comando
 │   ├── panel.rs                                 test dei pannelli e dei loro fiduciali
+│   ├── panelize.rs                              test del pannello di una griglia di schede e di panelize
 │   ├── planner.rs                               test del tempo dei movimenti e del pianificatore
 │   ├── pnp.rs                                   test della libreria e della riga di comando
 │   ├── preflight.rs                             test dei controlli prima di un lavoro

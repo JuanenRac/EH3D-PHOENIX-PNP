@@ -919,6 +919,19 @@
           }
         },
         {
+          "name": "panelize.rs",
+          "desc": {
+            "en": "tests of the panel of a grid of boards and of panelize",
+            "es": "pruebas del panel de una cuadrícula de placas y de panelize",
+            "de": "Tests des Panels aus einem Plattenraster und von panelize",
+            "fr": "tests du panneau d'une grille de cartes et de panelize",
+            "it": "test del pannello di una griglia di schede e di panelize",
+            "ja": "基板の格子パネルと panelize のテスト",
+            "zh": "网格拼板与 panelize 的测试",
+            "pt": "testes do painel de uma grelha de placas e de panelize"
+          }
+        },
+        {
           "name": "planner.rs",
           "desc": {
             "en": "tests of the time of the moves and of the planner",
