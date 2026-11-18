@@ -20,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 149] = [
+pub const KEYS: [&str; 150] = [
     "schema_version",
     "language",
     "max_file_bytes",
