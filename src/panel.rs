@@ -455,3 +455,115 @@ impl Panel {
         Ok(())
     }
 }
+
+/// A panel that is a grid of copies of one board, to be written as a panel file (`phoenix-pnp panelize`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Grid {
+    /// The file of the board, as the panel file will name it (relative to the panel file).
+    pub board_file: String,
+    pub cols: usize,
+    pub rows: usize,
+    /// The distance between the origins of two neighbours, in millimetres.
+    pub pitch_x_mm: f64,
+    pub pitch_y_mm: f64,
+    /// The turn of every board, in degrees.
+    pub rotation_deg: f64,
+    /// When above 0, three fiducials are put this far outside the grid, which is taken to fill `cols * pitch_x` by `rows * pitch_y` from the origin of the first board: at the lower left
+    /// corner, at the lower right one and at the upper left one. 0 puts none.
+    pub fiducial_margin_mm: f64,
+    /// The boards marked as bad (X-out), by the name they have in the panel (`P1`, `P2`, ... in the order of the rows, from the lower left).
+    pub x_out: Vec<String>,
+}
+
+/// The most boards of a grid in each direction.
+pub const MAX_GRID_SIDE: usize = 100;
+
+/// The text of a panel file for a grid of boards: the boards are named `P1`, `P2`, ... along each row from the lower left. The text is read back with `Panel::parse` before it is given,
+/// so that it is always a panel that the rest of the program reads.
+pub fn grid_panel(spec: &Grid) -> Result<String, PnpError> {
+    let setting = |m: String| PnpError::new(Code::PlanSetting, m);
+    if spec.board_file.trim().is_empty() || spec.board_file.chars().any(char::is_control) {
+        return Err(setting(
+            "the file of the board is empty or has control characters".into(),
+        ));
+    }
+    if !(1..=MAX_GRID_SIDE).contains(&spec.cols) || !(1..=MAX_GRID_SIDE).contains(&spec.rows) {
+        return Err(setting(format!(
+            "the grid must have 1 to {MAX_GRID_SIDE} boards in each direction"
+        )));
+    }
+    if spec.cols * spec.rows > MAX_CHILDREN {
+        return Err(setting(format!(
+            "the grid has more than {MAX_CHILDREN} boards"
+        )));
+    }
+    for (what, v, lo) in [
+        ("the pitch along X", spec.pitch_x_mm, 0.001),
+        ("the pitch along Y", spec.pitch_y_mm, 0.001),
+    ] {
+        if !v.is_finite() || !(lo..=MAX_COORDINATE).contains(&v) {
+            return Err(setting(format!(
+                "{what} must be from {lo} to {MAX_COORDINATE} mm"
+            )));
+        }
+    }
+    if !spec.rotation_deg.is_finite() || spec.rotation_deg.abs() > 360.0 {
+        return Err(setting(
+            "the turn of the boards must be from -360 to 360 degrees".into(),
+        ));
+    }
+    if !spec.fiducial_margin_mm.is_finite() || !(0.0..=1000.0).contains(&spec.fiducial_margin_mm) {
+        return Err(setting(
+            "the margin of the fiducials must be from 0 to 1000 mm".into(),
+        ));
+    }
+    let names: Vec<String> = (1..=spec.cols * spec.rows)
+        .map(|n| format!("P{n}"))
+        .collect();
+    if let Some(unknown) = spec.x_out.iter().find(|x| !names.contains(x)) {
+        return Err(PnpError::new(
+            Code::PanelXOutUnknown,
+            format!(
+                "'{unknown}' is not a board of the grid (P1 to P{})",
+                names.len()
+            ),
+        ));
+    }
+    let mut children = Vec::with_capacity(names.len());
+    for (n, id) in names.iter().enumerate() {
+        let (col, row) = (n % spec.cols, n / spec.cols);
+        let mut child = serde_json::json!({
+            "id": id,
+            "board": "board",
+            "x": col as f64 * spec.pitch_x_mm,
+            "y": row as f64 * spec.pitch_y_mm,
+            "rotation": spec.rotation_deg,
+        });
+        if spec.x_out.contains(id) {
+            child["x_out"] = Value::Bool(true);
+        }
+        children.push(child);
+    }
+    let mut top = serde_json::json!({ "children": children });
+    if spec.fiducial_margin_mm > 0.0 {
+        let (m, w, h) = (
+            spec.fiducial_margin_mm,
+            spec.cols as f64 * spec.pitch_x_mm,
+            spec.rows as f64 * spec.pitch_y_mm,
+        );
+        top["fiducials"] = serde_json::json!([
+            { "id": "f1", "x": -m, "y": -m },
+            { "id": "f2", "x": w + m, "y": -m },
+            { "id": "f3", "x": -m, "y": h + m },
+        ]);
+    }
+    let doc = serde_json::json!({
+        "schema_version": 1,
+        "boards": { "board": spec.board_file },
+        "panels": { "panel": top },
+        "root": "panel",
+    });
+    let text = serde_json::to_string_pretty(&doc).unwrap_or_default() + "\n";
+    Panel::parse(&text)?;
+    Ok(text)
+}

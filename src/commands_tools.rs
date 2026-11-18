@@ -3,15 +3,18 @@
 //
 // Each one reads its files, calls the library and prints; none of them moves or writes anything but the file named by --out, and a file that exists is never written over.
 
-use crate::cli_args::{finish, flag};
-use crate::commands::read_text;
+use crate::cli_args::{finish, flag, num};
+use crate::commands::{read_text, refuse_same_file};
 use eh3d_phoenix_pnp::bom::{compare, Bom};
 use eh3d_phoenix_pnp::calibrate::{
     calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples,
 };
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
+use eh3d_phoenix_pnp::panel::{grid_panel, Grid};
 use eh3d_phoenix_pnp::parts::parse_all;
+use eh3d_phoenix_pnp::report;
+use std::path::Path;
 
 /// The language and the configuration of a command: `--lang` wins over the key `language` of `--config`.
 fn language_and_config(args: &mut Vec<String>) -> Result<(Lang, MachineConfig), String> {
@@ -87,5 +90,90 @@ pub fn nozzle_calibrate(mut args: Vec<String>) -> Result<(), String> {
     }
     println!("{}", found.summary());
     print!("{}", found.config_lines());
+    Ok(())
+}
+
+fn count_option(
+    args: &mut Vec<String>,
+    name: &str,
+    default: Option<usize>,
+) -> Result<usize, String> {
+    match flag(args, name)? {
+        Some(v) => v
+            .trim()
+            .parse::<usize>()
+            .map_err(|_| format!("{name} '{v}' is not a whole number")),
+        None => default.ok_or_else(|| format!("panelize needs {name}")),
+    }
+}
+
+/// `panelize`: the panel file for a grid of copies of one board, to `--out` (a file that exists is never written over) or to the standard output.
+pub fn panelize(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, _cfg) = language_and_config(&mut args)?;
+    let cols = count_option(&mut args, "--cols", None)?;
+    let rows = count_option(&mut args, "--rows", None)?;
+    let pitch_x = match flag(&mut args, "--pitch-x")? {
+        Some(v) => num(&v, "--pitch-x")?,
+        None => return Err("panelize needs --pitch-x".into()),
+    };
+    let pitch_y = match flag(&mut args, "--pitch-y")? {
+        Some(v) => num(&v, "--pitch-y")?,
+        None => return Err("panelize needs --pitch-y".into()),
+    };
+    let rotation_deg = match flag(&mut args, "--rotation")? {
+        Some(v) => num(&v, "--rotation")?,
+        None => 0.0,
+    };
+    let fiducial_margin_mm = match flag(&mut args, "--fiducials")? {
+        Some(v) => num(&v, "--fiducials")?,
+        None => 0.0,
+    };
+    let x_out: Vec<String> = flag(&mut args, "--x-out")?
+        .map(|v| {
+            v.split([',', ';', ' '])
+                .filter(|w| !w.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    let out_path = flag(&mut args, "--out")?;
+    finish(&args, 1)?;
+    let board = args
+        .first()
+        .ok_or("panelize needs the file of the board")?
+        .clone();
+    // a board beside the panel file is named by its file name alone, because the panel names its boards relative to itself
+    let board_file = match &out_path {
+        Some(out) if Path::new(&board).parent() == Path::new(out).parent() => Path::new(&board)
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or(board.clone()),
+        _ => board.clone(),
+    };
+    let text = grid_panel(&Grid {
+        board_file,
+        cols,
+        rows,
+        pitch_x_mm: pitch_x,
+        pitch_y_mm: pitch_y,
+        rotation_deg,
+        fiducial_margin_mm,
+        x_out,
+    })
+    .map_err(|e| e.localized(lang))?;
+    match out_path {
+        Some(out) => {
+            refuse_same_file(std::slice::from_ref(&board), &out)?;
+            report::write_new(&out, &text).map_err(|e| e.localized(lang))?;
+            println!(
+                "ok: {} boards ({cols} x {rows}); written to {out}",
+                cols * rows
+            );
+        }
+        None => {
+            print!("{text}");
+            eprintln!("ok: {} boards ({cols} x {rows})", cols * rows);
+        }
+    }
     Ok(())
 }
