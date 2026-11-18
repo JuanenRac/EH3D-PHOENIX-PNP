@@ -37,7 +37,7 @@ use std::cell::RefCell;
 use std::fs;
 use std::path::Path;
 
-/// Reads a text file no larger than `max` bytes. Text that is not UTF-8 is read as Latin-1, with a note.
+/// Reads a text file no larger than `max` bytes. UTF-16 with a byte order mark is decoded; text that is not UTF-8 is read as Latin-1, with a note.
 pub fn read_text(path: &str, max: u64) -> Result<String, String> {
     let meta = fs::metadata(path).map_err(|e| format!("{path}: {e}"))?;
     if meta.len() > max {
@@ -48,14 +48,12 @@ pub fn read_text(path: &str, max: u64) -> Result<String, String> {
         .to_string());
     }
     let bytes = fs::read(path).map_err(|e| format!("{path}: {e}"))?;
-    match String::from_utf8(bytes) {
-        Ok(text) => Ok(text),
-        Err(e) => {
-            // the suite reads such text as Latin-1; saying so keeps a value with an omega or a micro sign from silently not matching
-            eprintln!("note: {path}: the text is not UTF-8 and was read as Latin-1");
-            Ok(e.into_bytes().iter().map(|&b| char::from(b)).collect())
-        }
+    let (text, latin1) = eh3d_phoenix_pnp::parts::decode_text(bytes);
+    if latin1 {
+        // the suite reads such text as Latin-1; saying so keeps a value with an omega or a micro sign from silently not matching
+        eprintln!("note: {path}: the text is not UTF-8 and was read as Latin-1");
     }
+    Ok(text)
 }
 
 /// Writes beside and renames, so that a failure leaves the old file whole.

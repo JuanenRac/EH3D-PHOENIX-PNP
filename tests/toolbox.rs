@@ -476,7 +476,7 @@ fn the_text_of_a_tool_is_read_from_a_file_with_a_limit() {
     assert!(tb.bom_text.is_empty());
     // a file that is not text is refused too
     let bin = dir.join("bin.csv");
-    std::fs::write(&bin, [0xffu8, 0xfe, 0x00, 0x80]).unwrap();
+    std::fs::write(&bin, [0x80u8, 0xff, 0x00, 0x80]).unwrap();
     tb.path_text = bin.to_string_lossy().into_owned();
     assert!(!tb.read_file());
     let _ = std::fs::remove_dir_all(&dir);

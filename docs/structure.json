@@ -1010,6 +1010,19 @@
           }
         },
         {
+          "name": "encoding.rs",
+          "desc": {
+            "en": "tests of the encoding of the files: UTF-8, UTF-16 and Latin-1",
+            "es": "pruebas de la codificación de los ficheros: UTF-8, UTF-16 y Latin-1",
+            "de": "Tests der Kodierung der Dateien: UTF-8, UTF-16 und Latin-1",
+            "fr": "tests de l'encodage des fichiers : UTF-8, UTF-16 et Latin-1",
+            "it": "test della codifica dei file: UTF-8, UTF-16 e Latin-1",
+            "ja": "ファイルの文字コードのテスト：UTF-8、UTF-16、Latin-1",
+            "zh": "文件编码的测试：UTF-8、UTF-16 和 Latin-1",
+            "pt": "testes da codificação dos ficheiros: UTF-8, UTF-16 e Latin-1"
+          }
+        },
+        {
           "name": "feeding.rs",
           "desc": {
             "en": "tests of the feeders: priority, trays and strips",

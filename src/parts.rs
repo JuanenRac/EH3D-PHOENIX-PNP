@@ -166,6 +166,36 @@ pub fn csv_field(text: &str) -> String {
     }
 }
 
+/// The text of the bytes of a file. UTF-16 with a byte order mark (what Windows programs and spreadsheets write as "Unicode text") is decoded, UTF-8 is taken as it is, and anything else is
+/// read as Latin-1; the second value says whether it was that last one, for the note.
+pub fn decode_text(bytes: Vec<u8>) -> (String, bool) {
+    let utf16 = |rest: &[u8], little: bool| -> String {
+        let (pairs, _) = rest.as_chunks::<2>();
+        let units: Vec<u16> = pairs
+            .iter()
+            .map(|c| {
+                if little {
+                    u16::from_le_bytes(*c)
+                } else {
+                    u16::from_be_bytes(*c)
+                }
+            })
+            .collect();
+        String::from_utf16_lossy(&units)
+    };
+    match bytes.as_slice() {
+        [0xFF, 0xFE, rest @ ..] => (utf16(rest, true), false),
+        [0xFE, 0xFF, rest @ ..] => (utf16(rest, false), false),
+        _ => match String::from_utf8(bytes) {
+            Ok(text) => (text, false),
+            Err(e) => (
+                e.into_bytes().iter().map(|&b| char::from(b)).collect(),
+                true,
+            ),
+        },
+    }
+}
+
 /// The delimiter of a table, told by its header row: a semicolon when it has more semicolons than commas.
 pub fn detect_delimiter(head_line: &str) -> char {
     if head_line.matches(';').count() > head_line.matches(',').count() {

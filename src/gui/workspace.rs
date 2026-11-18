@@ -123,7 +123,7 @@ pub fn file_name(path: &Path) -> String {
         .map_or_else(|| "file".to_string(), |n| n.to_string_lossy().into_owned())
 }
 
-/// A text file no larger than `max` bytes. Text that is not UTF-8 is read as Latin-1, and the second value says so.
+/// A text file no larger than `max` bytes. UTF-16 with a byte order mark is decoded; text that is not UTF-8 is read as Latin-1, and the second value says so.
 pub fn read_file(path: &Path, max: u64) -> Result<(String, bool), String> {
     let name = file_name(path);
     let meta = std::fs::metadata(path).map_err(|e| format!("{name}: {e}"))?;
@@ -135,13 +135,7 @@ pub fn read_file(path: &Path, max: u64) -> Result<(String, bool), String> {
         .to_string());
     }
     let bytes = std::fs::read(path).map_err(|e| format!("{name}: {e}"))?;
-    match String::from_utf8(bytes) {
-        Ok(text) => Ok((text, false)),
-        Err(e) => Ok((
-            e.into_bytes().iter().map(|&b| char::from(b)).collect(),
-            true,
-        )),
-    }
+    Ok(crate::parts::decode_text(bytes))
 }
 
 /// The plan with what it was made from and the checks of it.

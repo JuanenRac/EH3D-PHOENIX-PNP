@@ -317,7 +317,11 @@ impl Toolbox {
                     meta.len()
                 ));
             }
-            std::fs::read_to_string(&path).map_err(|e| format!("{path}: {e}"))
+            let bytes = std::fs::read(&path).map_err(|e| format!("{path}: {e}"))?;
+            match crate::parts::decode_text(bytes) {
+                (_, true) => Err(format!("{path}: the file is not UTF-8 or UTF-16 text")),
+                (text, false) => Ok(text),
+            }
         })();
         match read {
             Ok(text) => match self.text_mut() {
