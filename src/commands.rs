@@ -5,6 +5,7 @@
 
 use crate::cli_args::{finish, flag, num, switch};
 use eh3d_phoenix_pnp::catalog::Catalog;
+use eh3d_phoenix_pnp::compare;
 use eh3d_phoenix_pnp::config::{MachineConfig, OrderStrategy, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Code, Lang, PnpError};
 use eh3d_phoenix_pnp::export;
@@ -443,6 +444,24 @@ fn stop_on_errors(p: &Prepared, planned: &Planned, partial: bool) -> Result<(), 
         )
         .localized(p.c.lang));
     }
+    Ok(())
+}
+
+/// `order-compare`: the board planned with every order of the places and every way of changing the nozzle tips, side by side, with the fastest of each marked and what it would save over
+/// the configuration. Nothing is written and no configuration is changed.
+pub fn order_compare(args: Vec<String>) -> Result<(), String> {
+    let p = prepare(args, 0)?;
+    let lang = p.c.lang;
+    let found = compare::compare(
+        &p.parts,
+        &p.feeders,
+        &p.picks,
+        &p.c.catalog,
+        &p.c.cfg,
+        &p.c.opts,
+    )
+    .map_err(|e| e.localized(lang))?;
+    print!("{}{}", found.text(), found.advice());
     Ok(())
 }
 

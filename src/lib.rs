@@ -8,6 +8,7 @@ pub mod bom;
 pub mod calibrate;
 pub mod camera;
 pub mod catalog;
+pub mod compare;
 pub mod config;
 pub mod error;
 pub mod export;

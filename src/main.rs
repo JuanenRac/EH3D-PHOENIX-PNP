@@ -29,6 +29,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--report-csv F] [--report-text F] [--report-html F] [--report-feeders F] [--nozzle-life F] [--vision F] [--recipe F] [--partial]
   phoenix-pnp loadsheet PARTS SLOTS OUT.csv [OPTIONS] [--feeders-out F]
   phoenix-pnp setup-sheet PARTS FEEDERS [OPTIONS] [--boards N] [--life F] [--out F]   what to load in which slot, the parts missing for N boards, the nozzle tips and how worn they are, the calibrations the job depends on and whether they are set, in the language of --lang; exits with 1 when parts are missing
+  phoenix-pnp order-compare PARTS FEEDERS [OPTIONS]   the board planned with every order of the places and every way of changing the nozzle tips, side by side: batches, tip changes, travel and seconds, the fastest marked and what it would save over the configuration
   phoenix-pnp config-check FILE [--lang CODE]
   phoenix-pnp check-bottom PARTS [--config FILE] [--lang CODE]   the angle each rule of the bottom side (keep, mirror, half_turn) gives to the parts of the bottom side
   phoenix-pnp tables-check [--parts F] [--packages F] [--catalog F] [--feeders F] [--slots F] [--config F] [--lang CODE]   whether each table is valid, with the code and the row of an error
@@ -199,6 +200,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "simulate" => commands::simulate(args),
         "loadsheet" => commands::run_loadsheet(args),
         "setup-sheet" => commands::setup_sheet(args),
+        "order-compare" => commands::order_compare(args),
         "config-check" => commands::config_check(args),
         "check-bottom" => commands::check_bottom(args),
         "tables-check" => commands::tables_check(args),

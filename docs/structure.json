@@ -132,6 +132,19 @@
           }
         },
         {
+          "name": "compare.rs",
+          "desc": {
+            "en": "the board planned with every order and tip strategy, side by side",
+            "es": "la placa planificada con cada orden y estrategia de puntas, lado a lado",
+            "de": "die Platine mit jeder Reihenfolge und Spitzenstrategie nebeneinander",
+            "fr": "la carte planifiée avec chaque ordre et stratégie de pointes, côte à côte",
+            "it": "la scheda pianificata con ogni ordine e strategia di punte, affiancati",
+            "ja": "すべての順序とチップ戦略で計画した基板を並べて比較",
+            "zh": "用每种顺序和吸嘴头策略并排规划同一块板",
+            "pt": "a placa planeada com cada ordem e estratégia de pontas, lado a lado"
+          }
+        },
+        {
           "name": "config.rs",
           "desc": {
             "en": "the configuration file of the machine: keys, ranges and safety limits",
@@ -929,6 +942,19 @@
             "ja": "設定を使うコマンドのテスト",
             "zh": "使用配置的命令的测试",
             "pt": "testes dos comandos que usam a configuração"
+          }
+        },
+        {
+          "name": "compare.rs",
+          "desc": {
+            "en": "tests of the comparison of orders: the fastest, the text, the advice, the command",
+            "es": "pruebas de la comparación de órdenes: la más rápida, el texto, el consejo, el comando",
+            "de": "Tests des Vergleichs der Reihenfolgen: die schnellste, der Text, der Rat, der Befehl",
+            "fr": "tests de la comparaison des ordres : la plus rapide, le texte, le conseil, la commande",
+            "it": "test del confronto degli ordini: il più veloce, il testo, il consiglio, il comando",
+            "ja": "順序比較のテスト：最速、テキスト、助言、コマンド",
+            "zh": "顺序比较的测试：最快者、文本、建议和命令",
+            "pt": "testes da comparação das ordens: a mais rápida, o texto, o conselho, o comando"
           }
         },
         {
