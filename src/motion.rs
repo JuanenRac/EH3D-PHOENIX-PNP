@@ -66,3 +66,30 @@ impl AxisMotion {
 pub fn move_time(dx: f64, dy: f64, x: &AxisMotion, y: &AxisMotion) -> f64 {
     x.time(dx).max(y.time(dy))
 }
+
+/// What the machine does about the slack of its axes (backlash).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BacklashMode {
+    /// Nothing: a move that reverses the direction of an axis ends short by the slack.
+    #[default]
+    Off,
+    /// Every move ends going in the positive direction of each axis: a move in the negative direction goes past the place by the slack and comes back, which takes more time and leaves no error.
+    Approach,
+}
+
+impl BacklashMode {
+    pub const ALL: [BacklashMode; 2] = [BacklashMode::Off, BacklashMode::Approach];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            BacklashMode::Off => "off",
+            BacklashMode::Approach => "approach",
+        }
+    }
+
+    pub fn parse(text: &str) -> Option<BacklashMode> {
+        BacklashMode::ALL
+            .into_iter()
+            .find(|m| m.name() == text.trim().to_ascii_lowercase())
+    }
+}

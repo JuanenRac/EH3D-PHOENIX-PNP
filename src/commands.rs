@@ -631,6 +631,13 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
         phase_name(phase)
     );
     println!("{:.0} parts per hour (simulated)", job.parts_per_hour());
+    if job.machine().has_backlash() {
+        let b = job.machine().backlash_stats();
+        println!(
+            "backlash: {} moves ended short of the place (worst {:.3} mm), {} approaches from the positive side ({:.1} s)",
+            b.short_moves, b.worst_mm, b.approaches, b.approach_s
+        );
+    }
     for k in &s.kinds {
         println!(
             "package {}: {} picked ({} failed), {} placed ({} failed)",

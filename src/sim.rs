@@ -6,7 +6,7 @@ use crate::camera::CameraModel;
 use crate::config::{HeadSpec, MachineConfig, VisionMode};
 use crate::error::{Code, PnpError};
 use crate::model::{Actuator, Camera, Driver, FeederDevice, Machine, Nozzle, Offset};
-use crate::motion::{move_time, AxisMotion};
+use crate::motion::{move_time, AxisMotion, BacklashMode};
 use crate::vision::{measure_image, render, wrap, VisionConfig};
 
 pub const MAX_EVENTS: usize = 1_000_000;
@@ -91,6 +91,19 @@ fn fault(op: SimOp, n: u64) -> PnpError {
     )
 }
 
+/// What the slack of the axes did to the moves of a simulation.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct BacklashStats {
+    /// Moves that ended short of the place because an axis reversed (with `backlash_mode = off`).
+    pub short_moves: u64,
+    /// The largest distance, in millimetres, between the place and where a move ended.
+    pub worst_mm: f64,
+    /// Moves that went past the place and came back (with `backlash_mode = approach`).
+    pub approaches: u64,
+    /// The seconds the second legs of those moves took.
+    pub approach_s: f64,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SimMachine {
     clock_us: u64,
@@ -108,6 +121,11 @@ pub struct SimMachine {
     pick_s: f64,
     place_s: f64,
     tip_change_s: f64,
+    backlash: (f64, f64),
+    approach: bool,
+    /// The direction (1 or -1) in which each axis last moved: the slack is taken up on that side.
+    lash: (i8, i8),
+    backlash_stats: BacklashStats,
     pub events: Vec<Event>,
 }
 
@@ -136,6 +154,10 @@ impl SimMachine {
             pick_s: cfg.pick_s,
             place_s: cfg.place_s,
             tip_change_s: cfg.tip_change_s,
+            backlash: (cfg.backlash_x_mm, cfg.backlash_y_mm),
+            approach: cfg.backlash_mode == BacklashMode::Approach,
+            lash: (1, 1),
+            backlash_stats: BacklashStats::default(),
             events: Vec::new(),
         })
     }
@@ -211,6 +233,28 @@ impl SimMachine {
         self.tip = tip;
     }
 
+    /// Whether the machine has slack in an axis.
+    pub fn has_backlash(&self) -> bool {
+        self.backlash.0 > 0.0 || self.backlash.1 > 0.0
+    }
+
+    /// What the slack did so far.
+    pub fn backlash_stats(&self) -> BacklashStats {
+        self.backlash_stats
+    }
+
+    /// The direction in which each axis last moved, to keep with a saved job.
+    pub fn lash(&self) -> (i8, i8) {
+        self.lash
+    }
+
+    /// Puts back what `lash` and `backlash_stats` gave.
+    pub fn restore_backlash(&mut self, lash: (i8, i8), stats: BacklashStats) {
+        let side = |d: i8| if d < 0 { -1 } else { 1 };
+        self.lash = (side(lash.0), side(lash.1));
+        self.backlash_stats = stats;
+    }
+
     /// Puts a nozzle tip on at the start, without the time of a change.
     pub fn mount_tip(&mut self, tip: &str) {
         self.tip = tip.to_string();
@@ -258,15 +302,80 @@ impl Machine for SimMachine {
                 ),
             ));
         }
+        let delta = (to.0 - self.pos.0, to.1 - self.pos.1);
+        if !self.has_backlash() {
+            let t = move_time(delta.0, delta.1, &self.motion.0, &self.motion.1);
+            self.advance(t);
+            self.pos = to;
+            self.note(format!("move to X {:.3} Y {:.3}", to.0, to.1));
+            return Ok(());
+        }
+        // an axis that reverses gives by its slack before it takes up the load: either the move ends short (the error), or the move goes past the place and comes back from the
+        // positive side, so that the slack is always taken up on that side
+        let (mut over, mut error) = ((0.0, 0.0), (0.0, 0.0));
+        let mut lash = self.lash;
+        let axes = [
+            (
+                delta.0,
+                self.backlash.0,
+                to.0 - x0,
+                &mut lash.0,
+                &mut over.0,
+                &mut error.0,
+            ),
+            (
+                delta.1,
+                self.backlash.1,
+                to.1 - y0,
+                &mut lash.1,
+                &mut over.1,
+                &mut error.1,
+            ),
+        ];
+        for (d, slack, room, last, past, short) in axes {
+            if d == 0.0 || slack <= 0.0 {
+                continue;
+            }
+            let dir: i8 = if d > 0.0 { 1 } else { -1 };
+            if self.approach && dir < 0 && room >= slack {
+                *past = -slack;
+                *last = 1;
+            } else {
+                if dir != *last {
+                    *short = -f64::from(dir) * slack;
+                }
+                *last = dir;
+            }
+        }
         let t = move_time(
-            to.0 - self.pos.0,
-            to.1 - self.pos.1,
+            delta.0 + over.0,
+            delta.1 + over.1,
             &self.motion.0,
             &self.motion.1,
         );
         self.advance(t);
+        if over != (0.0, 0.0) {
+            let back = move_time(-over.0, -over.1, &self.motion.0, &self.motion.1);
+            self.advance(back);
+            self.backlash_stats.approaches += 1;
+            self.backlash_stats.approach_s += back;
+            self.note(format!(
+                "went past the place by X {:.3} Y {:.3} and came back from the positive side",
+                -over.0, -over.1
+            ));
+        }
+        self.lash = lash;
         self.pos = to;
         self.note(format!("move to X {:.3} Y {:.3}", to.0, to.1));
+        let missed = error.0.hypot(error.1);
+        if missed > 0.0 {
+            self.backlash_stats.short_moves += 1;
+            self.backlash_stats.worst_mm = self.backlash_stats.worst_mm.max(missed);
+            self.note(format!(
+                "the move ended X {:+.3} Y {:+.3} from the place: an axis reversed and gave by its slack",
+                error.0, error.1
+            ));
+        }
         Ok(())
     }
 

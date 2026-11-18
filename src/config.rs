@@ -8,6 +8,7 @@ use crate::error::{Code, Lang, PnpError};
 use crate::feeding::TrayFill;
 use crate::fiducial::FitMode;
 use crate::import::{ImportUnit, Settings as ImportSettings};
+use crate::motion::BacklashMode;
 use crate::parts::{BottomRotation, PositionColumns, Profile};
 use crate::tips::{TipChoice, TipRule, MAX_RULE_TIPS, MAX_TIP_RULES};
 use std::collections::HashSet;
@@ -18,7 +19,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 122] = [
+pub const KEYS: [&str; 125] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -141,6 +142,9 @@ pub const KEYS: [&str; 122] = [
     "nozzle_runout_deg",
     "polarity_refs",
     "polarity_packages",
+    "backlash_x_mm",
+    "backlash_y_mm",
+    "backlash_mode",
 ];
 
 /// The order in which the places are visited.
@@ -460,6 +464,11 @@ pub struct MachineConfig {
     pub polarity_refs: Vec<String>,
     /// A part whose package matches one of these patterns has a direction too.
     pub polarity_packages: Vec<String>,
+    /// The slack of the X and Y axes, in millimetres; 0 is an axis with none.
+    pub backlash_x_mm: f64,
+    pub backlash_y_mm: f64,
+    /// What the simulated machine does about the slack.
+    pub backlash_mode: BacklashMode,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -576,6 +585,9 @@ impl Default for MachineConfig {
             ]
             .map(String::from)
             .to_vec(),
+            backlash_x_mm: 0.0,
+            backlash_y_mm: 0.0,
+            backlash_mode: BacklashMode::Off,
         }
     }
 }
@@ -1089,6 +1101,12 @@ impl MachineConfig {
             }
             "nozzle_runout_mm" => self.nozzle_runout_mm = n(0.0, 5.0)?,
             "nozzle_runout_deg" => self.nozzle_runout_deg = n(-180.0, 180.0)?,
+            "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
+            "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
+            "backlash_mode" => {
+                self.backlash_mode =
+                    BacklashMode::parse(v).ok_or_else(|| bad(line, key, v, "off or approach"))?
+            }
             "polarity_refs" => self.polarity_refs = names(line, key, v)?,
             "polarity_packages" => self.polarity_packages = names(line, key, v)?,
             "tip_compat_mode" => {

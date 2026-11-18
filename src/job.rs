@@ -18,7 +18,7 @@ use crate::model::{Actuator, Camera, FeederDevice, Machine, Nozzle, Offset};
 use crate::planner::AdvancedPlan;
 use crate::recipe::{Params, Recipe, Step};
 use crate::rotation::glob_match;
-use crate::sim::{SimActuator, SimCamera, SimFeeder, SimMachine, SimOp, SimVacuum};
+use crate::sim::{BacklashStats, SimActuator, SimCamera, SimFeeder, SimMachine, SimOp, SimVacuum};
 use crate::vision::VisionConfig;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
@@ -1578,7 +1578,7 @@ impl Job {
         let counts: Vec<String> = counts.iter().map(|c| c.to_string()).collect();
         let pos = self.machine.position();
         let cursor = json!({"kind": kind, "batch": batch, "k": k});
-        let machine = json!({
+        let mut machine = json!({
             "rng": rng.to_string(),
             "counts": counts,
             "clock_us": clock.to_string(),
@@ -1587,6 +1587,17 @@ impl Job {
             "holding": holding,
             "tip": self.machine.tip()
         });
+        // the slack of the axes: which side each one last took it up on, and what it did so far (only for a machine that has some, so that the state of any other is what it was)
+        if self.machine.has_backlash() {
+            let (lash, b) = (self.machine.lash(), self.machine.backlash_stats());
+            machine["backlash"] = json!({
+                "lash": [lash.0, lash.1],
+                "short_moves": b.short_moves.to_string(),
+                "worst_mm": b.worst_mm.to_bits().to_string(),
+                "approaches": b.approaches.to_string(),
+                "approach_s": b.approach_s.to_bits().to_string(),
+            });
+        }
         let stats = json!({
             "placed": s.placed,
             "deferred": s.deferred,
@@ -2079,6 +2090,40 @@ impl Job {
             text_u64(m, "clock_us")?,
         );
         self.machine.restore(saved_machine, pos, holding, tip);
+        // a state saved before the slack existed, or by a machine without it, starts it again from the side it always starts on
+        if self.machine.has_backlash() {
+            if let Some(b) = m.get("backlash") {
+                let side = |i: usize| {
+                    b.get("lash")
+                        .and_then(|l| l.get(i))
+                        .and_then(Value::as_i64)
+                        .map_or(1, |d| if d < 0 { -1 } else { 1 })
+                };
+                let bits = |key: &str| -> Result<f64, PnpError> {
+                    b.get(key)
+                        .and_then(Value::as_str)
+                        .and_then(|t| t.parse::<u64>().ok())
+                        .map(f64::from_bits)
+                        .filter(|n| n.is_finite() && *n >= 0.0)
+                        .ok_or_else(|| state_bad("a figure of the slack is not a number"))
+                };
+                let count = |key: &str| -> Result<u64, PnpError> {
+                    b.get(key)
+                        .and_then(Value::as_str)
+                        .and_then(|t| t.parse::<u64>().ok())
+                        .ok_or_else(|| state_bad("a count of the slack is not a number"))
+                };
+                self.machine.restore_backlash(
+                    (side(0), side(1)),
+                    BacklashStats {
+                        short_moves: count("short_moves")?,
+                        worst_mm: bits("worst_mm")?,
+                        approaches: count("approaches")?,
+                        approach_s: bits("approach_s")?,
+                    },
+                );
+            }
+        }
         match align_state {
             Some((counters, camera, corrections)) => {
                 stats.align = counters;
