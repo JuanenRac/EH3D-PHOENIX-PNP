@@ -79,7 +79,7 @@
 * **物料清单**（`src/bom.rs`、`src/cmd_tools.rs`）：`phoenix-pnp bom-check 零件 BOM` 读取物料清单（`examples/bom.csv`：单元格中的位号，可为范围或每行一个，以及有则读取的值、封装、数量和料号），并指出只有一方才有的位号、重复列出的位号、值或封装不同之处以及数量对不上的行；标记为不贴装的零件可在清单中也可不在。文件错误带有代码 `PHOENIX-PNP-057` 和行号。
 * **相机校准**（`src/calibrate.rs`）：`phoenix-pnp camera-calibrate 文件` 用头部已知位置上对同一标记的观测（`px,py,x_mm,y_mm`，至少三个）拟合相机模型（像素大小、旋转、镜像以及吸嘴轴线在图像中的位置），输出拟合程度和用于配置的 `camera_*` 行；不拟合镜头。其错误为代码 `PHOENIX-PNP-058`。
 * **吸嘴偏心**（`src/calibrate.rs`、`src/export.rs`）：`phoenix-pnp nozzle-calibrate 文件` 用多个角度下吸嘴头的读数（`angle_deg,x_mm,y_mm`）拟合圆，输出 `nozzle_runout_mm` 和 `nozzle_runout_deg`；偏心大于 0 时，`schedule --gcode` 的 G 代码会把每个贴装位置按零件角度处的偏心反方向移动。
-* **网格拼板**（`src/panel.rs`、`src/cmd_tools.rs`）：`phoenix-pnp panelize 电路板 --cols N --rows N --pitch-x MM --pitch-y MM` 为同一电路板按网格复制的拼板写出拼板文件，各板旋转相同，带有隔开一定边距的三个基准点（`--fiducials MM`），并可按名称 `P1`、`P2`……标记不良板（`--x-out P2,P5`）；已存在的文件绝不覆盖。
+* **网格拼板**（`src/panel.rs`、`src/cmd_tools.rs`）：`phoenix-pnp panelize 电路板 --cols N --rows N --pitch-x MM --pitch-y MM` 为同一电路板按网格复制的拼板写出拼板文件，各板旋转相同，带有隔开一定边距的三个基准点（`--fiducials MM`，按 `--board-size W,H` 给出的电路板实际尺寸），并可按名称 `P1`、`P2`……标记不良板（`--x-out P2,P5`）；已存在的文件绝不覆盖。
 * **有方向零件清单**（`src/polarity.rs`）：`phoenix-pnp polarity-sheet 零件` 列出位号匹配 `polarity_refs` 或封装匹配 `polarity_packages` 的零件（默认包括二极管、LED、芯片、晶体管、有极性电容和连接器），附位置、旋转和一列空白勾选栏，用于作业后的检查；`--side` 只保留一面。
 * **轴间隙（反向间隙）**（`src/sim.rs`、`src/motion.rs`）：`backlash_x_mm`、`backlash_y_mm` 和 `backlash_mode` 使模拟机器在轴反向的移动中要么短了一个间隙停下（`off`，由 `simulate` 计数），要么越过位置再从正方向返回（`approach`，耗时更多但没有误差）；间隙为 0 时一切不变。
 * **采购清单**（`src/bom.rs`）：`phoenix-pnp bom-order BOM --boards N` 把物料清单中相同零件的行相加，给每一行 N 块板所需的数量加上备用量（`order_spare_percent` 百分比或 `order_spare_min`，取较大者；`--spare-percent` 和 `--spare-min` 优先），不计 `--parts 零件` 中标记为不贴装的零件；写出按封装和值排序的 CSV。

@@ -24,6 +24,8 @@ fn grid(cols: usize, rows: usize) -> Grid {
         pitch_y_mm: 40.0,
         rotation_deg: 0.0,
         fiducial_margin_mm: 0.0,
+        board_width_mm: 0.0,
+        board_height_mm: 0.0,
         x_out: Vec::new(),
     }
 }
@@ -112,6 +114,86 @@ fn the_fiducials_are_three_and_outside_the_grid() {
 }
 
 #[test]
+fn the_real_size_of_the_board_puts_the_fiducials_around_the_grid_as_it_is() {
+    // 3 x 2 boards of 40 x 30 mm at a pitch of 50 x 40: the grid reaches 2 * 50 + 40 = 140 by 40 + 30 = 70, not 150 by 80
+    let mut g = grid(3, 2);
+    g.fiducial_margin_mm = 5.0;
+    g.board_width_mm = 40.0;
+    g.board_height_mm = 30.0;
+    let e = Panel::parse(&grid_panel(&g).unwrap())
+        .unwrap()
+        .expand(&loader)
+        .unwrap();
+    assert_eq!(
+        e.fiducials,
+        vec![
+            ("f1".to_string(), -5.0, -5.0),
+            ("f2".to_string(), 145.0, -5.0),
+            ("f3".to_string(), -5.0, 75.0),
+        ]
+    );
+    // only one of the two sizes: the other direction keeps the whole pitch
+    g.board_height_mm = 0.0;
+    let e = Panel::parse(&grid_panel(&g).unwrap())
+        .unwrap()
+        .expand(&loader)
+        .unwrap();
+    assert_eq!(e.fiducials[1], ("f2".to_string(), 145.0, -5.0));
+    assert_eq!(e.fiducials[2], ("f3".to_string(), -5.0, 85.0));
+    // a size with no margin puts no fiducials, and one board is as wide as its size
+    g.fiducial_margin_mm = 0.0;
+    assert!(Panel::parse(&grid_panel(&g).unwrap())
+        .unwrap()
+        .expand(&loader)
+        .unwrap()
+        .fiducials
+        .is_empty());
+    let mut one = grid(1, 1);
+    one.fiducial_margin_mm = 2.0;
+    one.board_width_mm = 40.0;
+    one.board_height_mm = 30.0;
+    let e = Panel::parse(&grid_panel(&one).unwrap())
+        .unwrap()
+        .expand(&loader)
+        .unwrap();
+    assert_eq!(e.fiducials[1], ("f2".to_string(), 42.0, -2.0));
+    assert_eq!(e.fiducials[2], ("f3".to_string(), -2.0, 32.0));
+}
+
+#[test]
+fn panelize_takes_the_real_size_of_the_board_and_refuses_a_bad_one() {
+    let base = [
+        "panelize",
+        "examples/board.pos",
+        "--cols",
+        "2",
+        "--rows",
+        "1",
+        "--pitch-x",
+        "70",
+        "--pitch-y",
+        "50",
+        "--fiducials",
+        "3",
+    ];
+    let mut with = base.to_vec();
+    with.extend(["--board-size", "60,45"]);
+    let o = run(&with);
+    assert!(o.status.success(), "{}", text(&o.stderr));
+    let panel = Panel::parse(&text(&o.stdout)).unwrap();
+    let loader = |_: &str| from_csv(BOARD);
+    let e = panel.expand(&loader).unwrap();
+    // 70 + 60 = 130 wide and 45 high
+    assert_eq!(e.fiducials[1], ("f2".to_string(), 133.0, -3.0));
+    assert_eq!(e.fiducials[2], ("f3".to_string(), -3.0, 48.0));
+    for bad in ["60", "60,x", "-5,10", "a,b"] {
+        let mut args = base.to_vec();
+        args.extend(["--board-size", bad]);
+        assert!(!run(&args).status.success(), "{bad}");
+    }
+}
+
+#[test]
 fn boards_marked_as_bad_are_left_out_and_named_in_the_report_of_the_panel() {
     let mut g = grid(2, 2);
     g.x_out = vec!["P2".to_string(), "P3".to_string()];
@@ -163,6 +245,9 @@ fn the_numbers_of_the_grid_are_checked() {
     add(&|g| g.rotation_deg = 361.0, "from -360 to 360");
     add(&|g| g.rotation_deg = f64::INFINITY, "from -360 to 360");
     add(&|g| g.fiducial_margin_mm = -1.0, "margin of the fiducials");
+    add(&|g| g.board_width_mm = -1.0, "width of the board");
+    add(&|g| g.board_height_mm = f64::NAN, "height of the board");
+    add(&|g| g.board_width_mm = 20_000.0, "width of the board");
     add(&|g| g.board_file = "  ".to_string(), "file of the board");
     add(&|g| g.board_file = "a\nb".to_string(), "file of the board");
     for (g, needle) in cases {

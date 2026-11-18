@@ -36,7 +36,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp nozzle-calibrate FILE [--config F] [--lang CODE]   the runout of the nozzle tip from readings at several angles (angle_deg,x_mm,y_mm)
   phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--spare-min N] [--parts PARTS] [--out F] [--config F] [--lang CODE]   the parts to buy for N boards, with a spare
   phoenix-pnp feeder-teach strip|tray [places and counts] [--lang CODE]   the pitch and the angle of a strip or a tray from places measured on the machine
-  phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--rotation DEG] [--fiducials MM] [--x-out P2,P5] [--out F] [--lang CODE]   a panel file for a grid of copies of one board
+  phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--rotation DEG] [--fiducials MM] [--board-size W,H] [--x-out P2,P5] [--out F] [--lang CODE]   a panel file for a grid of copies of one board
   phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] [--config F] [--lang CODE]   the parts that have a direction, with their place and turn, as a CSV for the look after a job
   phoenix-pnp import-centroid FILE [--format auto|csv|eagle|kicad-pos] [--map F] [--dnp R1-R5,C7] [--out F] [--config F] [--lang CODE]   a position file of a CAD program as the table of parts
   phoenix-pnp vision-test [--vision F] [--size WxH] [--part LxS] [--mm-per-px MM] [--dx MM] [--dy MM] [--turn DEG] [--noise N] [--seed N] [--lang CODE]   measures the picture of a part made in memory and prints the error

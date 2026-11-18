@@ -130,6 +130,10 @@ pub fn panelize(mut args: Vec<String>) -> Result<(), String> {
         Some(v) => num(&v, "--fiducials")?,
         None => 0.0,
     };
+    let (board_width_mm, board_height_mm) = match flag(&mut args, "--board-size")? {
+        Some(v) => pair(&v, "--board-size")?,
+        None => (0.0, 0.0),
+    };
     let x_out: Vec<String> = flag(&mut args, "--x-out")?
         .map(|v| {
             v.split([',', ';', ' '])
@@ -160,6 +164,8 @@ pub fn panelize(mut args: Vec<String>) -> Result<(), String> {
         pitch_y_mm: pitch_y,
         rotation_deg,
         fiducial_margin_mm,
+        board_width_mm,
+        board_height_mm,
         x_out,
     })
     .map_err(|e| e.localized(lang))?;

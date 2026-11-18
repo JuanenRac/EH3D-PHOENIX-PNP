@@ -471,6 +471,10 @@ pub struct Grid {
     /// When above 0, three fiducials are put this far outside the grid, which is taken to fill `cols * pitch_x` by `rows * pitch_y` from the origin of the first board: at the lower left
     /// corner, at the lower right one and at the upper left one. 0 puts none.
     pub fiducial_margin_mm: f64,
+    /// The real size of one board along X and Y, in millimetres; above 0, the fiducials are put around the grid as it is, from the origin of the first board to the far edge of the last
+    /// one (`(cols - 1) * pitch + width`), instead of the whole pitch of every board. 0 keeps the pitch (a board that fills its cell).
+    pub board_width_mm: f64,
+    pub board_height_mm: f64,
     /// The boards marked as bad (X-out), by the name they have in the panel (`P1`, `P2`, ... in the order of the rows, from the lower left).
     pub x_out: Vec<String>,
 }
@@ -517,6 +521,16 @@ pub fn grid_panel(spec: &Grid) -> Result<String, PnpError> {
             "the margin of the fiducials must be from 0 to 1000 mm".into(),
         ));
     }
+    for (what, v) in [
+        ("the width of the board", spec.board_width_mm),
+        ("the height of the board", spec.board_height_mm),
+    ] {
+        if !v.is_finite() || !(0.0..=MAX_COORDINATE).contains(&v) {
+            return Err(setting(format!(
+                "{what} must be from 0 to {MAX_COORDINATE} mm"
+            )));
+        }
+    }
     let names: Vec<String> = (1..=spec.cols * spec.rows)
         .map(|n| format!("P{n}"))
         .collect();
@@ -546,10 +560,19 @@ pub fn grid_panel(spec: &Grid) -> Result<String, PnpError> {
     }
     let mut top = serde_json::json!({ "children": children });
     if spec.fiducial_margin_mm > 0.0 {
+        // the grid fills the whole pitch of every board, unless the real size of a board is given
         let (m, w, h) = (
             spec.fiducial_margin_mm,
-            spec.cols as f64 * spec.pitch_x_mm,
-            spec.rows as f64 * spec.pitch_y_mm,
+            if spec.board_width_mm > 0.0 {
+                (spec.cols - 1) as f64 * spec.pitch_x_mm + spec.board_width_mm
+            } else {
+                spec.cols as f64 * spec.pitch_x_mm
+            },
+            if spec.board_height_mm > 0.0 {
+                (spec.rows - 1) as f64 * spec.pitch_y_mm + spec.board_height_mm
+            } else {
+                spec.rows as f64 * spec.pitch_y_mm
+            },
         );
         top["fiducials"] = serde_json::json!([
             { "id": "f1", "x": -m, "y": -m },
