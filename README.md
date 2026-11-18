@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 695 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 744 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.7` |
 | Maturity | Scaffolding |
-| Tests | 695 |
+| Tests | 744 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder (priority, tray, strip), plans the order of the placements for a head with up to six nozzles with ranks, nozzle tips, angle limits and the time of the moves, plans panels and writes the load sheet; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
-| Tests | 🟡 | 695 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
+| Tests | 🟡 | 744 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
 | Machine configuration | 🟡 | a `key = value` file with a version, a validator that names the line, and the safety limits (travel of Z, limits of X and Y, retries, nozzle angles); the values have not been compared with a real machine. |
 | Simulator and job | 🟡 | a virtual clock, failures injected by chance (with a seed) or at a chosen place, retries, the policies alert and defer, feeders that switch off after repeated faults, pause, step by step, and a saved state to resume from; it only simulates, nothing has driven a machine. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
@@ -259,7 +259,7 @@ The last line opens the window; so does `phoenix-pnp` with no command when it wa
 
 ## 🧪 Testing
 
-The suite has 695 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 744 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -283,12 +283,16 @@ EH3D-PHOENIX-PNP/
 │   ├── catalog.rs                               the tables of parts and packages and the inheritance of their properties
 │   ├── cli_args.rs                              the arguments of the command line, strict: an unknown option is an error
 │   ├── cmd_tools.rs                             the commands that check, calibrate and make files: BOM, calibration, panel
+│   ├── cmd_vis.rs                               the commands part-inspect, fiducial-check and feeder-check
 │   ├── commands.rs                              the commands that use the configuration, tables-check and check-bottom
 │   ├── config.rs                                the configuration file of the machine: keys, ranges and safety limits
 │   ├── error.rs                                 the error codes PHOENIX-PNP-NNN and their meaning in eight languages
 │   ├── export.rs                                the report, the list of what is missing and the G-code of the movements
 │   ├── feeders.rs                               a part of the logic
 │   ├── feeding.rs                               feeders with priority, trays and strips, and the choice of the feeder for a part
+│   ├── feedlib.rs                               whether the library of feeders agrees with itself
+│   ├── feedrep.rs                               the picks of each feeder in a job
+│   ├── fidcheck.rs                              what the fiducial fit says: turn, scale, shear, shift, the mark that disagrees
 │   ├── fiducial.rs                              fiducials of a panel: the fit of the measured marks and the correction of the parts
 │   ├── gui.rs                                   the window: modules that need no screen, and the drawing in window.rs
 │   ├── gui/app.rs                               the state of the window: load, plan, start, pause, step, fix, save
@@ -311,6 +315,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui_main.rs                              the window as a program of its own, without a console on Windows
 │   ├── heads.rs                                 several heads: reach, sharing out the parts, waits for a feeder
 │   ├── import.rs                                the import of position files: a centroid CSV with a column map, EAGLE text, KiCad .pos
+│   ├── inspect.rs                               the look at the part on the nozzle: size, turn and place
 │   ├── job.rs                                   the job: steps, pause, retries, policies, statistics and saved state
 │   ├── lib.rs                                   the library: what every command uses
 │   ├── loadsheet.rs                             the load sheet: the slot of each kind of tape
@@ -341,9 +346,13 @@ EH3D-PHOENIX-PNP/
 │   ├── camera.rs                                tests of the camera model, the cameras of the heads and the camera of the simulator
 │   ├── commands.rs                              tests of the commands that use the configuration
 │   ├── feeding.rs                               tests of the feeders: priority, trays and strips
+│   ├── feedlib.rs                               tests of the check of the library of feeders
+│   ├── feedrep.rs                               tests of the picks of each feeder
+│   ├── fidcheck.rs                              tests of the check of the fiducial fit
 │   ├── gui.rs                                   tests of the window without a screen: state, plan, job, map, tables and guide
 │   ├── heads.rs                                 tests of the heads: lines of the configuration, reach, sharing out, the clock and schedule
 │   ├── import.rs                                tests of the import: formats, units, bottom side, DNP, ranges, errors with their line
+│   ├── inspect.rs                               tests of the look at the part on the nozzle
 │   ├── job.rs                                   tests of the job: steps, retries and saved state
 │   ├── jobtab.rs                                tests of the Job tab without a screen: states, filters, progress, dialog
 │   ├── loadsheet.rs                             tests of the load sheet and the exports
@@ -369,6 +378,7 @@ EH3D-PHOENIX-PNP/
 │   ├── tips.rs                                  tests of the tips that a package accepts: the rules, the choice and the plan
 │   ├── toolbox.rs                               tests of the Tools tab: its settings, each tool on the examples, what it applies and writes
 │   ├── vacuum.rs                                tests of the vacuum, the actuators and the window of faults of a feeder
+│   ├── vis_cli.rs                               tests of the commands part-inspect, fiducial-check, feeder-check and --report-feeders
 │   ├── vision.rs                                tests of the vision pipeline: pictures checked by hand, failures, settings
 │   └── vision_job.rs                            tests of the vision in the job and vision-test: readings, failures, saved state
 ├── examples/
@@ -384,11 +394,15 @@ EH3D-PHOENIX-PNP/
 │   ├── feeder_measures.csv                      places measured for a strip and a tray, for feeder-teach
 │   ├── feeders.csv                              a sample to try the program with
 │   ├── feeders_kinds.csv                        feeders of every kind: tape, strip, tray and one switched off
+│   ├── fid_design.csv                           the designed places of four fiducials
+│   ├── fid_measured.csv                         the same four fiducials as measured on the machine
 │   ├── job.recipe                               a recipe with every step and rules by package, feeder and tip
 │   ├── job_basic.recipe                         the shortest recipe: prepare, pick and place
 │   ├── machine.cfg                              the settings of the machine, every key explained
 │   ├── marks.csv                                the measured places of the fiducials of the panel
 │   ├── nozzle_readings.csv                      readings of the nozzle tip at several angles for nozzle-calibrate
+│   ├── nozzle_reads.csv                         readings of parts on the nozzle for part-inspect
+│   ├── package_sizes.csv                        the size of the body of each package
 │   ├── packages.csv                             a table of packages: height, nozzle tip, rank and tape
 │   ├── packages_common.csv                      a table of common packages, from 0201 resistors to QFN, to adjust to your own parts
 │   ├── panel.json                               a panel of two boards

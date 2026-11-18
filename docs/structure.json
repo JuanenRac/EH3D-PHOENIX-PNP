@@ -106,6 +106,19 @@
           }
         },
         {
+          "name": "cmd_vis.rs",
+          "desc": {
+            "en": "the commands part-inspect, fiducial-check and feeder-check",
+            "es": "los comandos part-inspect, fiducial-check y feeder-check",
+            "de": "die Befehle part-inspect, fiducial-check und feeder-check",
+            "fr": "les commandes part-inspect, fiducial-check et feeder-check",
+            "it": "i comandi part-inspect, fiducial-check e feeder-check",
+            "ja": "コマンド part-inspect、fiducial-check、feeder-check",
+            "zh": "命令 part-inspect、fiducial-check 和 feeder-check",
+            "pt": "os comandos part-inspect, fiducial-check e feeder-check"
+          }
+        },
+        {
           "name": "commands.rs",
           "desc": {
             "en": "the commands that use the configuration, tables-check and check-bottom",
@@ -181,6 +194,45 @@
             "ja": "優先度・トレイ・ストリップ付きのフィーダーと、部品のフィーダーの選択",
             "zh": "带优先级、托盘和料带的供料器，以及元件供料器的选择",
             "pt": "alimentadores com prioridade, tabuleiros e tiras, e a escolha do alimentador de um componente"
+          }
+        },
+        {
+          "name": "feedlib.rs",
+          "desc": {
+            "en": "whether the library of feeders agrees with itself",
+            "es": "si la biblioteca de alimentadores es coherente",
+            "de": "ob die Bibliothek der Zuführungen stimmig ist",
+            "fr": "si la bibliothèque d'alimenteurs est cohérente",
+            "it": "se la libreria di alimentatori è coerente",
+            "ja": "フィーダーのライブラリに矛盾がないかの確認",
+            "zh": "供料器库是否自洽的检查",
+            "pt": "se a biblioteca de alimentadores é coerente"
+          }
+        },
+        {
+          "name": "feedrep.rs",
+          "desc": {
+            "en": "the picks of each feeder in a job",
+            "es": "las recogidas de cada alimentador en un trabajo",
+            "de": "die Aufnahmen jeder Zuführung in einem Auftrag",
+            "fr": "les prises de chaque alimenteur dans un travail",
+            "it": "i prelievi di ogni alimentatore in un lavoro",
+            "ja": "作業でのフィーダーごとのピック",
+            "zh": "作业中每个供料器的吸取情况",
+            "pt": "as recolhas de cada alimentador num trabalho"
+          }
+        },
+        {
+          "name": "fidcheck.rs",
+          "desc": {
+            "en": "what the fiducial fit says: turn, scale, shear, shift, the mark that disagrees",
+            "es": "lo que dice el ajuste de fiduciales: giro, escala, cizalla, desplazamiento, la marca discordante",
+            "de": "was die Fiducial-Anpassung sagt: Drehung, Skalierung, Scherung, Verschiebung, die abweichende Marke",
+            "fr": "ce que dit l'ajustement des fiduciaux : rotation, échelle, cisaillement, décalage, repère discordant",
+            "it": "cosa dice l'adattamento dei fiduciali: rotazione, scala, taglio, spostamento, il segno discordante",
+            "ja": "フィデューシャル適合の判定：回転・倍率・せん断・移動・外れた印",
+            "zh": "基准点拟合的判断：旋转、缩放、剪切、位移、不一致的标记",
+            "pt": "o que diz o ajuste de fiduciais: rotação, escala, cisalhamento, deslocamento, a marca discordante"
           }
         },
         {
@@ -467,6 +519,19 @@
             "ja": "位置ファイルの取り込み：列マップ付きセントロイド CSV、EAGLE のテキスト、KiCad の .pos",
             "zh": "位置文件的导入：带列映射的质心 CSV、EAGLE 文本、KiCad 的 .pos",
             "pt": "a importação de posições: CSV de centroides com mapa das colunas, texto do EAGLE, .pos do KiCad"
+          }
+        },
+        {
+          "name": "inspect.rs",
+          "desc": {
+            "en": "the look at the part on the nozzle: size, turn and place",
+            "es": "la mirada a la pieza en la boquilla: tamaño, giro y lugar",
+            "de": "der Blick auf das Teil an der Düse: Größe, Drehung und Lage",
+            "fr": "le regard sur la pièce à la buse : taille, rotation et place",
+            "it": "lo sguardo al componente sull'ugello: dimensione, rotazione e posizione",
+            "ja": "ノズル上の部品の確認：大きさ・回転・位置",
+            "zh": "对吸嘴上元件的检查：尺寸、旋转和位置",
+            "pt": "a verificação da peça no bico: tamanho, rotação e posição"
           }
         },
         {
@@ -854,6 +919,45 @@
           }
         },
         {
+          "name": "feedlib.rs",
+          "desc": {
+            "en": "tests of the check of the library of feeders",
+            "es": "pruebas de la comprobación de la biblioteca de alimentadores",
+            "de": "Tests der Prüfung der Zuführungsbibliothek",
+            "fr": "tests de la vérification de la bibliothèque d'alimenteurs",
+            "it": "test del controllo della libreria di alimentatori",
+            "ja": "フィーダーライブラリ確認のテスト",
+            "zh": "供料器库检查的测试",
+            "pt": "testes da verificação da biblioteca de alimentadores"
+          }
+        },
+        {
+          "name": "feedrep.rs",
+          "desc": {
+            "en": "tests of the picks of each feeder",
+            "es": "pruebas de las recogidas de cada alimentador",
+            "de": "Tests der Aufnahmen jeder Zuführung",
+            "fr": "tests des prises de chaque alimenteur",
+            "it": "test dei prelievi di ogni alimentatore",
+            "ja": "フィーダーごとのピックのテスト",
+            "zh": "每个供料器吸取情况的测试",
+            "pt": "testes das recolhas de cada alimentador"
+          }
+        },
+        {
+          "name": "fidcheck.rs",
+          "desc": {
+            "en": "tests of the check of the fiducial fit",
+            "es": "pruebas de la comprobación del ajuste de fiduciales",
+            "de": "Tests der Prüfung der Fiducial-Anpassung",
+            "fr": "tests de la vérification de l'ajustement des fiduciaux",
+            "it": "test del controllo dell'adattamento dei fiduciali",
+            "ja": "フィデューシャル適合の確認のテスト",
+            "zh": "基准点拟合检查的测试",
+            "pt": "testes da verificação do ajuste de fiduciais"
+          }
+        },
+        {
           "name": "gui.rs",
           "desc": {
             "en": "tests of the window without a screen: state, plan, job, map, tables and guide",
@@ -890,6 +994,19 @@
             "ja": "取り込みのテスト：形式、単位、底面、DNP、範囲、行つきのエラー",
             "zh": "导入的测试：格式、单位、底面、DNP、范围、带行号的错误",
             "pt": "testes da importação: formatos, unidades, face inferior, DNP, intervalos, erros com a sua linha"
+          }
+        },
+        {
+          "name": "inspect.rs",
+          "desc": {
+            "en": "tests of the look at the part on the nozzle",
+            "es": "pruebas de la mirada a la pieza en la boquilla",
+            "de": "Tests des Blicks auf das Teil an der Düse",
+            "fr": "tests du regard sur la pièce à la buse",
+            "it": "test dello sguardo al componente sull'ugello",
+            "ja": "ノズル上の部品の確認のテスト",
+            "zh": "吸嘴上元件检查的测试",
+            "pt": "testes da verificação da peça no bico"
           }
         },
         {
@@ -1218,6 +1335,19 @@
           }
         },
         {
+          "name": "vis_cli.rs",
+          "desc": {
+            "en": "tests of the commands part-inspect, fiducial-check, feeder-check and --report-feeders",
+            "es": "pruebas de los comandos part-inspect, fiducial-check, feeder-check y --report-feeders",
+            "de": "Tests der Befehle part-inspect, fiducial-check, feeder-check und --report-feeders",
+            "fr": "tests des commandes part-inspect, fiducial-check, feeder-check et --report-feeders",
+            "it": "test dei comandi part-inspect, fiducial-check, feeder-check e --report-feeders",
+            "ja": "コマンド part-inspect、fiducial-check、feeder-check、--report-feeders のテスト",
+            "zh": "命令 part-inspect、fiducial-check、feeder-check 和 --report-feeders 的测试",
+            "pt": "testes dos comandos part-inspect, fiducial-check, feeder-check e --report-feeders"
+          }
+        },
+        {
           "name": "vision.rs",
           "desc": {
             "en": "tests of the vision pipeline: pictures checked by hand, failures, settings",
@@ -1407,6 +1537,32 @@
           }
         },
         {
+          "name": "fid_design.csv",
+          "desc": {
+            "en": "the designed places of four fiducials",
+            "es": "los lugares de diseño de cuatro fiduciales",
+            "de": "die Entwurfsorte von vier Fiducials",
+            "fr": "les places de conception de quatre fiduciaux",
+            "it": "le posizioni di progetto di quattro fiduciali",
+            "ja": "4つのフィデューシャルの設計位置",
+            "zh": "四个基准点的设计位置",
+            "pt": "os lugares de projeto de quatro fiduciais"
+          }
+        },
+        {
+          "name": "fid_measured.csv",
+          "desc": {
+            "en": "the same four fiducials as measured on the machine",
+            "es": "los mismos cuatro fiduciales medidos en la máquina",
+            "de": "dieselben vier Fiducials, an der Maschine gemessen",
+            "fr": "les mêmes quatre fiduciaux mesurés sur la machine",
+            "it": "gli stessi quattro fiduciali misurati sulla macchina",
+            "ja": "機械で測定した同じ4つのフィデューシャル",
+            "zh": "在机器上测得的同样四个基准点",
+            "pt": "os mesmos quatro fiduciais medidos na máquina"
+          }
+        },
+        {
           "name": "job.recipe",
           "desc": {
             "en": "a recipe with every step and rules by package, feeder and tip",
@@ -1469,6 +1625,32 @@
             "ja": "nozzle-calibrate 用の複数角度でのノズル先端の読み取り",
             "zh": "nozzle-calibrate 用的多个角度下吸嘴尖端读数",
             "pt": "leituras da ponta do bico em vários ângulos para nozzle-calibrate"
+          }
+        },
+        {
+          "name": "nozzle_reads.csv",
+          "desc": {
+            "en": "readings of parts on the nozzle for part-inspect",
+            "es": "lecturas de piezas en la boquilla para part-inspect",
+            "de": "Messwerte von Teilen an der Düse für part-inspect",
+            "fr": "lectures de pièces à la buse pour part-inspect",
+            "it": "letture di componenti sull'ugello per part-inspect",
+            "ja": "part-inspect 用のノズル上の部品の測定値",
+            "zh": "供 part-inspect 使用的吸嘴上元件读数",
+            "pt": "leituras de peças no bico para o part-inspect"
+          }
+        },
+        {
+          "name": "package_sizes.csv",
+          "desc": {
+            "en": "the size of the body of each package",
+            "es": "el tamaño del cuerpo de cada encapsulado",
+            "de": "die Größe des Gehäuses jeder Bauform",
+            "fr": "la taille du corps de chaque boîtier",
+            "it": "la dimensione del corpo di ogni package",
+            "ja": "各パッケージ本体の大きさ",
+            "zh": "各封装本体的尺寸",
+            "pt": "o tamanho do corpo de cada encapsulamento"
           }
         },
         {

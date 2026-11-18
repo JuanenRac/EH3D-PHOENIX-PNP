@@ -18,7 +18,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 695 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e, embora o programa tire imagens da sua própria janela (`--shot`), nenhuma pessoa verificou o desenho num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
+**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 744 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e, embora o programa tire imagens da sua própria janela (`--shot`), nenhuma pessoa verificou o desenho num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versão | `0.0.7` |
 | Maturidade | Estrutura inicial |
-| Testes | 695 |
+| Testes | 744 |
 | Tecnologias | Rust |
 | Em hardware real | Não experimentado: nada disto correu numa máquina |
 
@@ -47,7 +47,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 |---|---|---|
 | Núcleo | 🟡 | lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (prioridade, tabuleiro, tira), planeia a ordem de colocação para uma cabeça de até seis bicos com níveis, pontas de bico, limites de ângulo e o tempo dos movimentos, planeia painéis e escreve a folha de carga; testado num computador com entradas normais e danificadas, não com uma coleção de ficheiros reais. |
 | Linha de comandos | 🟡 | `phoenix-pnp` executa as mesmas funções da biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) e imprime o resultado; cada erro volta como uma mensagem com o seu código `PHOENIX-PNP-NNN` e um código de saída diferente de zero. |
-| Testes | 🟡 | 695 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
+| Testes | 🟡 | 744 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
 | Configuração da máquina | 🟡 | um ficheiro `chave = valor` com versão, um validador que indica a linha e os limites de segurança (curso de Z, limites de X e Y, repetições, ângulos do bico); os valores não foram comparados com uma máquina real. |
 | Simulador e trabalho | 🟡 | um relógio virtual, falhas injetadas ao acaso (com semente) ou num sítio escolhido, repetições, as políticas alerta e adiar, alimentadores que se desligam após falhas repetidas, pausa, passo a passo e um estado guardado para retomar; apenas simula, nada moveu uma máquina. |
 | Segurança | 🟡 | Rust seguro e simples (`forbid(unsafe_code)`): nada entra em pânico com os ficheiros recebidos e um valor mau é um erro com o seu motivo; sem revisão independente. |
@@ -259,7 +259,7 @@ A última linha abre a janela; `phoenix-pnp` sem comando também a abre se foi c
 
 ## 🧪 Testes
 
-O conjunto tem 695 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
+O conjunto tem 744 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilação e publicação
 
@@ -283,12 +283,16 @@ EH3D-PHOENIX-PNP/
 │   ├── catalog.rs                               as tabelas de peças e de encapsulamentos e a herança das suas propriedades
 │   ├── cli_args.rs                              os argumentos da linha de comandos, estritos: uma opção desconhecida é um erro
 │   ├── cmd_tools.rs                             os comandos que verificam, calibram e criam ficheiros: lista de materiais, calibração, painel
+│   ├── cmd_vis.rs                               os comandos part-inspect, fiducial-check e feeder-check
 │   ├── commands.rs                              os comandos com configuração, tables-check e check-bottom
 │   ├── config.rs                                o ficheiro de configuração da máquina: chaves, intervalos e limites de segurança
 │   ├── error.rs                                 os códigos de erro PHOENIX-PNP-NNN e o seu significado em oito idiomas
 │   ├── export.rs                                o relatório, a lista do que falta e o G-code dos movimentos
 │   ├── feeders.rs                               uma parte da lógica
 │   ├── feeding.rs                               alimentadores com prioridade, tabuleiros e tiras, e a escolha do alimentador de um componente
+│   ├── feedlib.rs                               se a biblioteca de alimentadores é coerente
+│   ├── feedrep.rs                               as recolhas de cada alimentador num trabalho
+│   ├── fidcheck.rs                              o que diz o ajuste de fiduciais: rotação, escala, cisalhamento, deslocamento, a marca discordante
 │   ├── fiducial.rs                              fiduciais de um painel: o ajuste das marcas medidas e a correção das peças
 │   ├── gui.rs                                   a janela: módulos que não precisam de ecrã e o desenho em window.rs
 │   ├── gui/app.rs                               o estado da janela: carregar, planear, iniciar, pausar, avançar, corrigir, guardar
@@ -311,6 +315,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui_main.rs                              a janela como programa à parte, sem consola no Windows
 │   ├── heads.rs                                 várias cabeças: alcance, distribuição das peças, esperas por um alimentador
 │   ├── import.rs                                a importação de posições: CSV de centroides com mapa das colunas, texto do EAGLE, .pos do KiCad
+│   ├── inspect.rs                               a verificação da peça no bico: tamanho, rotação e posição
 │   ├── job.rs                                   o trabalho: passos, pausa, repetições, políticas, estatísticas e estado guardado
 │   ├── lib.rs                                   a biblioteca: o que cada comando usa
 │   ├── loadsheet.rs                             a folha de carga: a ranhura de cada tipo de fita
@@ -341,9 +346,13 @@ EH3D-PHOENIX-PNP/
 │   ├── camera.rs                                testes do modelo da câmara, das câmaras das cabeças e da câmara do simulador
 │   ├── commands.rs                              testes dos comandos que usam a configuração
 │   ├── feeding.rs                               testes dos alimentadores: prioridade, tabuleiros e tiras
+│   ├── feedlib.rs                               testes da verificação da biblioteca de alimentadores
+│   ├── feedrep.rs                               testes das recolhas de cada alimentador
+│   ├── fidcheck.rs                              testes da verificação do ajuste de fiduciais
 │   ├── gui.rs                                   testes da janela sem ecrã: estado, plano, trabalho, mapa, tabelas e assistente
 │   ├── heads.rs                                 testes das cabeças: linhas da configuração, alcance, distribuição, o relógio e schedule
 │   ├── import.rs                                testes da importação: formatos, unidades, face inferior, DNP, intervalos, erros com a sua linha
+│   ├── inspect.rs                               testes da verificação da peça no bico
 │   ├── job.rs                                   testes do trabalho: passos, repetições e estado guardado
 │   ├── jobtab.rs                                testes do separador Trabalho sem ecrã: estados, filtros, progresso, diálogo
 │   ├── loadsheet.rs                             testes da folha de carga e das exportações
@@ -369,6 +378,7 @@ EH3D-PHOENIX-PNP/
 │   ├── tips.rs                                  testes das pontas que um encapsulamento aceita: as regras, a escolha e o plano
 │   ├── toolbox.rs                               testes do separador de ferramentas: as suas definições, cada ferramenta com os exemplos, o que aplica e escreve
 │   ├── vacuum.rs                                testes do vácuo, dos atuadores e da janela de falhas de um alimentador
+│   ├── vis_cli.rs                               testes dos comandos part-inspect, fiducial-check, feeder-check e --report-feeders
 │   ├── vision.rs                                testes da visão: imagens calculadas à mão, falhas, definições
 │   └── vision_job.rs                            testes da visão no trabalho e vision-test: leituras, falhas, estado guardado
 ├── examples/
@@ -384,11 +394,15 @@ EH3D-PHOENIX-PNP/
 │   ├── feeder_measures.csv                      lugares medidos de uma tira e de um tabuleiro, para feeder-teach
 │   ├── feeders.csv                              um exemplo para experimentar o programa
 │   ├── feeders_kinds.csv                        alimentadores de todos os tipos: fita, tira, tabuleiro e um desligado
+│   ├── fid_design.csv                           os lugares de projeto de quatro fiduciais
+│   ├── fid_measured.csv                         os mesmos quatro fiduciais medidos na máquina
 │   ├── job.recipe                               uma receita com todos os passos e regras por encapsulamento, alimentador e ponta
 │   ├── job_basic.recipe                         a receita mais curta: preparar, recolher e colocar
 │   ├── machine.cfg                              as definições da máquina, cada chave explicada
 │   ├── marks.csv                                as posições medidas dos fiduciais do painel
 │   ├── nozzle_readings.csv                      leituras da ponta do bico em vários ângulos para nozzle-calibrate
+│   ├── nozzle_reads.csv                         leituras de peças no bico para o part-inspect
+│   ├── package_sizes.csv                        o tamanho do corpo de cada encapsulamento
 │   ├── packages.csv                             uma tabela de encapsulamentos: altura, ponta, nível e fita
 │   ├── packages_common.csv                      uma tabela de encapsulamentos comuns, das resistências 0201 aos QFN, para ajustar às suas peças
 │   ├── panel.json                               um painel de duas placas
