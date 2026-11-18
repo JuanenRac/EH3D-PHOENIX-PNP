@@ -18,7 +18,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 120] = [
+pub const KEYS: [&str; 122] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -139,6 +139,8 @@ pub const KEYS: [&str; 120] = [
     "import_bottom_mirror_width_mm",
     "nozzle_runout_mm",
     "nozzle_runout_deg",
+    "polarity_refs",
+    "polarity_packages",
 ];
 
 /// The order in which the places are visited.
@@ -454,6 +456,10 @@ pub struct MachineConfig {
     pub nozzle_runout_mm: f64,
     /// The direction of the tip from the axis when the nozzle is at 0 degrees.
     pub nozzle_runout_deg: f64,
+    /// A part whose reference matches one of these patterns (lower case, `*` and `?`) has a direction and is on the sheet of `polarity-sheet`.
+    pub polarity_refs: Vec<String>,
+    /// A part whose package matches one of these patterns has a direction too.
+    pub polarity_packages: Vec<String>,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -561,6 +567,15 @@ impl Default for MachineConfig {
             import_bottom_mirror_width_mm: 0.0,
             nozzle_runout_mm: 0.0,
             nozzle_runout_deg: 0.0,
+            polarity_refs: ["d*", "led*", "u*", "ic*", "q*", "cp*", "j*"]
+                .map(String::from)
+                .to_vec(),
+            polarity_packages: [
+                "*led*", "*dip*", "*soic*", "*sop*", "*qfn*", "*qfp*", "*bga*", "*sot*", "*sod*",
+                "*dfn*", "*tant*", "cp_*", "*elec*",
+            ]
+            .map(String::from)
+            .to_vec(),
         }
     }
 }
@@ -1074,6 +1089,8 @@ impl MachineConfig {
             }
             "nozzle_runout_mm" => self.nozzle_runout_mm = n(0.0, 5.0)?,
             "nozzle_runout_deg" => self.nozzle_runout_deg = n(-180.0, 180.0)?,
+            "polarity_refs" => self.polarity_refs = names(line, key, v)?,
+            "polarity_packages" => self.polarity_packages = names(line, key, v)?,
             "tip_compat_mode" => {
                 self.tip_choice = TipChoice::parse(&v.to_ascii_lowercase())
                     .ok_or_else(|| bad(line, key, v, "fewest_changes or preferred"))?

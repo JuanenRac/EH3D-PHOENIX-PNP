@@ -26,6 +26,7 @@ pub mod panel;
 pub mod parts;
 pub mod plan;
 pub mod planner;
+pub mod polarity;
 pub mod preflight;
 pub mod recipe;
 pub mod report;

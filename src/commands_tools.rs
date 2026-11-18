@@ -12,7 +12,8 @@ use eh3d_phoenix_pnp::calibrate::{
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::panel::{grid_panel, Grid};
-use eh3d_phoenix_pnp::parts::parse_all;
+use eh3d_phoenix_pnp::parts::{parse_all, Side};
+use eh3d_phoenix_pnp::polarity;
 use eh3d_phoenix_pnp::report;
 use std::path::Path;
 
@@ -173,6 +174,46 @@ pub fn panelize(mut args: Vec<String>) -> Result<(), String> {
         None => {
             print!("{text}");
             eprintln!("ok: {} boards ({cols} x {rows})", cols * rows);
+        }
+    }
+    Ok(())
+}
+
+/// `polarity-sheet`: the parts that have a direction (see `polarity_refs` and `polarity_packages`), with their place and turn, as a CSV for the look after a job; `--side` keeps one side.
+pub fn polarity_sheet(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let side = match flag(&mut args, "--side")?.as_deref() {
+        None => None,
+        Some("top") => Some(Side::Top),
+        Some("bottom") => Some(Side::Bottom),
+        Some(other) => return Err(format!("--side '{other}' is not top or bottom")),
+    };
+    let out_path = flag(&mut args, "--out")?;
+    finish(&args, 1)?;
+    let path = args
+        .first()
+        .ok_or("polarity-sheet needs a table of parts")?
+        .clone();
+    let parsed = parse_all(&read_text(&path, cfg.max_file_bytes)?, &cfg.profile)?;
+    let rows: Vec<_> = polarity::sheet(&parsed.parts, &cfg.polarity_refs, &cfg.polarity_packages)
+        .into_iter()
+        .filter(|p| side.is_none_or(|s| p.side == s))
+        .collect();
+    let total = parsed
+        .parts
+        .iter()
+        .filter(|p| side.is_none_or(|s| p.side == s))
+        .count();
+    let csv = polarity::to_csv(&rows);
+    match out_path {
+        Some(out) => {
+            refuse_same_file(std::slice::from_ref(&path), &out)?;
+            report::write_new(&out, &csv).map_err(|e| e.localized(lang))?;
+            println!("ok: {}; written to {out}", polarity::summary(&rows, total));
+        }
+        None => {
+            print!("{csv}");
+            eprintln!("ok: {}", polarity::summary(&rows, total));
         }
     }
     Ok(())
