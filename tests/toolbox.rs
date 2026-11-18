@@ -146,7 +146,7 @@ fn a_configuration_that_is_loaded_gives_the_forms_their_values_and_keeps_what_wa
 
 #[test]
 fn the_tools_have_keys_and_the_tab_is_one_of_the_tabs() {
-    assert_eq!(Tool::ALL.len(), 16);
+    assert_eq!(Tool::ALL.len(), 17);
     for t in Tool::ALL {
         assert_eq!(Tool::from_key(t.key()), Some(t));
         assert_eq!(

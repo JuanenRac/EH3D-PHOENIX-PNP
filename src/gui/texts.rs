@@ -264,11 +264,13 @@ pub enum Text {
     ToolCameraPattern,
     HintCameraPattern,
     FitCheckMarks,
+    ToolQueue,
+    HintQueue,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::FitCheckMarks as usize + 1;
+    pub const COUNT: usize = Text::HintQueue as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -635,4 +637,6 @@ static TABLE: &[[&str; 8]] = &[
     ["Camera pattern", "Patrón de la cámara", "Kamera-Muster", "Mire de la caméra", "Motivo della telecamera", "カメラのパターン", "相机标定图案", "Padrão da câmara"],
     ["One point per line: col,row,px,py (its place in the grid and where the camera saw it, at least six; the pitch is camera_pattern_pitch_mm)", "Un punto por línea: col,row,px,py (su lugar en la cuadrícula y dónde lo vio la cámara, al menos seis; el paso es camera_pattern_pitch_mm)", "Ein Punkt pro Zeile: col,row,px,py (sein Platz im Raster und wo die Kamera ihn sah, mindestens sechs; der Rasterabstand ist camera_pattern_pitch_mm)", "Un point par ligne : col,row,px,py (sa place dans la grille et où la caméra l'a vu, au moins six ; le pas est camera_pattern_pitch_mm)", "Un punto per riga: col,row,px,py (il suo posto nella griglia e dove l'ha visto la telecamera, almeno sei; il passo è camera_pattern_pitch_mm)", "1 行に 1 点：col,row,px,py（格子内の位置とカメラで見えた位置、6 点以上。ピッチは camera_pattern_pitch_mm）", "每行一个点：col,row,px,py（其在网格中的位置和相机看到的位置，至少六个；间距为 camera_pattern_pitch_mm）", "Um ponto por linha: col,row,px,py (o seu lugar na grelha e onde a câmara o viu, pelo menos seis; o passo é camera_pattern_pitch_mm)"],
     ["Check the marks (a ! is over the limit, a ? is the one that does not agree)", "Revisa las marcas (un ! supera el límite, un ? es la que no concuerda)", "Marken prüfen (ein ! liegt über dem Grenzwert, ein ? ist die Marke, die nicht passt)", "Vérifiez les repères (un ! dépasse la limite, un ? est celui qui ne concorde pas)", "Controlla i segni (un ! supera il limite, un ? è quello che non concorda)", "マークを確認してください（! は上限超え、? は他と合わないマーク）", "请检查标记（! 表示超出限值，? 表示与其余不一致的标记）", "Verifique as marcas (um ! passa do limite, um ? é a que não concorda)"],
+    ["Queue of jobs", "Cola de trabajos", "Auftragswarteschlange", "File des travaux", "Coda dei lavori", "ジョブのキュー", "作业队列", "Fila de trabalhos"],
+    ["Paste the queue file (made by queue-add): it is only read here, the commands queue-confirm and queue-run change it", "Pega el fichero de la cola (hecho con queue-add): aquí solo se lee, los comandos queue-confirm y queue-run lo cambian", "Die Datei der Warteschlange einfügen (von queue-add erstellt): sie wird hier nur gelesen, die Befehle queue-confirm und queue-run ändern sie", "Collez le fichier de la file (fait par queue-add) : il n'est que lu ici, les commandes queue-confirm et queue-run le modifient", "Incolla il file della coda (creato da queue-add): qui viene solo letto, i comandi queue-confirm e queue-run lo modificano", "キューのファイル（queue-add で作成）を貼り付けます。ここでは読み取りのみで、変更は queue-confirm と queue-run が行います", "粘贴队列文件（由 queue-add 生成）：这里只读取，queue-confirm 和 queue-run 命令才会修改它", "Cole o ficheiro da fila (feito por queue-add): aqui só é lido, os comandos queue-confirm e queue-run alteram-no"],
 ];

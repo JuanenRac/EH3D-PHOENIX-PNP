@@ -579,6 +579,31 @@ fn phase_name(p: Phase) -> &'static str {
     }
 }
 
+/// The identity of the plan that `simulate` would run for these arguments (the hash of the plan and the text of the files it was made from), without running anything. The checks of the
+/// plan must have no error.
+pub fn plan_identity(args: Vec<String>) -> Result<String, String> {
+    let p = prepare(args, 0)?;
+    let lang = p.c.lang;
+    let planned = make_plan(&p)?;
+    if has_errors(&planned.checks) {
+        return Err(PnpError::new(
+            Code::PreflightFailed,
+            "the checks of the plan found errors (see preflight)",
+        )
+        .localized(lang));
+    }
+    let mut files = Vec::new();
+    for path in &p.inputs {
+        files.push(read_text(
+            path,
+            p.c.cfg.max_file_bytes.max(MAX_CONFIG_BYTES as u64),
+        )?);
+    }
+    let job = Job::new(planned.plan, p.feeders.clone(), p.c.cfg.clone())
+        .map_err(|e| e.localized(lang))?;
+    Ok(eh3d_phoenix_pnp::queue::identity(job.hash(), &files))
+}
+
 /// `simulate`: carries the plan out on the simulated machine, and can pause, save the state and resume from it.
 pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let state_path = flag(&mut args, "--state")?;

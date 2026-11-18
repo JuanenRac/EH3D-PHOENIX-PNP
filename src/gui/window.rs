@@ -2338,6 +2338,7 @@ impl PnpApp {
             Tool::Inspect => self.tool_io(ui, Some(Text::HintInspect)),
             Tool::FidCheck => self.tool_io(ui, Some(Text::HintFidCheck)),
             Tool::CameraPattern => self.tool_io(ui, Some(Text::HintCameraPattern)),
+            Tool::Queue => self.tool_io(ui, Some(Text::HintQueue)),
             Tool::FeederCheck | Tool::Compare | Tool::Preview => self.tool_io(ui, None),
         }
     }

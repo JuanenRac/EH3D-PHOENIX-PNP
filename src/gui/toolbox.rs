@@ -25,6 +25,7 @@ use crate::parts::Side;
 use crate::pattern::{calibrate_pattern, parse_pattern, PatternCalibration};
 use crate::polarity;
 use crate::preview;
+use crate::queue::Queue;
 use crate::report;
 use crate::setup::{self, PanelInfo};
 use crate::stock::stock_plan;
@@ -49,10 +50,11 @@ pub enum Tool {
     Compare,
     Preview,
     CameraPattern,
+    Queue,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 16] = [
+    pub const ALL: [Tool; 17] = [
         Tool::Backlash,
         Tool::Runout,
         Tool::Camera,
@@ -69,6 +71,7 @@ impl Tool {
         Tool::Compare,
         Tool::Preview,
         Tool::CameraPattern,
+        Tool::Queue,
     ];
 
     /// The name of the tool on the command line of the window (`--tool`) and in the log.
@@ -90,6 +93,7 @@ impl Tool {
             Tool::Compare => "compare",
             Tool::Preview => "preview",
             Tool::CameraPattern => "pattern",
+            Tool::Queue => "queue",
         }
     }
 
@@ -117,6 +121,7 @@ impl Tool {
             Tool::Compare => Text::ToolCompare,
             Tool::Preview => Text::ToolPreview,
             Tool::CameraPattern => Text::ToolCameraPattern,
+            Tool::Queue => Text::ToolQueue,
         }
     }
 
@@ -133,6 +138,7 @@ impl Tool {
                 | Tool::Inspect
                 | Tool::FidCheck
                 | Tool::CameraPattern
+                | Tool::Queue
         )
     }
 
@@ -211,6 +217,8 @@ pub struct Toolbox {
     pub fiducials_text: String,
     /// The points of a pattern seen by the camera.
     pub pattern_text: String,
+    /// The text of a queue of jobs.
+    pub queue_text: String,
     /// A path typed to read the text of the tool from.
     pub path_text: String,
     /// The side the sheet of polarity and the stock are limited to (both when none).
@@ -243,6 +251,7 @@ impl Toolbox {
             inspect_text: String::new(),
             fiducials_text: String::new(),
             pattern_text: String::new(),
+            queue_text: String::new(),
             path_text: String::new(),
             polarity_side: None,
             boards: cfg.order_boards,
@@ -278,6 +287,7 @@ impl Toolbox {
             Tool::Inspect => Some(&mut self.inspect_text),
             Tool::FidCheck => Some(&mut self.fiducials_text),
             Tool::CameraPattern => Some(&mut self.pattern_text),
+            Tool::Queue => Some(&mut self.queue_text),
             _ => None,
         }
     }
@@ -359,6 +369,7 @@ impl Toolbox {
             Tool::CameraPattern => {
                 pattern_text(&self.pattern_text, &ws.cfg, lang).map(|(_, i, o)| (i, o))
             }
+            Tool::Queue => queue_text(&self.queue_text, lang),
         };
         match result {
             Ok((info, output)) => {
@@ -778,4 +789,11 @@ pub fn preview_text(ws: &Workspace, lang: Lang) -> Result<(String, String), Stri
         picture.len()
     );
     Ok((info, picture))
+}
+
+/// The queue of jobs in `text` (the file that `queue-add` and `queue-run` keep): a line for each job with what became of it and how many jobs are in each state, and the file as it
+/// would be written (with the checksum). A file that was cut or changed by hand is refused. The window only reads a queue; the commands change it.
+pub fn queue_text(text: &str, lang: Lang) -> Result<(String, String), String> {
+    let q = Queue::parse(text).map_err(|e| failed(e, lang))?;
+    Ok((q.text().trim_end().to_string(), q.to_text()))
 }

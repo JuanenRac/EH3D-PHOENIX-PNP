@@ -112,10 +112,11 @@ pub enum Code {
     BomBad = 57,
     CalibrationBad = 58,
     NozzleLifeBad = 59,
+    QueueBad = 60,
 }
 
 impl Code {
-    pub const ALL: [Code; 59] = [
+    pub const ALL: [Code; 60] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -175,6 +176,7 @@ impl Code {
         Code::BomBad,
         Code::CalibrationBad,
         Code::NozzleLifeBad,
+        Code::QueueBad,
     ];
 
     pub fn number(self) -> u16 {
@@ -193,7 +195,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 59] = [
+static MESSAGES: [[&str; 8]; 60] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -783,6 +785,16 @@ static MESSAGES: [[&str; 8]; 59] = [
         "ノズルチップの使用回数ファイルが無効です",
         "吸嘴头使用次数文件无效",
         "O ficheiro do uso das pontas dos bicos não é válido",
+    ],
+    [
+        "The queue of jobs is not valid, or it was cut or changed by hand",
+        "La cola de trabajos no es válida, o se cortó o se cambió a mano",
+        "Die Warteschlange der Aufträge ist ungültig oder wurde abgeschnitten oder von Hand geändert",
+        "La file des travaux n'est pas valide, ou elle a été coupée ou modifiée à la main",
+        "La coda dei lavori non è valida, oppure è stata tagliata o modificata a mano",
+        "ジョブのキューが無効、または途中で切れたか手で変更されています",
+        "作业队列无效，或已被截断或手工修改",
+        "A fila de trabalhos não é válida, ou foi cortada ou alterada à mão",
     ],
 ];
 

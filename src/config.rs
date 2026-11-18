@@ -20,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 152] = [
+pub const KEYS: [&str; 154] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -173,6 +173,8 @@ pub const KEYS: [&str; 152] = [
     "nozzle_life_warn",
     "camera_pattern_pitch_mm",
     "camera_pattern_max_residual_mm",
+    "queue_confirm",
+    "queue_stop_on_failure",
 ];
 
 /// The order in which the places are visited.
@@ -539,6 +541,10 @@ pub struct MachineConfig {
     /// The distance between neighbouring points of the pattern of the camera calibration (millimetres) and how far a point may be from the model of the calibration (millimetres): `camera-pattern`.
     pub camera_pattern_pitch_mm: f64,
     pub camera_pattern_max_residual_mm: f64,
+    /// A job of a queue runs only when the person confirmed its plan (`queue-confirm`); off for the simulated machine only.
+    pub queue_confirm: bool,
+    /// The queue stops at the first job that fails; off goes on to the next ones.
+    pub queue_stop_on_failure: bool,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -685,6 +691,8 @@ impl Default for MachineConfig {
             nozzle_life_warn: 500_000,
             camera_pattern_pitch_mm: 1.0,
             camera_pattern_max_residual_mm: 0.05,
+            queue_confirm: true,
+            queue_stop_on_failure: true,
         }
     }
 }
@@ -1237,6 +1245,8 @@ impl MachineConfig {
             "camera_pattern_max_residual_mm" => {
                 self.camera_pattern_max_residual_mm = n(0.0001, 5.0)?
             }
+            "queue_confirm" => self.queue_confirm = flag(line, key, v)?,
+            "queue_stop_on_failure" => self.queue_stop_on_failure = flag(line, key, v)?,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

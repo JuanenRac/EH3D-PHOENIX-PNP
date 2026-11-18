@@ -25,7 +25,7 @@ use eh3d_phoenix_pnp::stock::stock_plan;
 use std::path::Path;
 
 /// The language and the configuration of a command: `--lang` wins over the key `language` of `--config`.
-fn language_and_config(args: &mut Vec<String>) -> Result<(Lang, MachineConfig), String> {
+pub fn language_and_config(args: &mut Vec<String>) -> Result<(Lang, MachineConfig), String> {
     let lang_option = match flag(args, "--lang")? {
         Some(l) => Some(
             Lang::from_code(&l)

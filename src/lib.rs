@@ -36,6 +36,7 @@ pub mod planner;
 pub mod polarity;
 pub mod preflight;
 pub mod preview;
+pub mod queue;
 pub mod recipe;
 pub mod report;
 pub mod rotation;

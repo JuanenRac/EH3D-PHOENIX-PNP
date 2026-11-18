@@ -93,6 +93,19 @@
           }
         },
         {
+          "name": "cmd_queue.rs",
+          "desc": {
+            "en": "the commands of the queue of jobs: add, status, confirm, edit, run",
+            "es": "los comandos de la cola de trabajos: añadir, estado, confirmar, editar, ejecutar",
+            "de": "die Befehle der Auftragswarteschlange: hinzufügen, Status, bestätigen, bearbeiten, ausführen",
+            "fr": "les commandes de la file de travaux : ajouter, état, confirmer, modifier, exécuter",
+            "it": "i comandi della coda di lavori: aggiungi, stato, conferma, modifica, esegui",
+            "ja": "ジョブキューのコマンド：追加、状態、確認、編集、実行",
+            "zh": "作业队列的命令：添加、状态、确认、编辑、运行",
+            "pt": "os comandos da fila de trabalhos: adicionar, estado, confirmar, editar, executar"
+          }
+        },
+        {
           "name": "cmd_tools.rs",
           "desc": {
             "en": "the commands that check, calibrate and make files: BOM, calibration, panel",
@@ -756,6 +769,19 @@
           }
         },
         {
+          "name": "queue.rs",
+          "desc": {
+            "en": "the queue of jobs: the file with its checksum, states, the gate of the confirmation",
+            "es": "la cola de trabajos: el fichero con su suma de control, estados, la puerta de la confirmación",
+            "de": "die Auftragswarteschlange: Datei mit Prüfsumme, Zustände, die Schranke der Bestätigung",
+            "fr": "la file de travaux : le fichier avec sa somme de contrôle, états, la barrière de confirmation",
+            "it": "la coda di lavori: il file con la somma di controllo, stati, il cancello della conferma",
+            "ja": "ジョブのキュー：チェックサム付きファイル、状態、確認のゲート",
+            "zh": "作业队列：带校验和的文件、状态、确认关卡",
+            "pt": "a fila de trabalhos: o ficheiro com a sua soma de controlo, estados, a porta da confirmação"
+          }
+        },
+        {
           "name": "recipe.rs",
           "desc": {
             "en": "the recipe of a job: its file, its steps and the parameters by package, feeder and tip",
@@ -1293,6 +1319,19 @@
             "ja": "計画図のテスト：要素、エスケープ、サイズ、--svg",
             "zh": "计划图的测试：内容、转义、尺寸和 --svg",
             "pt": "testes da imagem do plano: as partes, a proteção, o tamanho e --svg"
+          }
+        },
+        {
+          "name": "queue.rs",
+          "desc": {
+            "en": "tests of the queue of jobs: the file, the checksum, the gate, the commands and the tool",
+            "es": "pruebas de la cola de trabajos: el fichero, la suma de control, la puerta, los comandos y la herramienta",
+            "de": "Tests der Auftragswarteschlange: Datei, Prüfsumme, Schranke, Befehle und Werkzeug",
+            "fr": "tests de la file de travaux : le fichier, la somme de contrôle, la barrière, les commandes et l'outil",
+            "it": "test della coda di lavori: il file, la somma di controllo, il cancello, i comandi e lo strumento",
+            "ja": "ジョブキューのテスト：ファイル、チェックサム、ゲート、コマンド、ツール",
+            "zh": "作业队列的测试：文件、校验和、关卡、命令和工具",
+            "pt": "testes da fila de trabalhos: o ficheiro, a soma de controlo, a porta, os comandos e a ferramenta"
           }
         },
         {

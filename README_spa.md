@@ -18,7 +18,7 @@
 
 ---
 
-**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`phoenix-pnp`) con 815 pruebas que se ejecutan en un ordenador: lee el fichero de posiciones de una placa, da a cada componente su alimentador (con prioridades, bandejas y tiras), lee los ajustes de la máquina de un fichero, planifica el orden de colocación para un cabezal de hasta seis boquillas (rangos, puntas de boquilla, límites de ángulo, tiempo de los movimientos, paneles), escribe una hoja de carga y, en una máquina simulada, ejecuta el plan paso a paso con fallos inyectados. También tiene una ventana (se compila con `--features gui`) cuya lógica se prueba sin pantalla; el dibujo en sí no está cubierto por pruebas y, aunque el programa hace capturas de su propia ventana (`--shot`), ninguna persona ha revisado el dibujo en una pantalla. No controla ninguna máquina: no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
+**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`phoenix-pnp`) con 835 pruebas que se ejecutan en un ordenador: lee el fichero de posiciones de una placa, da a cada componente su alimentador (con prioridades, bandejas y tiras), lee los ajustes de la máquina de un fichero, planifica el orden de colocación para un cabezal de hasta seis boquillas (rangos, puntas de boquilla, límites de ángulo, tiempo de los movimientos, paneles), escribe una hoja de carga y, en una máquina simulada, ejecuta el plan paso a paso con fallos inyectados. También tiene una ventana (se compila con `--features gui`) cuya lógica se prueba sin pantalla; el dibujo en sí no está cubierto por pruebas y, aunque el programa hace capturas de su propia ventana (`--shot`), ninguna persona ha revisado el dibujo en una pantalla. No controla ninguna máquina: no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versión | `0.0.8` |
 | Madurez | Andamiaje |
-| Pruebas | 815 |
+| Pruebas | 835 |
 | Pila tecnológica | Rust |
 | En hardware real | No probado: nada de esto se ha ejecutado en una máquina |
 
@@ -47,7 +47,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 |---|---|---|
 | Núcleo | 🟡 | lee el fichero de posiciones de una placa, da a cada componente su alimentador (prioridad, bandeja, tira), planifica el orden de colocación para un cabezal de hasta seis boquillas con rangos, puntas de boquilla, límites de ángulo y el tiempo de los movimientos, planifica paneles y escribe la hoja de carga; probado en un ordenador con entradas normales y dañadas, no con una colección de ficheros reales. |
 | Línea de comandos | 🟡 | `phoenix-pnp` ejecuta las mismas funciones que la biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) e imprime el resultado; cada error vuelve como un mensaje con su código `PHOENIX-PNP-NNN` y un código de salida distinto de cero. |
-| Pruebas | 🟡 | 815 pruebas pasan (`cargo test`), con casos normales, casos límite, entradas dañadas y pequeños casos generados. |
+| Pruebas | 🟡 | 835 pruebas pasan (`cargo test`), con casos normales, casos límite, entradas dañadas y pequeños casos generados. |
 | Configuración de la máquina | 🟡 | un fichero `clave = valor` con versión, un validador que nombra la línea y los límites de seguridad (recorrido de Z, límites de X e Y, reintentos, ángulos de boquilla); los valores no se han comparado con una máquina real. |
 | Simulador y trabajo | 🟡 | un reloj virtual, fallos inyectados al azar (con semilla) o en un lugar elegido, reintentos, las políticas alerta y aplazar, alimentadores que se apagan tras fallos repetidos, pausa, paso a paso y un estado guardado para reanudar; solo simula, nada ha movido una máquina. |
 | Seguridad | 🟡 | Rust seguro y simple (`forbid(unsafe_code)`): nada entra en pánico con los ficheros recibidos y un valor malo es un error con su motivo; sin revisión independiente. |
@@ -95,6 +95,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 * **Una imagen del plan** (`src/preview.rs`, `src/commands.rs`): `phoenix-pnp schedule PIEZAS ALIMENTADORES SALIDA.json --svg SALIDA.svg` escribe además el plan como un archivo SVG para mirarlo antes de que la máquina se mueva, para imprimirlo o guardarlo con el trabajo: los alimentadores, el lugar de cada pieza con el número de su turno y el color de su boquilla, la línea que sigue cada pieza desde su alimentador, el recorrido discontinuo de la cabeza por todo el trabajo y los totales; no lleva scripts ni nada de fuera, lo que se escriba en una referencia o un id se escapa, y una imagen que existe nunca se pisa.
 * **Calibración de la cámara con un patrón** (`src/pattern.rs`, `src/cmd_tools.rs`): `phoenix-pnp camera-pattern FICHERO [--pitch MM]` lee los puntos de una cuadrícula (las esquinas interiores de un tablero de ajedrez o los centros de puntos) como `col,row,px,py` (`examples/camera_pattern.csv`) y ajusta el tamaño de un píxel (`camera_units_per_px`) y la curvatura radial de la lente (`camera_lens_k1`) junto con el giro, el desplazamiento y el espejo de la hoja en la imagen; luego dice cuánto se alejan los puntos del modelo con y sin la curvatura y cuál es el más lejano; se imprimen las líneas para la configuración y el código de salida es 1 cuando un punto supera `camera_pattern_max_residual_mm`. Los puntos están a `camera_pattern_pitch_mm` unos de otros. El giro y el desplazamiento de la cámara siguen saliendo de `camera-calibrate`, que mueve la cabeza. La pestaña Herramientas tiene la misma calibración y se niega a poner en la máquina un ajuste que supera el límite.
 * **Qué fiducial falla** (`src/fidcheck.rs`, `src/gui/workspace.rs`, `src/gui/tables.rs`): al usar las marcas medidas de un panel, la ventana calcula el residuo de cada marca (también cuando el ajuste se rechaza, para que se vea por qué), la única marca que, quitada, deja todas las demás dentro de `fiducial_max_residual_mm`, y el giro, las escalas y la inclinación frente a sus límites. La tabla de fiduciales señala con `!` una marca por encima del límite y con `?` la que no concuerda, y el panel lista los avisos con palabras (también en el registro); `fidcheck::analyze_marks`, `fidcheck::warnings` y `fidcheck::residual_table` dan lo mismo al comando `fiducial-check` y a la herramienta de revisión de fiduciales.
+* **Cola de trabajos** (`src/queue.rs`, `src/cmd_queue.rs`): varias placas o paneles uno tras otro. `phoenix-pnp queue-add COLA NOMBRE ORIGEN ALIMENTADORES [--panel] [--boards N]` pone un trabajo en un CSV pequeño que sobrevive a que el programa se pare (se escribe en un fichero temporal y se mueve a su sitio, el fichero que reemplaza se guarda como `RUTA.prev` y la última línea lleva una suma de control, de modo que un fichero cortado o cambiado a mano se rechaza); `queue-status [--check]` lista los trabajos y qué fue de cada uno (pending, running, done, failed, skipped) y con `--check` planifica los que faltan; `queue-edit` salta, reinicia, retira la confirmación de un trabajo o lo quita; `queue-run` hace los trabajos placa a placa en la máquina simulada y escribe la cola tras cada placa. Nada se ejecuta sin confirmación: con `queue_confirm` activado (por defecto) un trabajo se ejecuta solo después de que `queue-confirm` registrase la identidad de su plan (el plan y el texto de los ficheros con que se hizo), y un cambio en un fichero la anula; `queue_stop_on_failure` (por defecto activado) detiene la cola en el primer trabajo que falla. Un segundo `queue-run` sobre la misma cola se rechaza mientras exista un fichero `.lock`. La pestaña Herramientas lee una cola. Nuevo código de error `PHOENIX-PNP-060`.
 * **Más paneles en la pestaña Herramientas** (`src/gui/toolbox.rs`): el uso de las puntas de boquilla (el registro que guarda `nozzle-life`, con las puntas que llegan a `nozzle_life_warn` marcadas), la inspección de las piezas en la boquilla contra los tamaños de los encapsulados cargados, la revisión de los fiduciales (el residuo de cada marca, la marca que no concuerda y un aviso para una marca por encima de `fiducial_max_residual_mm`), la revisión de la tabla de alimentadores, la comparación de los órdenes y de los cambios de punta (lo que ahorraría el más rápido) y el dibujo del plan como SVG; cada una escribe su resultado en la carpeta de salida con su propio nombre sin pisar un fichero que exista. La hoja de preparación de la pestaña lee el registro de las puntas cuando se escribe o se lee uno, y entonces dice qué punta está gastada.
 * **La hoja de preparación** (`src/setup.rs`, `src/commands.rs`, `src/gui/toolbox.rs`): `phoenix-pnp setup-sheet PIEZAS ALIMENTADORES --boards N` reúne en una página, en los ocho idiomas, los alimentadores que cargar por orden de ranura (tipo, pieza, cinta, punta, piezas que tiene, lugar), las piezas que faltan para N placas, las puntas de boquilla de la tirada con su desgaste frente a `nozzle_life_warn` (`--life` lee el registro de `simulate --nozzle-life`), las calibraciones de las que depende el trabajo y si cada una está puesta (cámara, excentricidad de la boquilla, holgura de los ejes, lugar del cambiador de puntas, fiduciales de un panel) y los avisos (un alimentador apagado que tiene una pieza que la placa necesita, un alimentador a granel con una pieza que tiene dirección); `--out` escribe los alimentadores como CSV y el comando sale con 1 mientras falten piezas. La pestaña Herramientas tiene la misma hoja para imprimir como `setup_sheet.txt`.
 * **Pestaña de herramientas** (`src/gui/toolbox.rs`): la holgura de los ejes, la excentricidad de la boquilla, la calibración de la cámara, la enseñanza de alimentadores, la hoja de las piezas con sentido, la comprobación y el pedido de una lista de materiales, las existencias para una tirada y el panel de una cuadrícula de placas, cada una con las funciones de la biblioteca de su orden, un texto que se escribe o se lee de un fichero, el resultado en pantalla y, donde hace un fichero, un botón que lo escribe en la carpeta de salida sin pisar un fichero que exista; la cámara y la excentricidad se pueden poner en la máquina. Los valores con que empiezan los formularios son claves de `machine.cfg` (`order_boards`, `panel_cols`, `panel_rows`, `panel_pitch_x_mm`, `panel_pitch_y_mm`, `panel_fiducial_mm`, `panel_board_width_mm`, `panel_board_height_mm`).
@@ -164,6 +165,11 @@ phoenix-pnp nozzle-life FILE [--warn N] [--reset TIP] las piezas que ha colocado
 phoenix-pnp setup-sheet PARTS FEEDERS [--boards N] [--life F] [--out F] qué cargar en qué ranura, las piezas que faltan para N placas, las puntas de boquilla y su desgaste, las calibraciones de las que depende el trabajo (en el idioma de --lang; sale con 1 si faltan piezas)
 phoenix-pnp order-compare PARTS FEEDERS [OPTIONS] la placa planificada con cada orden de los lugares y cada manera de cambiar las puntas, lado a lado, con la más rápida marcada
 phoenix-pnp camera-pattern FILE [--pitch MM]             el tamaño de un píxel y la curvatura de la lente a partir de los puntos de un patrón en una cuadrícula
+phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS          pone un trabajo (placas o un panel) al final de una cola de trabajos
+phoenix-pnp queue-status QUEUE [--check]                 los trabajos de la cola y qué fue de cada uno; --check planifica los que faltan
+phoenix-pnp queue-confirm QUEUE NAME                     registra que el plan de un trabajo, tal como está ahora, puede ejecutarse
+phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove   salta un trabajo, lo reinicia, retira su confirmación o lo quita
+phoenix-pnp queue-run QUEUE [--only NAME]                hace los trabajos confirmados placa a placa en la máquina simulada
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mide la imagen de una pieza hecha en memoria
 ```
 
@@ -240,6 +246,7 @@ Las tablas de encapsulados y de componentes (`--packages`, `--catalog`) son fich
 | `PHOENIX-PNP-057` | Una línea de la lista de materiales no es válida |
 | `PHOENIX-PNP-058` | Los puntos de calibración no son válidos o no dan un resultado |
 | `PHOENIX-PNP-059` | El archivo del uso de las puntas de boquilla no es válido |
+| `PHOENIX-PNP-060` | La cola de trabajos no es válida, o se cortó o se cambió a mano |
 
 ## 🚀 Inicio rápido
 
@@ -277,7 +284,7 @@ La última línea abre la ventana; también lo hace `phoenix-pnp` sin orden cuan
 
 ## 🧪 Pruebas
 
-La suite tiene 815 pruebas (`cargo test`, que se ejecutan en Windows y Linux en la CI). Comprueban los casos normales, los casos límite y las entradas dañadas: los ficheros vacíos, la basura y los ficheros cortados nunca provocan un pánico. Pequeños casos generados (desde una semilla fija, así que dan los mismos números en cada ejecución) comprueban que el plan no depende del orden de los ficheros, que un recorrido nunca se alarga, que un trabajo guardado y reanudado en cualquier punto acaba igual que el que nunca se detuvo, y que las longitudes y los ángulos se convierten de ida y vuelta. La CI también ejecuta `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
+La suite tiene 835 pruebas (`cargo test`, que se ejecutan en Windows y Linux en la CI). Comprueban los casos normales, los casos límite y las entradas dañadas: los ficheros vacíos, la basura y los ficheros cortados nunca provocan un pánico. Pequeños casos generados (desde una semilla fija, así que dan los mismos números en cada ejecución) comprueban que el plan no depende del orden de los ficheros, que un recorrido nunca se alarga, que un trabajo guardado y reanudado en cualquier punto acaba igual que el que nunca se detuvo, y que las longitudes y los ángulos se convierten de ida y vuelta. La CI también ejecuta `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilación y publicación
 
@@ -300,6 +307,7 @@ EH3D-PHOENIX-PNP/
 │   ├── camera.rs                                el modelo de una cámara: tamaño del píxel, desplazamientos, giro, espejo y lente
 │   ├── catalog.rs                               las tablas de componentes y encapsulados y la herencia de sus propiedades
 │   ├── cli_args.rs                              los argumentos de la línea de comandos, estrictos: una opción desconocida es un error
+│   ├── cmd_queue.rs                             los comandos de la cola de trabajos: añadir, estado, confirmar, editar, ejecutar
 │   ├── cmd_tools.rs                             los comandos que comprueban, calibran y crean ficheros: BOM, calibración, panel
 │   ├── cmd_vis.rs                               los comandos part-inspect, fiducial-check y feeder-check
 │   ├── commands.rs                              las órdenes que usan la configuración, tables-check y check-bottom
@@ -351,6 +359,7 @@ EH3D-PHOENIX-PNP/
 │   ├── polarity.rs                              la hoja de las piezas con sentido
 │   ├── preflight.rs                             las comprobaciones previas al trabajo, con gravedad y aquello a lo que apuntan
 │   ├── preview.rs                               una imagen del plan: alimentadores, lugares, el recorrido de la cabeza
+│   ├── queue.rs                                 la cola de trabajos: el fichero con su suma de control, estados, la puerta de la confirmación
 │   ├── recipe.rs                                la receta de un trabajo: su fichero, sus pasos y los parámetros por encapsulado, alimentador y punta
 │   ├── report.rs                                el informe del trabajo: fases, recogidas, grupos, errores; texto, HTML, CSV, JSON
 │   ├── rotation.rs                              correcciones de la rotación por encapsulado, y cómo gira una boquilla limitada
@@ -393,6 +402,7 @@ EH3D-PHOENIX-PNP/
 │   ├── polarity.rs                              pruebas de la hoja de las piezas con sentido
 │   ├── preflight.rs                             pruebas de las comprobaciones previas al trabajo
 │   ├── preview.rs                               pruebas de la imagen del plan: sus partes, el escape, el tamaño y --svg
+│   ├── queue.rs                                 pruebas de la cola de trabajos: el fichero, la suma de control, la puerta, los comandos y la herramienta
 │   ├── readme.rs                                pruebas de que el README se puede ejecutar y está completo
 │   ├── recipe.rs                                pruebas de la receta: el fichero, los límites, los pasos, las reglas en el trabajo y el estado guardado
 │   ├── report.rs                                pruebas del informe: fases, recogidas, histogramas, grupos, decisiones, formatos

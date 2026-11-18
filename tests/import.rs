@@ -677,7 +677,7 @@ fn the_settings_of_the_import_are_keys_of_the_configuration() {
 
 #[test]
 fn the_codes_of_the_import_have_their_meaning_in_the_eight_languages() {
-    assert_eq!(Code::ALL.len(), 59);
+    assert_eq!(Code::ALL.len(), 60);
     for (code, number) in [
         (Code::ImportBad, 53),
         (Code::ImportMap, 54),
