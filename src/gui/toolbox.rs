@@ -12,11 +12,18 @@ use crate::calibrate::{
     calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples, taught_csv,
     teach_file, CameraCalibration, NozzleRunout, Taught,
 };
+use crate::compare;
 use crate::config::MachineConfig;
 use crate::error::{Code, Lang, PnpError};
+use crate::feedlib;
+use crate::fidcheck;
+use crate::fiducial;
+use crate::inspect;
+use crate::nozzlelife::NozzleLife;
 use crate::panel::{grid_panel, Grid};
 use crate::parts::Side;
 use crate::polarity;
+use crate::preview;
 use crate::report;
 use crate::setup::{self, PanelInfo};
 use crate::stock::stock_plan;
@@ -34,10 +41,16 @@ pub enum Tool {
     Stock,
     Setup,
     Panel,
+    NozzleLife,
+    Inspect,
+    FidCheck,
+    FeederCheck,
+    Compare,
+    Preview,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 9] = [
+    pub const ALL: [Tool; 15] = [
         Tool::Backlash,
         Tool::Runout,
         Tool::Camera,
@@ -47,6 +60,12 @@ impl Tool {
         Tool::Stock,
         Tool::Setup,
         Tool::Panel,
+        Tool::NozzleLife,
+        Tool::Inspect,
+        Tool::FidCheck,
+        Tool::FeederCheck,
+        Tool::Compare,
+        Tool::Preview,
     ];
 
     /// The name of the tool on the command line of the window (`--tool`) and in the log.
@@ -61,6 +80,12 @@ impl Tool {
             Tool::Stock => "stock",
             Tool::Setup => "setup",
             Tool::Panel => "panel",
+            Tool::NozzleLife => "life",
+            Tool::Inspect => "inspect",
+            Tool::FidCheck => "fiducials",
+            Tool::FeederCheck => "feedercheck",
+            Tool::Compare => "compare",
+            Tool::Preview => "preview",
         }
     }
 
@@ -81,6 +106,12 @@ impl Tool {
             Tool::Stock => Text::ToolStock,
             Tool::Setup => Text::ToolSetup,
             Tool::Panel => Text::ToolPanel,
+            Tool::NozzleLife => Text::ToolNozzleLife,
+            Tool::Inspect => Text::ToolInspect,
+            Tool::FidCheck => Text::ToolFidCheck,
+            Tool::FeederCheck => Text::ToolFeederCheck,
+            Tool::Compare => Text::ToolCompare,
+            Tool::Preview => Text::ToolPreview,
         }
     }
 
@@ -88,7 +119,14 @@ impl Tool {
     pub fn reads_text(self) -> bool {
         matches!(
             self,
-            Tool::Runout | Tool::Camera | Tool::Feeders | Tool::Bom
+            Tool::Runout
+                | Tool::Camera
+                | Tool::Feeders
+                | Tool::Bom
+                | Tool::Setup
+                | Tool::NozzleLife
+                | Tool::Inspect
+                | Tool::FidCheck
         )
     }
 
@@ -101,6 +139,12 @@ impl Tool {
             Tool::Stock => Some("stock.csv"),
             Tool::Setup => Some("setup_sheet.txt"),
             Tool::Panel => Some("panel.json"),
+            Tool::NozzleLife => Some("nozzle_life.csv"),
+            Tool::Inspect => Some("part_inspect.csv"),
+            Tool::FidCheck => Some("fiducial_residuals.csv"),
+            Tool::FeederCheck => Some("feeder_check.txt"),
+            Tool::Compare => Some("order_compare.txt"),
+            Tool::Preview => Some("plan.svg"),
             _ => None,
         }
     }
@@ -152,6 +196,12 @@ pub struct Toolbox {
     pub camera_text: String,
     pub feeders_text: String,
     pub bom_text: String,
+    /// The record of the nozzle tips (the tool of the tips reads it, and so does the setup sheet to say which tip is worn).
+    pub life_text: String,
+    /// The readings of the parts on the nozzle.
+    pub inspect_text: String,
+    /// The measured places of the fiducials (the ones that were loaded when it is empty).
+    pub fiducials_text: String,
     /// A path typed to read the text of the tool from.
     pub path_text: String,
     /// The side the sheet of polarity and the stock are limited to (both when none).
@@ -180,6 +230,9 @@ impl Toolbox {
             camera_text: String::new(),
             feeders_text: String::new(),
             bom_text: String::new(),
+            life_text: String::new(),
+            inspect_text: String::new(),
+            fiducials_text: String::new(),
             path_text: String::new(),
             polarity_side: None,
             boards: cfg.order_boards,
@@ -211,6 +264,9 @@ impl Toolbox {
             Tool::Camera => Some(&mut self.camera_text),
             Tool::Feeders => Some(&mut self.feeders_text),
             Tool::Bom => Some(&mut self.bom_text),
+            Tool::Setup | Tool::NozzleLife => Some(&mut self.life_text),
+            Tool::Inspect => Some(&mut self.inspect_text),
+            Tool::FidCheck => Some(&mut self.fiducials_text),
             _ => None,
         }
     }
@@ -270,8 +326,25 @@ impl Toolbox {
             Tool::Polarity => Ok(polarity_text(ws, self.polarity_side)),
             Tool::Bom => bom_text(ws, &self.bom_text, self.boards, lang),
             Tool::Stock => stock_text(ws, self.polarity_side, self.boards, lang),
-            Tool::Setup => setup_text(ws, self.polarity_side, self.boards, lang),
+            Tool::Setup => {
+                let life = if self.life_text.trim().is_empty() {
+                    Ok(None)
+                } else {
+                    NozzleLife::parse(&self.life_text)
+                        .map(Some)
+                        .map_err(|e| failed(e, lang))
+                };
+                life.and_then(|life| {
+                    setup_text_with(ws, self.polarity_side, self.boards, life.as_ref(), lang)
+                })
+            }
             Tool::Panel => panel_text(ws, &self.panel, lang).map(|o| (String::new(), o)),
+            Tool::NozzleLife => life_text(&self.life_text, ws.cfg.nozzle_life_warn, lang),
+            Tool::Inspect => inspect_text(ws, &self.inspect_text, lang),
+            Tool::FidCheck => fiducials_text(ws, &self.fiducials_text, lang),
+            Tool::FeederCheck => Ok(feeder_check_text(ws)),
+            Tool::Compare => compare_text(ws, lang),
+            Tool::Preview => preview_text(ws, lang),
         };
         match result {
             Ok((info, output)) => {
@@ -471,6 +544,18 @@ pub fn setup_text(
     boards: usize,
     lang: Lang,
 ) -> Result<(String, String), String> {
+    setup_text_with(ws, side, boards, None, lang)
+}
+
+/// The setup sheet as `setup_text` makes it, with the use of the nozzle tips so far when a record of it is given: the sheet then says which tip is worn and which will be by the end of
+/// the run.
+pub fn setup_text_with(
+    ws: &Workspace,
+    side: Option<Side>,
+    boards: usize,
+    life: Option<&NozzleLife>,
+    lang: Lang,
+) -> Result<(String, String), String> {
     let parts = ws.active_parts();
     let panel = ws.panel.as_ref().map(|_| PanelInfo {
         fiducials_measured: !ws.measured.is_empty(),
@@ -483,7 +568,7 @@ pub fn setup_text(
         side,
         boards,
         panel,
-        life: None,
+        life,
     })
     .map_err(|e| failed(e, lang))?;
     Ok((sheet.summary(lang), sheet.text(lang)))
@@ -517,4 +602,125 @@ pub fn panel_text(ws: &Workspace, form: &PanelForm, lang: Lang) -> Result<String
             .collect(),
     })
     .map_err(|e| failed(e, lang))
+}
+
+/// The use of the nozzle tips in `text` (the file that `nozzle-life` keeps): a line for each tip with the ones at or over `warn_at` marked, and the record as a CSV.
+pub fn life_text(text: &str, warn_at: u64, lang: Lang) -> Result<(String, String), String> {
+    let life = NozzleLife::parse(text).map_err(|e| failed(e, lang))?;
+    let mut info = life.text(warn_at).trim_end().to_string();
+    for w in life.warning_lines(warn_at) {
+        info.push('\n');
+        info.push_str(&w);
+    }
+    Ok((info, life.to_csv()))
+}
+
+/// The readings in `text` against the sizes of the packages of the table of packages that was loaded: how many were accepted, refused and could not be judged, and the rows as a CSV.
+pub fn inspect_text(ws: &Workspace, text: &str, lang: Lang) -> Result<(String, String), String> {
+    let readings = inspect::parse_readings(text).map_err(|e| failed(e, lang))?;
+    let table = inspect::SizeTable::from_catalog(&ws.catalog);
+    let limits = inspect::Limits {
+        size_tol_mm: ws.cfg.part_size_tol_mm,
+        angle_tol_deg: ws.cfg.part_angle_tol_deg,
+        offset_max_mm: ws.cfg.part_offset_max_mm,
+    };
+    let rows = inspect::judge(&readings, &table, &limits);
+    let (ok, refused, unknown) = inspect::tally(&rows);
+    Ok((
+        format!("{ok} accepted, {refused} refused, {unknown} without a size to be judged against"),
+        inspect::rows_csv(&rows),
+    ))
+}
+
+/// What the measured marks (`text`, or the ones that were loaded when it is blank) say about the panel against the marks of the design: the report with the residual of each mark and
+/// the warnings (a mark over `fiducial_max_residual_mm`, the mark that does not agree, a turn or a scale over its limit), and the residuals as a CSV.
+pub fn fiducials_text(ws: &Workspace, text: &str, lang: Lang) -> Result<(String, String), String> {
+    if ws.design_fiducials.is_empty() {
+        return Err("(no marks of a design are loaded: load a panel or a table of parts that has fiducials)".to_string());
+    }
+    let measured = if text.trim().is_empty() {
+        ws.measured.clone()
+    } else {
+        fiducial::parse_measured(text).map_err(|e| failed(e, lang))?
+    };
+    if measured.is_empty() {
+        return Err("(no measured marks: type them as id,x,y or load them)".to_string());
+    }
+    let (a, ids) = fidcheck::analyze_marks(&ws.design_fiducials, &measured, &ws.cfg)
+        .map_err(|e| failed(e, lang))?;
+    let mut info = fidcheck::report(&a, &ids).trim_end().to_string();
+    for w in fidcheck::warnings(&a, &ids, ws.cfg.fiducial_max_residual_mm) {
+        info.push_str("\nwarning: ");
+        info.push_str(&w);
+    }
+    Ok((
+        info,
+        fidcheck::residual_table(&a, &ids, ws.cfg.fiducial_max_residual_mm),
+    ))
+}
+
+/// Whether the table of feeders that is loaded agrees with itself: the findings (errors first) and how many there are of each.
+pub fn feeder_check_text(ws: &Workspace) -> (String, String) {
+    if ws.feeders.is_empty() {
+        return ("(no table of feeders is loaded)".to_string(), String::new());
+    }
+    let cfg = &ws.cfg;
+    let rules = feedlib::Rules {
+        pitch_step_mm: cfg.feeder_pitch_step_mm,
+        min_gap_mm: cfg.feeder_min_gap_mm,
+        x_min: cfg.limit_x_min_mm,
+        x_max: cfg.limit_x_max_mm,
+        y_min: cfg.limit_y_min_mm,
+        y_max: cfg.limit_y_max_mm,
+    };
+    let found = feedlib::check(&ws.feeders, Some(&ws.catalog), &rules);
+    let (errors, warnings) = feedlib::counts(&found);
+    let body = feedlib::text(&found);
+    let info = format!(
+        "{} feeders: {errors} errors, {warnings} warnings",
+        ws.feeders.len()
+    );
+    let output = if body.trim().is_empty() {
+        "no finding\n".to_string()
+    } else {
+        body
+    };
+    (info, output)
+}
+
+/// The board planned with every order of the places and every way of changing the nozzle tips, side by side, and what the fastest would save: the advice (shown on the tab) and the
+/// table (what is written). Nothing is changed in the configuration.
+pub fn compare_text(ws: &Workspace, lang: Lang) -> Result<(String, String), String> {
+    if !ws.can_plan() {
+        return Err(
+            "(load a table of parts and a table of feeders to compare the plans)".to_string(),
+        );
+    }
+    let planned = ws.make_plan().map_err(|e| failed(e, lang))?;
+    let options = ws.planning_options(&planned.parts);
+    let found = compare::compare(
+        &planned.parts,
+        &ws.feeders,
+        &planned.picks,
+        &ws.catalog,
+        &ws.cfg,
+        &options,
+    )
+    .map_err(|e| failed(e, lang))?;
+    Ok((found.advice().trim_end().to_string(), found.text()))
+}
+
+/// The picture of the plan as an SVG: a line that counts what is in it, and the file.
+pub fn preview_text(ws: &Workspace, lang: Lang) -> Result<(String, String), String> {
+    if !ws.can_plan() {
+        return Err("(load a table of parts and a table of feeders to draw the plan)".to_string());
+    }
+    let planned = ws.make_plan().map_err(|e| failed(e, lang))?;
+    let picture = preview::svg(&planned.plan, &ws.feeders);
+    let info = format!(
+        "{} placements, {} bytes of SVG",
+        planned.plan.plan.placements.len(),
+        picture.len()
+    );
+    Ok((info, picture))
 }

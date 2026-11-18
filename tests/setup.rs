@@ -544,6 +544,6 @@ fn the_tool_of_the_tools_tab_gives_the_summary_and_writes_the_sheet() {
         .unwrap()
         .starts_with("SETUP SHEET"));
     assert_eq!(Tool::from_key("setup"), Some(Tool::Setup));
-    assert!(!Tool::Setup.reads_text());
+    assert!(Tool::Setup.reads_text());
     let _ = std::fs::remove_dir_all(&dir);
 }

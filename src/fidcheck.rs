@@ -5,6 +5,7 @@
 //! quarter, stretched by a few per cent or sheared was most likely not put where the person thought, or a mark was taken for another one: the fit may be mathematically fine and the
 //! job still wrong. Plain arithmetic and text: no files, no screen.
 
+use crate::config::MachineConfig;
 use crate::error::{Code, PnpError};
 use crate::fiducial::{fit_points, solve, Fit, FitMode, Transform};
 use crate::marks::LevelFit;
@@ -446,4 +447,118 @@ pub fn refusal(group: &str, c: &Check) -> PnpError {
         Code::FiducialBad,
         format!("the marks put {who} somewhere unexpected: {}", c.text()),
     )
+}
+
+impl Limits {
+    /// The limits that the configuration sets.
+    pub fn from_config(cfg: &MachineConfig) -> Limits {
+        Limits {
+            max_rotation_deg: cfg.fiducial_max_rotation_deg,
+            scale_tol_percent: cfg.fiducial_scale_tol_percent,
+            shear_tol_deg: cfg.fiducial_shear_tol_deg,
+            max_shift_mm: cfg.fiducial_max_shift_mm,
+            level_turn_deg: cfg.fiducial_level_turn_deg,
+        }
+    }
+}
+
+/// The marks that were both designed and measured: their names, their places in the design and the places they were measured at.
+pub type Paired = (Vec<String>, Vec<(f64, f64)>, Vec<(f64, f64)>);
+
+/// A mark found by its name: the places of the marks of the design that were also measured, in the order of the design, with their names. A measured mark that is not in the design is
+/// an error, and so is one that is measured twice.
+pub fn pair_marks(
+    design: &[(String, f64, f64)],
+    measured: &[(String, f64, f64)],
+) -> Result<Paired, PnpError> {
+    if let Some(m) = measured.iter().find(|m| !design.iter().any(|d| d.0 == m.0)) {
+        return Err(PnpError::new(
+            Code::FiducialBad,
+            format!("the mark '{}' is not in the design", m.0),
+        ));
+    }
+    for (i, m) in measured.iter().enumerate() {
+        if measured[..i].iter().any(|o| o.0 == m.0) {
+            return Err(PnpError::new(
+                Code::FiducialBad,
+                format!("the mark '{}' is measured more than once", m.0),
+            ));
+        }
+    }
+    let (mut ids, mut from, mut to) = (Vec::new(), Vec::new(), Vec::new());
+    for d in design {
+        if let Some(m) = measured.iter().find(|m| m.0 == d.0) {
+            ids.push(d.0.clone());
+            from.push((d.1, d.2));
+            to.push((m.1, m.2));
+        }
+    }
+    Ok((ids, from, to))
+}
+
+/// Fits and judges the measured marks against the design with the limits and the kind of fit of the configuration. Gives the analysis and the names of the marks it used.
+pub fn analyze_marks(
+    design: &[(String, f64, f64)],
+    measured: &[(String, f64, f64)],
+    cfg: &MachineConfig,
+) -> Result<(Analysis, Vec<String>), PnpError> {
+    let (ids, from, to) = pair_marks(design, measured)?;
+    let a = analyze_points(
+        &from,
+        &to,
+        cfg.fiducial_mode,
+        cfg.fiducial_max_residual_mm,
+        &Limits::from_config(cfg),
+    )?;
+    Ok((a, ids))
+}
+
+/// What is wrong with an analysis, one line each: a mark farther from the fit than `max_residual_mm` (with the one that does not agree named when there is one) and the findings of the
+/// check. Empty when all is well.
+pub fn warnings(a: &Analysis, ids: &[String], max_residual_mm: f64) -> Vec<String> {
+    let mut out = Vec::new();
+    for (i, r) in a.fit.residuals.iter().enumerate() {
+        if *r > max_residual_mm {
+            let name = ids.get(i).map_or("", String::as_str);
+            out.push(format!(
+                "mark {name} is {r:.3} mm from where the fit puts it, over the {max_residual_mm} mm that fiducial_max_residual_mm allows"
+            ));
+        }
+    }
+    if let Some(i) = a.suspect {
+        let name = ids.get(i).map_or("", String::as_str);
+        out.push(format!(
+            "the mark {name} is the only one that does not agree: look at where it was taken"
+        ));
+    }
+    for f in &a.check.findings {
+        out.push(f.text());
+    }
+    out
+}
+
+/// The residual of each mark as a table for the window: the name, the distance from the fit in millimetres, how far the fit would be without the mark and whether the mark is over the limit.
+pub fn residual_table(a: &Analysis, ids: &[String], max_residual_mm: f64) -> String {
+    let mut out = String::from("mark,residual_mm,without_mark_mm,state\n");
+    for (i, r) in a.fit.residuals.iter().enumerate() {
+        let name = ids.get(i).map_or("", String::as_str);
+        let without = a
+            .without
+            .get(i)
+            .copied()
+            .flatten()
+            .map_or(String::new(), |w| format!("{w:.3}"));
+        let state = if a.suspect == Some(i) {
+            "suspect"
+        } else if *r > max_residual_mm {
+            "over"
+        } else {
+            "ok"
+        };
+        out.push_str(&format!(
+            "{},{r:.3},{without},{state}\n",
+            crate::parts::csv_field(name)
+        ));
+    }
+    out
 }

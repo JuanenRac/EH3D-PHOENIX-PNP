@@ -2304,7 +2304,8 @@ impl PnpApp {
                         );
                     });
                 self.s.tools.polarity_side = side;
-                self.tool_io(ui, None);
+                let hint = (self.s.tools.tool == Tool::Setup).then_some(Text::HintSetupLife);
+                self.tool_io(ui, hint);
             }
             Tool::Bom => {
                 self.tool_order_settings(ui);
@@ -2314,6 +2315,10 @@ impl PnpApp {
                 self.tool_panel_form(ui);
                 self.tool_io(ui, None);
             }
+            Tool::NozzleLife => self.tool_io(ui, Some(Text::HintLife)),
+            Tool::Inspect => self.tool_io(ui, Some(Text::HintInspect)),
+            Tool::FidCheck => self.tool_io(ui, Some(Text::HintFidCheck)),
+            Tool::FeederCheck | Tool::Compare | Tool::Preview => self.tool_io(ui, None),
         }
     }
 

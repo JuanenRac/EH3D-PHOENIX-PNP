@@ -94,32 +94,7 @@ pub fn fiducial_check(mut args: Vec<String>) -> Result<(), String> {
         fiducial::parse_measured(&read_text(design_path, cfg.max_file_bytes)?).map_err(l)?;
     let measured =
         fiducial::parse_measured(&read_text(measured_path, cfg.max_file_bytes)?).map_err(l)?;
-    if let Some(m) = measured.iter().find(|m| !design.iter().any(|d| d.0 == m.0)) {
-        return Err(format!("the mark '{}' is not in the design", m.0));
-    }
-    let (mut ids, mut from, mut to) = (Vec::new(), Vec::new(), Vec::new());
-    for d in &design {
-        if let Some(m) = measured.iter().find(|m| m.0 == d.0) {
-            ids.push(d.0.clone());
-            from.push((d.1, d.2));
-            to.push((m.1, m.2));
-        }
-    }
-    let limits = fidcheck::Limits {
-        max_rotation_deg: cfg.fiducial_max_rotation_deg,
-        scale_tol_percent: cfg.fiducial_scale_tol_percent,
-        shear_tol_deg: cfg.fiducial_shear_tol_deg,
-        max_shift_mm: cfg.fiducial_max_shift_mm,
-        level_turn_deg: cfg.fiducial_level_turn_deg,
-    };
-    let a = fidcheck::analyze_points(
-        &from,
-        &to,
-        cfg.fiducial_mode,
-        cfg.fiducial_max_residual_mm,
-        &limits,
-    )
-    .map_err(l)?;
+    let (a, ids) = fidcheck::analyze_marks(&design, &measured, &cfg).map_err(l)?;
     print!("{}", fidcheck::report(&a, &ids));
     if a.fit.max > cfg.fiducial_max_residual_mm {
         return Err(format!(

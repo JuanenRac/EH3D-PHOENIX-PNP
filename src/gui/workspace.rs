@@ -508,13 +508,12 @@ impl Workspace {
         (lo <= hi).then_some(hi - lo)
     }
 
-    /// The plan, the picks and the checks. The bottom side needs a width; the one of the parts is used when none was set.
-    pub fn make_plan(&self) -> Result<Planned, PnpError> {
-        let parts = self.active_parts();
+    /// The options of the plan for `parts`: the bottom side needs a width, and the one of the parts is used when none was set.
+    pub fn planning_options(&self, parts: &[Part]) -> Options {
         let mut options = self.options;
         if options.side == Side::Bottom && options.board_width_mm.is_none() {
             let (mut lo, mut hi) = (f64::MAX, f64::MIN);
-            for p in &parts {
+            for p in parts {
                 lo = lo.min(p.x);
                 hi = hi.max(p.x);
             }
@@ -523,6 +522,13 @@ impl Workspace {
                 options.board_width_mm = Some(hi - lo);
             }
         }
+        options
+    }
+
+    /// The plan, the picks and the checks. The bottom side needs a width; the one of the parts is used when none was set.
+    pub fn make_plan(&self) -> Result<Planned, PnpError> {
+        let parts = self.active_parts();
+        let options = self.planning_options(&parts);
         let picks = feeding::assign(&parts, &self.feeders, Some(options.side));
         let side_parts: Vec<Part> = parts
             .iter()

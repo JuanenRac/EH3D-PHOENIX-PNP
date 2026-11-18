@@ -251,11 +251,21 @@ pub enum Text {
     KindTube,
     KindBulk,
     ToolSetup,
+    ToolNozzleLife,
+    ToolInspect,
+    ToolFidCheck,
+    ToolFeederCheck,
+    ToolCompare,
+    ToolPreview,
+    HintLife,
+    HintInspect,
+    HintFidCheck,
+    HintSetupLife,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::ToolSetup as usize + 1;
+    pub const COUNT: usize = Text::HintSetupLife as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -609,4 +619,14 @@ static TABLE: &[[&str; 8]] = &[
     ["tube", "varilla", "Stange", "tube", "stecca", "チューブ", "料管", "tubo"],
     ["bulk", "a granel", "Schüttgut", "vrac", "alla rinfusa", "バルク", "散料", "a granel"],
     ["Setup sheet", "Hoja de preparación", "Rüstliste", "Fiche de préparation", "Foglio di preparazione", "段取りシート", "准备清单", "Folha de preparação"],
+    ["Nozzle tips", "Puntas de boquilla", "Düsenspitzen", "Pointes de buse", "Punte degli ugelli", "ノズル先端", "吸嘴头", "Pontas de bico"],
+    ["Part inspection", "Inspección de piezas", "Teileprüfung", "Contrôle des pièces", "Ispezione dei componenti", "部品検査", "元件检查", "Inspeção de peças"],
+    ["Fiducial check", "Revisión de fiduciales", "Fiducial-Prüfung", "Contrôle des repères", "Controllo dei fiduciali", "フィデューシャル確認", "基准点检查", "Verificação de fiduciais"],
+    ["Feeder check", "Revisión de alimentadores", "Zuführungsprüfung", "Contrôle des alimentateurs", "Controllo dei feeder", "フィーダー確認", "供料器检查", "Verificação de alimentadores"],
+    ["Compare plans", "Comparar planes", "Pläne vergleichen", "Comparer les plans", "Confronta i piani", "計画の比較", "方案比较", "Comparar planos"],
+    ["Plan picture", "Dibujo del plan", "Bild des Plans", "Dessin du plan", "Disegno del piano", "計画の図", "方案图", "Desenho do plano"],
+    ["One tip per line: tip,uses,mounts,replaced (the record that is kept beside the configuration)", "Una punta por línea: tip,uses,mounts,replaced (el registro que se guarda junto a la configuración)", "Eine Spitze pro Zeile: tip,uses,mounts,replaced (die Aufzeichnung neben der Konfiguration)", "Une pointe par ligne : tip,uses,mounts,replaced (le relevé gardé à côté de la configuration)", "Una punta per riga: tip,uses,mounts,replaced (il registro tenuto accanto alla configurazione)", "1 行に 1 つの先端：tip,uses,mounts,replaced（設定の隣に保存される記録）", "每行一个吸嘴头：tip,uses,mounts,replaced（与配置放在一起的记录）", "Uma ponta por linha: tip,uses,mounts,replaced (o registo guardado junto da configuração)"],
+    ["One reading per line: ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (judged against the sizes of the packages that are loaded)", "Una lectura por línea: ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (se juzga con los tamaños de los encapsulados cargados)", "Eine Messung pro Zeile: ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (beurteilt nach den Größen der geladenen Gehäuse)", "Une mesure par ligne : ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (jugée selon les tailles des boîtiers chargés)", "Una lettura per riga: ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (giudicata con le dimensioni dei package caricati)", "1 行に 1 回の読み取り：ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg（読み込んだパッケージの寸法で判定）", "每行一个读数：ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg（按已加载封装的尺寸判断）", "Uma leitura por linha: ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg (julgada pelas dimensões dos encapsulamentos carregados)"],
+    ["Measured marks, one per line: id,x,y (blank: the ones that were loaded)", "Marcas medidas, una por línea: id,x,y (en blanco: las cargadas)", "Gemessene Marken, eine pro Zeile: id,x,y (leer: die geladenen)", "Repères mesurés, un par ligne : id,x,y (vide : ceux qui sont chargés)", "Marcature misurate, una per riga: id,x,y (vuoto: quelle caricate)", "測定したマーク（1 行に 1 つ）：id,x,y（空欄：読み込み済みのもの）", "实测标记，每行一个：id,x,y（留空：使用已加载的）", "Marcas medidas, uma por linha: id,x,y (em branco: as carregadas)"],
+    ["Optional: the record of the nozzle tips (tip,uses,mounts,replaced) so that the sheet says which tip is worn", "Opcional: el registro de las puntas de boquilla (tip,uses,mounts,replaced) para que la hoja diga qué punta está gastada", "Optional: die Aufzeichnung der Düsenspitzen (tip,uses,mounts,replaced), damit die Liste sagt, welche Spitze verschlissen ist", "Facultatif : le relevé des pointes de buse (tip,uses,mounts,replaced) pour que la fiche dise quelle pointe est usée", "Facoltativo: il registro delle punte degli ugelli (tip,uses,mounts,replaced) perché il foglio dica quale punta è usurata", "任意：ノズル先端の記録（tip,uses,mounts,replaced）。どの先端が摩耗しているかをシートに表示します", "可选：吸嘴头记录（tip,uses,mounts,replaced），清单会指出哪个吸嘴头已磨损", "Opcional: o registo das pontas de bico (tip,uses,mounts,replaced) para que a folha diga que ponta está gasta"],
 ];

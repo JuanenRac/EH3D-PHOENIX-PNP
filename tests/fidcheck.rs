@@ -535,3 +535,70 @@ fn the_settings_of_the_check_are_in_the_example_with_the_defaults_and_their_rang
         Reject::DropWorst
     );
 }
+
+fn mk(id: &str, x: f64, y: f64) -> (String, f64, f64) {
+    (id.to_string(), x, y)
+}
+
+#[test]
+fn the_marks_are_paired_by_name_and_the_limits_come_from_the_configuration() {
+    use eh3d_phoenix_pnp::config::MachineConfig;
+    use eh3d_phoenix_pnp::fidcheck::{analyze_marks, pair_marks, residual_table, warnings};
+    let design = vec![
+        mk("a", 0.0, 0.0),
+        mk("b", 100.0, 0.0),
+        mk("c", 0.0, 50.0),
+        mk("d", 100.0, 50.0),
+    ];
+    // a mark that is not measured is left out; one that the design does not have is an error
+    let (ids, from, to) = pair_marks(&design, &[mk("c", 1.0, 51.0), mk("a", 1.0, 1.0)]).unwrap();
+    assert_eq!(ids, ["a", "c"]);
+    assert_eq!((from[1], to[1]), ((0.0, 50.0), (1.0, 51.0)));
+    let e = pair_marks(&design, &[mk("z", 0.0, 0.0)]).unwrap_err();
+    assert_eq!(e.code, Code::FiducialBad);
+    let e = pair_marks(&design, &[mk("a", 0.0, 0.0), mk("a", 1.0, 1.0)]).unwrap_err();
+    assert!(e.detail.contains("more than once"), "{}", e.detail);
+    // the limits are the ones of the configuration
+    let cfg = MachineConfig {
+        fiducial_max_shift_mm: 1.5,
+        ..MachineConfig::default()
+    };
+    assert_eq!(Limits::from_config(&cfg).max_shift_mm, 1.5);
+    assert_eq!(
+        Limits::from_config(&MachineConfig::default()),
+        Limits::default()
+    );
+    // marks that are only shifted: all well, a table of ok marks and no warning
+    let shifted: Vec<_> = design
+        .iter()
+        .map(|d| mk(&d.0, d.1 + 0.5, d.2 - 0.25))
+        .collect();
+    let (a, ids) = analyze_marks(&design, &shifted, &MachineConfig::default()).unwrap();
+    assert!(warnings(&a, &ids, 0.5).is_empty());
+    let table = residual_table(&a, &ids, 0.5);
+    assert_eq!(table.lines().count(), 5);
+    assert!(table.lines().skip(1).all(|l| l.ends_with(",ok")), "{table}");
+    // one mark taken far from where it is, among enough marks to tell which: it is the suspect, it is over the limit and it is said so
+    let mut wide = design.clone();
+    wide.push(mk("e", 50.0, 0.0));
+    wide.push(mk("f", 50.0, 50.0));
+    let mut bad: Vec<_> = wide
+        .iter()
+        .map(|d| mk(&d.0, d.1 + 0.5, d.2 - 0.25))
+        .collect();
+    bad[3].1 += 8.0;
+    bad[3].2 += 6.0;
+    let (a, ids) = analyze_marks(&wide, &bad, &MachineConfig::default()).unwrap();
+    let w = warnings(&a, &ids, 0.5);
+    assert!(
+        w.iter()
+            .any(|l| l.contains("the only one that does not agree")),
+        "{w:?}"
+    );
+    assert!(w.iter().any(|l| l.starts_with("mark d is")), "{w:?}");
+    assert!(residual_table(&a, &ids, 0.5).contains("d,"));
+    assert!(residual_table(&a, &ids, 0.5).contains(
+        ",suspect
+"
+    ));
+}

@@ -5,8 +5,9 @@ use eh3d_phoenix_pnp::error::Lang;
 use eh3d_phoenix_pnp::gui::app::{AppState, Tab};
 use eh3d_phoenix_pnp::gui::settings::UiSettings;
 use eh3d_phoenix_pnp::gui::toolbox::{
-    apply_camera, apply_runout, backlash_text, bom_text, camera_text, panel_text, polarity_text,
-    runout_text, stock_text, teach_text, PanelForm, Tool, Toolbox, MAX_TOOL_BYTES,
+    apply_camera, apply_runout, backlash_text, bom_text, camera_text, compare_text,
+    feeder_check_text, fiducials_text, inspect_text, life_text, panel_text, polarity_text,
+    preview_text, runout_text, stock_text, teach_text, PanelForm, Tool, Toolbox, MAX_TOOL_BYTES,
 };
 use eh3d_phoenix_pnp::gui::workspace::Workspace;
 use eh3d_phoenix_pnp::motion::BacklashMode;
@@ -145,7 +146,7 @@ fn a_configuration_that_is_loaded_gives_the_forms_their_values_and_keeps_what_wa
 
 #[test]
 fn the_tools_have_keys_and_the_tab_is_one_of_the_tabs() {
-    assert_eq!(Tool::ALL.len(), 9);
+    assert_eq!(Tool::ALL.len(), 15);
     for t in Tool::ALL {
         assert_eq!(Tool::from_key(t.key()), Some(t));
         assert_eq!(
@@ -634,5 +635,187 @@ fn the_stock_tool_adds_the_boards_up_against_the_feeders_that_are_loaded() {
     let path = tb.save(dir.to_str().unwrap(), Lang::En).unwrap();
     assert!(path.ends_with("stock.csv"), "{path}");
     assert_eq!(Tool::from_key("stock"), Some(Tool::Stock));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---- the tools that were commands only
+
+#[test]
+fn the_nozzle_tip_tool_reads_the_record_and_marks_the_tips_over_the_limit() {
+    let (info, csv) = life_text(&example("nozzle_life.csv"), 500_000, Lang::En).unwrap();
+    assert!(info.contains("tip N45: 120000 parts placed"), "{info}");
+    assert!(
+        info.contains("<- look at this tip") && info.contains("warning: nozzle tip N75"),
+        "{info}"
+    );
+    assert!(!info.contains("warning: nozzle tip N45"), "{info}");
+    assert!(csv.contains("N75,510000,12,0"), "{csv}");
+    // a warning level of zero never marks a tip, and a record that is not one is refused in the language of the window
+    let (quiet, _) = life_text(&example("nozzle_life.csv"), 0, Lang::En).unwrap();
+    assert!(!quiet.contains("look at this tip"), "{quiet}");
+    assert!(life_text("tip,uses\nN1,x\n", 10, Lang::Es)
+        .unwrap_err()
+        .contains("PHOENIX-PNP-"));
+    // the tool runs on its own text and writes the record under its name, never over a file
+    let ws = board();
+    let dir = scratch("life");
+    let mut tb = Toolbox::new(&MachineConfig::default());
+    tb.tool = Tool::NozzleLife;
+    tb.life_text = example("nozzle_life.csv");
+    tb.run(&ws, Lang::En);
+    assert!(tb.error.is_empty(), "{}", tb.error);
+    assert!(tb.info.contains("N75"));
+    let path = tb.save(dir.to_str().unwrap(), Lang::En).unwrap();
+    assert!(path.ends_with("nozzle_life.csv"), "{path}");
+    assert!(tb.save(dir.to_str().unwrap(), Lang::En).is_none());
+    assert_eq!(Tool::from_key("life"), Some(Tool::NozzleLife));
+    assert!(Tool::NozzleLife.reads_text());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_setup_sheet_says_which_tip_is_worn_when_the_record_is_given() {
+    let mut ws = board();
+    ws.load_text("feeders.csv", &example("feeders.csv"))
+        .unwrap();
+    ws.load_text("packages.csv", &example("packages.csv"))
+        .unwrap();
+    let mut tb = Toolbox::new(&MachineConfig::default());
+    tb.tool = Tool::Setup;
+    tb.run(&ws, Lang::En);
+    assert!(tb.error.is_empty(), "{}", tb.error);
+    let without = tb.output.clone();
+    tb.life_text =
+        "tip,uses,mounts,replaced\nN45,999999999,10,0\nN75,999999999,10,0\nN140,999999999,10,0\n"
+            .to_string();
+    tb.run(&ws, Lang::En);
+    assert!(tb.error.is_empty(), "{}", tb.error);
+    assert_ne!(
+        tb.output, without,
+        "the record changes nothing on the sheet"
+    );
+    // a record that cannot be read is an error, not a sheet without it
+    tb.life_text = "tip,uses,mounts,replaced\nN45,many,1,0\n".to_string();
+    tb.run(&ws, Lang::En);
+    assert!(tb.error.contains("PHOENIX-PNP-"), "{}", tb.error);
+    assert!(Tool::Setup.reads_text());
+}
+
+#[test]
+fn the_inspection_tool_judges_the_readings_against_the_packages_that_are_loaded() {
+    let mut ws = board();
+    // no sizes known: every part is without a size to be judged against
+    let (info, _) = inspect_text(&ws, &example("nozzle_reads.csv"), Lang::En).unwrap();
+    assert!(
+        info.starts_with("0 accepted, 0 refused, 6 without a size"),
+        "{info}"
+    );
+    ws.load_text("packages.csv", &example("packages_bodies.csv"))
+        .unwrap();
+    let (info, csv) = inspect_text(&ws, &example("nozzle_reads.csv"), Lang::En).unwrap();
+    assert!(
+        info.contains("accepted") && !info.starts_with("0 accepted"),
+        "{info}"
+    );
+    assert!(csv.starts_with("ref,package,verdict,"), "{csv}");
+    assert!(inspect_text(&ws, "nothing", Lang::En)
+        .unwrap_err()
+        .contains("PHOENIX-PNP-"));
+    let mut tb = Toolbox::new(&MachineConfig::default());
+    tb.tool = Tool::Inspect;
+    tb.inspect_text = example("nozzle_reads.csv");
+    tb.run(&ws, Lang::En);
+    assert!(tb.error.is_empty(), "{}", tb.error);
+    assert_eq!(tb.made_by, Some(Tool::Inspect));
+    assert_eq!(Tool::Inspect.output_name(), Some("part_inspect.csv"));
+}
+
+fn marks(text: &str) -> Vec<(String, f64, f64)> {
+    eh3d_phoenix_pnp::fiducial::parse_measured(text).unwrap()
+}
+
+#[test]
+fn the_fiducial_tool_shows_the_residual_of_each_mark_and_warns() {
+    let mut ws = board();
+    assert!(fiducials_text(&ws, "", Lang::En)
+        .unwrap_err()
+        .contains("no marks of a design"));
+    ws.design_fiducials = marks(&example("fid_design.csv"));
+    assert!(fiducials_text(&ws, "", Lang::En)
+        .unwrap_err()
+        .contains("no measured marks"));
+    // the measured marks of the example fit well
+    let (info, table) = fiducials_text(&ws, &example("fid_measured.csv"), Lang::En).unwrap();
+    assert!(
+        info.contains("mark f1:") && info.contains("check:"),
+        "{info}"
+    );
+    assert!(table.starts_with("mark,residual_mm,without_mark_mm,state\n"));
+    assert_eq!(table.lines().count(), 5);
+    // the ones that were loaded are used when the box is blank
+    ws.measured = marks(&example("fid_measured.csv"));
+    let (again, _) = fiducials_text(&ws, "  ", Lang::En).unwrap();
+    assert_eq!(again, info);
+    // one mark taken at the wrong place is found and warned about
+    let bad = "id,x,y\nf1,-5,-5\nf2,105,-5\nf3,-5,65\nf4,112,70\n";
+    let (info, table) = fiducials_text(&ws, bad, Lang::En).unwrap();
+    assert!(info.contains("warning: mark "), "{info}");
+    assert!(
+        table.contains(",over\n") || table.contains(",suspect\n"),
+        "{table}"
+    );
+    // a mark that the design does not have, and a mark measured twice
+    assert!(
+        fiducials_text(&ws, "id,x,y\nzz,1,1\nf1,0,0\nf2,1,1\n", Lang::En)
+            .unwrap_err()
+            .contains("not in the design")
+    );
+    assert!(
+        fiducials_text(&ws, "id,x,y\nf1,0,0\nf1,1,1\nf2,1,1\n", Lang::En)
+            .unwrap_err()
+            .contains("PHOENIX-PNP-")
+    );
+}
+
+#[test]
+fn the_feeder_comparison_and_picture_tools_need_a_plan() {
+    let mut ws = board();
+    assert!(feeder_check_text(&ws).0.contains("no table of feeders"));
+    assert!(compare_text(&ws, Lang::En)
+        .unwrap_err()
+        .contains("load a table"));
+    assert!(preview_text(&ws, Lang::En)
+        .unwrap_err()
+        .contains("load a table"));
+    ws.load_text("feeders.csv", &example("feeders.csv"))
+        .unwrap();
+    ws.load_text("packages.csv", &example("packages.csv"))
+        .unwrap();
+    let (info, text) = feeder_check_text(&ws);
+    assert!(
+        info.contains("feeders:") && info.contains("errors"),
+        "{info}"
+    );
+    assert!(!text.is_empty());
+    let (_, table) = compare_text(&ws, Lang::En).unwrap();
+    assert!(table.contains("order of the places"), "{table}");
+    let (info, svg) = preview_text(&ws, Lang::En).unwrap();
+    assert!(svg.starts_with("<svg") || svg.starts_with("<?xml"), "{svg}");
+    assert!(info.contains("placements"), "{info}");
+    // each is written under its name
+    let dir = scratch("plan_tools");
+    for (tool, name) in [
+        (Tool::FeederCheck, "feeder_check.txt"),
+        (Tool::Compare, "order_compare.txt"),
+        (Tool::Preview, "plan.svg"),
+    ] {
+        let mut tb = Toolbox::new(&MachineConfig::default());
+        tb.tool = tool;
+        tb.run(&ws, Lang::En);
+        assert!(tb.error.is_empty(), "{}", tb.error);
+        assert!(!tool.reads_text());
+        let path = tb.save(dir.to_str().unwrap(), Lang::En).unwrap();
+        assert!(path.ends_with(name), "{path}");
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }
