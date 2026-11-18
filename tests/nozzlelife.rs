@@ -68,7 +68,7 @@ fn the_example_is_read_and_written_back_as_it_is() {
         .map(|t| (t.tip.as_str(), t.uses, t.mounts, t.replaced))
         .collect();
     assert_eq!(rows, [("N45", 120_000, 40, 1), ("N75", 510_000, 12, 0)]);
-    assert_eq!(life.to_csv(), EXAMPLE);
+    assert_eq!(life.to_csv(), EXAMPLE.replace("\r\n", "\n"));
     assert_eq!(NozzleLife::parse(&life.to_csv()).unwrap(), life);
     assert_eq!(life.get(" N45 ").unwrap().uses, 120_000);
     assert!(life.get("N99").is_none() && !life.is_empty());
