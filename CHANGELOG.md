@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A table of packages with the size of the body opens as a table of packages:** the window took a CSV whose header has `body_long_mm` and `body_short_mm` for a table of positions, so a table of packages (or of parts) with the size of the body, such as `examples/packages_bodies.csv` or one the window saved after the sizes were edited, could not be loaded; the two columns are now among those of a table.
 ## [0.0.8] - A Tools tab, a bill of materials check and stock, calibrations, fiducial and part checks, tube feeders, nozzle life, a setup sheet and a picture of the plan
 
 - **Tests of the names of the files:** no two files of the repository have names that differ only in case (which Windows and macOS take for one file), and none has a name that Windows keeps for a device (`aux`, `con`, `nul`, `com1`...), a character it cannot hold in a name or a trailing dot or space.

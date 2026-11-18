@@ -154,6 +154,18 @@ fn a_file_is_told_from_its_name_and_its_first_line() {
     assert_eq!(csv("id;value;package;x;y;count\n"), Some(FileKind::Feeders));
     assert_eq!(csv("id,x,y,max_width_mm\n"), Some(FileKind::Slots));
     assert_eq!(csv("package,height_mm\nR,1\n"), Some(FileKind::Packages));
+    // the size of the body is a column of the table of packages, not a sign of a table of positions
+    assert_eq!(
+        csv("package,height_mm,body_long_mm,body_short_mm
+R,1,1,1
+"),
+        Some(FileKind::Packages)
+    );
+    assert_eq!(
+        csv("value,package,body_long_mm,body_short_mm
+"),
+        Some(FileKind::Catalog)
+    );
     assert_eq!(csv("value,package,rank\n"), Some(FileKind::Catalog));
     assert_eq!(
         classify("x.txt", "### Module positions\n"),

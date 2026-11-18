@@ -56,7 +56,7 @@ impl FileKind {
 }
 
 /// The columns a table of parts or packages may have; a CSV whose header holds only these is a table, not a position file.
-const TABLE_COLUMNS: [&str; 11] = [
+const TABLE_COLUMNS: [&str; 13] = [
     "value",
     "package",
     "height_mm",
@@ -68,6 +68,8 @@ const TABLE_COLUMNS: [&str; 11] = [
     "origin_dx_mm",
     "origin_dy_mm",
     "tape_mm",
+    "body_long_mm",
+    "body_short_mm",
 ];
 
 /// What kind of file this is, from its name and its first line; `None` when it is empty.
