@@ -791,7 +791,13 @@ impl AppState {
 
     /// Sets the slack of the axes of the simulated machine and the way it is dealt with, keeping them in the ranges of the settings, and plans again.
     pub fn set_backlash(&mut self, x_mm: f64, y_mm: f64, mode: crate::motion::BacklashMode) {
-        let keep = |v: f64, old: f64| if v.is_finite() { v.clamp(0.0, 2.0) } else { old };
+        let keep = |v: f64, old: f64| {
+            if v.is_finite() {
+                v.clamp(0.0, 2.0)
+            } else {
+                old
+            }
+        };
         self.ws.cfg.backlash_x_mm = keep(x_mm, self.ws.cfg.backlash_x_mm);
         self.ws.cfg.backlash_y_mm = keep(y_mm, self.ws.cfg.backlash_y_mm);
         self.ws.cfg.backlash_mode = mode;
