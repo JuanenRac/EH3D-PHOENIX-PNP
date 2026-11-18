@@ -1,0 +1,5 @@
+# Places measured on the machine for the feeders to teach (feeder-teach --measures): a strip gives the first and the last part and their count; a tray gives the first cell, the last cell of
+# its first row and the last cell of its first column, then the cells of a row and the rows. The program gives the pitch and the angle of each.
+id,kind,x1,y1,x2,y2,x3,y3,count,rows
+F2,strip,-20,20,-20,176,,,40,
+F3,tray,-60,40,-35,40,-60,52.5,3,2

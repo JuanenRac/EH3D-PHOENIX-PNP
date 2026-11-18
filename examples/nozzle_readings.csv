@@ -1,0 +1,10 @@
+# Readings of the place of the nozzle tip at several angles: the angle the nozzle was turned to and the X and Y of the tip (mm).
+angle_deg,x_mm,y_mm
+0,150.102,42.059
+45,150.032,42.118
+90,149.940,42.104
+135,149.886,42.029
+180,149.898,41.939
+225,149.968,41.883
+270,150.059,41.897
+315,150.115,41.969

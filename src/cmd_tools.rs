@@ -7,8 +7,8 @@ use crate::cli_args::{finish, flag, num};
 use crate::commands::{read_text, refuse_same_file};
 use eh3d_phoenix_pnp::bom::{compare, order as bom_order_lines, order_csv, Bom};
 use eh3d_phoenix_pnp::calibrate::{
-    calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples, teach_strip,
-    teach_tray,
+    calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples, taught_csv,
+    teach_file, teach_strip, teach_tray, Taught,
 };
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
@@ -292,8 +292,21 @@ fn pair(text: &str, what: &str) -> Result<(f64, f64), String> {
 /// `feeder-teach strip|tray`: the pitch and the angle of a strip, or the pitches and the angle of a tray, from places that were measured on the machine; prints the columns of the file of
 /// feeders that they set.
 pub fn feeder_teach(mut args: Vec<String>) -> Result<(), String> {
-    let (lang, _cfg) = language_and_config(&mut args)?;
+    let (lang, cfg) = language_and_config(&mut args)?;
     let l = |e: PnpError| e.localized(lang);
+    // a file with the measures of several feeders: one line for each and the columns of the file of feeders that they set
+    if let Some(path) = flag(&mut args, "--measures")? {
+        finish(&args, 0)?;
+        let rows = teach_file(&read_text(&path, cfg.max_file_bytes)?).map_err(l)?;
+        for (id, t) in &rows {
+            match t {
+                Taught::Strip(s) => println!("{id}: {}", s.summary()),
+                Taught::Tray(t) => println!("{id}: {}", t.summary()),
+            }
+        }
+        print!("{}", taught_csv(&rows));
+        return Ok(());
+    }
     let kind = args
         .first()
         .cloned()

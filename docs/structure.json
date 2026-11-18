@@ -1062,6 +1062,19 @@
           }
         },
         {
+          "name": "samples.rs",
+          "desc": {
+            "en": "tests of the examples of the calibrations and of the file of measures of the feeders",
+            "es": "pruebas de los ejemplos de las calibraciones y del fichero de medidas de los alimentadores",
+            "de": "Tests der Beispiele der Kalibrierungen und der Messdatei der Zuführungen",
+            "fr": "tests des exemples d'étalonnage et du fichier de mesures des alimentateurs",
+            "it": "test degli esempi delle calibrazioni e del file di misure dei feeder",
+            "ja": "校正の例とフィーダー測定ファイルのテスト",
+            "zh": "校准示例与供料器测量文件的测试",
+            "pt": "testes dos exemplos das calibrações e do ficheiro de medidas dos alimentadores"
+          }
+        },
+        {
           "name": "shot.rs",
           "desc": {
             "en": "tests of the picture mode of the window: its arguments, read and checked without a screen",
@@ -1238,6 +1251,19 @@
           }
         },
         {
+          "name": "camera_points.csv",
+          "desc": {
+            "en": "sightings of a mark for camera-calibrate",
+            "es": "avistamientos de una marca para camera-calibrate",
+            "de": "Sichtungen einer Marke für camera-calibrate",
+            "fr": "relevés d'une marque pour camera-calibrate",
+            "it": "rilevazioni di un segno per camera-calibrate",
+            "ja": "camera-calibrate 用のマークの観測",
+            "zh": "camera-calibrate 用的标记观测点",
+            "pt": "observações de uma marca para camera-calibrate"
+          }
+        },
+        {
           "name": "catalog.csv",
           "desc": {
             "en": "a table of parts: rank and height",
@@ -1287,6 +1313,19 @@
             "ja": "別の列名、見出しにミル単位、面を表す語を持つセントロイド CSV",
             "zh": "使用其他列名、表头带密耳单位、并用词语表示面的质心 CSV",
             "pt": "um CSV de centroides com outros nomes de colunas, milésimas de polegada nos cabeçalhos e palavras para as faces"
+          }
+        },
+        {
+          "name": "feeder_measures.csv",
+          "desc": {
+            "en": "places measured for a strip and a tray, for feeder-teach",
+            "es": "lugares medidos de una tira y una bandeja, para feeder-teach",
+            "de": "gemessene Orte eines Gurts und eines Trays für feeder-teach",
+            "fr": "positions mesurées d'une bande et d'un plateau pour feeder-teach",
+            "it": "posizioni misurate di una striscia e di un vassoio per feeder-teach",
+            "ja": "feeder-teach 用のテープとトレイの測定位置",
+            "zh": "feeder-teach 用的料带与料盘测量位置",
+            "pt": "lugares medidos de uma tira e de um tabuleiro, para feeder-teach"
           }
         },
         {
@@ -1365,6 +1404,19 @@
             "ja": "パネルのフィデューシャルの実測位置",
             "zh": "拼板基准点的实测位置",
             "pt": "as posições medidas dos fiduciais do painel"
+          }
+        },
+        {
+          "name": "nozzle_readings.csv",
+          "desc": {
+            "en": "readings of the nozzle tip at several angles for nozzle-calibrate",
+            "es": "lecturas de la punta de la boquilla en varios ángulos para nozzle-calibrate",
+            "de": "Messwerte der Düsenspitze bei mehreren Winkeln für nozzle-calibrate",
+            "fr": "relevés de la pointe de la buse à plusieurs angles pour nozzle-calibrate",
+            "it": "letture della punta dell'ugello a più angoli per nozzle-calibrate",
+            "ja": "nozzle-calibrate 用の複数角度でのノズル先端の読み取り",
+            "zh": "nozzle-calibrate 用的多个角度下吸嘴尖端读数",
+            "pt": "leituras da ponta do bico em vários ângulos para nozzle-calibrate"
           }
         },
         {

@@ -500,3 +500,125 @@ impl TrayTeach {
         )
     }
 }
+
+/// What a feeder of a file of measures was taught.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Taught {
+    Strip(StripTeach),
+    Tray(TrayTeach),
+}
+
+/// The most feeders a file of measures may hold.
+pub const MAX_TEACH_ROWS: usize = 1000;
+
+fn teach_number(cell: &str, line: usize, name: &str) -> Result<f64, PnpError> {
+    let v: f64 = cell
+        .trim()
+        .parse()
+        .map_err(|_| bad_at(line, format!("{name} '{cell}' is not a number")))?;
+    if !v.is_finite() || v.abs() > MAX_MM {
+        return Err(bad_at(
+            line,
+            format!("{name} '{cell}' is not a usable number"),
+        ));
+    }
+    Ok(v)
+}
+
+fn teach_count(cell: &str, line: usize, name: &str) -> Result<u32, PnpError> {
+    cell.trim()
+        .parse::<u32>()
+        .map_err(|_| bad_at(line, format!("{name} '{cell}' is not a whole number")))
+}
+
+/// Reads a file of measures for several feeders: the columns `id,kind,x1,y1,x2,y2,x3,y3,count,rows`, one row for each feeder, with an optional header and comment lines (`#`). For a
+/// `strip` the places 1 and 2 are the first and the last part and `count` the number of parts; for a `tray` they are the first cell, the last cell of the first row and (place 3) the last
+/// cell of the first column, and `count` and `rows` are the cells of a row and the rows. Each row is taught as `teach_strip` or `teach_tray` do, and the id is kept to name the feeder.
+pub fn teach_file(text: &str) -> Result<Vec<(String, Taught)>, PnpError> {
+    let text = text.trim_start_matches('\u{feff}');
+    let kept: String = text
+        .lines()
+        .map(|l| {
+            if l.trim_start().starts_with('#') {
+                ""
+            } else {
+                l
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let head = kept.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+    let records = read_records_numbered(&kept, detect_delimiter(head))
+        .map_err(|(line, e)| bad_at(line, e))?;
+    let mut out: Vec<(String, Taught)> = Vec::new();
+    for (i, (line, record)) in records.into_iter().enumerate() {
+        if i == 0
+            && record
+                .first()
+                .is_some_and(|c| c.trim().eq_ignore_ascii_case("id"))
+        {
+            continue;
+        }
+        if record.len() != 10 {
+            return Err(bad_at(
+                line,
+                format!("a feeder needs 10 columns, this row has {}", record.len()),
+            ));
+        }
+        if out.len() >= MAX_TEACH_ROWS {
+            return Err(bad_at(line, format!("more than {MAX_TEACH_ROWS} feeders")));
+        }
+        let id = record[0].trim().to_string();
+        if id.is_empty() || id.chars().any(char::is_control) {
+            return Err(bad_at(line, "the id of the feeder is empty"));
+        }
+        if out.iter().any(|(other, _)| *other == id) {
+            return Err(bad_at(line, format!("the id '{id}' is used twice")));
+        }
+        let at = |k: usize, name: &str| teach_number(&record[k], line, name);
+        let p1 = (at(2, "x1")?, at(3, "y1")?);
+        let p2 = (at(4, "x2")?, at(5, "y2")?);
+        let count = teach_count(&record[8], line, "count")?;
+        let taught = match record[1].trim().to_ascii_lowercase().as_str() {
+            "strip" => {
+                Taught::Strip(teach_strip(p1, p2, count).map_err(|e| bad_at(line, e.detail))?)
+            }
+            "tray" => {
+                let p3 = (at(6, "x3")?, at(7, "y3")?);
+                let rows = teach_count(&record[9], line, "rows")?;
+                Taught::Tray(
+                    teach_tray(p1, p2, p3, count, rows).map_err(|e| bad_at(line, e.detail))?,
+                )
+            }
+            other => {
+                return Err(bad_at(
+                    line,
+                    format!("the kind '{other}' is not strip or tray"),
+                ))
+            }
+        };
+        out.push((id, taught));
+    }
+    if out.is_empty() {
+        return Err(bad("the file of measures has no feeder"));
+    }
+    Ok(out)
+}
+
+/// The columns of the file of feeders that the taught feeders set (`id,kind,x,y,count,cols,rows,pitch_x,pitch_y,pitch,rotation`), as a header and a row for each.
+pub fn taught_csv(rows: &[(String, Taught)]) -> String {
+    let mut out = String::from("id,kind,x,y,count,cols,rows,pitch_x,pitch_y,pitch,rotation\n");
+    for (id, t) in rows {
+        match t {
+            Taught::Strip(s) => out.push_str(&format!(
+                "{id},strip,{:.3},{:.3},{},,,,,{:.4},{:.3}\n",
+                s.x_mm, s.y_mm, s.count, s.pitch_mm, s.rotation_deg
+            )),
+            Taught::Tray(t) => out.push_str(&format!(
+                "{id},tray,{:.3},{:.3},,{},{},{:.4},{:.4},,{:.3}\n",
+                t.x_mm, t.y_mm, t.cols, t.rows, t.pitch_x_mm, t.pitch_y_mm, t.rotation_deg
+            )),
+        }
+    }
+    out
+}
