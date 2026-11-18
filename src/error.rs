@@ -111,10 +111,11 @@ pub enum Code {
     ImportRange = 56,
     BomBad = 57,
     CalibrationBad = 58,
+    NozzleLifeBad = 59,
 }
 
 impl Code {
-    pub const ALL: [Code; 58] = [
+    pub const ALL: [Code; 59] = [
         Code::FileTooBig,
         Code::TooManyParts,
         Code::ConfigSyntax,
@@ -173,6 +174,7 @@ impl Code {
         Code::ImportRange,
         Code::BomBad,
         Code::CalibrationBad,
+        Code::NozzleLifeBad,
     ];
 
     pub fn number(self) -> u16 {
@@ -191,7 +193,7 @@ impl Code {
 }
 
 /// One row per code, in the order of `Code::ALL`; one column per language, in the order of `Lang::ALL`.
-static MESSAGES: [[&str; 8]; 58] = [
+static MESSAGES: [[&str; 8]; 59] = [
     [
         "The file is larger than the allowed size",
         "El archivo supera el tamaño permitido",
@@ -771,6 +773,16 @@ static MESSAGES: [[&str; 8]; 58] = [
         "校正点が無効か、結果が得られません",
         "校准点无效或无法得出结果",
         "Os pontos de calibração não são válidos ou não dão resultado",
+    ],
+    [
+        "The file of the use of the nozzle tips is not valid",
+        "El archivo del uso de las puntas de boquilla no es válido",
+        "Die Datei der Nutzung der Düsenspitzen ist ungültig",
+        "Le fichier de l'usage des pointes de buse n'est pas valide",
+        "Il file dell'uso delle punte degli ugelli non è valido",
+        "ノズルチップの使用回数ファイルが無効です",
+        "吸嘴头使用次数文件无效",
+        "O ficheiro do uso das pontas dos bicos não é válido",
     ],
 ];
 

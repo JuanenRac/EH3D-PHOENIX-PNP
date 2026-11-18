@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 760 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 772 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.0.7` |
 | 成熟度 | 脚手架 |
-| 测试 | 760 |
+| 测试 | 772 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
 | 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 760 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 测试 | 🟡 | 772 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -90,6 +90,7 @@
 * **检查吸嘴上的元件**（`src/inspect.rs`、`src/cmd_vis.rs`）：`phoenix-pnp part-inspect 读数 --sizes 尺寸表`（或 `--packages 封装表`）把相机测得的每个元件（两条边、偏离轴心的位置和旋转量）与其封装尺寸比较，并给出被拒绝的原因（`part_size_tol_mm`、`part_angle_tol_deg`、`part_offset_max_mm`）；尺寸来自尺寸表，或来自封装表的 `body_long_mm` 与 `body_short_mm` 列（`examples/packages_bodies.csv`），只要有元件被拒绝或没有尺寸，命令就以 1 退出。
 * **料管与散料供料器**（`src/feeding.rs`、`src/feedlib.rs`）：除料带、托盘和条带外，供料器表的 `kind` 列还接受 `tube`（零件滑向挡块的料管或导轨）和 `bulk`（盛在料盒或料碗中、方向不固定的散料）；两者都像料带一样从唯一位置 `x`、`y` 取料，零件角度取自 `rotation`，按数量耗尽，并由 `feeder-check` 检查；窗口的供料器标签页以八种语言提供全部五种类型（`examples/feeders_tubes.csv`）。
 * **按供料器统计的贴装数与用时**（`src/job.rs`、`src/feedrep.rs`、`src/report.rs`）：作业会记下每个吸嘴从哪个供料器取到零件（同类的另一个供料器接替时也一样），并把该零件算作从该供料器贴装，同时累计从每个供料器取料的各步骤（前往、送料、取料和查看）所用时间；作业报告、其 JSON 以及 `simulate --report-feeders`（末尾新增的 `placed` 和 `busy_s` 列）都会显示，已保存的作业也会保留。
+* **吸嘴头寿命**（`src/nozzlelife.rs`、`src/cmd_tools.rs`、`src/commands.rs`）：`simulate --nozzle-life 文件` 会把运行到结束的作业对每个吸嘴头所做的事（贴装数量和安装次数）累加到放在配置旁的小型 CSV 中；一个作业只计一次，不是吸嘴头记录的文件绝不会被覆盖，被替换的文件保留为 `文件.prev`，只有 `nozzle-life 文件 --reset 吸嘴头` 记录更换时计数才会减少。`nozzle_life_warn`（默认 500000，0 表示不提醒）是提醒查看吸嘴头的贴装数，由 `simulate` 和 `nozzle-life` 给出。新增错误码 `PHOENIX-PNP-059`。
 * **工具页**（`src/gui/toolbox.rs`）：轴间隙、吸嘴偏心、相机校准、供料器示教、有方向零件表、物料清单的核对与订购、批量库存，以及电路板网格拼板，各自使用与对应命令相同的库函数；文本可以键入或从文件读取，结果显示在屏幕上，会生成文件的工具有一个按钮，把文件写入输出文件夹且不会覆盖已有文件；相机和偏心可以应用到机器上。表单的初始值是 `machine.cfg` 的键（`order_boards`、`panel_cols`、`panel_rows`、`panel_pitch_x_mm`、`panel_pitch_y_mm`、`panel_fiducial_mm`、`panel_board_width_mm`、`panel_board_height_mm`）。
 
 ## 🧩 在 EH3D 中的角色
@@ -153,6 +154,7 @@ phoenix-pnp stock PARTS FEEDERS [--boards N] [--side top|bottom] [--out F] 供�
 phoenix-pnp part-inspect READINGS [--sizes F] [--packages F] [--out F] 将吸嘴上的元件与其封装尺寸对照（有被拒绝的则以 1 退出）
 phoenix-pnp fiducial-check DESIGN MEASURED [--config F] 测得的标记使拼板产生的旋转、缩放、剪切和位移，与限值对照
 phoenix-pnp feeder-check FEEDERS [--packages F] [--catalog F] 供料器表自身是否一致（槽位、间距、格子、冲突位置）
+phoenix-pnp nozzle-life FILE [--warn N] [--reset TIP] 根据放在配置旁的文件显示每个吸嘴头已贴装的数量（有吸嘴头达到警告阈值则以 1 退出）
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       测量在内存中生成的零件图像
 ```
 
@@ -228,6 +230,7 @@ phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       测量在内存中生�
 | `PHOENIX-PNP-056` | 位号范围无效 |
 | `PHOENIX-PNP-057` | 物料清单中的某一行无效 |
 | `PHOENIX-PNP-058` | 校准点无效或无法得出结果 |
+| `PHOENIX-PNP-059` | 吸嘴头使用次数文件无效 |
 
 ## 🚀 快速开始
 
@@ -265,7 +268,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 760 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 772 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -329,6 +332,7 @@ EH3D-PHOENIX-PNP/
 │   ├── marks.rs                                 两级标记：作为标记的零件，以及拼板和每块电路板的拟合
 │   ├── model.rs                                 以 trait 表示的机器部件：机器、吸嘴、供料器、执行器、相机、驱动
 │   ├── motion.rs                                包含加速度和加加速度的移动时间
+│   ├── nozzlelife.rs                            吸嘴头的使用情况：贴装数、安装次数、更换次数和警告阈值
 │   ├── panel.rs                                 拼板：拼板中的电路板和拼板，各在其位
 │   ├── parts.rs                                 位置文件和不贴装的零件
 │   ├── plan.rs                                  逻辑的一部分
@@ -365,6 +369,7 @@ EH3D-PHOENIX-PNP/
 │   ├── marks.rs                                 标记为不良的电路板、作为标记的零件和两级标记的测试
 │   ├── model.rs                                 数据模型测试：代码、长度、配置和表格
 │   ├── more.rs                                  库和命令行的更多测试
+│   ├── nozzlelife.rs                            吸嘴头使用情况的测试：文件、作业新增的内容和命令
 │   ├── panel.rs                                 拼板及其基准点的测试
 │   ├── panelize.rs                              网格拼板与 panelize 的测试
 │   ├── planner.rs                               移动时间和规划器的测试
@@ -407,6 +412,7 @@ EH3D-PHOENIX-PNP/
 │   ├── job_basic.recipe                         最短的配方：准备、拾取和贴装
 │   ├── machine.cfg                              机器设置，每个键均有说明
 │   ├── marks.csv                                拼板基准点的实测位置
+│   ├── nozzle_life.csv                          两个吸嘴头的使用情况，其中一个超过警告阈值
 │   ├── nozzle_readings.csv                      nozzle-calibrate 用的多个角度下吸嘴尖端读数
 │   ├── nozzle_reads.csv                         供 part-inspect 使用的吸嘴上元件读数
 │   ├── package_sizes.csv                        各封装本体的尺寸

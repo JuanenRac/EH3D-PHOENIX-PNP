@@ -626,6 +626,19 @@
           }
         },
         {
+          "name": "nozzlelife.rs",
+          "desc": {
+            "en": "the use of the nozzle tips: parts placed, mountings, replacements, the warning level",
+            "es": "el uso de las puntas de boquilla: piezas colocadas, montajes, sustituciones, el nivel de aviso",
+            "de": "die Nutzung der Düsenspitzen: bestückte Teile, Montagen, Austausch, die Warnschwelle",
+            "fr": "l'usage des pointes de buse : pièces placées, montages, remplacements, le seuil d'alerte",
+            "it": "l'uso delle punte degli ugelli: componenti posizionati, montaggi, sostituzioni, il livello di avviso",
+            "ja": "ノズルチップの使用状況：搭載数、装着回数、交換回数、警告レベル",
+            "zh": "吸嘴头的使用情况：贴装数、安装次数、更换次数和警告阈值",
+            "pt": "o uso das pontas dos bicos: peças colocadas, montagens, substituições e o nível de aviso"
+          }
+        },
+        {
           "name": "panel.rs",
           "desc": {
             "en": "panels: boards and panels inside panels, each in its place",
@@ -1085,6 +1098,19 @@
             "ja": "ライブラリとコマンドラインの追加テスト",
             "zh": "库和命令行的更多测试",
             "pt": "mais testes da biblioteca e da linha de comandos"
+          }
+        },
+        {
+          "name": "nozzlelife.rs",
+          "desc": {
+            "en": "tests of the use of the nozzle tips: the file, what a job adds, the commands",
+            "es": "pruebas del uso de las puntas de boquilla: el archivo, lo que añade un trabajo, los comandos",
+            "de": "Tests der Nutzung der Düsenspitzen: die Datei, was ein Auftrag hinzufügt, die Befehle",
+            "fr": "tests de l'usage des pointes de buse : le fichier, ce qu'ajoute un travail, les commandes",
+            "it": "test dell'uso delle punte degli ugelli: il file, ciò che aggiunge un lavoro, i comandi",
+            "ja": "ノズルチップの使用状況のテスト：ファイル、ジョブが加えるもの、コマンド",
+            "zh": "吸嘴头使用情况的测试：文件、作业新增的内容和命令",
+            "pt": "testes do uso das pontas dos bicos: o ficheiro, o que um trabalho acrescenta, os comandos"
           }
         },
         {
@@ -1625,6 +1651,19 @@
             "ja": "パネルのフィデューシャルの実測位置",
             "zh": "拼板基准点的实测位置",
             "pt": "as posições medidas dos fiduciais do painel"
+          }
+        },
+        {
+          "name": "nozzle_life.csv",
+          "desc": {
+            "en": "the use of two nozzle tips, one of them over the level of the warning",
+            "es": "el uso de dos puntas de boquilla, una de ellas por encima del nivel de aviso",
+            "de": "die Nutzung zweier Düsenspitzen, eine davon über der Warnschwelle",
+            "fr": "l'usage de deux pointes de buse, l'une au-dessus du seuil d'alerte",
+            "it": "l'uso di due punte di ugello, una delle quali oltre il livello di avviso",
+            "ja": "2 本のノズルチップの使用状況（1 本は警告レベル超え）",
+            "zh": "两个吸嘴头的使用情况，其中一个超过警告阈值",
+            "pt": "o uso de duas pontas de bico, uma delas acima do nível de aviso"
           }
         },
         {

@@ -15,6 +15,7 @@ use eh3d_phoenix_pnp::calibrate::{
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::feeding;
+use eh3d_phoenix_pnp::nozzlelife;
 use eh3d_phoenix_pnp::panel::{grid_panel, Grid};
 use eh3d_phoenix_pnp::parts::{parse_all, Side};
 use eh3d_phoenix_pnp::polarity;
@@ -302,6 +303,46 @@ pub fn bom_order(mut args: Vec<String>) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// `nozzle-life`: the use of the nozzle tips kept in a file, with the tips that have placed `nozzle_life_warn` parts or more; `--reset TIP` records that a tip was replaced (the only way the
+/// counts of a tip go down). The exit code is 1 when a tip is at or over the limit.
+pub fn nozzle_life(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let warn_at = match flag(&mut args, "--warn")? {
+        Some(v) => v
+            .trim()
+            .parse::<u64>()
+            .map_err(|_| format!("--warn '{v}' is not a whole number"))?,
+        None => cfg.nozzle_life_warn,
+    };
+    let reset = flag(&mut args, "--reset")?;
+    finish(&args, 1)?;
+    let path = args
+        .first()
+        .ok_or("nozzle-life needs the file of the use of the tips")?
+        .clone();
+    if !Path::new(&path).is_file() {
+        return Err(format!("{path}: there is no such file"));
+    }
+    let l = |e: PnpError| e.localized(lang);
+    let mut life = nozzlelife::read_file(&path, cfg.max_file_bytes).map_err(l)?;
+    if let Some(tip) = reset {
+        if !life.reset(&tip) {
+            return Err(format!("the tip '{tip}' is not in {path}"));
+        }
+        nozzlelife::write_file(&path, &life).map_err(l)?;
+        println!("ok: the tip {tip} was replaced, its counts are 0; written to {path}");
+    }
+    print!("{}", life.text(warn_at));
+    let over = life.over(warn_at).len();
+    if over > 0 {
+        Err(format!(
+            "{over} tips have placed {warn_at} parts or more (nozzle_life_warn)"
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 /// `stock`: whether the feeders that are loaded hold enough parts for a number of boards, kind by kind. The findings go to the standard output (or the table as a CSV to `--out`, never over a

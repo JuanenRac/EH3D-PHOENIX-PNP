@@ -26,7 +26,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
 
   phoenix-pnp schedule PARTS FEEDERS OUT.json [OPTIONS] [--report-text F] [--gcode F] [--missing F] [--partial]
   phoenix-pnp preflight PARTS FEEDERS [OPTIONS]            the checks before a job, without writing anything
-  phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--report-csv F] [--report-text F] [--report-html F] [--report-feeders F] [--vision F] [--recipe F] [--partial]
+  phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--report-csv F] [--report-text F] [--report-html F] [--report-feeders F] [--nozzle-life F] [--vision F] [--recipe F] [--partial]
   phoenix-pnp loadsheet PARTS SLOTS OUT.csv [OPTIONS] [--feeders-out F]
   phoenix-pnp config-check FILE [--lang CODE]
   phoenix-pnp check-bottom PARTS [--config FILE] [--lang CODE]   the angle each rule of the bottom side (keep, mirror, half_turn) gives to the parts of the bottom side
@@ -37,6 +37,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp nozzle-calibrate FILE [--config F] [--lang CODE]   the runout of the nozzle tip from readings at several angles (angle_deg,x_mm,y_mm)
   phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--spare-min N] [--parts PARTS] [--have FEEDERS] [--out F] [--config F] [--lang CODE]   the parts to buy for N boards, with a spare (less what the feeders already hold)
   phoenix-pnp stock PARTS FEEDERS [--boards N] [--side top|bottom] [--out F] [--config F] [--lang CODE]   whether the feeders hold enough parts for N boards, kind by kind; exits with 1 when some fall short
+  phoenix-pnp nozzle-life FILE [--warn N] [--reset TIP] [--config F] [--lang CODE]   the parts each nozzle tip has placed (a file kept beside the configuration); exits with 1 when a tip is at or over the warning level
   phoenix-pnp feeder-teach strip|tray [places and counts] | --measures FILE [--lang CODE]   the pitch and the angle of a strip or a tray from places measured on the machine
   phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--rotation DEG] [--fiducials MM] [--board-size W,H] [--x-out P2,P5] [--out F] [--lang CODE]   a panel file for a grid of copies of one board
   phoenix-pnp part-inspect READINGS [--sizes F] [--packages F] [--out F] [--config F] [--lang CODE]   the parts on the nozzle (ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg) against the sizes of their packages (a table of sizes, or the columns body_long_mm and body_short_mm of a table of packages)
@@ -208,6 +209,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "bom-order" => cmd_tools::bom_order(args),
         "feeder-teach" => cmd_tools::feeder_teach(args),
         "stock" => cmd_tools::stock(args),
+        "nozzle-life" => cmd_tools::nozzle_life(args),
         "bom-check" => cmd_tools::bom_check(args),
         "part-inspect" => cmd_vis::part_inspect(args),
         "fiducial-check" => cmd_vis::fiducial_check(args),

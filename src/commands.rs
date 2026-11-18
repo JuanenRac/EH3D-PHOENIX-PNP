@@ -19,6 +19,7 @@ use eh3d_phoenix_pnp::loadsheet;
 use eh3d_phoenix_pnp::marks;
 use eh3d_phoenix_pnp::model::Machine;
 use eh3d_phoenix_pnp::model::Offset;
+use eh3d_phoenix_pnp::nozzlelife;
 use eh3d_phoenix_pnp::panel::Panel;
 use eh3d_phoenix_pnp::parts::{
     bottom_table, parse_all, parse_with, take_references, BottomRotation, Part, Side,
@@ -553,6 +554,7 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let text_path = flag(&mut args, "--report-text")?;
     let html_path = flag(&mut args, "--report-html")?;
     let feeders_path = flag(&mut args, "--report-feeders")?;
+    let life_path = flag(&mut args, "--nozzle-life")?;
     let vision_path = flag(&mut args, "--vision")?;
     let recipe_path = flag(&mut args, "--recipe")?;
     let steps = match flag(&mut args, "--steps")? {
@@ -603,6 +605,13 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     }
     let planned = make_plan(&p)?;
     stop_on_errors(&p, &planned, partial)?;
+    // a file of the use of the tips that is not valid is found before the job is run, and the tips that are worn are told before it starts
+    if let Some(lp) = &life_path {
+        let before = nozzlelife::read_file(lp, p.c.cfg.max_file_bytes).map_err(l)?;
+        for line in before.warning_lines(p.c.cfg.nozzle_life_warn) {
+            println!("{line}");
+        }
+    }
     let input = ReportInput {
         dnp: p
             .dnp
@@ -666,6 +675,9 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
         report::write_new(fp, &feedrep::csv(&feeder_rows)).map_err(l)?;
     }
     let phase = outcome.map_err(l)?;
+    if let Some(lp) = &life_path {
+        track_nozzle_life(&job, phase, lp, lang)?;
+    }
     let s = job.stats();
     println!(
         "placed {} of {}, {} put aside, {:.1} s of machine time, {}",
@@ -726,6 +738,30 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     }
     for (r, why) in job.deferred() {
         println!("put aside: {r}: {why}");
+    }
+    Ok(())
+}
+
+/// Adds what a job that ran to its end did with the nozzle tips to the file `path`, and says which tips are at or over `nozzle_life_warn`. A job that did not run to its end leaves the
+/// file as it is, and so does a job that was added already.
+fn track_nozzle_life(job: &Job, phase: Phase, path: &str, lang: Lang) -> Result<(), String> {
+    let cfg = job.config();
+    let l = |e: PnpError| e.localized(lang);
+    if phase != Phase::Finished {
+        println!("nozzle life: the job did not run to its end, so {path} is left as it is");
+        return Ok(());
+    }
+    let uses = nozzlelife::uses_of_job(job);
+    match nozzlelife::update_file(path, job.hash(), &uses, cfg.max_file_bytes).map_err(l)? {
+        None => println!("nozzle life: this job is counted in {path} already"),
+        Some(life) => {
+            for (tip, parts, mounts) in &uses {
+                println!("nozzle life: tip {tip}: {parts} more parts, mounted {mounts} times; written to {path}");
+            }
+            for line in life.warning_lines(cfg.nozzle_life_warn) {
+                println!("{line}");
+            }
+        }
     }
     Ok(())
 }

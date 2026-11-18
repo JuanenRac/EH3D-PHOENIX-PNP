@@ -170,6 +170,7 @@ pub const KEYS: [&str; 149] = [
     "feeder_fail_min_picks",
     "feeder_pitch_step_mm",
     "feeder_min_gap_mm",
+    "nozzle_life_warn",
 ];
 
 /// The order in which the places are visited.
@@ -531,6 +532,8 @@ pub struct MachineConfig {
     /// The pitch of a strip is a whole number of this many millimetres (0 does not check) and two feeders are at least this far apart (0 does not check): `feeder-check`.
     pub feeder_pitch_step_mm: f64,
     pub feeder_min_gap_mm: f64,
+    /// A nozzle tip that has placed this many parts is told to the person to look at (0 does not warn): `nozzle-life` and `simulate --nozzle-life`.
+    pub nozzle_life_warn: u64,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -674,6 +677,7 @@ impl Default for MachineConfig {
             feeder_fail_min_picks: 10,
             feeder_pitch_step_mm: 2.0,
             feeder_min_gap_mm: 3.0,
+            nozzle_life_warn: 500_000,
         }
     }
 }
@@ -1219,6 +1223,9 @@ impl MachineConfig {
             }
             "feeder_pitch_step_mm" => self.feeder_pitch_step_mm = n(0.0, 100.0)?,
             "feeder_min_gap_mm" => self.feeder_min_gap_mm = n(0.0, 1000.0)?,
+            "nozzle_life_warn" => {
+                self.nozzle_life_warn = int(line, key, v, 0, 1_000_000_000)? as u64
+            }
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

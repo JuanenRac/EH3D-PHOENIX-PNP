@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 760 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 772 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.7` |
 | Maturity | Scaffolding |
-| Tests | 760 |
+| Tests | 772 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder (priority, tray, strip), plans the order of the placements for a head with up to six nozzles with ranks, nozzle tips, angle limits and the time of the moves, plans panels and writes the load sheet; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
-| Tests | 🟡 | 760 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
+| Tests | 🟡 | 772 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
 | Machine configuration | 🟡 | a `key = value` file with a version, a validator that names the line, and the safety limits (travel of Z, limits of X and Y, retries, nozzle angles); the values have not been compared with a real machine. |
 | Simulator and job | 🟡 | a virtual clock, failures injected by chance (with a seed) or at a chosen place, retries, the policies alert and defer, feeders that switch off after repeated faults, pause, step by step, and a saved state to resume from; it only simulates, nothing has driven a machine. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
@@ -90,6 +90,7 @@ Each line is one part of this repository and the light says how far it is today.
 * **Look at the part on the nozzle** (`src/inspect.rs`, `src/cmd_vis.rs`): `phoenix-pnp part-inspect READINGS --sizes SIZES` (or `--packages PACKAGES`) compares what the camera measured of each part (its two sides, where it hangs from the axis and how much it is turned) with the size of its package and says why it is refused (`part_size_tol_mm`, `part_angle_tol_deg`, `part_offset_max_mm`); the size comes from a table of sizes or from the columns `body_long_mm` and `body_short_mm` of the table of packages (`examples/packages_bodies.csv`), and the command exits with 1 while a part is refused or has no size.
 * **Tubes and bulk feeders** (`src/feeding.rs`, `src/feedlib.rs`): besides a tape, a tray and a strip, the column `kind` of the table of feeders takes `tube` (a stick or rail whose parts slide to a stop) and `bulk` (loose parts in a bin or a bowl, which come in no fixed direction); both pick from the one place `x`, `y`, as a tape does, take the angle of the parts from `rotation`, are emptied by the count and are checked by `feeder-check`; the Feeders tab of the window offers all five kinds in the eight languages (`examples/feeders_tubes.csv`).
 * **Parts placed and time by feeder** (`src/job.rs`, `src/feedrep.rs`, `src/report.rs`): the job notes which feeder each nozzle took its part from (also when another feeder of the kind took over) and counts the part as placed from that feeder, and adds the time of the steps that picked from each feeder (the way to it, the feed, the pick and the look); the work report, its JSON and `simulate --report-feeders` (the columns `placed` and `busy_s` at the end) show them, and a saved job keeps them.
+* **Life of the nozzle tips** (`src/nozzlelife.rs`, `src/cmd_tools.rs`, `src/commands.rs`): `simulate --nozzle-life FILE` adds what a job that ran to its end did with each tip (the parts it placed and the times it was mounted) to a small CSV that the person keeps beside the configuration; a job is counted once, a file that is not a record of the tips is never written over, the file it replaces is kept as `FILE.prev` and the counts go down only when `nozzle-life FILE --reset TIP` records that a tip was replaced. `nozzle_life_warn` (default 500000, 0 does not warn) is the number of parts at which a tip is told to the person to look at, by `simulate` and by `nozzle-life`. New error code `PHOENIX-PNP-059`.
 * **Tools tab** (`src/gui/toolbox.rs`): the slack of the axes, the runout of the nozzle, the camera calibration, the teaching of feeders, the sheet of the parts that have a direction, the check and the order of a bill of materials, the stock for a run and the panel of a grid of boards, each with the library functions of its command, a text that is typed or read from a file, the result on screen and, where it makes a file, a button that writes it to the output folder without going over a file that exists; the camera and the runout can be put in the machine. The values the forms start with are keys of `machine.cfg` (`order_boards`, `panel_cols`, `panel_rows`, `panel_pitch_x_mm`, `panel_pitch_y_mm`, `panel_fiducial_mm`, `panel_board_width_mm`, `panel_board_height_mm`).
 
 ## 🧩 Role in EH3D
@@ -153,6 +154,7 @@ phoenix-pnp stock PARTS FEEDERS [--boards N] [--side top|bottom] [--out F] wheth
 phoenix-pnp part-inspect READINGS [--sizes F] [--packages F] [--out F] the parts on the nozzle against the size of their packages (exits with 1 if one is refused)
 phoenix-pnp fiducial-check DESIGN MEASURED [--config F] the turn, scale, shear and shift that the measured marks put on the panel, against the limits
 phoenix-pnp feeder-check FEEDERS [--packages F] [--catalog F] whether the table of feeders agrees with itself (slots, pitches, cells, places that clash)
+phoenix-pnp nozzle-life FILE [--warn N] [--reset TIP] the parts each nozzle tip has placed, from a file kept beside the configuration (exits with 1 when a tip is at the warning level)
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       measures the picture of a part made in memory
 ```
 
@@ -228,6 +230,7 @@ The tables of packages and parts (`--packages`, `--catalog`) are CSV files in wh
 | `PHOENIX-PNP-056` | A range of references is not valid |
 | `PHOENIX-PNP-057` | A line of the bill of materials is not valid |
 | `PHOENIX-PNP-058` | The calibration points are not valid or do not give a result |
+| `PHOENIX-PNP-059` | The file of the use of the nozzle tips is not valid |
 
 ## 🚀 Quick start
 
@@ -265,7 +268,7 @@ The last line opens the window; so does `phoenix-pnp` with no command when it wa
 
 ## 🧪 Testing
 
-The suite has 760 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 772 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -329,6 +332,7 @@ EH3D-PHOENIX-PNP/
 │   ├── marks.rs                                 marks of two levels: the parts that are marks, the fit of a panel and of each board
 │   ├── model.rs                                 the parts of a machine as traits: machine, nozzle, feeder, actuator, camera, driver
 │   ├── motion.rs                                the time a move takes, with acceleration and jerk
+│   ├── nozzlelife.rs                            the use of the nozzle tips: parts placed, mountings, replacements, the warning level
 │   ├── panel.rs                                 panels: boards and panels inside panels, each in its place
 │   ├── parts.rs                                 the position file and the parts that are not to be mounted
 │   ├── plan.rs                                  a part of the logic
@@ -365,6 +369,7 @@ EH3D-PHOENIX-PNP/
 │   ├── marks.rs                                 tests of the boards marked as bad, the parts that are marks and the marks of two levels
 │   ├── model.rs                                 tests of the data model: codes, lengths, configuration and tables
 │   ├── more.rs                                  more tests of the library and the command line
+│   ├── nozzlelife.rs                            tests of the use of the nozzle tips: the file, what a job adds, the commands
 │   ├── panel.rs                                 tests of panels and of their fiducials
 │   ├── panelize.rs                              tests of the panel of a grid of boards and of panelize
 │   ├── planner.rs                               tests of the time of the moves and of the planner
@@ -407,6 +412,7 @@ EH3D-PHOENIX-PNP/
 │   ├── job_basic.recipe                         the shortest recipe: prepare, pick and place
 │   ├── machine.cfg                              the settings of the machine, every key explained
 │   ├── marks.csv                                the measured places of the fiducials of the panel
+│   ├── nozzle_life.csv                          the use of two nozzle tips, one of them over the level of the warning
 │   ├── nozzle_readings.csv                      readings of the nozzle tip at several angles for nozzle-calibrate
 │   ├── nozzle_reads.csv                         readings of parts on the nozzle for part-inspect
 │   ├── package_sizes.csv                        the size of the body of each package

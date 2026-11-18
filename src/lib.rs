@@ -26,6 +26,7 @@ pub mod loadsheet;
 pub mod marks;
 pub mod model;
 pub mod motion;
+pub mod nozzlelife;
 pub mod panel;
 pub mod parts;
 pub mod plan;
