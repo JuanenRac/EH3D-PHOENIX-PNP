@@ -2242,9 +2242,15 @@ impl PnpApp {
             }
             Tool::Camera => self.tool_io(ui, Some(Text::HintCamera)),
             Tool::Feeders => self.tool_io(ui, Some(Text::HintFeeders)),
-            Tool::Polarity => {
+            Tool::Polarity | Tool::Stock => {
+                if self.s.tools.tool == Tool::Stock {
+                    ui.horizontal(|ui| {
+                        ui.label(tr(Text::Boards, lang));
+                        ui.add(egui::DragValue::new(&mut self.s.tools.boards).range(1..=1_000_000));
+                    });
+                }
                 let mut side = self.s.tools.polarity_side;
-                egui::ComboBox::from_id_salt("polarity_side")
+                egui::ComboBox::from_id_salt("tool_side")
                     .selected_text(match side {
                         None => tr(Text::BothSides, lang),
                         Some(Side::Top) => tr(Text::SideTop, lang),

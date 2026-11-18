@@ -245,11 +245,12 @@ pub enum Text {
     XOutList,
     BoardFile,
     BothSides,
+    ToolStock,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::BothSides as usize + 1;
+    pub const COUNT: usize = Text::ToolStock as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -597,4 +598,5 @@ static TABLE: &[[&str; 8]] = &[
     ["Bad boards (P2, P5...)", "Placas malas (P2, P5...)", "Schlechte Platinen (P2, P5...)", "Cartes mauvaises (P2, P5...)", "Schede difettose (P2, P5...)", "不良基板 (P2, P5...)", "不良板 (P2, P5...)", "Placas más (P2, P5...)"],
     ["File of the board in the panel", "Fichero de la placa en el panel", "Datei der Platine im Nutzen", "Fichier de la carte dans le panneau", "File della scheda nel pannello", "パネル内の基板ファイル", "拼板中的板文件", "Ficheiro da placa no painel"],
     ["Both sides", "Ambos lados", "Beide Seiten", "Les deux faces", "Entrambi i lati", "両面", "两面", "Ambos os lados"],
+    ["Stock for a run", "Existencias para una tirada", "Bestand für einen Lauf", "Stock pour une série", "Scorte per una produzione", "ロットの在庫", "批量库存", "Existências para uma série"],
 ];

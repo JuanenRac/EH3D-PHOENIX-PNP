@@ -6,7 +6,7 @@ use eh3d_phoenix_pnp::gui::app::{AppState, Tab};
 use eh3d_phoenix_pnp::gui::settings::UiSettings;
 use eh3d_phoenix_pnp::gui::toolbox::{
     apply_camera, apply_runout, backlash_text, bom_text, camera_text, panel_text, polarity_text,
-    runout_text, teach_text, PanelForm, Tool, Toolbox, MAX_TOOL_BYTES,
+    runout_text, stock_text, teach_text, PanelForm, Tool, Toolbox, MAX_TOOL_BYTES,
 };
 use eh3d_phoenix_pnp::gui::workspace::Workspace;
 use eh3d_phoenix_pnp::motion::BacklashMode;
@@ -145,7 +145,7 @@ fn a_configuration_that_is_loaded_gives_the_forms_their_values_and_keeps_what_wa
 
 #[test]
 fn the_tools_have_keys_and_the_tab_is_one_of_the_tabs() {
-    assert_eq!(Tool::ALL.len(), 7);
+    assert_eq!(Tool::ALL.len(), 8);
     for t in Tool::ALL {
         assert_eq!(Tool::from_key(t.key()), Some(t));
         assert_eq!(
@@ -586,4 +586,53 @@ fn the_text_tools_never_panic_on_garbage_or_cut_files() {
         let _ = teach_text(junk, Lang::En);
         let _ = bom_text(&ws, junk, 1, Lang::En);
     }
+}
+
+#[test]
+fn the_stock_tool_adds_the_boards_up_against_the_feeders_that_are_loaded() {
+    let mut ws = board();
+    ws.load_text("feeders.csv", &example("feeders.csv"))
+        .unwrap();
+    let (info, csv) = stock_text(&ws, None, 1, Lang::En).unwrap();
+    assert!(
+        info.starts_with("ok: the feeders hold enough for 1 boards"),
+        "{info}"
+    );
+    assert!(
+        csv.starts_with("value,package,per_board,available,needed,short,boards_covered,feeders\n")
+    );
+    let (info, _) = stock_text(&ws, None, 40, Lang::En).unwrap();
+    assert!(
+        info.contains("MCU / QFN-32: 40 needed") && info.contains("short: 2 kinds of 4"),
+        "{info}"
+    );
+    // one side only, and a part that a fix left out is not counted
+    let (info, csv) = stock_text(&ws, Some(Side::Bottom), 60, Lang::En).unwrap();
+    assert!(info.contains("LED / LED_0603: 60 needed"), "{info}");
+    assert_eq!(csv.lines().count(), 2);
+    let mut less = board();
+    less.load_text("feeders.csv", &example("feeders.csv"))
+        .unwrap();
+    less.excluded.insert("U1".to_string());
+    let (info, _) = stock_text(&less, None, 40, Lang::En).unwrap();
+    assert!(!info.contains("MCU"), "{info}");
+    // no feeders: everything falls short, and a number of boards out of range is an error
+    let bare = board();
+    let (info, _) = stock_text(&bare, None, 1, Lang::En).unwrap();
+    assert!(info.contains("no feeder holds it"), "{info}");
+    assert!(stock_text(&ws, None, 0, Lang::Es)
+        .unwrap_err()
+        .contains("PHOENIX-PNP-017"));
+    // the tool runs and is written under its name
+    let dir = scratch("stock");
+    let mut tb = Toolbox::new(&MachineConfig::default());
+    tb.tool = Tool::Stock;
+    tb.boards = 40;
+    tb.run(&ws, Lang::En);
+    assert!(tb.error.is_empty(), "{}", tb.error);
+    assert!(tb.info.contains("short:"), "{}", tb.info);
+    let path = tb.save(dir.to_str().unwrap(), Lang::En).unwrap();
+    assert!(path.ends_with("stock.csv"), "{path}");
+    assert_eq!(Tool::from_key("stock"), Some(Tool::Stock));
+    let _ = std::fs::remove_dir_all(&dir);
 }

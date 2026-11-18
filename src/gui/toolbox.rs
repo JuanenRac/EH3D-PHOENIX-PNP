@@ -18,6 +18,7 @@ use crate::panel::{grid_panel, Grid};
 use crate::parts::Side;
 use crate::polarity;
 use crate::report;
+use crate::stock::stock_plan;
 use std::path::Path;
 
 /// The tools of the tab.
@@ -29,17 +30,19 @@ pub enum Tool {
     Feeders,
     Polarity,
     Bom,
+    Stock,
     Panel,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 7] = [
+    pub const ALL: [Tool; 8] = [
         Tool::Backlash,
         Tool::Runout,
         Tool::Camera,
         Tool::Feeders,
         Tool::Polarity,
         Tool::Bom,
+        Tool::Stock,
         Tool::Panel,
     ];
 
@@ -52,6 +55,7 @@ impl Tool {
             Tool::Feeders => "feeders",
             Tool::Polarity => "polarity",
             Tool::Bom => "bom",
+            Tool::Stock => "stock",
             Tool::Panel => "panel",
         }
     }
@@ -70,6 +74,7 @@ impl Tool {
             Tool::Feeders => Text::ToolFeeders,
             Tool::Polarity => Text::ToolPolarity,
             Tool::Bom => Text::ToolBom,
+            Tool::Stock => Text::ToolStock,
             Tool::Panel => Text::ToolPanel,
         }
     }
@@ -88,6 +93,7 @@ impl Tool {
             Tool::Feeders => Some("feeders_taught.csv"),
             Tool::Polarity => Some("polarity.csv"),
             Tool::Bom => Some("bom_order.csv"),
+            Tool::Stock => Some("stock.csv"),
             Tool::Panel => Some("panel.json"),
             _ => None,
         }
@@ -142,7 +148,7 @@ pub struct Toolbox {
     pub bom_text: String,
     /// A path typed to read the text of the tool from.
     pub path_text: String,
-    /// The side the sheet of polarity is limited to (both when none).
+    /// The side the sheet of polarity and the stock are limited to (both when none).
     pub polarity_side: Option<Side>,
     pub boards: usize,
     pub panel: PanelForm,
@@ -257,6 +263,7 @@ impl Toolbox {
             Tool::Feeders => teach_text(&self.feeders_text, lang),
             Tool::Polarity => Ok(polarity_text(ws, self.polarity_side)),
             Tool::Bom => bom_text(ws, &self.bom_text, self.boards, lang),
+            Tool::Stock => stock_text(ws, self.polarity_side, self.boards, lang),
             Tool::Panel => panel_text(ws, &self.panel, lang).map(|o| (String::new(), o)),
         };
         match result {
@@ -435,6 +442,18 @@ pub fn bom_text(
     )
     .map_err(|e| failed(e, lang))?;
     Ok((info, order_csv(&lines)))
+}
+
+/// Whether the feeders that are loaded hold enough for `boards` boards of the parts of the plan: the findings and the table as a CSV.
+pub fn stock_text(
+    ws: &Workspace,
+    side: Option<Side>,
+    boards: usize,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    let plan =
+        stock_plan(&ws.active_parts(), &ws.feeders, side, boards).map_err(|e| failed(e, lang))?;
+    Ok((plan.text().trim_end().to_string(), plan.csv()))
 }
 
 /// The panel file for the form, naming the board by the file that was loaded unless the form names one.
