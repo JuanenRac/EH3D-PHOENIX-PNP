@@ -34,15 +34,19 @@
       "id": "parts",
       "column": 1,
       "level": "tested",
-      "title": "parts and feeders",
+      "title": "parts, BOM, panels",
       "lines": [
         "KiCad, EAGLE, CSV positions,",
-        "a feeder for every part"
+        "feeders, BOM, polarity, panels"
       ],
       "code": [
         "src/parts.rs::pub fn parse",
         "src/import.rs::pub fn import",
-        "src/feeders.rs::pub fn assign"
+        "src/feeders.rs::pub fn assign",
+        "src/bom.rs::pub fn compare",
+        "src/bom.rs::pub fn order",
+        "src/polarity.rs::pub fn sheet",
+        "src/panel.rs::pub fn grid_panel"
       ]
     },
     {
@@ -62,13 +66,16 @@
       "id": "config",
       "column": 1,
       "level": "tested",
-      "title": "config",
+      "title": "config and calibration",
       "lines": [
-        "settings of the machine,",
-        "tables of parts and packages"
+        "settings, tables of parts,",
+        "camera, nozzle and feeders fitted"
       ],
       "code": [
-        "src/config.rs::pub fn parse"
+        "src/config.rs::pub fn parse",
+        "src/calibrate.rs::pub fn calibrate_camera",
+        "src/calibrate.rs::pub fn fit_runout",
+        "src/calibrate.rs::pub fn teach_strip"
       ]
     },
     {
