@@ -9,6 +9,7 @@
 //! no screen.
 
 use crate::error::{Code, PnpError};
+use crate::fidcheck::{solve_robust, Reject};
 use crate::fiducial::{self, Fit, FitMode};
 use crate::parts::Part;
 use std::collections::HashSet;
@@ -94,6 +95,26 @@ pub fn fit_levels(
     mode: FitMode,
     max_residual_mm: f64,
 ) -> Result<Vec<LevelFit>, PnpError> {
+    fit_levels_with(
+        panel,
+        boards,
+        measured,
+        mode,
+        max_residual_mm,
+        Reject::Refuse,
+    )
+}
+
+/// The same with a choice of what to do with a fit whose worst mark is over the limit: with `Reject::DropWorst` the one mark that alone explains it is left out (it is missing from the
+/// `ids` of the fit of its level).
+pub fn fit_levels_with(
+    panel: &[(String, f64, f64)],
+    boards: &[(String, f64, f64)],
+    measured: &[(String, f64, f64)],
+    mode: FitMode,
+    max_residual_mm: f64,
+    reject: Reject,
+) -> Result<Vec<LevelFit>, PnpError> {
     let in_panel: HashSet<&str> = panel.iter().map(|m| m.0.as_str()).collect();
     let in_boards: HashSet<&str> = boards.iter().map(|m| m.0.as_str()).collect();
     let mut groups: Vec<&str> = Vec::new();
@@ -135,13 +156,14 @@ pub fn fit_levels(
             })
             .cloned()
             .collect();
-        let fit = fiducial::solve(&design, &seen, mode, max_residual_mm).map_err(|e| {
-            if group.is_empty() {
-                e
-            } else {
-                bad(format!("board {group}: {}", e.detail))
-            }
-        })?;
+        let (fit, _) =
+            solve_robust(&design, &seen, mode, max_residual_mm, reject).map_err(|e| {
+                if group.is_empty() {
+                    e
+                } else {
+                    bad(format!("board {group}: {}", e.detail))
+                }
+            })?;
         out.push(LevelFit {
             group: group.to_string(),
             fit,

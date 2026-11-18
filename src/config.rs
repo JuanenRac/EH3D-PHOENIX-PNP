@@ -6,6 +6,7 @@ use crate::camera::CameraModel;
 use crate::catalog::Defaults;
 use crate::error::{Code, Lang, PnpError};
 use crate::feeding::TrayFill;
+use crate::fidcheck::{Policy as FiducialCheck, Reject as FiducialReject};
 use crate::fiducial::FitMode;
 use crate::import::{ImportUnit, Settings as ImportSettings};
 use crate::motion::BacklashMode;
@@ -19,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 135] = [
+pub const KEYS: [&str; 149] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -155,6 +156,20 @@ pub const KEYS: [&str; 135] = [
     "panel_fiducial_mm",
     "panel_board_width_mm",
     "panel_board_height_mm",
+    "part_size_tol_mm",
+    "part_angle_tol_deg",
+    "part_offset_max_mm",
+    "fiducial_check",
+    "fiducial_max_rotation_deg",
+    "fiducial_scale_tol_percent",
+    "fiducial_shear_tol_deg",
+    "fiducial_max_shift_mm",
+    "fiducial_level_turn_deg",
+    "fiducial_reject",
+    "feeder_fail_percent",
+    "feeder_fail_min_picks",
+    "feeder_pitch_step_mm",
+    "feeder_min_gap_mm",
 ];
 
 /// The order in which the places are visited.
@@ -493,6 +508,29 @@ pub struct MachineConfig {
     pub panel_fiducial_mm: f64,
     pub panel_board_width_mm: f64,
     pub panel_board_height_mm: f64,
+    /// How far either side of the part on the nozzle may be from the size of its package, in millimetres (`part-inspect`).
+    pub part_size_tol_mm: f64,
+    /// How far the turn of the part on the nozzle may be from the expected one, in degrees.
+    pub part_angle_tol_deg: f64,
+    /// How far from the axis of the nozzle the part may hang, in millimetres.
+    pub part_offset_max_mm: f64,
+    /// What the check of the fit of the fiducials does: nothing, print the findings or stop the job.
+    pub fiducial_check: FiducialCheck,
+    /// The limits of the check: the turn from the design, the scale along an axis (per cent), how far the axes are from square, how far the middle of the marks moved, and how
+    /// much a board may be turned in the panel beyond the turn of the panel.
+    pub fiducial_max_rotation_deg: f64,
+    pub fiducial_scale_tol_percent: f64,
+    pub fiducial_shear_tol_deg: f64,
+    pub fiducial_max_shift_mm: f64,
+    pub fiducial_level_turn_deg: f64,
+    /// What is done with a fit whose worst mark is too far from it: refuse it, or leave out the one mark that alone explains it.
+    pub fiducial_reject: FiducialReject,
+    /// A feeder that fails more than this share of its picks (per cent) is marked in the report of the feeders, once it was tried `feeder_fail_min_picks` times.
+    pub feeder_fail_percent: f64,
+    pub feeder_fail_min_picks: u32,
+    /// The pitch of a strip is a whole number of this many millimetres (0 does not check) and two feeders are at least this far apart (0 does not check): `feeder-check`.
+    pub feeder_pitch_step_mm: f64,
+    pub feeder_min_gap_mm: f64,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -622,6 +660,20 @@ impl Default for MachineConfig {
             panel_fiducial_mm: 0.0,
             panel_board_width_mm: 0.0,
             panel_board_height_mm: 0.0,
+            part_size_tol_mm: 0.3,
+            part_angle_tol_deg: 5.0,
+            part_offset_max_mm: 2.0,
+            fiducial_check: FiducialCheck::Warn,
+            fiducial_max_rotation_deg: 5.0,
+            fiducial_scale_tol_percent: 1.0,
+            fiducial_shear_tol_deg: 0.5,
+            fiducial_max_shift_mm: 5.0,
+            fiducial_level_turn_deg: 2.0,
+            fiducial_reject: FiducialReject::Refuse,
+            feeder_fail_percent: 20.0,
+            feeder_fail_min_picks: 10,
+            feeder_pitch_step_mm: 2.0,
+            feeder_min_gap_mm: 3.0,
         }
     }
 }
@@ -1145,6 +1197,28 @@ impl MachineConfig {
             "panel_fiducial_mm" => self.panel_fiducial_mm = n(0.0, 1000.0)?,
             "panel_board_width_mm" => self.panel_board_width_mm = n(0.0, 10_000.0)?,
             "panel_board_height_mm" => self.panel_board_height_mm = n(0.0, 10_000.0)?,
+            "part_size_tol_mm" => self.part_size_tol_mm = n(0.01, 5.0)?,
+            "part_angle_tol_deg" => self.part_angle_tol_deg = n(0.1, 45.0)?,
+            "part_offset_max_mm" => self.part_offset_max_mm = n(0.1, 20.0)?,
+            "fiducial_check" => {
+                self.fiducial_check = FiducialCheck::parse(&v.to_ascii_lowercase())
+                    .ok_or_else(|| bad(line, key, v, "off, warn or refuse"))?
+            }
+            "fiducial_max_rotation_deg" => self.fiducial_max_rotation_deg = n(0.1, 180.0)?,
+            "fiducial_scale_tol_percent" => self.fiducial_scale_tol_percent = n(0.01, 50.0)?,
+            "fiducial_shear_tol_deg" => self.fiducial_shear_tol_deg = n(0.01, 45.0)?,
+            "fiducial_max_shift_mm" => self.fiducial_max_shift_mm = n(0.1, 1000.0)?,
+            "fiducial_level_turn_deg" => self.fiducial_level_turn_deg = n(0.1, 180.0)?,
+            "fiducial_reject" => {
+                self.fiducial_reject = FiducialReject::parse(&v.to_ascii_lowercase())
+                    .ok_or_else(|| bad(line, key, v, "refuse or drop_worst"))?
+            }
+            "feeder_fail_percent" => self.feeder_fail_percent = n(0.0, 100.0)?,
+            "feeder_fail_min_picks" => {
+                self.feeder_fail_min_picks = int(line, key, v, 1, 100_000)? as u32
+            }
+            "feeder_pitch_step_mm" => self.feeder_pitch_step_mm = n(0.0, 100.0)?,
+            "feeder_min_gap_mm" => self.feeder_min_gap_mm = n(0.0, 1000.0)?,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

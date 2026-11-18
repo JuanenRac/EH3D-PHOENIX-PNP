@@ -9,6 +9,8 @@ use eh3d_phoenix_pnp::config::{MachineConfig, OrderStrategy, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Code, Lang, PnpError};
 use eh3d_phoenix_pnp::export;
 use eh3d_phoenix_pnp::feeding::{self, FeederSpec, Picks};
+use eh3d_phoenix_pnp::feedrep;
+use eh3d_phoenix_pnp::fidcheck;
 use eh3d_phoenix_pnp::fiducial;
 use eh3d_phoenix_pnp::heads::plan_heads;
 use eh3d_phoenix_pnp::import::{self, expand_references, ColumnMap, Format};
@@ -244,14 +246,24 @@ fn load_parts(args: &[String], c: &Common) -> Result<Loaded, String> {
         }
         if let Some(path) = &c.fiducials {
             let measured = fiducial::parse_measured(&read_text(path, max)?).map_err(l)?;
-            let fits = marks::fit_levels(
+            let board_marks = marks::marks_of(&marks_as_parts);
+            let fits = marks::fit_levels_with(
                 &expanded.fiducials,
-                &marks::marks_of(&marks_as_parts),
+                &board_marks,
                 &measured,
                 c.cfg.fiducial_mode,
                 c.cfg.fiducial_max_residual_mm,
+                c.cfg.fiducial_reject,
             )
             .map_err(l)?;
+            for m in &measured {
+                if !fits.iter().any(|f| f.fit.ids.contains(&m.0)) {
+                    println!(
+                        "fiducials: the mark {} is far from where the fit puts it and is left out",
+                        m.0
+                    );
+                }
+            }
             marks::correct_levels(&mut parts, &fits);
             for level in &fits {
                 let label = if level.group.is_empty() {
@@ -267,6 +279,31 @@ fn load_parts(args: &[String], c: &Common) -> Result<Loaded, String> {
                     level.fit.rms,
                     level.fit.max
                 );
+            }
+            if c.cfg.fiducial_check != fidcheck::Policy::Off {
+                let mut design = expanded.fiducials.clone();
+                design.extend(board_marks.iter().cloned());
+                let limits = fidcheck::Limits {
+                    max_rotation_deg: c.cfg.fiducial_max_rotation_deg,
+                    scale_tol_percent: c.cfg.fiducial_scale_tol_percent,
+                    shear_tol_deg: c.cfg.fiducial_shear_tol_deg,
+                    max_shift_mm: c.cfg.fiducial_max_shift_mm,
+                    level_turn_deg: c.cfg.fiducial_level_turn_deg,
+                };
+                for (group, check) in fidcheck::check_levels(&fits, &design, &limits) {
+                    if check.ok() {
+                        continue;
+                    }
+                    if c.cfg.fiducial_check == fidcheck::Policy::Refuse {
+                        return Err(l(fidcheck::refusal(&group, &check)));
+                    }
+                    let who = if group.is_empty() {
+                        "the panel"
+                    } else {
+                        group.as_str()
+                    };
+                    println!("fiducial check: {who}: {}", check.text());
+                }
             }
         }
         (parts, 0)
@@ -515,6 +552,7 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let csv_path = flag(&mut args, "--report-csv")?;
     let text_path = flag(&mut args, "--report-text")?;
     let html_path = flag(&mut args, "--report-html")?;
+    let feeders_path = flag(&mut args, "--report-feeders")?;
     let vision_path = flag(&mut args, "--vision")?;
     let recipe_path = flag(&mut args, "--recipe")?;
     let steps = match flag(&mut args, "--steps")? {
@@ -620,6 +658,13 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
             report::write_new(hp, &work.html(lang)).map_err(l)?;
         }
     }
+    let feeder_rows = {
+        let cfg = job.config();
+        feedrep::build(&job, cfg.feeder_fail_percent, cfg.feeder_fail_min_picks)
+    };
+    if let Some(fp) = &feeders_path {
+        report::write_new(fp, &feedrep::csv(&feeder_rows)).map_err(l)?;
+    }
     let phase = outcome.map_err(l)?;
     let s = job.stats();
     println!(
@@ -642,6 +687,12 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
         println!(
             "package {}: {} picked ({} failed), {} placed ({} failed)",
             k.package, k.picked, k.pick_failures, k.placed, k.place_failures
+        );
+    }
+    for r in feeder_rows.iter().filter(|r| r.flagged) {
+        println!(
+            "feeder {} failed {:.1} per cent of its picks: look at it",
+            r.id, r.fail_percent
         );
     }
     for f in &s.feeders {
