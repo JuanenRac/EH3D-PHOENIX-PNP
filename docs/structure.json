@@ -958,6 +958,19 @@
           }
         },
         {
+          "name": "approach.rs",
+          "desc": {
+            "en": "tests of the time of the plan with the approach: the second passes and the job's seconds",
+            "es": "pruebas del tiempo del plan con approach: las segundas pasadas y los segundos del trabajo",
+            "de": "Tests der Planzeit mit approach: die zweiten Durchgänge und die Sekunden des Auftrags",
+            "fr": "tests du temps du plan avec approach : les secondes passes et les secondes du travail",
+            "it": "test del tempo del piano con approach: le seconde passate e i secondi del lavoro",
+            "ja": "approach 時の計画時間のテスト：2 回目の動きとジョブの秒数",
+            "zh": "approach 下计划时间的测试：第二次移动与作业秒数",
+            "pt": "testes do tempo do plano com approach: as segundas passagens e os segundos do trabalho"
+          }
+        },
+        {
           "name": "backlash.rs",
           "desc": {
             "en": "tests of the slack of the axes of the simulated machine",

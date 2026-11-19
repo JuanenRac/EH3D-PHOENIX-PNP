@@ -34,6 +34,12 @@ pub fn report(plan: &AdvancedPlan, picks: &Picks, undefined: &[(String, usize)])
             plan.align_s
         ));
     }
+    if plan.approach_s > 0.0 {
+        out.push_str(&format!(
+            "of which {:.1} s for the head to go past the places and come back from the positive side\n",
+            plan.approach_s
+        ));
+    }
     let mut batch = usize::MAX;
     for (p, d) in plan.plan.placements.iter().zip(&plan.details) {
         if p.batch != batch {

@@ -9,7 +9,7 @@ use crate::catalog::Catalog;
 use crate::config::{ComponentOrigin, MachineConfig, OrderStrategy, TipStrategy};
 use crate::error::{Code, PnpError};
 use crate::feeding::{FeederSpec, Picks};
-use crate::motion::{move_time, AxisMotion};
+use crate::motion::{move_time, AxisMotion, BacklashMode};
 use crate::parts::{Part, Side};
 use crate::plan::{nearest_walk, Placement, Plan};
 use crate::rotation::rot_path;
@@ -66,6 +66,8 @@ pub struct AdvancedPlan {
     pub tiers: usize,
     /// The seconds of the plan that the nozzles spend turning when they do not turn while the head moves.
     pub rotation_s: f64,
+    /// The seconds of the plan that the head spends going past a place and coming back from the positive side (`backlash_mode = approach`); 0 for any other mode or without slack.
+    pub approach_s: f64,
     /// The seconds of the plan that the camera takes to look at the parts after they are picked (0 when the align step is off).
     pub align_s: f64,
     pub order: OrderStrategy,
@@ -360,16 +362,49 @@ fn regroup_optimized(
     seq.copy_from_slice(&out);
 }
 
-/// One leg of the way: the distance, the seconds it takes (the nozzle turns `turn_deg` meanwhile, or after the move when the configuration says so) and the seconds of turning.
+/// The seconds that a move adds when the machine approaches its places from the positive side (`backlash_mode = approach`): an axis that moves in the negative direction goes past the place
+/// by its slack, when there is room for that, and the head comes back, as the simulated machine does. 0 for any other mode and for axes without slack.
+fn approach_extra(
+    from: (f64, f64),
+    to: (f64, f64),
+    cfg: &MachineConfig,
+    motion: &(AxisMotion, AxisMotion),
+) -> f64 {
+    if cfg.backlash_mode != BacklashMode::Approach {
+        return 0.0;
+    }
+    let (dx, dy) = (to.0 - from.0, to.1 - from.1);
+    let past = |d: f64, slack: f64, room: f64| {
+        if d < 0.0 && slack > 0.0 && room >= slack {
+            -slack
+        } else {
+            0.0
+        }
+    };
+    let over = (
+        past(dx, cfg.backlash_x_mm, to.0 - cfg.limit_x_min_mm),
+        past(dy, cfg.backlash_y_mm, to.1 - cfg.limit_y_min_mm),
+    );
+    if over == (0.0, 0.0) {
+        return 0.0;
+    }
+    move_time(dx + over.0, dy + over.1, &motion.0, &motion.1)
+        - move_time(dx, dy, &motion.0, &motion.1)
+        + move_time(-over.0, -over.1, &motion.0, &motion.1)
+}
+
+/// One leg of the way: the distance, the seconds it takes (the nozzle turns `turn_deg` meanwhile, or after the move when the configuration says so), the seconds of turning and the
+/// seconds of the move that go to the second pass of the approach (they are in the seconds of the leg).
 fn leg(
     from: (f64, f64),
     to: (f64, f64),
     turn_deg: f64,
     cfg: &MachineConfig,
     motion: &(AxisMotion, AxisMotion),
-) -> (f64, f64, f64) {
+) -> (f64, f64, f64, f64) {
     let (dx, dy) = (to.0 - from.0, to.1 - from.1);
-    let moving = move_time(dx, dy, &motion.0, &motion.1);
+    let approach = approach_extra(from, to, cfg, motion);
+    let moving = move_time(dx, dy, &motion.0, &motion.1) + approach;
     let turning = turn_deg.abs() / cfg.rotation_deg_s;
     let seconds = if cfg.pre_rotate {
         moving.max(turning)
@@ -380,6 +415,7 @@ fn leg(
         dx.hypot(dy),
         seconds,
         if cfg.pre_rotate { 0.0 } else { turning },
+        approach,
     )
 }
 
@@ -534,6 +570,7 @@ pub fn plan_advanced(
     let mut head = (0.0, 0.0);
     let (mut travel, mut seconds, mut rotation_s) = (0.0, 0.0, 0.0);
     let mut align_s: f64 = 0.0;
+    let mut approach_s: f64 = 0.0;
     let mut pick_times: Vec<PickTime> = Vec::with_capacity(items.len());
     let per_pick: f64 = if cfg.align {
         f64::from(cfg.align_passes) * cfg.align_settle_s
@@ -551,7 +588,8 @@ pub fn plan_advanced(
             if cur != tip {
                 tip_changes += 1;
                 if let Some(changer) = cfg.tip_changer {
-                    let (d, t, r) = leg(head, changer, 0.0, cfg, &motion);
+                    let (d, t, r, a) = leg(head, changer, 0.0, cfg, &motion);
+                    approach_s += a;
                     travel += d;
                     seconds += t;
                     rotation_s += r;
@@ -582,7 +620,8 @@ pub fn plan_advanced(
                 cfg.nozzle_angle_min_deg,
                 cfg.nozzle_angle_max_deg,
             )?;
-            let (d, t, r) = leg(head, it.pick, new - angles[nozzle], cfg, &motion);
+            let (d, t, r, a) = leg(head, it.pick, new - angles[nozzle], cfg, &motion);
+            approach_s += a;
             travel += d;
             pick_times.push(PickTime {
                 feeder: it.feeder_id.clone(),
@@ -604,7 +643,8 @@ pub fn plan_advanced(
                 cfg.nozzle_angle_min_deg,
                 cfg.nozzle_angle_max_deg,
             )?;
-            let (d, t, r) = leg(head, it.at, new - angles[nozzle], cfg, &motion);
+            let (d, t, r, a) = leg(head, it.at, new - angles[nozzle], cfg, &motion);
+            approach_s += a;
             travel += d;
             seconds += t + cfg.place_s;
             rotation_s += r;
@@ -641,6 +681,7 @@ pub fn plan_advanced(
         tip_changes,
         tiers: tier_ranges.len(),
         rotation_s,
+        approach_s,
         align_s,
         order: cfg.order,
         pick_times,
@@ -678,6 +719,9 @@ impl AdvancedPlan {
         // only a plan with the align step says so: the plan of a job without it keeps the text it always had
         if self.align_s > 0.0 {
             doc["align_s"] = json!(self.align_s);
+        }
+        if self.approach_s > 0.0 {
+            doc["approach_s"] = json!(self.approach_s);
         }
         serde_json::to_string_pretty(&doc).unwrap_or_default() + "\n"
     }

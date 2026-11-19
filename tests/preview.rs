@@ -53,6 +53,7 @@ fn plan_of(placements: Vec<Placement>) -> AdvancedPlan {
         tip_changes: 1,
         tiers: 1,
         rotation_s: 0.0,
+        approach_s: 0.0,
         align_s: 0.0,
         order: OrderStrategy::Nearest,
         pick_times: Vec::new(),
