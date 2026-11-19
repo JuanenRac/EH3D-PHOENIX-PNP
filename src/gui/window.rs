@@ -2338,7 +2338,7 @@ impl PnpApp {
             Tool::Inspect => self.tool_io(ui, Some(Text::HintInspect)),
             Tool::FidCheck => self.tool_io(ui, Some(Text::HintFidCheck)),
             Tool::CameraPattern => self.tool_io(ui, Some(Text::HintCameraPattern)),
-            Tool::Queue => self.tool_io(ui, Some(Text::HintQueue)),
+            Tool::Queue => self.tool_queue(ui),
             Tool::FeederCheck | Tool::Compare | Tool::Preview => self.tool_io(ui, None),
         }
     }
@@ -2521,6 +2521,148 @@ impl PnpApp {
         ui.separator();
     }
 
+    /// The Queue tool: the queue file as a list of jobs, the form of a new job and the buttons that check, confirm, edit and run it on the simulator.
+    fn tool_queue(&mut self, ui: &mut egui::Ui) {
+        let pal = self.s.ui.theme.palette();
+        let lang = self.s.lang();
+        let running = self.s.tools.queue.running();
+        let armed = self.s.tools.queue.run_armed;
+        let mut act: Option<&'static str> = None;
+        let mut picked: Option<String> = None;
+        egui::ScrollArea::vertical()
+            .id_salt("queue_panel")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                let tab = &mut self.s.tools.queue;
+                egui::Grid::new("queue_files")
+                    .num_columns(2)
+                    .spacing([8.0, 4.0])
+                    .show(ui, |ui| {
+                        ui.label(tr(Text::QueueFile, lang));
+                        ui.horizontal(|ui| {
+                            ui.add(egui::TextEdit::singleline(&mut tab.file).desired_width(360.0));
+                            if ui.button(tr(Text::QueueRead, lang)).clicked() {
+                                act = Some("refresh");
+                            }
+                        });
+                        ui.end_row();
+                        ui.label(tr(Text::QueueSettings, lang));
+                        ui.add(egui::TextEdit::singleline(&mut tab.settings).desired_width(360.0));
+                        ui.end_row();
+                    });
+                ui.separator();
+                ui.label(RichText::new(tr(Text::QueueJobs, lang)).strong());
+                for row in &tab.rows {
+                    if ui
+                        .selectable_label(tab.selected == row.name, row.line(lang))
+                        .clicked()
+                    {
+                        picked = Some(row.name.clone());
+                    }
+                }
+                ui.horizontal_wrapped(|ui| {
+                    if ui.button(tr(Text::QueueCheck, lang)).clicked() {
+                        act = Some("check");
+                    }
+                    if ui.button(tr(Text::QueueConfirm, lang)).clicked() {
+                        act = Some("confirm");
+                    }
+                    if ui.button(tr(Text::QueueRevoke, lang)).clicked() {
+                        act = Some("revoke");
+                    }
+                    if ui.button(tr(Text::QueueSkip, lang)).clicked() {
+                        act = Some("skip");
+                    }
+                    if ui.button(tr(Text::Reset, lang)).clicked() {
+                        act = Some("reset");
+                    }
+                    if ui.button(tr(Text::QueueRemove, lang)).clicked() {
+                        act = Some("remove");
+                    }
+                });
+                ui.horizontal_wrapped(|ui| {
+                    if armed {
+                        if ui
+                            .add_enabled(!running, egui::Button::new(tr(Text::QueueRunSure, lang)))
+                            .clicked()
+                        {
+                            act = Some("run");
+                        }
+                        if ui.button(tr(Text::QueueCancel, lang)).clicked() {
+                            act = Some("cancel");
+                        }
+                    } else if ui
+                        .add_enabled(!running, egui::Button::new(tr(Text::QueueRun, lang)))
+                        .clicked()
+                    {
+                        act = Some("run");
+                    }
+                    if ui
+                        .add_enabled(running, egui::Button::new(tr(Text::QueueStop, lang)))
+                        .clicked()
+                    {
+                        act = Some("stop");
+                    }
+                });
+                ui.separator();
+                ui.label(RichText::new(tr(Text::QueueAddJob, lang)).strong());
+                egui::Grid::new("queue_form")
+                    .num_columns(2)
+                    .spacing([8.0, 4.0])
+                    .show(ui, |ui| {
+                        ui.label(tr(Text::QueueJobName, lang));
+                        ui.add(egui::TextEdit::singleline(&mut tab.name).desired_width(200.0));
+                        ui.end_row();
+                        ui.label(tr(Text::QueueSource, lang));
+                        ui.add(egui::TextEdit::singleline(&mut tab.source).desired_width(360.0));
+                        ui.end_row();
+                        ui.label(tr(Text::QueueFeeders, lang));
+                        ui.add(egui::TextEdit::singleline(&mut tab.feeders).desired_width(360.0));
+                        ui.end_row();
+                        ui.label(tr(Text::Boards, lang));
+                        ui.add(
+                            egui::DragValue::new(&mut tab.boards)
+                                .range(1..=1_000_000)
+                                .speed(1.0),
+                        );
+                        ui.end_row();
+                        ui.label(tr(Text::Side, lang));
+                        ui.add(egui::TextEdit::singleline(&mut tab.side).desired_width(80.0));
+                        ui.end_row();
+                    });
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut tab.panel, tr(Text::QueueIsPanel, lang));
+                    if ui.button(tr(Text::QueueAdd, lang)).clicked() {
+                        act = Some("add");
+                    }
+                });
+                if !tab.notice.is_empty() {
+                    ui.label(RichText::new(&tab.notice).color(col(pal.ok)));
+                }
+                if !tab.error.is_empty() {
+                    ui.label(RichText::new(&tab.error).color(col(pal.danger)));
+                }
+                if !tab.output.is_empty() {
+                    ui.separator();
+                    ui.label(RichText::new(&tab.output).monospace());
+                }
+            });
+        if let Some(name) = picked {
+            self.s.tools.queue.selected = name;
+        }
+        match act {
+            Some("refresh") => self.s.queue_refresh(),
+            Some("check") => self.s.queue_check(),
+            Some("confirm") => self.s.queue_confirm(),
+            Some(edit @ ("revoke" | "skip" | "reset" | "remove")) => self.s.queue_edit(edit),
+            Some("run") => self.s.queue_run(),
+            Some("cancel") => self.s.tools.queue.cancel_run(),
+            Some("stop") => self.s.queue_stop(),
+            Some("add") => self.s.queue_add(),
+            _ => {}
+        }
+    }
+
     /// The part that every tool shares: the box for its text (and the file to read it from), the buttons, what it said and what it made.
     fn tool_io(&mut self, ui: &mut egui::Ui, hint: Option<Text>) {
         let pal = self.s.ui.theme.palette();
@@ -2694,6 +2836,9 @@ impl eframe::App for PnpApp {
             let dt = f64::from(ctx.input(|i| i.stable_dt));
             self.s.tick(dt);
             ctx.request_repaint();
+        }
+        if self.s.queue_poll() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(250));
         }
         self.top_bar(ui);
         self.path_bar(ui);

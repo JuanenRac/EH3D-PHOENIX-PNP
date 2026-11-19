@@ -862,6 +862,86 @@ impl AppState {
         }
     }
 
+    /// Puts what the Queue tool said last in the log.
+    fn queue_logged(&mut self) {
+        let (notice, error) = (
+            self.tools.queue.notice.clone(),
+            self.tools.queue.error.clone(),
+        );
+        if !notice.is_empty() {
+            self.log.info(notice);
+        }
+        if !error.is_empty() {
+            self.log.error(error);
+        }
+    }
+
+    /// Reads the queue file of the Queue tool again.
+    pub fn queue_refresh(&mut self) {
+        let lang = self.ui.lang;
+        self.tools.queue.error.clear();
+        self.tools.queue.refresh(lang);
+        if let Ok(text) = std::fs::read_to_string(self.tools.queue.file.trim()) {
+            self.tools.queue_text = text;
+        }
+        self.queue_logged();
+    }
+
+    /// Adds the job of the form of the Queue tool to the queue.
+    pub fn queue_add(&mut self) {
+        let (lang, relative) = (self.ui.lang, self.ws.cfg.queue_relative_paths);
+        self.tools.queue.add(relative, lang);
+        self.queue_logged();
+    }
+
+    /// Plans the jobs of the queue that are still to be made and says which could be run now.
+    pub fn queue_check(&mut self) {
+        let lang = self.ui.lang;
+        self.tools.queue.check(lang);
+        self.queue_logged();
+    }
+
+    /// Records that the plan of the selected job, as it is now, was looked at and may be run.
+    pub fn queue_confirm(&mut self) {
+        let lang = self.ui.lang;
+        self.tools.queue.confirm(lang);
+        self.queue_logged();
+    }
+
+    /// Skips, resets, revokes the confirmation of or takes out the selected job of the queue.
+    pub fn queue_edit(&mut self, action: &str) {
+        let lang = self.ui.lang;
+        self.tools.queue.edit(action, lang);
+        self.queue_logged();
+    }
+
+    /// The press of the Run button of the Queue tool (the first press asks, unless `queue_gui_ask_run` is off).
+    pub fn queue_run(&mut self) {
+        let (lang, ask) = (self.ui.lang, self.ws.cfg.queue_gui_ask_run);
+        self.tools.queue.press_run(ask, lang);
+        self.queue_logged();
+    }
+
+    /// Stops the run of the queue.
+    pub fn queue_stop(&mut self) {
+        let lang = self.ui.lang;
+        self.tools.queue.stop(lang);
+        self.queue_logged();
+    }
+
+    /// Looks whether the run of the queue ended (to be called every frame); gives whether it is still going on.
+    pub fn queue_poll(&mut self) -> bool {
+        if !self.tools.queue.running() {
+            return false;
+        }
+        let lang = self.ui.lang;
+        let running = self.tools.queue.poll(lang);
+        if !running {
+            self.queue_logged();
+        }
+        running
+    }
+
     /// Writes the result of the open tool to the output folder.
     pub fn tools_save(&mut self) {
         let lang = self.ui.lang;

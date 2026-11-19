@@ -353,6 +353,19 @@
           }
         },
         {
+          "name": "gui/queuetab.rs",
+          "desc": {
+            "en": "the Queue tool without the window: the list of jobs, the form and the buttons",
+            "es": "la herramienta Cola sin la ventana: la lista de trabajos, el formulario y los botones",
+            "de": "das Werkzeug Warteschlange ohne Fenster: Auftragsliste, Formular und Schaltflächen",
+            "fr": "l'outil File sans la fenêtre : la liste des travaux, le formulaire et les boutons",
+            "it": "lo strumento Coda senza la finestra: l'elenco dei lavori, il modulo e i pulsanti",
+            "ja": "ウィンドウなしのキューツール：ジョブ一覧、フォーム、ボタン",
+            "zh": "不含窗口的队列工具：作业列表、表单和按钮",
+            "pt": "a ferramenta Fila sem a janela: a lista de trabalhos, o formulário e os botões"
+          }
+        },
+        {
           "name": "gui/samples.rs",
           "desc": {
             "en": "samples, from a small board to a large one",

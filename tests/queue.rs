@@ -2,6 +2,8 @@
 
 use eh3d_phoenix_pnp::config::{MachineConfig, KEYS};
 use eh3d_phoenix_pnp::error::{Code, Lang};
+use eh3d_phoenix_pnp::gui::queuetab::{state_text, QueueTab};
+use eh3d_phoenix_pnp::gui::texts::{tr, Text};
 use eh3d_phoenix_pnp::gui::toolbox::{queue_text, Tool, Toolbox};
 use eh3d_phoenix_pnp::gui::workspace::Workspace;
 use eh3d_phoenix_pnp::queue::{
@@ -869,5 +871,236 @@ fn the_paths_are_kept_relative_when_the_setting_or_the_switch_asks_and_the_queue
         saved.get("rel").unwrap().confirmed,
         "the same files give the same plan"
     );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---- the Queue tool with its buttons
+
+fn tab_in(dir: &Path) -> QueueTab {
+    let mut t = QueueTab::new();
+    t.program = Some(PathBuf::from(env!("CARGO_BIN_EXE_phoenix-pnp")));
+    t.file = p(&dir.join("q.csv")).to_string();
+    t.source = p(&root().join("examples/board.pos")).to_string();
+    t.feeders = p(&root().join("examples/feeders.csv")).to_string();
+    t
+}
+
+fn wait_for_the_run(t: &mut QueueTab) {
+    for _ in 0..600 {
+        if !t.poll(Lang::En) {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    panic!("the run did not end");
+}
+
+#[test]
+fn a_job_is_added_from_the_form_checked_and_told_when_the_form_is_wrong() {
+    let dir = scratch("tab_add");
+    let mut t = tab_in(&dir);
+    // no file, no name, a name with a space, no feeders: told in the language of the window, and nothing is written
+    let mut empty = QueueTab::new();
+    empty.program = t.program.clone();
+    assert!(!empty.add(false, Lang::En));
+    assert_eq!(empty.error, tr(Text::QueueNeedFile, Lang::En));
+    assert!(!t.add(false, Lang::En));
+    assert!(t.error.contains("PHOENIX-PNP-060"), "{}", t.error);
+    t.name = "bad name".to_string();
+    assert!(!t.add(false, Lang::Es));
+    assert!(t.error.contains("PHOENIX-PNP-060"), "{}", t.error);
+    t.name = "first".to_string();
+    let feeders = std::mem::take(&mut t.feeders);
+    assert!(!t.add(false, Lang::En));
+    t.feeders = feeders;
+    assert!(!dir.join("q.csv").exists());
+    // a good form: the job is in the file and in the list, selected, and the form is ready for the next one
+    t.boards = 2;
+    assert!(t.add(false, Lang::En), "{}", t.error);
+    assert_eq!(
+        (t.rows.len(), t.selected.as_str(), t.name.as_str()),
+        (1, "first", "")
+    );
+    let row = &t.rows[0];
+    assert_eq!(
+        (row.state, row.done, row.boards, row.confirmed),
+        (State::Pending, 0, 2, false)
+    );
+    assert!(t.notice.starts_with("added 'first'"), "{}", t.notice);
+    // the same name twice is refused by the command, with its reason
+    t.name = "first".to_string();
+    assert!(!t.add(false, Lang::En));
+    assert!(t.error.contains("used twice"), "{}", t.error);
+    // a second job, on the top side
+    t.name = "second".to_string();
+    t.side = "top".to_string();
+    assert!(t.add(true, Lang::En), "{}", t.error);
+    assert_eq!(t.rows.len(), 2);
+    assert_eq!(t.rows[1].side, "top");
+    // the plans are looked at: neither is confirmed, so neither can run, and it says why
+    t.check(Lang::En);
+    assert_eq!(t.notice, tr(Text::QueueCheckedBlocked, Lang::En));
+    assert!(
+        t.output
+            .contains("first: cannot run - 'first' is not confirmed"),
+        "{}",
+        t.output
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_buttons_confirm_skip_reset_revoke_and_take_out_the_selected_job() {
+    let dir = scratch("tab_edit");
+    let mut t = tab_in(&dir);
+    for n in ["a", "b"] {
+        t.name = n.to_string();
+        assert!(t.add(false, Lang::En), "{}", t.error);
+    }
+    // nothing selected that is in the list
+    t.selected = "nope".to_string();
+    assert!(!t.confirm(Lang::En));
+    assert_eq!(t.error, tr(Text::QueueNeedSelected, Lang::En));
+    assert!(!t.edit("skip", Lang::En));
+    assert!(!t.edit("explode", Lang::En));
+    t.selected = "a".to_string();
+    assert!(t.confirm(Lang::En), "{}", t.error);
+    assert!(t.rows[0].confirmed && !t.rows[1].confirmed);
+    t.check(Lang::En);
+    assert!(t.output.contains("a: can run - plan "), "{}", t.output);
+    assert!(t.edit("revoke", Lang::En));
+    assert!(!t.rows[0].confirmed);
+    assert!(t.confirm(Lang::En));
+    assert!(t.edit("skip", Lang::En));
+    assert_eq!(t.rows[0].state, State::Skipped);
+    // a skipped job cannot be confirmed again until it is reset
+    assert!(!t.confirm(Lang::En));
+    assert!(t.error.contains("PHOENIX-PNP-060"), "{}", t.error);
+    assert!(t.edit("reset", Lang::En));
+    assert_eq!(t.rows[0].state, State::Pending);
+    assert!(t.edit("remove", Lang::En));
+    assert_eq!(t.rows.len(), 1);
+    assert_eq!(
+        t.selected, "b",
+        "the selection moves to a job that is there"
+    );
+    assert_eq!(
+        read_file(p(&dir.join("q.csv")), 1_000_000).unwrap().len(),
+        1
+    );
+    // the words of a row are in the language of the window
+    assert!(t.rows[0].line(Lang::En).contains("pending"));
+    assert!(t.rows[0].line(Lang::Es).contains("pendiente"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_run_asks_first_and_only_runs_confirmed_jobs_on_the_simulator() {
+    let dir = scratch("tab_run");
+    let mut t = tab_in(&dir);
+    // nothing to run yet
+    assert!(!t.press_run(true, Lang::En));
+    t.name = "a".to_string();
+    t.boards = 2;
+    assert!(t.add(false, Lang::En), "{}", t.error);
+    assert!(!t.press_run(true, Lang::En));
+    assert!(t.run_armed);
+    assert_eq!(t.notice, tr(Text::QueueAskRun, Lang::En));
+    assert!(!t.running());
+    // a confirmation takes the first press back
+    assert!(t.confirm(Lang::En), "{}", t.error);
+    assert!(!t.run_armed);
+    // the first press asks, a cancel takes it back, and the second press of a new asking runs on the simulator
+    assert!(!t.press_run(true, Lang::En) && t.run_armed);
+    t.cancel_run();
+    assert!(!t.run_armed && t.notice.is_empty());
+    assert!(!t.press_run(true, Lang::En));
+    assert!(t.press_run(true, Lang::En), "{}{}", t.error, t.notice);
+    assert!(t.running());
+    // a second run cannot start while one is under way
+    assert!(!t.press_run(false, Lang::En));
+    assert_eq!(t.error, tr(Text::QueueAlreadyRunning, Lang::En));
+    wait_for_the_run(&mut t);
+    assert!(!t.running());
+    assert_eq!(t.notice, tr(Text::QueueRunFinished, Lang::En));
+    assert!(t.output.contains("a: done"), "{}", t.output);
+    assert_eq!((t.rows[0].state, t.rows[0].done), (State::Done, 2));
+    assert!(!dir.join("q.csv.lock").exists());
+    // a job that is not confirmed does not run, also with the asking off, and the window says so
+    t.name = "b".to_string();
+    assert!(t.add(false, Lang::En));
+    assert!(t.press_run(false, Lang::En), "{}", t.error);
+    wait_for_the_run(&mut t);
+    assert!(!t.error.is_empty());
+    assert!(
+        t.output.contains("b: not run - 'b' is not confirmed"),
+        "{}",
+        t.output
+    );
+    assert_eq!((t.rows[1].state, t.rows[1].done), (State::Pending, 0));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_run_can_be_stopped_and_leaves_no_lock_behind() {
+    let dir = scratch("tab_stop");
+    let mut t = tab_in(&dir);
+    t.name = "long".to_string();
+    t.boards = 100_000;
+    assert!(t.add(false, Lang::En), "{}", t.error);
+    assert!(t.confirm(Lang::En), "{}", t.error);
+    assert!(t.press_run(false, Lang::En), "{}", t.error);
+    assert!(t.running());
+    t.stop(Lang::En);
+    assert!(!t.running());
+    assert_eq!(t.notice, tr(Text::QueueRunStopped, Lang::En));
+    assert!(!dir.join("q.csv.lock").exists());
+    // the queue file is still a valid queue and can be run again
+    let q = read_file(p(&dir.join("q.csv")), 1_000_000).unwrap();
+    assert_eq!(q.len(), 1);
+    assert!(q.get("long").unwrap().done < 100_000);
+    // stopping when nothing runs does nothing
+    t.stop(Lang::En);
+    assert!(!t.poll(Lang::En));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_tool_says_when_the_program_of_the_commands_is_missing_and_the_setting_asks_by_default() {
+    let dir = scratch("tab_none");
+    let mut t = tab_in(&dir);
+    t.program = None;
+    t.name = "a".to_string();
+    assert!(!t.add(false, Lang::De));
+    assert_eq!(t.error, tr(Text::QueueNoProgram, Lang::De));
+    t.check(Lang::De);
+    assert_eq!(t.error, tr(Text::QueueNoProgram, Lang::De));
+    assert!(!t.press_run(true, Lang::En));
+    assert!(!t.run_armed);
+    assert!(MachineConfig::default().queue_gui_ask_run);
+    assert!(MACHINE.contains("\nqueue_gui_ask_run = on"));
+    assert!(KEYS.contains(&"queue_gui_ask_run"));
+    assert!(
+        !MachineConfig::parse("queue_gui_ask_run = off")
+            .unwrap()
+            .queue_gui_ask_run
+    );
+    // the refresh of a file that is not a queue is told with the code, and the list is empty
+    std::fs::write(dir.join("q.csv"), "garbage").unwrap();
+    t.refresh(Lang::En);
+    assert!(
+        t.rows.is_empty() && t.error.contains("PHOENIX-PNP-060"),
+        "{}",
+        t.error
+    );
+    // the words are in the eight languages and differ from one state to the next
+    for lang in Lang::ALL {
+        let mut seen = Vec::new();
+        for s in State::ALL {
+            let w = state_text(s, lang);
+            assert!(!w.is_empty() && !seen.contains(&w), "{lang:?} {w}");
+            seen.push(w);
+        }
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }

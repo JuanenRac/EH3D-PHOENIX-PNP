@@ -5,6 +5,7 @@
 //! functions as its command (`bom-check`, `bom-order`, `camera-calibrate`, `nozzle-calibrate`, `feeder-teach`, `polarity-sheet`, `panelize`) and gives text; what a tool fits can be
 //! applied to the machine, and what it makes can be written to the output folder, never over a file that exists. What the forms start with comes from the configuration.
 
+use super::queuetab::QueueTab;
 use super::texts::Text;
 use super::workspace::{FileKind, Workspace};
 use crate::bom::{compare, order, order_csv, Bom};
@@ -219,6 +220,8 @@ pub struct Toolbox {
     pub pattern_text: String,
     /// The text of a queue of jobs.
     pub queue_text: String,
+    /// The Queue tool: the queue file as a list of jobs, the form of a new job and the buttons.
+    pub queue: QueueTab,
     /// A path typed to read the text of the tool from.
     pub path_text: String,
     /// The side the sheet of polarity and the stock are limited to (both when none).
@@ -252,6 +255,7 @@ impl Toolbox {
             fiducials_text: String::new(),
             pattern_text: String::new(),
             queue_text: String::new(),
+            queue: QueueTab::new(),
             path_text: String::new(),
             polarity_side: None,
             boards: cfg.order_boards,

@@ -9,6 +9,7 @@ pub mod browse;
 pub mod jobtab;
 pub mod log;
 pub mod problems;
+pub mod queuetab;
 pub mod samples;
 pub mod session;
 pub mod settings;

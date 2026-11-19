@@ -20,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 156] = [
+pub const KEYS: [&str; 157] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -177,6 +177,7 @@ pub const KEYS: [&str; 156] = [
     "queue_stop_on_failure",
     "camera_correct_lens",
     "queue_relative_paths",
+    "queue_gui_ask_run",
 ];
 
 /// The order in which the places are visited.
@@ -551,6 +552,8 @@ pub struct MachineConfig {
     pub camera_correct_lens: bool,
     /// queue-add keeps the files of a job that are in the folder of the queue (or below it) as paths from that folder, so that the folder can be moved; off keeps absolute paths.
     pub queue_relative_paths: bool,
+    /// The Run button of the Queue tool asks first (the second press starts the run); off starts the run at the first press. A run is on the simulated machine in either case.
+    pub queue_gui_ask_run: bool,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -701,6 +704,7 @@ impl Default for MachineConfig {
             queue_stop_on_failure: true,
             camera_correct_lens: false,
             queue_relative_paths: false,
+            queue_gui_ask_run: true,
         }
     }
 }
@@ -1257,6 +1261,7 @@ impl MachineConfig {
             "queue_stop_on_failure" => self.queue_stop_on_failure = flag(line, key, v)?,
             "camera_correct_lens" => self.camera_correct_lens = flag(line, key, v)?,
             "queue_relative_paths" => self.queue_relative_paths = flag(line, key, v)?,
+            "queue_gui_ask_run" => self.queue_gui_ask_run = flag(line, key, v)?,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {
