@@ -47,6 +47,7 @@ pub mod polarity;
 pub mod preflight;
 pub mod preview;
 pub mod queue;
+pub mod queuestock;
 pub mod recipe;
 pub mod report;
 pub mod rotation;

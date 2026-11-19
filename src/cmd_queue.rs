@@ -24,7 +24,7 @@ fn store(path: &str, queue: &Queue, lang: eh3d_phoenix_pnp::error::Lang) -> Resu
 }
 
 /// The folder of the queue file, as an absolute path: where the relative paths of its entries are taken from.
-fn queue_dir(queue_path: &str) -> std::path::PathBuf {
+pub fn queue_dir(queue_path: &str) -> std::path::PathBuf {
     let parent = Path::new(queue_path)
         .parent()
         .filter(|p| !p.as_os_str().is_empty())

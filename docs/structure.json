@@ -938,6 +938,19 @@
           }
         },
         {
+          "name": "queuestock.rs",
+          "desc": {
+            "en": "whether the feeders last for the jobs of a queue, and where a reel runs out",
+            "es": "si los alimentadores alcanzan para los trabajos de una cola, y dónde se acaba un carrete",
+            "de": "ob die Zuführungen für die Aufträge einer Warteschlange reichen, und wo eine Rolle ausgeht",
+            "fr": "si les alimentateurs suffisent pour les travaux d'une file, et où une bobine s'épuise",
+            "it": "se i feeder bastano per i lavori di una coda, e dove finisce una bobina",
+            "ja": "キューのジョブ分のフィーダーが足りるか、どこでリールが尽きるか",
+            "zh": "供料器够不够做完队列中的作业，料盘在哪里用完",
+            "pt": "se os alimentadores chegam para os trabalhos de uma fila, e onde acaba uma bobina"
+          }
+        },
+        {
           "name": "recipe.rs",
           "desc": {
             "en": "the recipe of a job: its file, its steps and the parameters by package, feeder and tip",
@@ -1683,6 +1696,19 @@
             "ja": "ジョブキューのテスト：ファイル、チェックサム、ゲート、コマンド、ツール",
             "zh": "作业队列的测试：文件、校验和、关卡、命令和工具",
             "pt": "testes da fila de trabalhos: o ficheiro, a soma de controlo, a porta, os comandos e a ferramenta"
+          }
+        },
+        {
+          "name": "queuestock.rs",
+          "desc": {
+            "en": "tests of the feeders against a queue: the running total, where a reel runs out, the command",
+            "es": "pruebas de los alimentadores frente a una cola: total acumulado, dónde se acaba un carrete, comando",
+            "de": "Tests der Zuführungen gegen eine Warteschlange: laufende Summe, wo eine Rolle ausgeht, Befehl",
+            "fr": "tests des alimentateurs face à une file : total cumulé, où une bobine s'épuise, commande",
+            "it": "test dei feeder rispetto a una coda: totale progressivo, dove finisce una bobina, comando",
+            "ja": "キューに対するフィーダーのテスト：累計、リールが尽きる所、コマンド",
+            "zh": "供料器与队列对照的测试：累计总量、料盘用完的位置、命令",
+            "pt": "testes dos alimentadores face a uma fila: total acumulado, onde acaba uma bobina, comando"
           }
         },
         {
