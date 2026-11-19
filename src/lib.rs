@@ -4,6 +4,7 @@
 //! The parts of a board with their positions, the feeders that hold them and the order in which a machine with one or more nozzles places them; the configuration of the machine,
 //! a planner that knows it, a simulated machine and a job that carries a plan out on it step by step, and the window that shows them (its logic needs no screen). It plans and simulates: it does not drive a machine.
 
+pub mod asidesheet;
 pub mod boardstats;
 pub mod bom;
 pub mod calibrate;
@@ -29,6 +30,7 @@ pub mod hooks;
 pub mod import;
 pub mod inspect;
 pub mod job;
+pub mod jobdiff;
 pub mod journal;
 pub mod kicadmod;
 pub mod learn;
@@ -50,10 +52,13 @@ pub mod preview;
 pub mod queue;
 pub mod queuestock;
 pub mod recipe;
+pub mod refill;
 pub mod report;
 pub mod rotation;
+pub mod runs;
 pub mod setup;
 pub mod sim;
+pub mod slots;
 pub mod stock;
 pub mod tips;
 pub mod units;

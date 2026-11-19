@@ -4,6 +4,7 @@
 // `schedule`, `preflight`, `simulate`, `loadsheet` and `config-check`: they read the configuration, the tables of parts and packages and the panel, and use the library for the rest.
 
 use crate::cli_args::{finish, flag, num, switch};
+use eh3d_phoenix_pnp::asidesheet;
 use eh3d_phoenix_pnp::catalog::Catalog;
 use eh3d_phoenix_pnp::compare;
 use eh3d_phoenix_pnp::config::{MachineConfig, OrderStrategy, MAX_CONFIG_BYTES};
@@ -33,8 +34,10 @@ use eh3d_phoenix_pnp::preflight::{has_errors, preflight, to_text, Check, Severit
 use eh3d_phoenix_pnp::preview;
 use eh3d_phoenix_pnp::recipe::{Limits, Recipe};
 use eh3d_phoenix_pnp::report::{self, ReportCheck, ReportInput};
+use eh3d_phoenix_pnp::runs;
 use eh3d_phoenix_pnp::setup;
 use eh3d_phoenix_pnp::sim::Rng;
+use eh3d_phoenix_pnp::slots;
 use eh3d_phoenix_pnp::vision::{measure_image, render, wrap, VisionConfig, MAX_VISION_BYTES};
 use std::cell::RefCell;
 use std::fs;
@@ -637,6 +640,162 @@ pub fn job_export(mut args: Vec<String>) -> Result<(), String> {
     write_atomic(&out, &text)?;
     println!("wrote {out}");
     Ok(())
+}
+
+/// `aside-sheet PARTS FEEDERS --state F [--pending] [--out F]`: the parts that a person has to place by hand after the job of a saved state (`simulate --state`): the ones that were put
+/// aside or left out and, with `--pending`, the ones the job did not get to, sorted by value and package. The sheet goes to the screen, or as a table to `--out` (never over a file that
+/// exists, and never over a file that was read). The exit code is 1 when there is any part on it.
+pub fn aside_sheet(mut args: Vec<String>) -> Result<(), String> {
+    let state_path = flag(&mut args, "--state")?.ok_or("aside-sheet needs --state FILE")?;
+    let pending = switch(&mut args, "--pending");
+    let partial = switch(&mut args, "--partial");
+    let out = flag(&mut args, "--out")?;
+    let p = prepare(args, 0)?;
+    let lang = p.c.lang;
+    let l = move |e: PnpError| e.localized(lang);
+    let mut inputs = p.inputs.clone();
+    inputs.push(state_path.clone());
+    if let Some(o) = &out {
+        refuse_same_file(&inputs, o)?;
+    }
+    let planned = make_plan(&p)?;
+    if has_errors(&planned.checks) && !partial {
+        return Err(PnpError::new(
+            Code::PreflightFailed,
+            "use --partial to go on with only what can be placed",
+        )
+        .localized(lang));
+    }
+    let mut job = Job::new(planned.plan, p.feeders.clone(), p.c.cfg.clone()).map_err(l)?;
+    job.restore_state(&read_text(&state_path, p.c.cfg.max_file_bytes)?)
+        .map_err(l)?;
+    let sheet = asidesheet::build(&job, &p.parts, pending);
+    print!("{}", sheet.text());
+    if let Some(o) = &out {
+        report::write_new(o, &sheet.csv()).map_err(l)?;
+        println!("written to {o}");
+    }
+    if sheet.rows.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("{} parts are left for a person", sheet.rows.len()))
+    }
+}
+
+/// `feeder-slots PARTS FEEDERS [--max-plans N] [--out F]`: looks for the places of the feeders that make the plan of the board the fastest, by swapping the places of two feeders of the same
+/// kind while that saves time. The report goes to the screen, or the table of feeders with the new places to `--out` (never over a file that exists, and never over a file that was read).
+/// The exit code is 1 when a better way to stand the feeders exists.
+pub fn feeder_slots(mut args: Vec<String>) -> Result<(), String> {
+    let max_plans = match flag(&mut args, "--max-plans")? {
+        Some(v) => {
+            let n = num(&v, "--max-plans")?;
+            if n.fract() != 0.0 || !(1.0..=1_000_000.0).contains(&n) {
+                return Err(format!(
+                    "--max-plans {v} is not a whole number from 1 to 1000000"
+                ));
+            }
+            n as usize
+        }
+        None => 5000,
+    };
+    let out = flag(&mut args, "--out")?;
+    let p = prepare(args, 0)?;
+    let lang = p.c.lang;
+    let l = move |e: PnpError| e.localized(lang);
+    let feeders_path = p
+        .inputs
+        .last()
+        .ok_or("a file of feeders is needed")?
+        .clone();
+    if let Some(o) = &out {
+        refuse_same_file(&p.inputs, o)?;
+    }
+    let found = slots::optimize(
+        &p.parts,
+        &read_text(&feeders_path, p.c.cfg.max_file_bytes)?,
+        &p.c.catalog,
+        &p.c.cfg,
+        &p.c.opts,
+        max_plans,
+    )
+    .map_err(l)?;
+    print!("{}", found.text());
+    if let Some(o) = &out {
+        report::write_new(o, &found.csv).map_err(l)?;
+        println!("written to {o}");
+    }
+    if found.moves.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("{} feeders could stand better", found.moves.len()))
+    }
+}
+
+/// `simulate-runs PARTS FEEDERS [--runs N] [--seed S] [--out F]`: the job run `N` times on the simulated machine, each time from another seed (`S`, `S + 1`, and so on; the `sim_seed` of the
+/// settings when `--seed` is not given), and what the runs say as a whole. `--out` writes a row for each run (never over a file that exists, and never over a file that was read). The exit
+/// code is 1 when a run did not place every part.
+pub fn simulate_runs(mut args: Vec<String>) -> Result<(), String> {
+    let count = match flag(&mut args, "--runs")? {
+        Some(v) => {
+            let n = num(&v, "--runs")?;
+            if n.fract() != 0.0 || !(1.0..=runs::MAX_RUNS as f64).contains(&n) {
+                return Err(format!(
+                    "--runs {v} is not a whole number from 1 to {}",
+                    runs::MAX_RUNS
+                ));
+            }
+            n as usize
+        }
+        None => 20,
+    };
+    let seed = match flag(&mut args, "--seed")? {
+        Some(v) => Some(
+            v.trim()
+                .parse::<u64>()
+                .map_err(|_| format!("--seed {v} is not a whole number"))?,
+        ),
+        None => None,
+    };
+    let out = flag(&mut args, "--out")?;
+    let partial = switch(&mut args, "--partial");
+    let p = prepare(args, 0)?;
+    let lang = p.c.lang;
+    let l = move |e: PnpError| e.localized(lang);
+    if let Some(o) = &out {
+        refuse_same_file(&p.inputs, o)?;
+        if Path::new(o).exists() {
+            return Err(PnpError::new(Code::ReportExists, o.as_str()).localized(lang));
+        }
+    }
+    let planned = make_plan(&p)?;
+    if has_errors(&planned.checks) && !partial {
+        return Err(PnpError::new(
+            Code::PreflightFailed,
+            "use --partial to go on with only what can be placed",
+        )
+        .localized(lang));
+    }
+    let found = runs::run_many(
+        &planned.plan,
+        &p.feeders,
+        &p.c.cfg,
+        count,
+        seed.unwrap_or(p.c.cfg.sim_seed),
+    )
+    .map_err(l)?;
+    print!("{}", found.text());
+    if let Some(o) = &out {
+        report::write_new(o, &found.csv()).map_err(l)?;
+        println!("written to {o}");
+    }
+    if found.complete() == found.rows.len() {
+        Ok(())
+    } else {
+        Err(format!(
+            "{} runs did not place every part",
+            found.rows.len() - found.complete()
+        ))
+    }
 }
 
 /// Runs the hooks for the events of a job (or only lists them, with `dry`): what each one did is told, and none of it changes the job or the exit code.

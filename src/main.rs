@@ -44,12 +44,17 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp package-kicad PATH... [--height MM] [--out F] [--config F] [--lang CODE]   the rows of a table of packages (body, tape, height) from footprint files of KiCad (.kicad_mod, or a folder of them): the body is the drawing on the fabrication layer; the height is that of the package when its name is a known one, or --height; exits with 1 when a footprint is not understood
   phoenix-pnp place-learn READINGS --state F [--residual] [--dry-run] [--config F] [--lang CODE]   learns the mean offset of the placement of each package from readings (package,dx_mm,dy_mm), leaving the strays out and holding it within place_learn_cap_mm; off until place_learn is on; --show and --forget PACKAGE read and trim the file
   phoenix-pnp job-export PARTS FEEDERS OUT [OPTIONS] [--state F] [--partial]   the plan and where the job is (the saved state of simulate, if given) in one JSON file for other programs
+  phoenix-pnp aside-sheet PARTS FEEDERS --state F [--pending] [--out F] [OPTIONS]   the parts that a person has to place by hand after the job of a saved state: the ones put aside and left out (and with --pending the ones not placed yet), sorted by value and package, with why; exits with 1 when there are any
+  phoenix-pnp feeder-slots PARTS FEEDERS [--max-plans N] [--out F] [OPTIONS]   looks for the places of the feeders that make the plan fastest, by swapping the places of two feeders of the same kind (tape, tube or bulk) while that saves time (at most N plans, 5000 by default); --out writes the table of feeders with the new places and slot names; exits with 1 when a better way to stand them exists
+  phoenix-pnp simulate-runs PARTS FEEDERS [--runs N] [--seed S] [--out F] [OPTIONS] [--partial]   runs the job N times (20 by default) on the simulated machine, each time from another seed (S, S+1, ...; the sim_seed of the settings by default), and says how many runs placed every part, how many an error stopped (and which), the parts put aside and the times; --out writes a row for each run; exits with 1 when a run did not place every part
+  phoenix-pnp job-diff FIRST SECOND [--out F] [--config F] [--lang CODE]   what differs between two files of job-export, part by part (the feeder, the nozzle, the batch, the tip, where it is picked and placed, the turn, what became of it, the order) and in the plan as a whole; exits with 1 when the jobs differ
   phoenix-pnp job-import FILE [--csv F] [--config F] [--lang CODE]   reads and checks such a file and says what it holds; --csv writes the placements with their status as a table; exits with 1 when the file is not valid
   phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] [--config F] [--lang CODE]   what changed between two tables of parts, part by part: added, removed, moved, turned, another value, another package or the other side; exits with 1 when they differ
   phoenix-pnp config-diff FIRST SECOND [--lang CODE]   the settings that two configuration files give differently, in what they mean (yes and on, 5 and 5.0 and a line that gives the default are the same); exits with 1 when the machines differ
   phoenix-pnp board-stats PARTS [--near MM] [--limit N] [--config F] [--lang CODE]   what a table of parts holds (the sides, the kinds, each package, the box of the centres) and, with --near, the pairs of parts of one side whose centres are closer than MM; exits with 1 when it finds a pair
   phoenix-pnp queue-stock QUEUE [--out F] [--config F] [--lang CODE]   whether the feeders hold enough parts for all the jobs of the queue that are still to be made, one after the other, and the job in which each reel that falls short runs out; exits with 1 when one does
   phoenix-pnp feeder-deplete FEEDERS --state F [--out F] [--config F] [--lang CODE]   the table of feeders as it stands after the job of a saved state: what is left in each feeder and the next place of each strip; exits with 1 when a feeder is low or empty
+  phoenix-pnp feeder-refill FEEDERS REFILLS [--out F] [--config F] [--lang CODE]   the table of feeders after reels were changed: REFILLS is a table id,count[,x,y] with a row for each feeder that got a new reel (the count of the new reel and, for a strip, where its first part is); everything else in the table is kept
   phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS [--panel] [--boards N] [--side top|bottom] [--config F] [--packages F] [--catalog F] [--relative]   puts a job (a table of parts, or a panel with --panel) at the end of a queue of jobs
   phoenix-pnp queue-status QUEUE [--check] [--config F]   the jobs of the queue and what became of each; --check plans the ones still to be made and exits with 1 when one cannot run now
   phoenix-pnp queue-confirm QUEUE NAME   records that the plan of the job, as it is now, was looked at and may be run (void when the files change)
@@ -235,10 +240,15 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "board-stats" => cmd_more::board_stats(args),
         "queue-stock" => cmd_more::queue_stock(args),
         "feeder-deplete" => cmd_more::feeder_deplete(args),
+        "feeder-refill" => cmd_more::feeder_refill(args),
         "package-gen" => cmd_tools::package_gen(args),
         "package-kicad" => cmd_tools::package_kicad(args),
         "place-learn" => cmd_tools::place_learn(args),
         "job-export" => commands::job_export(args),
+        "aside-sheet" => commands::aside_sheet(args),
+        "feeder-slots" => commands::feeder_slots(args),
+        "simulate-runs" => commands::simulate_runs(args),
+        "job-diff" => cmd_more::job_diff(args),
         "job-import" => cmd_tools::job_import(args),
         "queue-add" => cmd_queue::queue_add(args),
         "queue-status" => cmd_queue::queue_status(args),

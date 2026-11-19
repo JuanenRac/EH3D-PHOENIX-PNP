@@ -35,7 +35,7 @@ fn bad(message: impl Into<String>) -> PnpError {
 }
 
 /// A place with no more than six decimals and no trailing zeros.
-fn place(v: f64) -> String {
+pub(crate) fn place(v: f64) -> String {
     let s = format!("{v:.6}");
     let s = s.trim_end_matches('0').trim_end_matches('.');
     if s.is_empty() || s == "-0" {
@@ -129,7 +129,7 @@ pub fn deplete(feeders_text: &str, state_text: &str) -> Result<Depleted, PnpErro
 }
 
 /// A field of the table, in quotes when it holds the delimiter.
-fn csv_cell(text: &str, delim: char) -> String {
+pub(crate) fn csv_cell(text: &str, delim: char) -> String {
     if delim == ',' {
         csv_field(text)
     } else if text.contains([delim, '"', '\n', '\r']) {

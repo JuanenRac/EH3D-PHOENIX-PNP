@@ -9,7 +9,9 @@ use crate::commands::{read_text, refuse_same_file};
 use eh3d_phoenix_pnp::config::MAX_CONFIG_BYTES;
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::parts::parse_all;
-use eh3d_phoenix_pnp::{boardstats, configdiff, deplete, partsdiff, queuestock, report};
+use eh3d_phoenix_pnp::{
+    boardstats, configdiff, deplete, exchange, jobdiff, partsdiff, queuestock, refill, report,
+};
 
 /// `parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F]`: what changed between two tables of parts, part by part (added, removed, moved, turned, another value, another package,
 /// the other side). The report goes to the screen, or the changes as a CSV to `--out` (never over a file that exists). The exit code is 1 when the tables differ.
@@ -161,5 +163,57 @@ pub fn feeder_deplete(mut args: Vec<String>) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("{} feeders are low or empty", result.low()))
+    }
+}
+
+/// `feeder-refill FEEDERS REFILLS [--out F]`: the table of feeders after reels were changed. `REFILLS` is a table `id,count[,x,y]` with a row for each feeder that got a new reel: the
+/// count of the feeder is the parts of the new reel and a strip starts again at `x,y`. The report goes to the screen, or the table to `--out` (never over a file that exists, and never over a
+/// file that was read). A feeder that is not in the table or a refill that does not fit it is refused.
+pub fn feeder_refill(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let out = flag(&mut args, "--out")?;
+    finish(&args, 2)?;
+    let (feeders, refills) = match (args.first(), args.get(1)) {
+        (Some(a), Some(b)) => (a.clone(), b.clone()),
+        _ => return Err("feeder-refill needs a table of feeders and a table of refills".into()),
+    };
+    let l = |e: PnpError| e.localized(lang);
+    let rows = refill::parse_refills(&read_text(&refills, cfg.max_file_bytes)?).map_err(l)?;
+    let result = refill::refill(&read_text(&feeders, cfg.max_file_bytes)?, &rows).map_err(l)?;
+    print!("{}", result.text());
+    if let Some(o) = &out {
+        refuse_same_file(&[feeders, refills], o)?;
+        report::write_new(o, &result.csv).map_err(l)?;
+        println!("written to {o}");
+    }
+    Ok(())
+}
+
+/// `job-diff FIRST SECOND [--out F]`: what differs between two files of `job-export`, part by part and in the plan as a whole. The report goes to the screen, or the differences as a table to
+/// `--out` (never over a file that exists, and never over a file that was read). The exit code is 1 when the jobs differ.
+pub fn job_diff(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let out = flag(&mut args, "--out")?;
+    finish(&args, 2)?;
+    let (a, b) = match (args.first(), args.get(1)) {
+        (Some(a), Some(b)) => (a.clone(), b.clone()),
+        _ => return Err("job-diff needs two files of job-export".into()),
+    };
+    let read = |path: &str| -> Result<exchange::Exchange, String> {
+        exchange::parse(&read_text(path, cfg.max_file_bytes)?)
+            .map_err(|e| format!("{path}: {}", e.localized(lang)))
+    };
+    let (first, second) = (read(&a)?, read(&b)?);
+    let found = jobdiff::diff(&first, &second);
+    print!("{}", found.text());
+    if let Some(o) = &out {
+        refuse_same_file(&[a, b], o)?;
+        report::write_new(o, &found.csv()).map_err(|e| e.localized(lang))?;
+        println!("written to {o}");
+    }
+    if found.is_same() {
+        Ok(())
+    } else {
+        Err(format!("{} parts differ", found.parts_changed()))
     }
 }
