@@ -11,6 +11,7 @@ use crate::fiducial::FitMode;
 use crate::import::{ImportUnit, Settings as ImportSettings};
 use crate::motion::BacklashMode;
 use crate::parts::{BottomRotation, PositionColumns, Profile};
+use crate::server::Mode;
 use crate::tips::{TipChoice, TipRule, MAX_RULE_TIPS, MAX_TIP_RULES};
 use std::collections::HashSet;
 
@@ -20,7 +21,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 178] = [
+pub const KEYS: [&str; 185] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -199,6 +200,13 @@ pub const KEYS: [&str; 178] = [
     "feeder_slots_max_plans",
     "simulate_runs_count",
     "journal_steps",
+    "mode",
+    "server_address",
+    "server_token",
+    "server_machine",
+    "server_timeout_s",
+    "server_poll_ms",
+    "server_attempts",
 ];
 
 /// The order in which the places are visited.
@@ -615,6 +623,17 @@ pub struct MachineConfig {
     pub simulate_runs_count: u32,
     /// How many steps the journal panel runs (0 to 1000000; 0 runs the job to its end).
     pub journal_steps: u32,
+    /// `local` (the default) or `server`: whether the commands of the server may send jobs to the EH3D server.
+    pub mode: Mode,
+    /// Where the server is (`host:port`), the token of this program on it and the id of the machine there; empty until they are given.
+    pub server_address: String,
+    pub server_token: String,
+    pub server_machine: String,
+    /// The seconds a request to the server may take (0.5 to 120), the milliseconds between two readings of a job that is followed (50 to 60000) and how many times a request that got no
+    /// answer is tried (1 to 10).
+    pub server_timeout_s: f64,
+    pub server_poll_ms: u32,
+    pub server_attempts: u32,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -787,8 +806,28 @@ impl Default for MachineConfig {
             feeder_slots_max_plans: 5000,
             simulate_runs_count: 20,
             journal_steps: 0,
+            mode: Mode::Local,
+            server_address: String::new(),
+            server_token: String::new(),
+            server_machine: String::new(),
+            server_timeout_s: 5.0,
+            server_poll_ms: 500,
+            server_attempts: 3,
         }
     }
+}
+
+/// A text of the server settings: no control character, at most `max` characters; empty is allowed (the setting is not given).
+fn server_text(line: usize, key: &str, v: &str, max: usize) -> Result<String, PnpError> {
+    if v.chars().count() > max || v.chars().any(char::is_control) {
+        return Err(bad(
+            line,
+            key,
+            v,
+            &format!("a text of up to {max} characters with no control character"),
+        ));
+    }
+    Ok(v.to_string())
 }
 
 pub(crate) fn bad(line: usize, key: &str, v: &str, what: &str) -> PnpError {
@@ -1375,6 +1414,25 @@ impl MachineConfig {
                 self.simulate_runs_count = int(line, key, v, 1, 10_000)? as u32
             }
             "journal_steps" => self.journal_steps = int(line, key, v, 0, 1_000_000)? as u32,
+            "mode" => {
+                self.mode = Mode::parse(v).ok_or_else(|| bad(line, key, v, "local or server"))?
+            }
+            "server_address" => self.server_address = server_text(line, key, v, 255)?,
+            "server_token" => self.server_token = server_text(line, key, v, 1024)?,
+            "server_machine" => {
+                if !v.is_empty() && !crate::server::safe_segment(v) {
+                    return Err(bad(
+                        line,
+                        key,
+                        v,
+                        "an id of up to 64 letters, digits, _ and -",
+                    ));
+                }
+                self.server_machine = v.to_string();
+            }
+            "server_timeout_s" => self.server_timeout_s = n(0.5, 120.0)?,
+            "server_poll_ms" => self.server_poll_ms = int(line, key, v, 50, 60_000)? as u32,
+            "server_attempts" => self.server_attempts = int(line, key, v, 1, 10)? as u32,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

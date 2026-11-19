@@ -1,0 +1,4 @@
+pattern,feed_retries,pick_retries,place_retries
+QFN-*,,3,2
+*_0402,2,4,
+LED_*,0,,0

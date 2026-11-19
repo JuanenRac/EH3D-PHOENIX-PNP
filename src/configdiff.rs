@@ -98,9 +98,12 @@ impl ConfigDiff {
         self.changes.is_empty()
     }
 
-    fn shown(values: &[String]) -> String {
+    /// The values of a key as a person reads them; a token is never shown, only whether there is one.
+    fn shown(key: &str, values: &[String]) -> String {
         if values.is_empty() {
             "(default)".to_string()
+        } else if key == "server_token" {
+            "(set)".to_string()
         } else {
             values.join(" ; ")
         }
@@ -113,8 +116,8 @@ impl ConfigDiff {
             out.push_str(&format!(
                 "{}: {} -> {}\n",
                 c.key,
-                Self::shown(&c.old),
-                Self::shown(&c.new)
+                Self::shown(&c.key, &c.old),
+                Self::shown(&c.key, &c.new)
             ));
         }
         out.push_str(&format!(

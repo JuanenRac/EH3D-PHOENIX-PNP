@@ -3,8 +3,10 @@
 #![forbid(unsafe_code)]
 
 mod cli_args;
+mod cmd_flow;
 mod cmd_more;
 mod cmd_queue;
+mod cmd_server;
 mod cmd_tools;
 mod cmd_vis;
 mod commands;
@@ -51,6 +53,17 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp nozzle-compare PARTS FEEDERS [--max N] [--out F] [OPTIONS]   the board planned with one nozzle on the head, then two, up to N (6 by default), side by side: batches, tip changes, travel and seconds, the fastest marked and what each nozzle takes off the one before; the heads of the settings are left out; --out writes the table; exits with 1 when no number of nozzles gives a plan
   phoenix-pnp simulate-hotspots PARTS FEEDERS [--runs N] [--seed S] [--out F] [OPTIONS] [--partial]   runs the job N times on the simulated machine (simulate_runs_count of the settings by default), each time from another seed, and says for each feeder the picks that failed, the runs in which it was switched off and the parts put aside, the worst first; --out writes a row for each feeder; exits with 1 when a feeder gave trouble
   phoenix-pnp queue-changeover QUEUE [--out F] [--config F] [--lang CODE]   what has to be changed on the feeders between the jobs of the queue that are still to be made: the reels to change or put in, the ones that may stay and how many stay as they are; --out writes a row for each feeder; exits with 1 when a reel has to be changed
+  phoenix-pnp camera-selftest [--points N] [--noise PX] [--field PX] [--seed S] [--tol MM] [--out F] [--config F] [--lang CODE]   makes up the camera of the settings, looks at a mark in places chosen by chance from the seed, fits the camera as camera-calibrate does and says how far the one found is from the one made up; --out writes the sightings for camera-calibrate; exits with 1 when the error is over MM (0.05 by default)
+  phoenix-pnp machine-template [NAME] [--out F]   with no name, the starting points for the settings of a machine (desktop-1, desktop-2, dual-head, production-4, simulation, server, full); with one, its settings, printed or written to --out
+  phoenix-pnp lot-trace PARTS FEEDERS LOTS [--serial S] [--out F] [--config F] [--lang CODE]   the lot of the reel each placed part came from, from a table feeder,lot[,reel][,date_code][,supplier] of what is in the feeders; --out writes a row for each part, with --serial as the board; exits with 1 when a part has no feeder or a feeder that gives parts has no lot
+  phoenix-pnp export-assembler PARTS [--format cpl|kicad-pos|generic] [--side all|top|bottom] [--unit mm|inch] [--out F] [--config F] [--lang CODE]   the parts in the shape that an assembler or another program asks for
+  phoenix-pnp split-job PARTS FEEDERS --machines N [--out F] [--config F] [--lang CODE]   whole feeders given to N machines so that each has about the same work (the time of a pick and a placement); --out writes a row for each part; exits with 1 when a part has no feeder
+  phoenix-pnp failure-odds PARTS FEEDERS [--rules F] [--min-ok PERCENT] [--out F] [--config F] [--lang CODE]   the chance that a board goes through with no part in error, from the chances of failure and the retries of the settings (by package, of a file of rules pattern,feed_retries,pick_retries,place_retries); exits with 1 when it is under PERCENT (0 by default: never)
+  phoenix-pnp pos-transform PARTS [--rotate DEG] [--flip] [--shift X,Y] [--zero] [--format cpl|kicad-pos|generic] [--unit mm|inch] [--out F] [--config F] [--lang CODE]   the whole table turned counter-clockwise about the origin, flipped left to right (the sides swap), moved, and with --zero moved so that its lowest left corner is the origin
+  phoenix-pnp server-request PARTS FEEDERS --out DIR [--offset X,Y] [--partial] [--config F] [--lang CODE]   writes the requests that server-send would make, feeders.json and place.json, for other programs
+  phoenix-pnp server-send PARTS FEEDERS [--offset X,Y] [--keep-feeders] [--start] [--follow] [--timeout S] [--sim] [--partial] [--config F] [--lang CODE]   with mode = server, puts the table of feeders on the machine of the EH3D server (unless --keep-feeders), prepares the placements as a job and, with --start or --follow, starts it; --follow reads the job until it is over; --sim does it all against a server in memory; the parts no feeder holds are told; exits with 1 when the job did not end done
+  phoenix-pnp server-status [JOB] [--config F] [--lang CODE]   the machine of the server (its state and the feeders it holds) or, with a job id, how that job goes
+  phoenix-pnp server-job ID --start|--pause|--resume|--cancel [--config F] [--lang CODE]   tells a job of the server what to do and says how it stands
   phoenix-pnp job-diff FIRST SECOND [--out F] [--config F] [--lang CODE]   what differs between two files of job-export, part by part (the feeder, the nozzle, the batch, the tip, where it is picked and placed, the turn, what became of it, the order) and in the plan as a whole; exits with 1 when the jobs differ
   phoenix-pnp job-import FILE [--csv F] [--config F] [--lang CODE]   reads and checks such a file and says what it holds; --csv writes the placements with their status as a table; exits with 1 when the file is not valid
   phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] [--config F] [--lang CODE]   what changed between two tables of parts, part by part: added, removed, moved, turned, another value, another package or the other side; exits with 1 when they differ
@@ -257,6 +270,17 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "simulate-hotspots" => commands::simulate_hotspots(args),
         "queue-changeover" => cmd_more::queue_changeover(args),
         "job-diff" => cmd_more::job_diff(args),
+        "camera-selftest" => cmd_flow::camera_selftest(args),
+        "machine-template" => cmd_flow::machine_template(args),
+        "lot-trace" => cmd_flow::lot_trace(args),
+        "export-assembler" => cmd_flow::export_assembler(args),
+        "split-job" => cmd_flow::split_job(args),
+        "failure-odds" => cmd_flow::failure_odds(args),
+        "pos-transform" => cmd_flow::pos_transform(args),
+        "server-request" => cmd_server::server_request(args),
+        "server-send" => cmd_server::server_send(args),
+        "server-status" => cmd_server::server_status(args),
+        "server-job" => cmd_server::server_job(args),
         "job-import" => cmd_tools::job_import(args),
         "queue-add" => cmd_queue::queue_add(args),
         "queue-status" => cmd_queue::queue_status(args),
