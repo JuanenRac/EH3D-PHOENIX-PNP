@@ -36,6 +36,7 @@ pub mod motion;
 pub mod nozzlelife;
 pub mod panel;
 pub mod parts;
+pub mod partsdiff;
 pub mod pattern;
 pub mod pkggen;
 pub mod plan;

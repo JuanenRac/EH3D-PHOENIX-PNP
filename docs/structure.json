@@ -93,6 +93,19 @@
           }
         },
         {
+          "name": "cmd_more.rs",
+          "desc": {
+            "en": "the commands parts-diff, config-diff, board-stats, queue-stock and feeder-deplete",
+            "es": "los comandos parts-diff, config-diff, board-stats, queue-stock y feeder-deplete",
+            "de": "die Befehle parts-diff, config-diff, board-stats, queue-stock und feeder-deplete",
+            "fr": "les commandes parts-diff, config-diff, board-stats, queue-stock et feeder-deplete",
+            "it": "i comandi parts-diff, config-diff, board-stats, queue-stock e feeder-deplete",
+            "ja": "コマンド parts-diff、config-diff、board-stats、queue-stock、feeder-deplete",
+            "zh": "命令 parts-diff、config-diff、board-stats、queue-stock 和 feeder-deplete",
+            "pt": "os comandos parts-diff, config-diff, board-stats, queue-stock e feeder-deplete"
+          }
+        },
+        {
           "name": "cmd_queue.rs",
           "desc": {
             "en": "the commands of the queue of jobs: add, status, confirm, edit, run",
@@ -779,6 +792,19 @@
             "ja": "位置ファイルと実装しない部品",
             "zh": "位置文件和不贴装的零件",
             "pt": "o ficheiro de posições e as peças que não se montam"
+          }
+        },
+        {
+          "name": "partsdiff.rs",
+          "desc": {
+            "en": "what changed between two tables of parts, part by part",
+            "es": "qué cambió entre dos tablas de piezas, pieza a pieza",
+            "de": "was sich zwischen zwei Bauteiltabellen geändert hat, Bauteil für Bauteil",
+            "fr": "ce qui a changé entre deux tables de pièces, pièce par pièce",
+            "it": "che cosa è cambiato tra due tabelle di parti, parte per parte",
+            "ja": "2つの部品テーブルの差分を部品ごとに",
+            "zh": "两个零件表之间的变化，逐个零件",
+            "pt": "o que mudou entre duas tabelas de peças, peça a peça"
           }
         },
         {
@@ -1488,6 +1514,19 @@
             "ja": "基板の格子パネルと panelize のテスト",
             "zh": "网格拼板与 panelize 的测试",
             "pt": "testes do painel de uma grelha de placas e de panelize"
+          }
+        },
+        {
+          "name": "partsdiff.rs",
+          "desc": {
+            "en": "tests of what changed between two tables of parts: each kind, the tolerances, the command",
+            "es": "pruebas de lo que cambió entre dos tablas de piezas: cada clase, tolerancias, comando",
+            "de": "Tests der Änderungen zwischen zwei Bauteiltabellen: jede Art, Toleranzen, Befehl",
+            "fr": "tests de ce qui a changé entre deux tables de pièces : chaque sorte, tolérances, commande",
+            "it": "test di ciò che è cambiato tra due tabelle di parti: ogni tipo, tolleranze, comando",
+            "ja": "2つの部品テーブルの差分のテスト：各種類、許容値、コマンド",
+            "zh": "两个零件表差异的测试：各种变化、容差、命令",
+            "pt": "testes do que mudou entre duas tabelas de peças: cada tipo, tolerâncias, comando"
           }
         },
         {

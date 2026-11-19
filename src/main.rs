@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 mod cli_args;
+mod cmd_more;
 mod cmd_queue;
 mod cmd_tools;
 mod cmd_vis;
@@ -44,6 +45,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp place-learn READINGS --state F [--residual] [--dry-run] [--config F] [--lang CODE]   learns the mean offset of the placement of each package from readings (package,dx_mm,dy_mm), leaving the strays out and holding it within place_learn_cap_mm; off until place_learn is on; --show and --forget PACKAGE read and trim the file
   phoenix-pnp job-export PARTS FEEDERS OUT [OPTIONS] [--state F] [--partial]   the plan and where the job is (the saved state of simulate, if given) in one JSON file for other programs
   phoenix-pnp job-import FILE [--csv F] [--config F] [--lang CODE]   reads and checks such a file and says what it holds; --csv writes the placements with their status as a table; exits with 1 when the file is not valid
+  phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] [--config F] [--lang CODE]   what changed between two tables of parts, part by part: added, removed, moved, turned, another value, another package or the other side; exits with 1 when they differ
   phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS [--panel] [--boards N] [--side top|bottom] [--config F] [--packages F] [--catalog F] [--relative]   puts a job (a table of parts, or a panel with --panel) at the end of a queue of jobs
   phoenix-pnp queue-status QUEUE [--check] [--config F]   the jobs of the queue and what became of each; --check plans the ones still to be made and exits with 1 when one cannot run now
   phoenix-pnp queue-confirm QUEUE NAME   records that the plan of the job, as it is now, was looked at and may be run (void when the files change)
@@ -224,6 +226,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "camera-calibrate" => cmd_tools::camera_calibrate(args),
         "camera-pattern" => cmd_tools::camera_pattern(args),
         "camera-combined" => cmd_tools::camera_combined(args),
+        "parts-diff" => cmd_more::parts_diff(args),
         "package-gen" => cmd_tools::package_gen(args),
         "package-kicad" => cmd_tools::package_kicad(args),
         "place-learn" => cmd_tools::place_learn(args),
