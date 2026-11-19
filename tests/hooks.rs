@@ -383,24 +383,36 @@ fn a_program_is_run_with_its_arguments_and_what_it_prints_is_cut() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[cfg(unix)]
+fn write_script(path: &Path, text: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::write(path, text).unwrap();
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+#[cfg(not(unix))]
+fn write_script(_path: &Path, _text: &str) {}
+
 #[test]
 fn a_program_that_takes_too_long_is_stopped() {
     let dir = scratch("slow");
     // a program that waits: sleep, or ping, copied to the folder
-    let (source, name, args): (&str, &str, Vec<&str>) = if cfg!(windows) {
-        (
-            r"C:\Windows\System32\ping.exe",
-            "waiter.exe",
-            vec!["-n", "30", "127.0.0.1"],
-        )
+    let (name, args): (&str, Vec<&str>) = if cfg!(windows) {
+        ("waiter.exe", vec!["-n", "30", "127.0.0.1"])
     } else {
-        ("/bin/sleep", "waiter", vec!["30"])
+        ("waiter", vec![])
     };
-    if !Path::new(source).exists() {
-        let _ = std::fs::remove_dir_all(&dir);
-        return;
+    if cfg!(windows) {
+        let source = r"C:\Windows\System32\ping.exe";
+        if !Path::new(source).exists() {
+            let _ = std::fs::remove_dir_all(&dir);
+            return;
+        }
+        std::fs::copy(source, dir.join(name)).unwrap();
+    } else {
+        // a script, because a copy of a multi-call binary does not know its new name
+        write_script(&dir.join(name), "#!/bin/sh\nsleep 30\n");
     }
-    std::fs::copy(source, dir.join(name)).unwrap();
     let started = std::time::Instant::now();
     let outcome = run_call(&dir, &call(name, &args), 0.5);
     assert_eq!(outcome, Outcome::TimedOut);
