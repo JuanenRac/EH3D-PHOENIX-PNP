@@ -23,7 +23,7 @@ pub const VISION_SCHEMA_VERSION: u32 = 1;
 const MAX_LINE_CHARS: usize = 1024;
 
 /// Every key that the file knows, in the order of `examples/vision.cfg`.
-pub const KEYS: [&str; 19] = [
+pub const KEYS: [&str; 24] = [
     "schema_version",
     "mm_per_px",
     "mask",
@@ -43,6 +43,11 @@ pub const KEYS: [&str; 19] = [
     "sim_background",
     "sim_foreground",
     "sim_noise_levels",
+    "sim_blur_px",
+    "sim_salt_pepper",
+    "sim_gradient_levels",
+    "sim_failure_rate",
+    "sim_failure_kind",
 ];
 
 /// The text of the file with every key at its default and a line for what it means: `examples/vision.cfg` is this text, and a test keeps them equal.
@@ -90,6 +95,18 @@ sim_part_short_mm = 0.8
 sim_background = 30
 sim_foreground = 200
 sim_noise_levels = 0
+
+# What makes the simulated picture less perfect; all of it is off (0) by default. sim_blur_px is a blur as of a camera out of focus: the width of a Gaussian in pixels (0 to 10).
+# sim_salt_pepper is the share of the pixels (0 to 0.5) that turn black or white by chance, as of dust or a hot sensor. sim_gradient_levels is how much brighter the right of the picture
+# is than the left (-127 to 127), as of a light that is not even.
+sim_blur_px = 0
+sim_salt_pepper = 0
+sim_gradient_levels = 0
+
+# Failures of the picture: the share of the pictures (0 to 1) that are spoilt, and what a spoilt one is like: blank (the part is not there, as if it had been dropped), dark (the light
+# is off), glare (everything is saturated) or mix (one of the three by chance, for each picture).
+sim_failure_rate = 0
+sim_failure_kind = blank
 "#;
 
 /// How the grey level that tells the part from the background is found.
@@ -109,6 +126,43 @@ pub enum Filter {
     /// The median of the 3 x 3 pixels around each pixel (the edge of the picture repeats itself).
     #[default]
     Median3,
+}
+
+/// What a spoilt picture is like (`sim_failure_kind`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FailureKind {
+    /// The part is not in the picture, as if it had been dropped.
+    #[default]
+    Blank,
+    /// The light is off: everything is a quarter of the grey of the background.
+    Dark,
+    /// Everything is saturated.
+    Glare,
+    /// One of the three, drawn for each spoilt picture.
+    Mix,
+}
+
+impl FailureKind {
+    pub const ALL: [FailureKind; 4] = [
+        FailureKind::Blank,
+        FailureKind::Dark,
+        FailureKind::Glare,
+        FailureKind::Mix,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            FailureKind::Blank => "blank",
+            FailureKind::Dark => "dark",
+            FailureKind::Glare => "glare",
+            FailureKind::Mix => "mix",
+        }
+    }
+
+    pub fn parse(text: &str) -> Option<FailureKind> {
+        let t = text.trim().to_ascii_lowercase();
+        FailureKind::ALL.into_iter().find(|k| k.name() == t)
+    }
 }
 
 /// An axis of the picture.
@@ -172,6 +226,15 @@ pub struct VisionConfig {
     pub sim_background: u8,
     pub sim_foreground: u8,
     pub sim_noise_levels: u32,
+    /// The width of the Gaussian blur of the picture, in pixels (0: sharp).
+    pub sim_blur_px: f64,
+    /// The share of the pixels that turn black or white by chance.
+    pub sim_salt_pepper: f64,
+    /// How much brighter the right of the picture is than the left, in grey levels.
+    pub sim_gradient_levels: f64,
+    /// The share of the pictures that are spoilt, and how.
+    pub sim_failure_rate: f64,
+    pub sim_failure_kind: FailureKind,
 }
 
 impl Default for VisionConfig {
@@ -196,6 +259,11 @@ impl Default for VisionConfig {
             sim_background: 30,
             sim_foreground: 200,
             sim_noise_levels: 0,
+            sim_blur_px: 0.0,
+            sim_salt_pepper: 0.0,
+            sim_gradient_levels: 0.0,
+            sim_failure_rate: 0.0,
+            sim_failure_kind: FailureKind::Blank,
         }
     }
 }
@@ -354,6 +422,14 @@ impl VisionConfig {
             "sim_background" => self.sim_background = int(line, key, v, 0, 255)? as u8,
             "sim_foreground" => self.sim_foreground = int(line, key, v, 0, 255)? as u8,
             "sim_noise_levels" => self.sim_noise_levels = int(line, key, v, 0, 127)? as u32,
+            "sim_blur_px" => self.sim_blur_px = n(0.0, 10.0)?,
+            "sim_salt_pepper" => self.sim_salt_pepper = n(0.0, 0.5)?,
+            "sim_gradient_levels" => self.sim_gradient_levels = n(-127.0, 127.0)?,
+            "sim_failure_rate" => self.sim_failure_rate = n(0.0, 1.0)?,
+            "sim_failure_kind" => {
+                self.sim_failure_kind = FailureKind::parse(v)
+                    .ok_or_else(|| bad(line, key, v, "blank, dark, glare or mix"))?
+            }
             _ => {
                 return Err(PnpError::new(
                     Code::ConfigUnknownKey,
@@ -427,7 +503,9 @@ impl Image {
 
 /// The picture that a camera under the nozzle would give of a part whose middle is `truth.dx_mm` to the right of and `truth.dy_mm` above the axis of the nozzle, turned `truth.rotation_deg`
 /// counter-clockwise: the part is `sim_foreground` and the rest `sim_background`, plus the noise (every pixel moves by up to `sim_noise_levels` levels either way). A pixel is the part
-/// when its middle is inside the rectangle. Two numbers are drawn from `rng` for every pixel whatever the settings, so that a setting does not move the noise of the others.
+/// when its middle is inside the rectangle. One number is drawn from `rng` for every pixel whatever the settings, in the order of the pixels, so that a setting does not move the noise
+/// of the others. What makes the picture less perfect is off by default and is drawn after that noise or before the picture: an uneven light (`sim_gradient_levels`), a blur
+/// (`sim_blur_px`), pixels that turn black or white (`sim_salt_pepper`) and, for a share of the pictures (`sim_failure_rate`), a spoilt one (`sim_failure_kind`).
 pub fn render(cfg: &VisionConfig, truth: Offset, rng: &mut Rng) -> Image {
     let (w, h) = (cfg.image_width, cfg.image_height);
     let mut img = Image::new(w, h, cfg.sim_background);
@@ -439,6 +517,20 @@ pub fn render(cfg: &VisionConfig, truth: Offset, rng: &mut Rng) -> Image {
         Axis::X => (half_long, half_short),
         Axis::Y => (half_short, half_long),
     };
+    // a spoilt picture: decided first, and only when failures are on, so that a picture of a job without them is the one it always was
+    let spoilt = if cfg.sim_failure_rate > 0.0 && rng.next_f64() < cfg.sim_failure_rate {
+        Some(match cfg.sim_failure_kind {
+            FailureKind::Mix => match (rng.next_f64() * 3.0) as usize {
+                0 => FailureKind::Blank,
+                1 => FailureKind::Dark,
+                _ => FailureKind::Glare,
+            },
+            kind => kind,
+        })
+    } else {
+        None
+    };
+    let mut clean = vec![0.0f64; w * h];
     for iy in 0..h {
         for ix in 0..w {
             let x_mm: f64 = (ix as f64 + 0.5 - w as f64 / 2.0) * cfg.mm_per_px - truth.dx_mm;
@@ -446,17 +538,70 @@ pub fn render(cfg: &VisionConfig, truth: Offset, rng: &mut Rng) -> Image {
             let u: f64 = x_mm * cs + y_mm * sn;
             let v: f64 = -x_mm * sn + y_mm * cs;
             let inside = u.abs() <= half_u && v.abs() <= half_v;
-            let base = if inside {
-                cfg.sim_foreground
-            } else {
-                cfg.sim_background
+            let base = match spoilt {
+                Some(FailureKind::Dark) => f64::from(cfg.sim_background) / 4.0,
+                Some(FailureKind::Glare) => 255.0,
+                Some(_) => f64::from(cfg.sim_background),
+                None if inside => f64::from(cfg.sim_foreground),
+                None => f64::from(cfg.sim_background),
             };
+            let light = cfg.sim_gradient_levels * ((ix as f64 + 0.5) / w as f64 - 0.5);
+            clean[iy * w + ix] = base + light;
+        }
+    }
+    if cfg.sim_blur_px > 0.0 {
+        blur(&mut clean, w, h, cfg.sim_blur_px);
+    }
+    for iy in 0..h {
+        for ix in 0..w {
             let shift: f64 = (2.0 * rng.next_f64() - 1.0) * f64::from(cfg.sim_noise_levels);
-            let grey = (f64::from(base) + shift.round()).clamp(0.0, 255.0);
+            let grey = (clean[iy * w + ix] + shift.round()).clamp(0.0, 255.0);
             img.set(ix, iy, grey as u8);
         }
     }
+    if cfg.sim_salt_pepper > 0.0 {
+        for iy in 0..h {
+            for ix in 0..w {
+                if rng.next_f64() < cfg.sim_salt_pepper {
+                    img.set(ix, iy, if rng.next_f64() < 0.5 { 0 } else { 255 });
+                }
+            }
+        }
+    }
     img
+}
+
+/// A Gaussian blur of `sigma` pixels on `values` (`w` by `h`), in two passes; the edge of the picture repeats itself.
+fn blur(values: &mut [f64], w: usize, h: usize, sigma: f64) {
+    let radius = (3.0 * sigma).ceil().max(1.0) as i64;
+    let mut kernel: Vec<f64> = (-radius..=radius)
+        .map(|i| (-((i * i) as f64) / (2.0 * sigma * sigma)).exp())
+        .collect();
+    let total: f64 = kernel.iter().sum();
+    for k in &mut kernel {
+        *k /= total;
+    }
+    let mut tmp = vec![0.0f64; w * h];
+    for y in 0..h {
+        for x in 0..w {
+            let mut s = 0.0;
+            for (k, weight) in kernel.iter().enumerate() {
+                let xx = (x as i64 + k as i64 - radius).clamp(0, w as i64 - 1) as usize;
+                s += weight * values[y * w + xx];
+            }
+            tmp[y * w + x] = s;
+        }
+    }
+    for y in 0..h {
+        for x in 0..w {
+            let mut s = 0.0;
+            for (k, weight) in kernel.iter().enumerate() {
+                let yy = (y as i64 + k as i64 - radius).clamp(0, h as i64 - 1) as usize;
+                s += weight * tmp[yy * w + x];
+            }
+            values[y * w + x] = s;
+        }
+    }
 }
 
 /// The median of the 3 x 3 pixels around each pixel; the edge of the picture repeats itself.

@@ -52,6 +52,8 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--rotation DEG] [--fiducials MM] [--board-size W,H] [--x-out P2,P5] [--out F] [--lang CODE]   a panel file for a grid of copies of one board
   phoenix-pnp part-inspect READINGS [--sizes F] [--packages F] [--out F] [--config F] [--lang CODE]   the parts on the nozzle (ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg) against the sizes of their packages (a table of sizes, or the columns body_long_mm and body_short_mm of a table of packages)
   phoenix-pnp fiducial-check DESIGN MEASURED [--config F] [--lang CODE]   the turn, scale, shear and shift that the measured marks (id,x,y) put on the panel, against the limits
+  phoenix-pnp vision-readings PARTS [--sizes F] [--packages F] [--vision F] [--seed N] [--spread MM] [--turn DEG] [--wrong-every N] [--out F] [--config F] [--lang CODE]   the readings that a simulated camera (with the noise, blur and failures of the vision settings) gives of the parts of a position file, in the file that part-inspect reads
+  phoenix-pnp vision-marks DESIGN [--shift X,Y] [--turn DEG] [--scale S] [--dot MM] [--vision F] [--seed N] [--out F] [--config F] [--lang CODE]   the measured places of the marks of a panel that lies as said, as a simulated camera reads them, in the file that fiducial-check reads
   phoenix-pnp feeder-check FEEDERS [--packages F] [--catalog F] [--config F] [--lang CODE]   whether the table of feeders agrees with itself (slots, pitches, cells, places that clash or are out of reach)
   phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] [--config F] [--lang CODE]   the parts that have a direction, with their place and turn, as a CSV for the look after a job
   phoenix-pnp import-centroid FILE [--format auto|csv|eagle|kicad-pos] [--map F] [--dnp R1-R5,C7] [--out F] [--config F] [--lang CODE]   a position file of a CAD program as the table of parts
@@ -232,6 +234,8 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "bom-check" => cmd_tools::bom_check(args),
         "part-inspect" => cmd_vis::part_inspect(args),
         "fiducial-check" => cmd_vis::fiducial_check(args),
+        "vision-readings" => cmd_vis::vision_readings(args),
+        "vision-marks" => cmd_vis::vision_marks(args),
         "feeder-check" => cmd_vis::feeder_check(args),
         "vision-test" => commands::vision_test(args),
         other => Err(format!("{other}: unknown command (see help)")),

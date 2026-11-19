@@ -18,7 +18,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 859 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e, embora o programa tire imagens da sua própria janela (`--shot`), nenhuma pessoa verificou o desenho num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
+**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 873 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e, embora o programa tire imagens da sua própria janela (`--shot`), nenhuma pessoa verificou o desenho num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versão | `0.0.9` |
 | Maturidade | Estrutura inicial |
-| Testes | 859 |
+| Testes | 873 |
 | Tecnologias | Rust |
 | Em hardware real | Não experimentado: nada disto correu numa máquina |
 
@@ -47,7 +47,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 |---|---|---|
 | Núcleo | 🟡 | lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (prioridade, tabuleiro, tira), planeia a ordem de colocação para uma cabeça de até seis bicos com níveis, pontas de bico, limites de ângulo e o tempo dos movimentos, planeia painéis e escreve a folha de carga; testado num computador com entradas normais e danificadas, não com uma coleção de ficheiros reais. |
 | Linha de comandos | 🟡 | `phoenix-pnp` executa as mesmas funções da biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) e imprime o resultado; cada erro volta como uma mensagem com o seu código `PHOENIX-PNP-NNN` e um código de saída diferente de zero. |
-| Testes | 🟡 | 859 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
+| Testes | 🟡 | 873 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
 | Configuração da máquina | 🟡 | um ficheiro `chave = valor` com versão, um validador que indica a linha e os limites de segurança (curso de Z, limites de X e Y, repetições, ângulos do bico); os valores não foram comparados com uma máquina real. |
 | Simulador e trabalho | 🟡 | um relógio virtual, falhas injetadas ao acaso (com semente) ou num sítio escolhido, repetições, as políticas alerta e adiar, alimentadores que se desligam após falhas repetidas, pausa, passo a passo e um estado guardado para retomar; apenas simula, nada moveu uma máquina. |
 | Segurança | 🟡 | Rust seguro e simples (`forbid(unsafe_code)`): nada entra em pânico com os ficheiros recebidos e um valor mau é um erro com o seu motivo; sem revisão independente. |
@@ -100,6 +100,8 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 * **Corrigir a lente** (`src/camera.rs`, `src/sim.rs`): com `camera_correct_lens = on` a câmara tira daquilo que vê a distorção da lente (`camera_lens_k1`, tal como o `camera-pattern` a encontra), pelo que as leituras do passo de alinhamento são as de uma lente que nada distorce; `CameraModel::to_machine_corrected` e `read_corrected` fazem-no invertendo `d * (1 + k1 * d * d)`. Desligado (por omissão) deixa a distorção nas leituras. `camera_units_per_px` deve então ser o tamanho real de um píxel, como o `camera-pattern` o dá.
 * **Caminhos da fila a partir da sua pasta** (`src/queue.rs`, `src/cmd_queue.rs`): com `queue_relative_paths = on` (ou `queue-add --relative`) os ficheiros de um trabalho que estão na pasta do ficheiro da fila, ou abaixo, são guardados como caminhos a partir dessa pasta, para que a pasta possa ser movida ou partilhada; `queue-status`, `queue-confirm` e `queue-run` leem-nos a partir da pasta da fila, seja qual for a pasta de onde correm. Desligado (o predefinido) guarda caminhos absolutos; ambos funcionam da mesma forma e dão a mesma identidade do plano.
 * **A fila com botões** (`src/gui/queuetab.rs`, `src/gui/window.rs`): a ferramenta Fila do separador Ferramentas lê um ficheiro de fila como lista de trabalhos e tem botões para adicionar um trabalho (um formulário verificado na língua da janela), verificar os planos, confirmar o plano do trabalho escolhido, retirar a confirmação, saltar, repor, retirar e executar. Cada botão executa o comando com o mesmo nome como o programa junto à janela, pelo que a janela e a linha de comandos planeiam, confirmam e executam de uma só maneira (mesma identidade do plano, mesmo bloqueio). O primeiro toque em Executar só pergunta (`queue_gui_ask_run`, ligado por predefinição); o segundo inicia a execução na máquina simulada, em segundo plano, com um botão Parar.
+* **Uma câmara simulada que se pode piorar** (`src/vision.rs`): `vision.cfg` acrescenta `sim_blur_px` (câmara desfocada), `sim_salt_pepper` (píxeis que ficam pretos ou brancos), `sim_gradient_levels` (luz desigual), `sim_failure_rate` e `sim_failure_kind` (uma parte das imagens estragada: a peça não está, a luz apagada ou tudo saturado); tudo está desligado por predefinição e o ruído de um trabalho que não os usa não se move. `vision-test` e `simulate --vision` usam-nos como o ruído que já havia.
+* **Leituras para experimentar as verificações** (`src/visionsim.rs`, `src/cmd_vis.rs`): `phoenix-pnp vision-readings PARTS --sizes F` desenha a imagem que a câmara simulada dá de cada peça de um ficheiro de posições (pendurada um pouco fora do eixo e rodada, dentro de `--spread` e `--turn`; `--wrong-every N` faz de cada N-ésima peça uma de outro tamanho) e escreve as leituras no ficheiro que `part-inspect` lê; `phoenix-pnp vision-marks DESIGN --shift X,Y --turn DEG --scale S` olha para cada marca de um painel que está como se diz e escreve as marcas medidas que `fiducial-check` lê. O desfoque, o ruído e as falhas vêm de `--vision`; uma imagem em que não se encontra nada não dá leitura e é contada com o motivo; a mesma `--seed` dá as mesmas leituras.
 * **Calibração combinada da câmara** (`src/combined.rs`, `src/cmd_tools.rs`, `src/gui/toolbox.rs`): `phoenix-pnp camera-combined FILE` lê `head_x,head_y,col,row,px,py` (`examples/camera_combined.csv`: uma folha fixa à mesa, a cabeça movida para vários sítios) e, com o lugar da folha (`camera_pattern_origin_x_mm`, `camera_pattern_origin_y_mm`) e o seu passo, encontra num só ajuste o tamanho do píxel, a rotação, o espelho, o desvio do bico, a distorção da lente e quanto a folha está rodada na mesa; a câmara de `camera-calibrate` e a lente de `camera-pattern` de uma vez. Está desligada por predefinição (`camera_combined = off`; os dois comandos separados não dependem dela), a cabeça tem de estar em dois ou mais sítios e o desvio só é tão bom quanto a medida da origem. O separador Ferramentas tem a mesma calibração; aplicá-la à máquina não liga `camera_correct_lens`.
 * **Mais painéis no separador Ferramentas** (`src/gui/toolbox.rs`): o uso das pontas de bico (o registo que o `nozzle-life` guarda, com as pontas que chegam a `nozzle_life_warn` assinaladas), a inspeção das peças no bico face às dimensões dos encapsulamentos carregados, a verificação dos fiduciais (o resíduo de cada marca, a marca que não concorda e um aviso para uma marca acima de `fiducial_max_residual_mm`), a verificação da tabela de alimentadores, a comparação das ordens e das trocas de ponta (o que o mais rápido pouparia) e o desenho do plano em SVG; cada um escreve o seu resultado na pasta de saída com o seu próprio nome, sem sobrescrever um ficheiro existente. A folha de preparação do separador lê o registo das pontas quando se escreve ou se lê um, e diz então que ponta está gasta.
 * **A folha de preparação** (`src/setup.rs`, `src/commands.rs`, `src/gui/toolbox.rs`): `phoenix-pnp setup-sheet PEÇAS ALIMENTADORES --boards N` reúne numa página, nos oito idiomas, os alimentadores a carregar pela ordem das ranhuras (tipo, peça, fita, ponta, peças que tem, lugar), as peças em falta para N placas, as pontas dos bicos da série com o seu desgaste face a `nozzle_life_warn` (`--life` lê o registo de `simulate --nozzle-life`), as calibrações de que o trabalho depende e se cada uma está definida (câmara, excentricidade do bico, folga dos eixos, lugar do trocador de pontas, fiduciais de um painel) e os avisos (um alimentador desligado que tem uma peça de que a placa precisa, um alimentador a granel com uma peça que tem direção); `--out` escreve os alimentadores como CSV e o comando sai com 1 enquanto faltarem peças. O separador Ferramentas tem a mesma folha para imprimir como `setup_sheet.txt`.
@@ -176,6 +178,8 @@ phoenix-pnp queue-confirm QUEUE NAME                     regista que o plano de 
 phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove   salta um trabalho, recomeça-o, retira a sua confirmação ou tira-o
 phoenix-pnp queue-run QUEUE [--only NAME]                faz os trabalhos confirmados placa a placa na máquina simulada
 phoenix-pnp camera-combined FILE [--pitch MM] [--origin X,Y]   a câmara, a rotação da folha e a distorção da lente com um padrão fixo à mesa enquanto a cabeça se move (precisa de camera_combined = on)
+phoenix-pnp vision-readings PARTS --sizes F [--seed N]   as leituras que a câmara simulada dá das peças, no ficheiro que part-inspect lê
+phoenix-pnp vision-marks DESIGN [--shift X,Y] [--turn DEG]   as marcas medidas de um painel que está como se diz, como a câmara simulada as lê, para fiducial-check
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mede a imagem de uma peça feita em memória
 ```
 
@@ -290,7 +294,7 @@ A última linha abre a janela; `phoenix-pnp` sem comando também a abre se foi c
 
 ## 🧪 Testes
 
-O conjunto tem 859 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
+O conjunto tem 873 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilação e publicação
 
@@ -376,7 +380,8 @@ EH3D-PHOENIX-PNP/
 │   ├── stock.rs                                 as peças dos alimentadores face às que uma série de placas pede
 │   ├── tips.rs                                  as pontas que um encapsulamento aceita e a escolha de uma para cada tipo de peça
 │   ├── units.rs                                 comprimentos e lugares que levam a sua unidade
-│   └── vision.rs                                a cadeia de visão: filtro, limiar, manchas, menor retângulo rodado
+│   ├── vision.rs                                a cadeia de visão: filtro, limiar, manchas, menor retângulo rodado
+│   └── visionsim.rs                             as leituras da câmara simulada para part-inspect e fiducial-check
 ├── tests/
 │   ├── align.rs                                 testes do passo de alinhamento: câmara, lugar corrigido, tolerância e tempo
 │   ├── backlash.rs                              testes da folga dos eixos da máquina simulada
@@ -429,7 +434,8 @@ EH3D-PHOENIX-PNP/
 │   ├── vacuum.rs                                testes do vácuo, dos atuadores e da janela de falhas de um alimentador
 │   ├── vis_cli.rs                               testes dos comandos part-inspect, fiducial-check, feeder-check e --report-feeders
 │   ├── vision.rs                                testes da visão: imagens calculadas à mão, falhas, definições
-│   └── vision_job.rs                            testes da visão no trabalho e vision-test: leituras, falhas, estado guardado
+│   ├── vision_job.rs                            testes da visão no trabalho e vision-test: leituras, falhas, estado guardado
+│   └── visionsim.rs                             testes da câmara pior e das leituras que dá às duas verificações
 ├── examples/
 │   ├── board.mnt                                as posições de uma placa como o texto do EAGLE as tem
 │   ├── board.pos                                um exemplo para experimentar o programa

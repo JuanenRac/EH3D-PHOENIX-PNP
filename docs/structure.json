@@ -923,6 +923,19 @@
             "zh": "视觉处理：滤波、阈值、斑块、最小旋转矩形",
             "pt": "a cadeia de visão: filtro, limiar, manchas, menor retângulo rodado"
           }
+        },
+        {
+          "name": "visionsim.rs",
+          "desc": {
+            "en": "the readings of the simulated camera for part-inspect and fiducial-check",
+            "es": "las lecturas de la cámara simulada para part-inspect y fiducial-check",
+            "de": "die Messwerte der simulierten Kamera für part-inspect und fiducial-check",
+            "fr": "les mesures de la caméra simulée pour part-inspect et fiducial-check",
+            "it": "le letture della telecamera simulata per part-inspect e fiducial-check",
+            "ja": "part-inspect と fiducial-check 用のシミュレートカメラの読み取り値",
+            "zh": "供 part-inspect 和 fiducial-check 使用的模拟相机读数",
+            "pt": "as leituras da câmara simulada para part-inspect e fiducial-check"
+          }
         }
       ]
     },
@@ -1605,6 +1618,19 @@
             "ja": "ジョブと vision-test の画像処理テスト：測定値、失敗、保存状態",
             "zh": "作业与 vision-test 的视觉测试：读数、失败、已保存状态",
             "pt": "testes da visão no trabalho e vision-test: leituras, falhas, estado guardado"
+          }
+        },
+        {
+          "name": "visionsim.rs",
+          "desc": {
+            "en": "tests of the worse camera and of the readings it gives to the two checks",
+            "es": "pruebas de la cámara peor y de las lecturas que da a las dos comprobaciones",
+            "de": "Tests der schlechteren Kamera und ihrer Messwerte für die beiden Prüfungen",
+            "fr": "tests de la caméra dégradée et des mesures qu'elle donne aux deux contrôles",
+            "it": "test della telecamera peggiorata e delle letture che dà ai due controlli",
+            "ja": "劣化カメラと、2 つのチェックへの読み取り値のテスト",
+            "zh": "变差的相机及其给两项检查的读数的测试",
+            "pt": "testes da câmara pior e das leituras que dá às duas verificações"
           }
         }
       ]

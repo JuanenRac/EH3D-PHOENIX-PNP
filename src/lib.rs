@@ -47,3 +47,4 @@ pub mod stock;
 pub mod tips;
 pub mod units;
 pub mod vision;
+pub mod visionsim;

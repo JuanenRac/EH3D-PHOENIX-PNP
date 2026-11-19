@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 859 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 873 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.9` |
 | Maturity | Scaffolding |
-| Tests | 859 |
+| Tests | 873 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder (priority, tray, strip), plans the order of the placements for a head with up to six nozzles with ranks, nozzle tips, angle limits and the time of the moves, plans panels and writes the load sheet; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
-| Tests | 🟡 | 859 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
+| Tests | 🟡 | 873 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
 | Machine configuration | 🟡 | a `key = value` file with a version, a validator that names the line, and the safety limits (travel of Z, limits of X and Y, retries, nozzle angles); the values have not been compared with a real machine. |
 | Simulator and job | 🟡 | a virtual clock, failures injected by chance (with a seed) or at a chosen place, retries, the policies alert and defer, feeders that switch off after repeated faults, pause, step by step, and a saved state to resume from; it only simulates, nothing has driven a machine. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
@@ -100,6 +100,8 @@ Each line is one part of this repository and the light says how far it is today.
 * **Correcting the lens** (`src/camera.rs`, `src/sim.rs`): with `camera_correct_lens = on` the camera takes the bending of the lens (`camera_lens_k1`, as `camera-pattern` finds it) out of what it sees, so the readings of the align step are those of a lens that bends nothing; `CameraModel::to_machine_corrected` and `read_corrected` do it by inverting `d * (1 + k1 * d * d)`. Off (the default) leaves the bending in the readings. `camera_units_per_px` should then be the true size of a pixel, as `camera-pattern` gives it.
 * **Queue paths from the queue's folder** (`src/queue.rs`, `src/cmd_queue.rs`): with `queue_relative_paths = on` (or `queue-add --relative`) the files of a job that are in the folder of the queue file, or below it, are kept as paths from that folder, so the folder can be moved or shared; `queue-status`, `queue-confirm` and `queue-run` take them back from the folder of the queue, whatever folder they run from. Off (the default) keeps absolute paths; both run the same and give the same plan identity.
 * **The queue with buttons** (`src/gui/queuetab.rs`, `src/gui/window.rs`): the Queue tool of the Tools tab reads a queue file as a list of jobs and has buttons to add a job (a form checked in the language of the window), check the plans, confirm the plan of the selected job, revoke the confirmation, skip, reset, take out and run. Each button runs the command of the same name as the program beside the window, so the window and the command line plan, confirm and run in one way (same plan identity, same lock). The first press of Run only asks (`queue_gui_ask_run`, default on); the second starts the run on the simulated machine, in the background, with a Stop button.
+* **A simulated camera that can be made worse** (`src/vision.rs`): `vision.cfg` adds `sim_blur_px` (a camera out of focus), `sim_salt_pepper` (pixels that turn black or white), `sim_gradient_levels` (an uneven light), `sim_failure_rate` and `sim_failure_kind` (a share of the pictures spoilt: the part not there, the light off or everything saturated); all are off by default, and the noise of a job that does not use them does not move. `vision-test` and `simulate --vision` use them like the noise that was already there.
+* **Readings to try the checks** (`src/visionsim.rs`, `src/cmd_vis.rs`): `phoenix-pnp vision-readings PARTS --sizes F` draws the picture that the simulated camera gives of each part of a position file (hanging a little off the axis and turned, within `--spread` and `--turn`; `--wrong-every N` makes every N-th part one of another size) and writes the readings in the file that `part-inspect` reads; `phoenix-pnp vision-marks DESIGN --shift X,Y --turn DEG --scale S` looks at each mark of a panel that lies as said and writes the measured marks that `fiducial-check` reads. Blur, noise and failures come from `--vision`; a picture in which nothing is found gives no reading and is told with its reason; the same `--seed` gives the same readings.
 * **Combined camera calibration** (`src/combined.rs`, `src/cmd_tools.rs`, `src/gui/toolbox.rs`): `phoenix-pnp camera-combined FILE` reads `head_x,head_y,col,row,px,py` (`examples/camera_combined.csv`: a sheet fixed to the bed, the head moved to several places) and, with the place of the sheet (`camera_pattern_origin_x_mm`, `camera_pattern_origin_y_mm`) and its pitch, finds in one fit the size of a pixel, the turn, the mirror, the offset of the nozzle, the bending of the lens and how much the sheet is turned on the bed; the camera of `camera-calibrate` and the lens of `camera-pattern` in one go. It is off by default (`camera_combined = off`; the two separate commands do not depend on it), the head must stand at two or more places, and the offset is only as good as the measure of the origin. The Tools tab has the same calibration; putting it in the machine does not turn `camera_correct_lens` on.
 * **More panels in the Tools tab** (`src/gui/toolbox.rs`): the use of the nozzle tips (the record that `nozzle-life` keeps, with the tips at or over `nozzle_life_warn` marked), the inspection of the parts on the nozzle against the sizes of the packages that are loaded, the check of the fiducials (the residual of each mark, the mark that does not agree and a warning for a mark over `fiducial_max_residual_mm`), the check of the table of feeders, the comparison of the orders and of the changes of tip (what the fastest would save) and the picture of the plan as an SVG; each writes its result to the output folder under its own name without going over a file that exists. The setup sheet of the tab reads the record of the nozzle tips when one is typed or read, and then says which tip is worn.
 * **The setup sheet** (`src/setup.rs`, `src/commands.rs`, `src/gui/toolbox.rs`): `phoenix-pnp setup-sheet PARTS FEEDERS --boards N` gathers on one page, in the eight languages, the feeders to load in the order of their slots (kind, part, tape, nozzle tip, parts held, place), the parts that are missing for N boards, the nozzle tips of the run with their wear against `nozzle_life_warn` (`--life` reads the record of `simulate --nozzle-life`), the calibrations the job depends on and whether each is set (camera, runout of the nozzle, slack of the axes, place of the tip changer, fiducials of a panel) and the warnings (a feeder that is off but holds a part the board needs, a bulk feeder that holds a part that has a direction); `--out` writes the feeders as a CSV and the command exits with 1 while parts are missing. The Tools tab has the same sheet to print as `setup_sheet.txt`.
@@ -176,6 +178,8 @@ phoenix-pnp queue-confirm QUEUE NAME                     records that the plan o
 phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove   leaves a job out, starts it again, takes its confirmation back or takes it out
 phoenix-pnp queue-run QUEUE [--only NAME]                makes the confirmed jobs one board at a time on the simulated machine
 phoenix-pnp camera-combined FILE [--pitch MM] [--origin X,Y]   the camera, the turn of the sheet and the bending of the lens from a pattern fixed to the bed while the head moves (needs camera_combined = on)
+phoenix-pnp vision-readings PARTS --sizes F [--seed N]   the readings that the simulated camera gives of the parts, in the file that part-inspect reads
+phoenix-pnp vision-marks DESIGN [--shift X,Y] [--turn DEG]   the measured marks of a panel that lies as said, as the simulated camera reads them, for fiducial-check
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       measures the picture of a part made in memory
 ```
 
@@ -290,7 +294,7 @@ The last line opens the window; so does `phoenix-pnp` with no command when it wa
 
 ## 🧪 Testing
 
-The suite has 859 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 873 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -376,7 +380,8 @@ EH3D-PHOENIX-PNP/
 │   ├── stock.rs                                 the parts the feeders hold against the parts a run of boards needs
 │   ├── tips.rs                                  the nozzle tips that a package accepts and the choice of one for every kind of part
 │   ├── units.rs                                 lengths and places that carry their unit
-│   └── vision.rs                                the vision pipeline: filter, threshold, spots and the smallest turned rectangle
+│   ├── vision.rs                                the vision pipeline: filter, threshold, spots and the smallest turned rectangle
+│   └── visionsim.rs                             the readings of the simulated camera for part-inspect and fiducial-check
 ├── tests/
 │   ├── align.rs                                 tests of the align step: camera, corrected place, tolerance and time
 │   ├── backlash.rs                              tests of the slack of the axes of the simulated machine
@@ -429,7 +434,8 @@ EH3D-PHOENIX-PNP/
 │   ├── vacuum.rs                                tests of the vacuum, the actuators and the window of faults of a feeder
 │   ├── vis_cli.rs                               tests of the commands part-inspect, fiducial-check, feeder-check and --report-feeders
 │   ├── vision.rs                                tests of the vision pipeline: pictures checked by hand, failures, settings
-│   └── vision_job.rs                            tests of the vision in the job and vision-test: readings, failures, saved state
+│   ├── vision_job.rs                            tests of the vision in the job and vision-test: readings, failures, saved state
+│   └── visionsim.rs                             tests of the worse camera and of the readings it gives to the two checks
 ├── examples/
 │   ├── board.mnt                                the positions of a board as the text of EAGLE has them
 │   ├── board.pos                                a sample to try the program with

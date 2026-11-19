@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 859 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 873 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.0.9` |
 | 成熟度 | 脚手架 |
-| 测试 | 859 |
+| 测试 | 873 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
 | 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 859 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 测试 | 🟡 | 873 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -100,6 +100,8 @@
 * **校正镜头** (`src/camera.rs`, `src/sim.rs`)：设置 `camera_correct_lens = on` 后，相机会从所见图像中去除镜头畸变（`camera_lens_k1`，即 `camera-pattern` 得到的值），因此对位步骤的读数相当于一个没有畸变的镜头；`CameraModel::to_machine_corrected` 和 `read_corrected` 通过反解 `d * (1 + k1 * d * d)` 来实现。关闭（默认）时畸变会留在读数中。此时 `camera_units_per_px` 应为像素的真实大小，即 `camera-pattern` 给出的值。
 * **相对于队列文件夹的路径** (`src/queue.rs`, `src/cmd_queue.rs`)：`queue_relative_paths = on`（或 `queue-add --relative`）时，位于队列文件所在文件夹内（或其下）的作业文件以相对于该文件夹的路径保存，因此文件夹可以移动或共享；`queue-status`、`queue-confirm` 和 `queue-run` 无论从哪个文件夹运行，都以队列文件夹为基准解析。关闭（默认）保存绝对路径；两者运行结果相同，计划标识也相同。
 * **带按钮的队列** (`src/gui/queuetab.rs`, `src/gui/window.rs`)：工具标签页的队列工具把队列文件读成作业列表，并提供按钮：添加作业（表单以窗口语言校验）、检查计划、确认所选作业的计划、撤销确认、跳过、重置、移除和运行。每个按钮都用窗口旁的程序运行同名命令，因此窗口和命令行以同一种方式规划、确认和运行（相同的计划标识、相同的锁）。第一次按“运行”只会询问（`queue_gui_ask_run`，默认开启）；第二次才在模拟机器上于后台开始运行，并带有停止按钮。
+* **可以变差的模拟相机** (`src/vision.rs`)：`vision.cfg` 新增 `sim_blur_px`（相机失焦）、`sim_salt_pepper`（变成黑或白的像素）、`sim_gradient_levels`（光照不均）、`sim_failure_rate` 和 `sim_failure_kind`（一部分图像损坏：零件不在、灯灭了或整体过曝）；全部默认关闭，不使用它们的作业噪声不变。`vision-test` 和 `simulate --vision` 像原有的噪声一样使用它们。
+* **用于试验检查的读数** (`src/visionsim.rs`, `src/cmd_vis.rs`)：`phoenix-pnp vision-readings PARTS --sizes F` 为位置文件中的每个零件画出模拟相机拍到的图像（略微偏离轴线并旋转，范围由 `--spread` 和 `--turn` 决定；`--wrong-every N` 让每第 N 个零件变成另一种尺寸），并把读数写成 `part-inspect` 读取的文件；`phoenix-pnp vision-marks DESIGN --shift X,Y --turn DEG --scale S` 观察按指定方式放置的拼板上的每个标记，写出 `fiducial-check` 读取的测得标记。模糊、噪声和故障来自 `--vision`；找不到任何东西的图像不给读数并说明原因；相同的 `--seed` 给出相同的读数。
 * **相机联合标定** (`src/combined.rs`, `src/cmd_tools.rs`, `src/gui/toolbox.rs`)：`phoenix-pnp camera-combined FILE` 读取 `head_x,head_y,col,row,px,py`（`examples/camera_combined.csv`：图案固定在台面上，头移动到多个位置），并结合图案的位置（`camera_pattern_origin_x_mm`、`camera_pattern_origin_y_mm`）和间距，一次拟合出像素大小、旋转、镜像、吸嘴偏移、镜头畸变以及图案在台面上的旋转角；相当于把 `camera-calibrate` 的相机和 `camera-pattern` 的镜头一并完成。默认关闭（`camera_combined = off`；两个独立命令不依赖它），头必须位于两个或更多位置，偏移的精度取决于原点的测量精度。工具标签页有同样的标定；应用到机器不会开启 `camera_correct_lens`。
 * **工具标签页新增面板** (`src/gui/toolbox.rs`)：吸嘴头使用情况（`nozzle-life` 保存的记录，达到 `nozzle_life_warn` 的吸嘴头会被标出）、吸嘴上的元件与已加载封装尺寸的核对、基准点检查（每个标记的残差、不一致的标记，以及超过 `fiducial_max_residual_mm` 的标记警告）、供料器表检查、顺序与换头方式的比较（最快的方案能节省多少）以及方案的 SVG 图；每一项都以各自的名称把结果写入输出文件夹，且不会覆盖已有文件。标签页的准备清单在键入或读取吸嘴头记录后会读取它，并指出哪个吸嘴头已磨损。
 * **准备清单**（`src/setup.rs`、`src/commands.rs`、`src/gui/toolbox.rs`）：`phoenix-pnp setup-sheet 零件 供料器 --boards N` 以八种语言把以下内容汇总到一页：按槽位顺序排列的待装载供料器（类型、零件、料带、吸嘴头、所含数量、位置）、N 块板缺少的零件、本批次的吸嘴头及其相对 `nozzle_life_warn` 的磨损（`--life` 读取 `simulate --nozzle-life` 的记录）、作业所依赖的校准及其是否已设置（相机、吸嘴偏心、轴间隙、吸嘴头更换器位置、拼板基准点）以及警告（已关闭但装有电路板所需零件的供料器、装有有方向零件的散料供料器）；`--out` 把供料器写成 CSV，缺零件时命令以 1 退出。工具标签页提供同一份清单，可作为 `setup_sheet.txt` 打印。
@@ -176,6 +178,8 @@ phoenix-pnp queue-confirm QUEUE NAME                     记录某作业当前�
 phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove   跳过、重新开始、撤销确认或移除作业
 phoenix-pnp queue-run QUEUE [--only NAME]                在模拟机上逐块板完成已确认的作业
 phoenix-pnp camera-combined FILE [--pitch MM] [--origin X,Y]   用固定在台面上的图案并移动头，得到相机、图案的旋转和镜头畸变（需要 camera_combined = on）
+phoenix-pnp vision-readings PARTS --sizes F [--seed N]   模拟相机对零件的读数，写成 part-inspect 读取的文件
+phoenix-pnp vision-marks DESIGN [--shift X,Y] [--turn DEG]   按指定方式放置的拼板上的标记，经模拟相机读取后的测得值，供 fiducial-check 使用
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       测量在内存中生成的零件图像
 ```
 
@@ -290,7 +294,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 859 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 873 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -376,7 +380,8 @@ EH3D-PHOENIX-PNP/
 │   ├── stock.rs                                 供料器中的零件与一批板所需零件的对比
 │   ├── tips.rs                                  封装可接受的吸嘴，以及为每类零件选择其一
 │   ├── units.rs                                 带单位的长度和位置
-│   └── vision.rs                                视觉处理：滤波、阈值、斑块、最小旋转矩形
+│   ├── vision.rs                                视觉处理：滤波、阈值、斑块、最小旋转矩形
+│   └── visionsim.rs                             供 part-inspect 和 fiducial-check 使用的模拟相机读数
 ├── tests/
 │   ├── align.rs                                 对位步骤的测试：相机、修正后的位置、容差和时间
 │   ├── backlash.rs                              模拟机器轴间隙的测试
@@ -429,7 +434,8 @@ EH3D-PHOENIX-PNP/
 │   ├── vacuum.rs                                真空、执行器和供料器故障窗口的测试
 │   ├── vis_cli.rs                               命令 part-inspect、fiducial-check、feeder-check 和 --report-feeders 的测试
 │   ├── vision.rs                                视觉处理测试：手算图像、失败和设置
-│   └── vision_job.rs                            作业与 vision-test 的视觉测试：读数、失败、已保存状态
+│   ├── vision_job.rs                            作业与 vision-test 的视觉测试：读数、失败、已保存状态
+│   └── visionsim.rs                             变差的相机及其给两项检查的读数的测试
 ├── examples/
 │   ├── board.mnt                                EAGLE 文本格式的电路板位置
 │   ├── board.pos                                试用的示例
