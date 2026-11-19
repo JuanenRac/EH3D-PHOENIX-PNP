@@ -28,6 +28,22 @@ pub struct ReportInput {
     pub dnp: Vec<String>,
     /// The findings of the checks before the job.
     pub checks: Vec<ReportCheck>,
+    /// The record of the use of the nozzle tips as it was before the job (`simulate --nozzle-life`); none: the tips show what this job did and nothing of what they did before.
+    pub life: Option<crate::nozzlelife::NozzleLife>,
+}
+
+/// What the job did with a nozzle tip and how worn the tip is.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TipUse {
+    pub tip: String,
+    /// The parts of this job that the tip placed, and the times it was mounted.
+    pub parts: u64,
+    pub mounts: u64,
+    /// The parts it had placed before this job and after it; none when there is no record.
+    pub before: Option<u64>,
+    pub after: Option<u64>,
+    /// The tip is at or over `nozzle_life_warn` once this job is counted.
+    pub worn: bool,
 }
 
 /// The parts of one group (a nozzle, a tip, a board) and what became of them.
@@ -126,6 +142,11 @@ pub struct WorkReport {
     pub actions: [u32; 4],
     pub put_aside: Vec<(String, String)>,
     pub left_out: Vec<(String, String)>,
+    /// For each feeder of the plan, the parts of it that were put aside and the parts that the person left out.
+    pub feeder_rejects: Vec<(String, usize, usize)>,
+    /// The nozzle tips of the job with their wear, and the number of parts at which `nozzle_life_warn` warns (0: never).
+    pub tip_life: Vec<TipUse>,
+    pub life_warn_at: u64,
 }
 
 /// The board of a part of a panel: what comes before the last `/` of its reference; `-` for a part of a single board.
@@ -176,8 +197,21 @@ pub fn build(job: &Job, input: &ReportInput) -> WorkReport {
     let mut put_aside = Vec::new();
     let mut left_out = Vec::new();
     let mut pending = 0usize;
+    let mut feeder_rejects: Vec<(String, usize, usize)> = Vec::new();
     for (i, p) in plan.placements.iter().enumerate() {
         let status = job.status()[i];
+        let at = match feeder_rejects.iter().position(|f| f.0 == p.feeder) {
+            Some(at) => at,
+            None => {
+                feeder_rejects.push((p.feeder.clone(), 0, 0));
+                feeder_rejects.len() - 1
+            }
+        };
+        match status {
+            Status::Deferred => feeder_rejects[at].1 += 1,
+            Status::Skipped => feeder_rejects[at].2 += 1,
+            _ => {}
+        }
         add_to(&mut nozzles, &(p.nozzle + 1).to_string(), status);
         let tip = job.plan().details.get(i).map_or("", |d| d.tip.as_str());
         add_to(&mut tips, if tip.is_empty() { "-" } else { tip }, status);
@@ -233,6 +267,26 @@ pub fn build(job: &Job, input: &ReportInput) -> WorkReport {
                 .map(|c| (c, *times))
         })
         .collect();
+    let life_warn_at = cfg.nozzle_life_warn;
+    let tip_life: Vec<TipUse> = crate::nozzlelife::uses_of_job(job)
+        .into_iter()
+        .map(|(tip, parts, mounts)| {
+            let before = input
+                .life
+                .as_ref()
+                .map(|l| l.get(&tip).map_or(0, |t| t.uses));
+            let after = before.map(|b| b + parts);
+            let worn = life_warn_at > 0 && after.unwrap_or(parts) >= life_warn_at;
+            TipUse {
+                tip,
+                parts,
+                mounts,
+                before,
+                after,
+                worn,
+            }
+        })
+        .collect();
     WorkReport {
         phase: job.phase(),
         planned: plan.placements.len(),
@@ -274,6 +328,9 @@ pub fn build(job: &Job, input: &ReportInput) -> WorkReport {
         actions: t.actions,
         put_aside,
         left_out,
+        feeder_rejects,
+        tip_life,
+        life_warn_at,
     }
 }
 
@@ -286,6 +343,14 @@ impl WorkReport {
         } else {
             0.0
         }
+    }
+
+    /// The parts of a feeder that were put aside and the parts that the person left out.
+    pub fn rejects_of(&self, feeder: &str) -> (usize, usize) {
+        self.feeder_rejects
+            .iter()
+            .find(|f| f.0 == feeder)
+            .map_or((0, 0), |f| (f.1, f.2))
     }
 
     /// The seconds of the five phases, in the order pick, align, place, travel, tip change.
@@ -372,6 +437,13 @@ enum K {
     Simulated,
     Range,
     Count,
+    NozzleLife,
+    ColTip,
+    ColThisJob,
+    ColMounted,
+    ColUsesBefore,
+    ColUsesAfter,
+    ColWorn,
 }
 
 #[rustfmt::skip]
@@ -413,6 +485,13 @@ fn word(k: K, lang: Lang) -> &'static str {
         K::LargestDistance => ["largest distance (mm)", "distancia mayor (mm)", "größter Abstand (mm)", "plus grande distance (mm)", "distanza maggiore (mm)", "最大距離 (mm)", "最大距离 (mm)", "maior distância (mm)"],
         K::LargestTurn => ["largest turn (degrees)", "giro mayor (grados)", "größte Drehung (Grad)", "plus grande rotation (degrés)", "rotazione maggiore (gradi)", "最大回転（度）", "最大旋转（度）", "maior rotação (graus)"],
         K::ByPackage => ["By package", "Por paquete", "Nach Gehäuse", "Par boîtier", "Per package", "パッケージ別", "按封装", "Por encapsulamento"],
+        K::NozzleLife => ["Life of the nozzle tips", "Vida de las puntas de boquilla", "Lebensdauer der Düsenspitzen", "Vie des pointes de buse", "Vita delle punte degli ugelli", "ノズルチップの寿命", "吸嘴头寿命", "Vida das pontas de bico"],
+        K::ColTip => ["Tip", "Punta", "Spitze", "Pointe", "Punta", "チップ", "吸嘴头", "Ponta"],
+        K::ColThisJob => ["This job", "Este trabajo", "Dieser Auftrag", "Ce travail", "Questo lavoro", "このジョブ", "本次作业", "Este trabalho"],
+        K::ColMounted => ["Mounted", "Montada", "Montiert", "Montée", "Montata", "装着回数", "安装次数", "Montada"],
+        K::ColUsesBefore => ["Uses before", "Usos antes", "Einsätze vorher", "Usages avant", "Usi prima", "使用前", "之前使用", "Usos antes"],
+        K::ColUsesAfter => ["Uses after", "Usos después", "Einsätze nachher", "Usages après", "Usi dopo", "使用後", "之后使用", "Usos depois"],
+        K::ColWorn => ["Look at it", "Revisarla", "Prüfen", "À vérifier", "Da controllare", "要確認", "需检查", "Verificar"],
         K::ByFeeder => ["By feeder", "Por alimentador", "Nach Zuführung", "Par alimentateur", "Per alimentatore", "フィーダー別", "按供料器", "Por alimentador"],
         K::ByNozzle => ["By nozzle (head)", "Por boquilla (cabeza)", "Nach Düse (Kopf)", "Par buse (tête)", "Per ugello (testa)", "ノズル（ヘッド）別", "按吸嘴（吸头）", "Por bico (cabeça)"],
         K::ByTip => ["By nozzle tip", "Por punta de boquilla", "Nach Düsenspitze", "Par pointe de buse", "Per punta dell'ugello", "ノズル先端別", "按吸嘴头", "Por ponta do bico"],
@@ -701,6 +780,8 @@ impl WorkReport {
                     word(K::ColPicked, lang),
                     word(K::ColPickFailed, lang),
                     word(K::Placed, lang),
+                    word(K::Deferred, lang),
+                    word(K::Skipped, lang),
                     word(K::ColFaults, lang),
                     word(K::Seconds, lang),
                     word(K::ColSwitchedOff, lang),
@@ -708,11 +789,14 @@ impl WorkReport {
                 self.feeders
                     .iter()
                     .map(|f| {
+                        let (aside, left) = self.rejects_of(&f.id);
                         vec![
                             f.id.clone(),
                             f.picked.to_string(),
                             f.pick_failures.to_string(),
                             f.placed.to_string(),
+                            aside.to_string(),
+                            left.to_string(),
                             f.faults.to_string(),
                             format!("{:.1}", f.busy_s()),
                             if f.disabled { "x" } else { "-" }.to_string(),
@@ -730,6 +814,37 @@ impl WorkReport {
         ] {
             let mut s = section(word(k, lang));
             s.tables.push((String::new(), group_table(groups, lang)));
+            out.push(s);
+        }
+        if !self.tip_life.is_empty() {
+            let show = |n: Option<u64>| n.map_or("-".to_string(), |v| v.to_string());
+            let mut s = section(word(K::NozzleLife, lang));
+            s.tables.push((
+                String::new(),
+                plain(
+                    &[
+                        word(K::ColTip, lang),
+                        word(K::ColThisJob, lang),
+                        word(K::ColMounted, lang),
+                        word(K::ColUsesBefore, lang),
+                        word(K::ColUsesAfter, lang),
+                        word(K::ColWorn, lang),
+                    ],
+                    self.tip_life
+                        .iter()
+                        .map(|t| {
+                            vec![
+                                t.tip.clone(),
+                                t.parts.to_string(),
+                                t.mounts.to_string(),
+                                show(t.before),
+                                show(t.after),
+                                if t.worn { "x" } else { "-" }.to_string(),
+                            ]
+                        })
+                        .collect(),
+                ),
+            ));
             out.push(s);
         }
 
@@ -756,6 +871,14 @@ impl WorkReport {
                 c.severity.to_uppercase(),
                 c.source,
                 c.message
+            ));
+        }
+        for t in self.tip_life.iter().filter(|t| t.worn) {
+            findings.lines.push(format!(
+                "WARNING tip {}: {} parts placed with this job, at or over the {} that nozzle_life_warn allows: look at the tip",
+                t.tip,
+                t.after.unwrap_or(t.parts),
+                self.life_warn_at
             ));
         }
         out.push(findings);
@@ -888,6 +1011,21 @@ impl WorkReport {
                 "picked_first": self.first_try, "after_retries": self.retried,
                 "never_picked": self.lost, "ratio": self.first_try_ratio()
             },
+            "feeders": self.feeders.iter().map(|f| {
+                let (aside, left) = self.rejects_of(&f.id);
+                json!({
+                    "id": f.id, "picked": f.picked, "pick_failures": f.pick_failures, "placed": f.placed,
+                    "put_aside": aside, "left_out": left, "faults": f.faults,
+                    "busy_seconds": f.busy_s(), "switched_off": f.disabled
+                })
+            }).collect::<Vec<_>>(),
+            "nozzle_life": {
+                "warn_at": self.life_warn_at,
+                "tips": self.tip_life.iter().map(|t| json!({
+                    "tip": t.tip, "parts": t.parts, "mounts": t.mounts,
+                    "uses_before": t.before, "uses_after": t.after, "worn": t.worn
+                })).collect::<Vec<_>>()
+            },
             "nozzles": self.nozzles.iter().map(group).collect::<Vec<_>>(),
             "tips": self.tips.iter().map(group).collect::<Vec<_>>(),
             "boards": self.boards.iter().map(group).collect::<Vec<_>>(),
@@ -985,6 +1123,23 @@ impl WorkReport {
                     g.not_placed()
                 ));
             }
+        }
+        for (id, aside, left) in &self.feeder_rejects {
+            out.push_str(&format!(
+                "rejected,{},{},,,,,{},\n",
+                csv_field(id),
+                aside + left,
+                aside + left
+            ));
+        }
+        for t in &self.tip_life {
+            out.push_str(&format!(
+                "life,{},{},,,{},,,{}\n",
+                csv_field(&t.tip),
+                t.after.map_or(String::new(), |v| v.to_string()),
+                t.parts,
+                u8::from(t.worn)
+            ));
         }
         for r in &self.dnp {
             out.push_str(&format!("dnp,{},,,,,,,\n", csv_field(r)));
@@ -1207,6 +1362,13 @@ pub fn words_complete() -> bool {
         Simulated,
         Range,
         Count,
+        NozzleLife,
+        ColTip,
+        ColThisJob,
+        ColMounted,
+        ColUsesBefore,
+        ColUsesAfter,
+        ColWorn,
     ];
     all.iter()
         .all(|k| Lang::ALL.iter().all(|l| !word(*k, *l).is_empty()))

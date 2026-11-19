@@ -662,11 +662,13 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let planned = make_plan(&p)?;
     stop_on_errors(&p, &planned, partial)?;
     // a file of the use of the tips that is not valid is found before the job is run, and the tips that are worn are told before it starts
+    let mut life_before = None;
     if let Some(lp) = &life_path {
         let before = nozzlelife::read_file(lp, p.c.cfg.max_file_bytes).map_err(l)?;
         for line in before.warning_lines(p.c.cfg.nozzle_life_warn) {
             println!("{line}");
         }
+        life_before = Some(before);
     }
     let input = ReportInput {
         dnp: p
@@ -687,6 +689,7 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
                 message: c.message.clone(),
             })
             .collect(),
+        life: life_before,
     };
     let mut job = Job::new(planned.plan, p.feeders.clone(), p.c.cfg.clone()).map_err(l)?;
     if let Some(settings) = vision {

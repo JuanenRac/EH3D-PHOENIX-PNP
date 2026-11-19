@@ -484,6 +484,7 @@ impl AppState {
                     message: p.line(Lang::En),
                 })
                 .collect(),
+            life: None,
         }
     }
 

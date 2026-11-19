@@ -515,6 +515,7 @@ fn the_text_names_the_findings_the_parts_not_mounted_and_the_parts_put_aside() {
             source: "F1".into(),
             message: "few parts left".into(),
         }],
+        life: None,
     };
     let text = build(&j, &input).text(Lang::En);
     assert!(text.contains("Not to be mounted (DNP): 2"), "{text}");
@@ -533,6 +534,7 @@ fn the_csv_keeps_its_header_and_its_rows_and_adds_sections_after_them() {
     let input = ReportInput {
         dnp: vec!["R9".into()],
         checks: Vec::new(),
+        life: None,
     };
     let text = report::csv(&j, &input);
     // the rows that were always there come first, the sections of the report follow, and the section of the align step stays the last
@@ -606,6 +608,7 @@ fn the_page_holds_everything_and_escapes_every_text() {
             source: "\"F1\" & 'F2'".into(),
             message: "<img src=x onerror=alert(1)>".into(),
         }],
+        life: None,
     };
     for lang in Lang::ALL {
         let page = build(&j, &input).html(lang);

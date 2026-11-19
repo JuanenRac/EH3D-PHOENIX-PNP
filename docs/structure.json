@@ -1192,6 +1192,19 @@
           }
         },
         {
+          "name": "jobreport.rs",
+          "desc": {
+            "en": "tests of the work report to keep: the parts lost by feeder, the life of the tips, the files",
+            "es": "pruebas del informe de trabajo: las piezas perdidas por alimentador, la vida de las puntas, los ficheros",
+            "de": "Tests des Arbeitsberichts: verlorene Teile je Zuführung, Lebensdauer der Spitzen, die Dateien",
+            "fr": "tests du rapport de travail : les pièces perdues par alimentateur, la vie des pointes, les fichiers",
+            "it": "test del rapporto di lavoro: i componenti persi per alimentatore, la vita delle punte, i file",
+            "ja": "作業レポートのテスト：フィーダー別の損失、チップの寿命、ファイル",
+            "zh": "作业报告的测试：按供料器统计的损失、吸嘴头寿命、文件",
+            "pt": "testes do relatório de trabalho: peças perdidas por alimentador, vida das pontas, os ficheiros"
+          }
+        },
+        {
           "name": "jobtab.rs",
           "desc": {
             "en": "tests of the Job tab without a screen: states, filters, progress, dialog",
