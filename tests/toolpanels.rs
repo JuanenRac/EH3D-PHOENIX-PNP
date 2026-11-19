@@ -57,7 +57,7 @@ fn defers() -> Workspace {
 
 #[test]
 fn the_five_tools_have_a_key_a_word_a_file_and_the_texts_they_read() {
-    assert_eq!(Tool::ALL.len(), 29);
+    assert_eq!(Tool::ALL.len(), 33);
     for (tool, key, name, first, second) in [
         (
             Tool::FeederRefill,
@@ -87,7 +87,7 @@ fn the_five_tools_have_a_key_a_word_a_file_and_the_texts_they_read() {
     let mut keys: Vec<&str> = Tool::ALL.iter().map(|t| t.key()).collect();
     keys.sort_unstable();
     keys.dedup();
-    assert_eq!(keys.len(), 29);
+    assert_eq!(keys.len(), 33);
 }
 
 #[test]
@@ -109,7 +109,7 @@ fn the_new_words_are_in_the_eight_languages_and_in_the_language_of_portugal() {
         Text::RunsSeed,
     ];
     assert_eq!(Text::COUNT, table().len());
-    assert_eq!(Text::RunsSeed as usize + 1, Text::COUNT);
+    assert!((Text::RunsSeed as usize) < Text::COUNT);
     for word in new {
         let row = &table()[word as usize];
         assert!(row.iter().all(|w| !w.trim().is_empty()), "{word:?}");

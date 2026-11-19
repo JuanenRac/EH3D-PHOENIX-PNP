@@ -47,6 +47,10 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp aside-sheet PARTS FEEDERS --state F [--pending] [--out F] [OPTIONS]   the parts that a person has to place by hand after the job of a saved state: the ones put aside and left out (and with --pending the ones not placed yet), sorted by value and package, with why; exits with 1 when there are any
   phoenix-pnp feeder-slots PARTS FEEDERS [--max-plans N] [--out F] [OPTIONS]   looks for the places of the feeders that make the plan fastest, by swapping the places of two feeders of the same kind (tape, tube or bulk) while that saves time (at most N plans, 5000 by default); --out writes the table of feeders with the new places and slot names; exits with 1 when a better way to stand them exists
   phoenix-pnp simulate-runs PARTS FEEDERS [--runs N] [--seed S] [--out F] [OPTIONS] [--partial]   runs the job N times (20 by default) on the simulated machine, each time from another seed (S, S+1, ...; the sim_seed of the settings by default), and says how many runs placed every part, how many an error stopped (and which), the parts put aside and the times; --out writes a row for each run; exits with 1 when a run did not place every part
+  phoenix-pnp reel-runway PARTS FEEDERS [--boards N] [--out F] [OPTIONS] [--partial]   how many whole boards each reel of the feeders that are switched on lasts, with the parts left over after them, the reel that runs out first marked; --out writes the table; exits with 1 when a reel lasts fewer than N boards (1 by default)
+  phoenix-pnp nozzle-compare PARTS FEEDERS [--max N] [--out F] [OPTIONS]   the board planned with one nozzle on the head, then two, up to N (6 by default), side by side: batches, tip changes, travel and seconds, the fastest marked and what each nozzle takes off the one before; the heads of the settings are left out; --out writes the table; exits with 1 when no number of nozzles gives a plan
+  phoenix-pnp simulate-hotspots PARTS FEEDERS [--runs N] [--seed S] [--out F] [OPTIONS] [--partial]   runs the job N times on the simulated machine (simulate_runs_count of the settings by default), each time from another seed, and says for each feeder the picks that failed, the runs in which it was switched off and the parts put aside, the worst first; --out writes a row for each feeder; exits with 1 when a feeder gave trouble
+  phoenix-pnp queue-changeover QUEUE [--out F] [--config F] [--lang CODE]   what has to be changed on the feeders between the jobs of the queue that are still to be made: the reels to change or put in, the ones that may stay and how many stay as they are; --out writes a row for each feeder; exits with 1 when a reel has to be changed
   phoenix-pnp job-diff FIRST SECOND [--out F] [--config F] [--lang CODE]   what differs between two files of job-export, part by part (the feeder, the nozzle, the batch, the tip, where it is picked and placed, the turn, what became of it, the order) and in the plan as a whole; exits with 1 when the jobs differ
   phoenix-pnp job-import FILE [--csv F] [--config F] [--lang CODE]   reads and checks such a file and says what it holds; --csv writes the placements with their status as a table; exits with 1 when the file is not valid
   phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] [--config F] [--lang CODE]   what changed between two tables of parts, part by part: added, removed, moved, turned, another value, another package or the other side; exits with 1 when they differ
@@ -248,6 +252,10 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "aside-sheet" => commands::aside_sheet(args),
         "feeder-slots" => commands::feeder_slots(args),
         "simulate-runs" => commands::simulate_runs(args),
+        "reel-runway" => commands::reel_runway(args),
+        "nozzle-compare" => commands::nozzle_compare(args),
+        "simulate-hotspots" => commands::simulate_hotspots(args),
+        "queue-changeover" => cmd_more::queue_changeover(args),
         "job-diff" => cmd_more::job_diff(args),
         "job-import" => cmd_tools::job_import(args),
         "queue-add" => cmd_queue::queue_add(args),

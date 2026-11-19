@@ -25,6 +25,7 @@ use crate::fiducial;
 use crate::job::{Action, Phase};
 use crate::preflight::Severity;
 use crate::report::{self, ReportCheck, ReportInput};
+use crate::toolvalues;
 use std::path::{Path, PathBuf};
 
 /// The tabs of the window.
@@ -168,6 +169,8 @@ pub struct AppState {
     pub tools: Toolbox,
     /// The paths of the files that were loaded, to keep an output from landing on an input.
     paths: Vec<PathBuf>,
+    /// The configuration file that was loaded last, where the values of the forms of the tools are kept.
+    config_path: Option<PathBuf>,
     reported: Option<PnpError>,
     finish_logged: bool,
 }
@@ -202,6 +205,7 @@ impl AppState {
             new_package: String::new(),
             tools: Toolbox::new(&crate::config::MachineConfig::default()),
             paths: Vec::new(),
+            config_path: None,
             reported: None,
             finish_logged: false,
         }
@@ -246,6 +250,9 @@ impl AppState {
                 Ok(kind) => {
                     loaded += 1;
                     self.paths.push(path.clone());
+                    if kind == FileKind::Config {
+                        self.config_path = Some(path.clone());
+                    }
                     self.after_load(kind, &name);
                 }
                 Err(e) => self.log.error(e),
@@ -263,6 +270,7 @@ impl AppState {
         self.ws.clear();
         self.ws.lang = self.ui.lang;
         self.paths.clear();
+        self.config_path = None;
         let mut loaded = 0;
         for (name, text) in files {
             match self.ws.load_text(name, text) {
@@ -1037,6 +1045,28 @@ impl AppState {
             dir.display()
         ));
         Ok(dir.display().to_string())
+    }
+
+    /// Keeps the values of the forms of the tools (the tolerances, the distance of the near parts, the plans, the runs and the steps) in the configuration file that was loaded last: only
+    /// their lines change. The result, or what went wrong, is in the notice or the error of the Tools tab and in the log.
+    pub fn keep_tool_values(&mut self) {
+        let lang = self.ui.lang;
+        self.tools.notice.clear();
+        self.tools.error.clear();
+        let Some(path) = self.config_path.clone() else {
+            self.tools.error = tr(Text::NoConfigToKeep, lang).to_string();
+            return;
+        };
+        let values = self.tools.values();
+        match toolvalues::keep(&path, &values) {
+            Ok(()) => {
+                values.apply(&mut self.ws.cfg);
+                let line = format!("{} {}", tr(Text::ValuesKept, lang), path.display());
+                self.log.info(line.clone());
+                self.tools.notice = line;
+            }
+            Err(e) => self.tools.error = e.localized(lang),
+        }
     }
 
     fn is_input(&self, target: &Path) -> bool {

@@ -20,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 171] = [
+pub const KEYS: [&str; 178] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -192,6 +192,13 @@ pub const KEYS: [&str; 171] = [
     "hooks",
     "hooks_timeout_s",
     "hooks_max_runs",
+    "parts_diff_tol_mm",
+    "parts_diff_rot_tol_deg",
+    "board_stats_near_mm",
+    "board_stats_limit",
+    "feeder_slots_max_plans",
+    "simulate_runs_count",
+    "journal_steps",
 ];
 
 /// The order in which the places are visited.
@@ -596,6 +603,18 @@ pub struct MachineConfig {
     pub hooks_timeout_s: f64,
     /// The most programs run for one job (1 to 100); the rest are left out and told.
     pub hooks_max_runs: u32,
+    /// How near two places are to be the same part in `parts-diff` and in its panel (millimetres, 0 to 100), and how near two turns (degrees, 0 to 180).
+    pub parts_diff_tol_mm: f64,
+    pub parts_diff_rot_tol_deg: f64,
+    /// The distance under which `board-stats` and its panel report two parts of one side as too near (millimetres, 0.01 to 50; 0 leaves the look off), and the most pairs it lists (1 to 1000).
+    pub board_stats_near_mm: f64,
+    pub board_stats_limit: u32,
+    /// The most plans that `feeder-slots` and its panel make while they look for a better place for the feeders (1 to 1000000).
+    pub feeder_slots_max_plans: u32,
+    /// How many times `simulate-runs`, `simulate-hotspots` and their panels run the job (1 to 10000).
+    pub simulate_runs_count: u32,
+    /// How many steps the journal panel runs (0 to 1000000; 0 runs the job to its end).
+    pub journal_steps: u32,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -761,6 +780,13 @@ impl Default for MachineConfig {
             hooks: false,
             hooks_timeout_s: 5.0,
             hooks_max_runs: 20,
+            parts_diff_tol_mm: 0.01,
+            parts_diff_rot_tol_deg: 0.5,
+            board_stats_near_mm: 0.0,
+            board_stats_limit: 20,
+            feeder_slots_max_plans: 5000,
+            simulate_runs_count: 20,
+            journal_steps: 0,
         }
     }
 }
@@ -1332,6 +1358,23 @@ impl MachineConfig {
             "hooks" => self.hooks = flag(line, key, v)?,
             "hooks_timeout_s" => self.hooks_timeout_s = n(1.0, 60.0)?,
             "hooks_max_runs" => self.hooks_max_runs = int(line, key, v, 1, 100)? as u32,
+            "parts_diff_tol_mm" => self.parts_diff_tol_mm = n(0.0, 100.0)?,
+            "parts_diff_rot_tol_deg" => self.parts_diff_rot_tol_deg = n(0.0, 180.0)?,
+            "board_stats_near_mm" => {
+                let x = n(0.0, 50.0)?;
+                if x != 0.0 {
+                    n(0.01, 50.0)?;
+                }
+                self.board_stats_near_mm = x;
+            }
+            "board_stats_limit" => self.board_stats_limit = int(line, key, v, 1, 1000)? as u32,
+            "feeder_slots_max_plans" => {
+                self.feeder_slots_max_plans = int(line, key, v, 1, 1_000_000)? as u32
+            }
+            "simulate_runs_count" => {
+                self.simulate_runs_count = int(line, key, v, 1, 10_000)? as u32
+            }
+            "journal_steps" => self.journal_steps = int(line, key, v, 0, 1_000_000)? as u32,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

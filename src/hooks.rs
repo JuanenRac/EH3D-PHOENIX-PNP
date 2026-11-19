@@ -6,7 +6,8 @@
 //! * It is off until `hooks` is on. Without it `simulate --hooks FILE` refuses; `--hooks-dry-run` only lists what would be run and runs nothing.
 //! * The rules are a file (`event,program,argument...`, see `examples/hooks.csv`). The event is one of `job-finished`, `job-paused`, `job-stopped`, `part-aside` and `feeder-off`.
 //!   The program is **the name of a file that lies in the folder of the rules file**, made of letters, digits, `.`, `_` and `-`: no path, no search of the system, no shell, nothing from a
-//!   folder above, no symbolic link out of the folder, no batch file (`.bat`, `.cmd`). The rules file is the list of what may be run.
+//!   folder above, no symbolic link out of the folder. A batch file (`.bat`, `.cmd`) is allowed, with a warning before the job: it runs commands of the system, with the arguments of its
+//!   rule, and what a person writes in it is not looked at here. The rules file is the list of what may be run.
 //! * The arguments are passed one by one, never through a shell, so nothing in a reference or in a reason can become a command. `{event}`, `{reference}`, `{feeder}`, `{reason}`, `{phase}`,
 //!   `{placed}` and `{total}` stand for the data of the event when they are the whole argument or part of it; at most 8 arguments of 256 characters, without control characters.
 //! * A rules file has a size limit and at most 50 rules; at most `hooks_max_runs` programs are run in one job; each one gets `hooks_timeout_s` seconds and is stopped when it takes longer; what
@@ -60,17 +61,36 @@ pub struct Rule {
     pub args: Vec<String>,
 }
 
-/// Whether a program name is allowed: letters, digits, `.`, `_` and `-` (not starting with `-` or `.`), at most 64 characters, and not a batch file.
+/// Whether a program name is allowed: letters, digits, `.`, `_` and `-` (not starting with `-` or `.`), at most 64 characters. A batch file is allowed (see `is_batch`).
 pub fn program_ok(name: &str) -> bool {
-    let lower = name.to_ascii_lowercase();
     !name.is_empty()
         && name.len() <= 64
         && !name.starts_with(['-', '.'])
         && name
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
-        && !lower.ends_with(".bat")
-        && !lower.ends_with(".cmd")
+}
+
+/// Whether a program is a batch file of Windows (`.bat` or `.cmd`, in any case): a program that runs commands of the system.
+pub fn is_batch(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower.ends_with(".bat") || lower.ends_with(".cmd")
+}
+
+/// The warnings for a list of rules: one for each batch file that a rule names, told once, to be shown before the job runs.
+pub fn warnings(rules: &[Rule]) -> Vec<String> {
+    let mut seen: Vec<&str> = Vec::new();
+    let mut out = Vec::new();
+    for r in rules {
+        if is_batch(&r.program) && !seen.contains(&r.program.as_str()) {
+            seen.push(&r.program);
+            out.push(format!(
+                "warning: '{}' is a batch file: it runs commands of the system with the arguments of its rule, so read it before a job runs it",
+                r.program
+            ));
+        }
+    }
+    out
 }
 
 /// Reads the rules: `event,program,argument...`, one rule for each, with an optional header (`event,program,...`) and comment lines (`#`). A rule that is not valid is an error with its line.
@@ -114,7 +134,7 @@ pub fn parse_rules(text: &str) -> Result<Vec<Rule>, PnpError> {
         let program = record[1].as_str();
         if !program_ok(program) {
             return Err(bad(format!(
-                "line {line}: '{program}' is not a program that may be run: a file in the folder of the rules, named with letters, digits, '.', '_' and '-' only, and not a batch file"
+                "line {line}: '{program}' is not a program that may be run: a file in the folder of the rules, named with letters, digits, '.', '_' and '-' only"
             )));
         }
         let args: Vec<String> = record[2..].to_vec();

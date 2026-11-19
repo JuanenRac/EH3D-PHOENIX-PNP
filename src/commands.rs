@@ -17,6 +17,7 @@ use eh3d_phoenix_pnp::fidcheck;
 use eh3d_phoenix_pnp::fiducial;
 use eh3d_phoenix_pnp::heads::plan_heads;
 use eh3d_phoenix_pnp::hooks;
+use eh3d_phoenix_pnp::hotspots;
 use eh3d_phoenix_pnp::import::{self, expand_references, ColumnMap, Format};
 use eh3d_phoenix_pnp::job::{Job, Phase};
 use eh3d_phoenix_pnp::journal;
@@ -25,6 +26,7 @@ use eh3d_phoenix_pnp::marks;
 use eh3d_phoenix_pnp::model::Machine;
 use eh3d_phoenix_pnp::model::Offset;
 use eh3d_phoenix_pnp::nozzlelife;
+use eh3d_phoenix_pnp::nozzles;
 use eh3d_phoenix_pnp::panel::Panel;
 use eh3d_phoenix_pnp::parts::{
     bottom_table, parse_all, parse_with, take_references, BottomRotation, Part, Side,
@@ -35,6 +37,7 @@ use eh3d_phoenix_pnp::preview;
 use eh3d_phoenix_pnp::recipe::{Limits, Recipe};
 use eh3d_phoenix_pnp::report::{self, ReportCheck, ReportInput};
 use eh3d_phoenix_pnp::runs;
+use eh3d_phoenix_pnp::runway;
 use eh3d_phoenix_pnp::setup;
 use eh3d_phoenix_pnp::sim::Rng;
 use eh3d_phoenix_pnp::slots;
@@ -694,9 +697,9 @@ pub fn feeder_slots(mut args: Vec<String>) -> Result<(), String> {
                     "--max-plans {v} is not a whole number from 1 to 1000000"
                 ));
             }
-            n as usize
+            Some(n as usize)
         }
-        None => 5000,
+        None => None,
     };
     let out = flag(&mut args, "--out")?;
     let p = prepare(args, 0)?;
@@ -716,7 +719,7 @@ pub fn feeder_slots(mut args: Vec<String>) -> Result<(), String> {
         &p.c.catalog,
         &p.c.cfg,
         &p.c.opts,
-        max_plans,
+        max_plans.unwrap_or(p.c.cfg.feeder_slots_max_plans as usize),
     )
     .map_err(l)?;
     print!("{}", found.text());
@@ -744,9 +747,9 @@ pub fn simulate_runs(mut args: Vec<String>) -> Result<(), String> {
                     runs::MAX_RUNS
                 ));
             }
-            n as usize
+            Some(n as usize)
         }
-        None => 20,
+        None => None,
     };
     let seed = match flag(&mut args, "--seed")? {
         Some(v) => Some(
@@ -779,7 +782,7 @@ pub fn simulate_runs(mut args: Vec<String>) -> Result<(), String> {
         &planned.plan,
         &p.feeders,
         &p.c.cfg,
-        count,
+        count.unwrap_or(p.c.cfg.simulate_runs_count as usize),
         seed.unwrap_or(p.c.cfg.sim_seed),
     )
     .map_err(l)?;
@@ -795,6 +798,176 @@ pub fn simulate_runs(mut args: Vec<String>) -> Result<(), String> {
             "{} runs did not place every part",
             found.rows.len() - found.complete()
         ))
+    }
+}
+
+/// `reel-runway PARTS FEEDERS [--boards N] [--out F]`: how many whole boards each reel of the feeders that are switched on lasts, with the parts that are left over after them, the reel that
+/// runs out first marked. The report goes to the screen, or the table to `--out` (never over a file that exists, and never over a file that was read). The exit code is 1 when a reel lasts
+/// fewer boards than `--boards` (1 when it is not given).
+pub fn reel_runway(mut args: Vec<String>) -> Result<(), String> {
+    let wanted = match flag(&mut args, "--boards")? {
+        Some(v) => {
+            let n = num(&v, "--boards")?;
+            if n.fract() != 0.0 || !(1.0..=1_000_000_000.0).contains(&n) {
+                return Err(format!(
+                    "--boards {v} is not a whole number from 1 to 1000000000"
+                ));
+            }
+            n as u64
+        }
+        None => 1,
+    };
+    let out = flag(&mut args, "--out")?;
+    let partial = switch(&mut args, "--partial");
+    let p = prepare(args, 0)?;
+    let lang = p.c.lang;
+    if let Some(o) = &out {
+        refuse_same_file(&p.inputs, o)?;
+        if Path::new(o).exists() {
+            return Err(PnpError::new(Code::ReportExists, o.as_str()).localized(lang));
+        }
+    }
+    let planned = make_plan(&p)?;
+    if has_errors(&planned.checks) && !partial {
+        return Err(PnpError::new(
+            Code::PreflightFailed,
+            "use --partial to go on with only what can be placed",
+        )
+        .localized(lang));
+    }
+    let used: Vec<&str> = planned
+        .plan
+        .plan
+        .placements
+        .iter()
+        .map(|x| x.feeder.as_str())
+        .collect();
+    let rows = runway::runway(&used, &p.feeders);
+    print!("{}", runway::text(&rows, wanted));
+    if let Some(o) = &out {
+        report::write_new(o, &runway::csv(&rows)).map_err(|e| e.localized(lang))?;
+        println!("written to {o}");
+    }
+    let short = runway::short_of(&rows, wanted).len();
+    if short == 0 {
+        Ok(())
+    } else {
+        Err(format!("{short} reels last fewer than {wanted} boards"))
+    }
+}
+
+/// `nozzle-compare PARTS FEEDERS [--max N] [--out F]`: the board planned with one nozzle on the head, then two, up to `--max` (6 by default), side by side: the batches, the changes of tip, the
+/// travel and the seconds, the fastest marked and what each nozzle takes off the one before. The heads of the configuration are left out. The report goes to the screen, or the table to
+/// `--out` (never over a file that exists, and never over a file that was read). The exit code is 1 when no number of nozzles gives a plan.
+pub fn nozzle_compare(mut args: Vec<String>) -> Result<(), String> {
+    let most = match flag(&mut args, "--max")? {
+        Some(v) => {
+            let n = num(&v, "--max")?;
+            if n.fract() != 0.0 || !(1.0..=nozzles::MAX_NOZZLES as f64).contains(&n) {
+                return Err(format!(
+                    "--max {v} is not a whole number from 1 to {}",
+                    nozzles::MAX_NOZZLES
+                ));
+            }
+            n as usize
+        }
+        None => nozzles::MAX_NOZZLES,
+    };
+    let out = flag(&mut args, "--out")?;
+    let p = prepare(args, 0)?;
+    let lang = p.c.lang;
+    if let Some(o) = &out {
+        refuse_same_file(&p.inputs, o)?;
+        if Path::new(o).exists() {
+            return Err(PnpError::new(Code::ReportExists, o.as_str()).localized(lang));
+        }
+    }
+    let rows = nozzles::compare(
+        &p.parts,
+        &p.feeders,
+        &p.picks,
+        &p.c.catalog,
+        &p.c.cfg,
+        &p.c.opts,
+        most,
+    );
+    print!(
+        "{}",
+        nozzles::text(&rows, p.c.cfg.nozzles, p.c.cfg.heads.len())
+    );
+    if let Some(o) = &out {
+        report::write_new(o, &nozzles::csv(&rows)).map_err(|e| e.localized(lang))?;
+        println!("written to {o}");
+    }
+    if nozzles::fastest(&rows).is_some() {
+        Ok(())
+    } else {
+        Err("no plan could be made with any number of nozzles".to_string())
+    }
+}
+
+/// `simulate-hotspots PARTS FEEDERS [--runs N] [--seed S] [--out F]`: the job run `N` times on the simulated machine, each time from another seed, and for each feeder the picks that failed, the
+/// runs in which it was switched off and the parts of it that were put aside, the worst feeder first. `N` is `simulate_runs_count` of the settings when `--runs` is not given. `--out`
+/// writes a row for each feeder (never over a file that exists, and never over a file that was read). The exit code is 1 when a feeder gave trouble in some run.
+pub fn simulate_hotspots(mut args: Vec<String>) -> Result<(), String> {
+    let count = match flag(&mut args, "--runs")? {
+        Some(v) => {
+            let n = num(&v, "--runs")?;
+            if n.fract() != 0.0 || !(1.0..=runs::MAX_RUNS as f64).contains(&n) {
+                return Err(format!(
+                    "--runs {v} is not a whole number from 1 to {}",
+                    runs::MAX_RUNS
+                ));
+            }
+            Some(n as usize)
+        }
+        None => None,
+    };
+    let seed = match flag(&mut args, "--seed")? {
+        Some(v) => Some(
+            v.trim()
+                .parse::<u64>()
+                .map_err(|_| format!("--seed {v} is not a whole number"))?,
+        ),
+        None => None,
+    };
+    let out = flag(&mut args, "--out")?;
+    let partial = switch(&mut args, "--partial");
+    let p = prepare(args, 0)?;
+    let lang = p.c.lang;
+    let l = move |e: PnpError| e.localized(lang);
+    if let Some(o) = &out {
+        refuse_same_file(&p.inputs, o)?;
+        if Path::new(o).exists() {
+            return Err(PnpError::new(Code::ReportExists, o.as_str()).localized(lang));
+        }
+    }
+    let planned = make_plan(&p)?;
+    if has_errors(&planned.checks) && !partial {
+        return Err(PnpError::new(
+            Code::PreflightFailed,
+            "use --partial to go on with only what can be placed",
+        )
+        .localized(lang));
+    }
+    let found = hotspots::run_many(
+        &planned.plan,
+        &p.feeders,
+        &p.c.cfg,
+        count.unwrap_or(p.c.cfg.simulate_runs_count as usize),
+        seed.unwrap_or(p.c.cfg.sim_seed),
+    )
+    .map_err(l)?;
+    print!("{}", found.text());
+    if let Some(o) = &out {
+        report::write_new(o, &found.csv()).map_err(l)?;
+        println!("written to {o}");
+    }
+    let n = found.troubled().len();
+    if n == 0 {
+        Ok(())
+    } else {
+        Err(format!("{n} feeders gave trouble in the runs"))
     }
 }
 
@@ -901,6 +1074,9 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
                 hooks::allowed(&p.c.cfg)?;
             }
             let rules = hooks::parse_rules(&read_text(hp, hooks::MAX_BYTES as u64)?).map_err(l)?;
+            for w in hooks::warnings(&rules) {
+                println!("{w}");
+            }
             inputs.push(hp.clone());
             Some(rules)
         }

@@ -10,8 +10,8 @@ use crate::error::{Code, Lang, PnpError};
 use crate::parts::{parse_all, Part};
 use crate::preflight::has_errors;
 use crate::{
-    asidesheet, boardstats, configdiff, deplete, exchange, feeding, job, jobdiff, journal,
-    partsdiff, queuestock, refill, runs, slots,
+    asidesheet, boardstats, changeover, configdiff, deplete, exchange, feeding, hotspots, job,
+    jobdiff, journal, nozzles, partsdiff, queuestock, refill, runs, runway, slots,
 };
 use std::path::Path;
 
@@ -301,4 +301,86 @@ pub fn runs_text(
     let found = runs::run_many(&planned.plan, &ws.feeders, &ws.cfg, count, seed)
         .map_err(|e| e.localized(lang))?;
     Ok((shown(&found.text()), found.csv()))
+}
+
+/// How many whole boards each reel of the loaded feeders lasts for the plan of the loaded tables, as `reel-runway` says it: the first lines of the report (the reels that last fewer than
+/// `wanted` boards are marked) and the table as a CSV. A plan with errors is not read.
+pub fn runway_text(ws: &Workspace, wanted: usize, lang: Lang) -> Result<(String, String), String> {
+    if !ws.can_plan() {
+        return Err("(load a table of parts and a table of feeders)".to_string());
+    }
+    let planned = ws.make_plan().map_err(|e| e.localized(lang))?;
+    if has_errors(&planned.checks) {
+        return Err(PnpError::new(Code::PreflightFailed, "see the Problems tab").localized(lang));
+    }
+    let used: Vec<&str> = planned
+        .plan
+        .plan
+        .placements
+        .iter()
+        .map(|p| p.feeder.as_str())
+        .collect();
+    let rows = runway::runway(&used, &ws.feeders);
+    Ok((
+        shown(&runway::text(&rows, wanted as u64)),
+        runway::csv(&rows),
+    ))
+}
+
+/// The loaded board planned with one nozzle on the head, then two, up to `most`, as `nozzle-compare` says it: the first lines of the table and the table as a CSV.
+pub fn nozzle_compare_text(
+    ws: &Workspace,
+    most: usize,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    if !ws.can_plan() {
+        return Err("(load a table of parts and a table of feeders)".to_string());
+    }
+    let planned = ws.make_plan().map_err(|e| e.localized(lang))?;
+    let options = ws.planning_options(&planned.parts);
+    let rows = nozzles::compare(
+        &planned.parts,
+        &ws.feeders,
+        &planned.picks,
+        &ws.catalog,
+        &ws.cfg,
+        &options,
+        most,
+    );
+    Ok((
+        shown(&nozzles::text(&rows, ws.cfg.nozzles, ws.cfg.heads.len())),
+        nozzles::csv(&rows),
+    ))
+}
+
+/// The job of the loaded tables run `count` times on the simulated machine from the seeds `seed`, `seed + 1` and so on, and for each feeder what went wrong, as `simulate-hotspots` says it:
+/// the first lines of the report and a row for each feeder as a CSV. A plan with errors is not run.
+pub fn hotspots_text(
+    ws: &Workspace,
+    count: usize,
+    seed: u64,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    if !ws.can_plan() {
+        return Err("(load a table of parts and a table of feeders to run the job)".to_string());
+    }
+    let planned = ws.make_plan().map_err(|e| e.localized(lang))?;
+    if has_errors(&planned.checks) {
+        return Err(PnpError::new(Code::PreflightFailed, "see the Problems tab").localized(lang));
+    }
+    let found = hotspots::run_many(&planned.plan, &ws.feeders, &ws.cfg, count, seed)
+        .map_err(|e| e.localized(lang))?;
+    Ok((shown(&found.text()), found.csv()))
+}
+
+/// What has to be changed on the feeders between one job of the queue file `path` and the next, for the jobs that are still to be made, as `queue-changeover` says it: the first lines of
+/// the report and the table of the feeders as a CSV. The files of the jobs are read from the folder of the queue.
+pub fn changeover_text(ws: &Workspace, path: &str, lang: Lang) -> Result<(String, String), String> {
+    let path = path.trim();
+    if path.is_empty() {
+        return Err("(type the path of the queue file)".to_string());
+    }
+    let reader = |p: &str, max: u64| read_file(Path::new(p), max).map(|(text, _)| text);
+    let found = changeover::from_queue(path, &ws.cfg, lang, &reader)?;
+    Ok((shown(&found.text), found.csv))
 }

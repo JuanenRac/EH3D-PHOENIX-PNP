@@ -1,6 +1,7 @@
 # event,program,argument...
 # The program is the name of a file that lies in the same folder as this file, made of letters, digits, '.', '_' and '-'. It is run with no shell, with these arguments only.
 # {event} {reference} {feeder} {reason} {phase} {placed} {total} stand for the data of the event. Hooks are off until hooks = on in the configuration.
+# A batch file (a name ending in .bat or .cmd) is allowed too; the job warns before it runs, because a batch file runs commands of the system.
 event,program,argument
 job-finished,notify,{event},{placed},{total}
 job-stopped,notify,{event},{phase}

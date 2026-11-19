@@ -2376,7 +2376,48 @@ impl PnpApp {
                 self.tool_journal_form(ui);
                 self.tool_io(ui, Some(Text::HintJournal));
             }
+            Tool::ReelRunway => {
+                self.tool_runway_form(ui);
+                self.tool_io(ui, Some(Text::HintReelRunway));
+            }
+            Tool::NozzleCompare => {
+                self.tool_nozzles_form(ui);
+                self.tool_io(ui, Some(Text::HintNozzleCompare));
+            }
+            Tool::Hotspots => {
+                self.tool_runs_form(ui);
+                self.tool_io(ui, Some(Text::HintHotspots));
+            }
+            Tool::QueueChangeover => {
+                self.tool_stock_queue_file(ui);
+                self.tool_io(ui, Some(Text::HintQueueChangeover));
+            }
         }
+    }
+
+    fn tool_keep_button(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        if ui.button(tr(Text::KeepValues, lang)).clicked() {
+            self.s.keep_tool_values();
+        }
+    }
+
+    fn tool_runway_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        ui.horizontal(|ui| {
+            ui.label(tr(Text::RunwayBoards, lang));
+            ui.add(egui::DragValue::new(&mut self.s.tools.runway_boards).range(1..=1_000_000_000));
+        });
+        ui.separator();
+    }
+
+    fn tool_nozzles_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        ui.horizontal(|ui| {
+            ui.label(tr(Text::NozzlesMost, lang));
+            ui.add(egui::DragValue::new(&mut self.s.tools.nozzles_most).range(1..=6));
+        });
+        ui.separator();
     }
 
     fn tool_diff_tolerances(&mut self, ui: &mut egui::Ui) {
@@ -2401,6 +2442,7 @@ impl PnpApp {
                 );
                 ui.end_row();
             });
+        self.tool_keep_button(ui);
         ui.separator();
     }
 
@@ -2414,7 +2456,7 @@ impl PnpApp {
                 ui.label(tr(Text::NearMm, lang));
                 ui.add(
                     egui::DragValue::new(&mut t.near_mm)
-                        .range(0.0..=1000.0)
+                        .range(0.0..=50.0)
                         .speed(0.05),
                 );
                 ui.end_row();
@@ -2422,6 +2464,7 @@ impl PnpApp {
                 ui.add(egui::DragValue::new(&mut t.near_limit).range(1..=1000));
                 ui.end_row();
             });
+        self.tool_keep_button(ui);
         ui.separator();
     }
 
@@ -2440,6 +2483,7 @@ impl PnpApp {
             ui.label(tr(Text::SlotsPlans, lang));
             ui.add(egui::DragValue::new(&mut self.s.tools.slots_plans).range(1..=1_000_000));
         });
+        self.tool_keep_button(ui);
         ui.separator();
     }
 
@@ -2457,6 +2501,7 @@ impl PnpApp {
                 ui.add(egui::DragValue::new(&mut t.runs_seed).range(0..=u64::MAX));
                 ui.end_row();
             });
+        self.tool_keep_button(ui);
         ui.separator();
     }
 
@@ -2466,6 +2511,7 @@ impl PnpApp {
             ui.label(tr(Text::JournalSteps, lang));
             ui.add(egui::DragValue::new(&mut self.s.tools.journal_steps).range(0..=1_000_000));
         });
+        self.tool_keep_button(ui);
         ui.separator();
     }
 

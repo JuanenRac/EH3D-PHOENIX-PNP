@@ -10,14 +10,18 @@ use eh3d_phoenix_pnp::config::MAX_CONFIG_BYTES;
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::parts::parse_all;
 use eh3d_phoenix_pnp::{
-    boardstats, configdiff, deplete, exchange, jobdiff, partsdiff, queuestock, refill, report,
+    boardstats, changeover, configdiff, deplete, exchange, jobdiff, partsdiff, queuestock, refill,
+    report,
 };
 
 /// `parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F]`: what changed between two tables of parts, part by part (added, removed, moved, turned, another value, another package,
 /// the other side). The report goes to the screen, or the changes as a CSV to `--out` (never over a file that exists). The exit code is 1 when the tables differ.
 pub fn parts_diff(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
-    let mut settings = partsdiff::Settings::default();
+    let mut settings = partsdiff::Settings {
+        tol_mm: cfg.parts_diff_tol_mm,
+        rot_tol_deg: cfg.parts_diff_rot_tol_deg,
+    };
     if let Some(v) = flag(&mut args, "--tol")? {
         settings.tol_mm = num(&v, "--tol")?;
     }
@@ -80,14 +84,14 @@ pub fn board_stats(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let near = match flag(&mut args, "--near")? {
         Some(v) => Some(num(&v, "--near")?),
-        None => None,
+        None => Some(cfg.board_stats_near_mm).filter(|d| *d > 0.0),
     };
     let limit = match flag(&mut args, "--limit")? {
         Some(v) => v
             .trim()
             .parse::<usize>()
             .map_err(|_| format!("--limit '{v}' is not a whole number"))?,
-        None => 20,
+        None => cfg.board_stats_limit as usize,
     };
     finish(&args, 1)?;
     let path = args.first().ok_or("board-stats needs a table of parts")?;
@@ -215,5 +219,33 @@ pub fn job_diff(mut args: Vec<String>) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("{} parts differ", found.parts_changed()))
+    }
+}
+
+/// `queue-changeover QUEUE [--out F] [--config F]`: what has to be changed on the feeders between one job of the queue and the next, for the jobs that are still to be made: the feeders that
+/// hold another kind of part (a reel to change), the ones that are switched on for the next job only (a reel to put in), the ones it does not use (a reel that may stay) and how many stay as
+/// they are. The report goes to the screen, or the table to `--out` (never over a file that exists, and never over a file that was read). The exit code is 1 when a reel has to be changed or put in.
+pub fn queue_changeover(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let out = flag(&mut args, "--out")?;
+    finish(&args, 1)?;
+    let path = args
+        .first()
+        .ok_or("queue-changeover needs a queue file")?
+        .clone();
+    let found = changeover::from_queue(&path, &cfg, lang, &read_text)?;
+    print!("{}", found.text);
+    if let Some(o) = &out {
+        refuse_same_file(&found.inputs, o)?;
+        report::write_new(o, &found.csv).map_err(|e| e.localized(lang))?;
+        println!("written to {o}");
+    }
+    if found.work == 0 {
+        Ok(())
+    } else {
+        Err(format!(
+            "{} reels have to be changed or put in between the jobs",
+            found.work
+        ))
     }
 }

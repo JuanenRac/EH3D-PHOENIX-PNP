@@ -35,6 +35,7 @@ use crate::queue::Queue;
 use crate::report;
 use crate::setup::{self, PanelInfo};
 use crate::stock::stock_plan;
+use crate::toolvalues::ToolValues;
 use std::path::Path;
 
 /// The tools of the tab.
@@ -69,10 +70,14 @@ pub enum Tool {
     JobDiff,
     FeederSlots,
     Runs,
+    ReelRunway,
+    NozzleCompare,
+    Hotspots,
+    QueueChangeover,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 29] = [
+    pub const ALL: [Tool; 33] = [
         Tool::Backlash,
         Tool::Runout,
         Tool::Camera,
@@ -102,6 +107,10 @@ impl Tool {
         Tool::JobDiff,
         Tool::FeederSlots,
         Tool::Runs,
+        Tool::ReelRunway,
+        Tool::NozzleCompare,
+        Tool::Hotspots,
+        Tool::QueueChangeover,
     ];
 
     /// The name of the tool on the command line of the window (`--tool`) and in the log.
@@ -136,6 +145,10 @@ impl Tool {
             Tool::JobDiff => "jobdiff",
             Tool::FeederSlots => "slots",
             Tool::Runs => "runs",
+            Tool::ReelRunway => "runway",
+            Tool::NozzleCompare => "nozzles",
+            Tool::Hotspots => "hotspots",
+            Tool::QueueChangeover => "changeover",
         }
     }
 
@@ -176,6 +189,10 @@ impl Tool {
             Tool::JobDiff => Text::ToolJobDiff,
             Tool::FeederSlots => Text::ToolFeederSlots,
             Tool::Runs => Text::ToolRuns,
+            Tool::ReelRunway => Text::ToolReelRunway,
+            Tool::NozzleCompare => Text::ToolNozzleCompare,
+            Tool::Hotspots => Text::ToolHotspots,
+            Tool::QueueChangeover => Text::ToolQueueChangeover,
         }
     }
 
@@ -243,6 +260,10 @@ impl Tool {
             Tool::JobDiff => Some("job_diff.csv"),
             Tool::FeederSlots => Some("feeders_slots.csv"),
             Tool::Runs => Some("runs.csv"),
+            Tool::ReelRunway => Some("reel_runway.csv"),
+            Tool::NozzleCompare => Some("nozzle_compare.csv"),
+            Tool::Hotspots => Some("hotspots.csv"),
+            Tool::QueueChangeover => Some("queue_changeover.csv"),
             _ => None,
         }
     }
@@ -337,6 +358,9 @@ pub struct Toolbox {
     pub slots_plans: usize,
     pub runs_count: usize,
     pub runs_seed: u64,
+    /// The boards that the reels are wanted to last (the reels that last fewer are marked) and the most nozzles that are compared.
+    pub runway_boards: usize,
+    pub nozzles_most: usize,
     /// The saved state of the job that is under way in the Job tab, for the depletion when no state is given (the window fills it before a run).
     pub job_state: String,
     /// The side the sheet of polarity and the stock are limited to (both when none).
@@ -388,20 +412,22 @@ impl Toolbox {
             deplete_feeders: String::new(),
             deplete_state: String::new(),
             second_path_text: String::new(),
-            diff_tol_mm: partsdiff::Settings::default().tol_mm,
-            diff_rot_tol_deg: partsdiff::Settings::default().rot_tol_deg,
-            near_mm: 0.0,
-            near_limit: 20,
-            journal_steps: 0,
+            diff_tol_mm: cfg.parts_diff_tol_mm,
+            diff_rot_tol_deg: cfg.parts_diff_rot_tol_deg,
+            near_mm: cfg.board_stats_near_mm,
+            near_limit: cfg.board_stats_limit as usize,
+            journal_steps: cfg.journal_steps as usize,
             refill_feeders: String::new(),
             refill_rows: String::new(),
             jobdiff_first: String::new(),
             jobdiff_second: String::new(),
             aside_state: String::new(),
             aside_pending: false,
-            slots_plans: 5000,
-            runs_count: 20,
+            slots_plans: cfg.feeder_slots_max_plans as usize,
+            runs_count: cfg.simulate_runs_count as usize,
             runs_seed: cfg.sim_seed,
+            runway_boards: 1,
+            nozzles_most: 6,
             job_state: String::new(),
             polarity_side: None,
             boards: cfg.order_boards,
@@ -418,6 +444,7 @@ impl Toolbox {
     pub fn take_defaults(&mut self, cfg: &MachineConfig) {
         self.boards = cfg.order_boards;
         self.runs_seed = cfg.sim_seed;
+        self.load_values(&ToolValues::from_config(cfg));
         let (file, x_out) = (
             std::mem::take(&mut self.panel.board_file),
             std::mem::take(&mut self.panel.x_out),
@@ -425,6 +452,31 @@ impl Toolbox {
         self.panel = PanelForm::from_config(cfg);
         self.panel.board_file = file;
         self.panel.x_out = x_out;
+    }
+
+    /// The values of the forms that are settings of the machine file (`toolvalues`), as they stand now.
+    pub fn values(&self) -> ToolValues {
+        let count = |n: usize| u32::try_from(n).unwrap_or(u32::MAX);
+        ToolValues {
+            parts_diff_tol_mm: self.diff_tol_mm,
+            parts_diff_rot_tol_deg: self.diff_rot_tol_deg,
+            board_stats_near_mm: self.near_mm,
+            board_stats_limit: count(self.near_limit),
+            feeder_slots_max_plans: count(self.slots_plans),
+            simulate_runs_count: count(self.runs_count),
+            journal_steps: count(self.journal_steps),
+        }
+    }
+
+    /// Puts the values of the machine file in the forms.
+    pub fn load_values(&mut self, v: &ToolValues) {
+        self.diff_tol_mm = v.parts_diff_tol_mm;
+        self.diff_rot_tol_deg = v.parts_diff_rot_tol_deg;
+        self.near_mm = v.board_stats_near_mm;
+        self.near_limit = v.board_stats_limit as usize;
+        self.slots_plans = v.feeder_slots_max_plans as usize;
+        self.runs_count = v.simulate_runs_count as usize;
+        self.journal_steps = v.journal_steps as usize;
     }
 
     /// The text of the tool that is open, for a box to edit.
@@ -600,6 +652,10 @@ impl Toolbox {
             }
             Tool::FeederSlots => toolmore::feeder_slots_text(ws, self.slots_plans, lang),
             Tool::Runs => toolmore::runs_text(ws, self.runs_count, self.runs_seed, lang),
+            Tool::ReelRunway => toolmore::runway_text(ws, self.runway_boards, lang),
+            Tool::NozzleCompare => toolmore::nozzle_compare_text(ws, self.nozzles_most, lang),
+            Tool::Hotspots => toolmore::hotspots_text(ws, self.runs_count, self.runs_seed, lang),
+            Tool::QueueChangeover => toolmore::changeover_text(ws, &self.queue.file, lang),
         };
         match result {
             Ok((info, output)) => {

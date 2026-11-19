@@ -6,8 +6,8 @@ use eh3d_phoenix_pnp::config::{MachineConfig, KEYS};
 use eh3d_phoenix_pnp::error::Code;
 use eh3d_phoenix_pnp::feeding::{self, assign};
 use eh3d_phoenix_pnp::hooks::{
-    allowed, calls_for, events_of, parse_rules, program_ok, resolve, run_call, Call, HookEvent,
-    Outcome, Rule, EVENTS, MAX_ARGS, MAX_BYTES, MAX_OUTPUT, MAX_RULES,
+    allowed, calls_for, events_of, is_batch, parse_rules, program_ok, resolve, run_call, warnings,
+    Call, HookEvent, Outcome, Rule, EVENTS, MAX_ARGS, MAX_BYTES, MAX_OUTPUT, MAX_RULES,
 };
 use eh3d_phoenix_pnp::job::Job;
 use eh3d_phoenix_pnp::parts::{from_csv, Side};
@@ -120,8 +120,6 @@ fn a_rule_that_is_not_safe_is_refused_with_its_line() {
         ("job-finished,a b\n", "not a program that may be run"),
         ("job-finished,-rf\n", "not a program that may be run"),
         ("job-finished,.hidden\n", "not a program that may be run"),
-        ("job-finished,x.bat\n", "not a program that may be run"),
-        ("job-finished,X.CMD\n", "not a program that may be run"),
         ("job-finished,\"\"\n", "not a program that may be run"),
         ("job-finished,a;b\n", "not a program that may be run"),
         ("job-finished,$(ls)\n", "not a program that may be run"),
@@ -310,7 +308,7 @@ fn only_a_file_of_the_folder_is_found() {
     assert!(resolve(&dir, "missing")
         .unwrap_err()
         .contains("not in the folder"));
-    for name in ["../notify", "a/b", "-x", "x.bat", ""] {
+    for name in ["../notify", "a/b", "-x", ".bat", ""] {
         assert!(
             resolve(&dir, name).unwrap_err().contains("may be run"),
             "{name}"
@@ -524,5 +522,109 @@ fn simulate_runs_hooks_only_when_they_are_turned_on() {
         .success());
     let help = text(&run(&["help"]).stdout);
     assert!(help.contains("--hooks F") && help.contains("--hooks-dry-run"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---- batch files: allowed, with a warning
+
+#[test]
+fn a_batch_file_is_a_program_that_may_be_run_and_is_told_before_the_job() {
+    for name in ["x.bat", "X.CMD", "notify.Bat", "a-b_c.cmd"] {
+        assert!(program_ok(name), "{name}");
+        assert!(is_batch(name), "{name}");
+    }
+    for name in ["notify", "notify.exe", "bat", "x.batch", "cmd", "x.cmd.exe"] {
+        assert!(!is_batch(name), "{name}");
+    }
+    // what is not a name is not one for being a batch file
+    for name in [".bat", "-x.cmd", "a b.bat", "a/b.cmd", "..\\x.bat"] {
+        assert!(!program_ok(name), "{name}");
+    }
+    let rules = parse_rules(
+        "job-finished,lamp.bat,{event}\njob-paused,lamp.bat\njob-stopped,Siren.CMD\npart-aside,notify,{reference}\n",
+    )
+    .unwrap();
+    assert_eq!(rules.len(), 4);
+    let told = warnings(&rules);
+    // each batch file is told once, in the order of the rules
+    assert_eq!(told.len(), 2, "{told:?}");
+    assert!(
+        told[0].starts_with("warning: 'lamp.bat' is a batch file"),
+        "{told:?}"
+    );
+    assert!(told[1].contains("'Siren.CMD'"), "{told:?}");
+    assert!(told[0].contains("commands of the system"), "{told:?}");
+    // the example rules name no batch file: nothing to tell
+    assert!(warnings(&parse_rules(EXAMPLE).unwrap()).is_empty());
+    assert!(warnings(&[]).is_empty());
+}
+
+#[test]
+fn a_batch_file_of_the_folder_is_found_like_any_program() {
+    let dir = scratch("batch_resolve");
+    std::fs::write(dir.join("lamp.bat"), "@echo off\n").unwrap();
+    std::fs::write(dir.join("siren.CMD"), "@echo off\n").unwrap();
+    for name in ["lamp.bat", "siren.CMD"] {
+        let found = resolve(&dir, name).unwrap();
+        assert!(found.is_file(), "{name}");
+    }
+    assert!(resolve(&dir, "other.bat")
+        .unwrap_err()
+        .contains("not in the folder"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[cfg(windows)]
+#[test]
+fn a_batch_file_is_run_with_its_arguments_and_the_time_limit() {
+    let dir = scratch("batch_run");
+    std::fs::write(dir.join("lamp.cmd"), "@echo batch said %1\r\n").unwrap();
+    std::fs::write(dir.join("slow.bat"), "@ping -n 30 127.0.0.1 > nul\r\n").unwrap();
+    match run_call(&dir, &call("lamp.cmd", &["job-finished"]), 20.0) {
+        Outcome::Ran { code: 0, output } => {
+            assert!(output.contains("batch said job-finished"), "{output}")
+        }
+        other => panic!("{other:?}"),
+    }
+    assert_eq!(
+        run_call(&dir, &call("slow.bat", &[]), 1.0),
+        Outcome::TimedOut
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_dry_run_tells_that_a_rule_names_a_batch_file_and_lists_its_calls() {
+    let dir = scratch("batch_dry");
+    let rules = dir.join("hooks.csv");
+    std::fs::write(
+        &rules,
+        "job-finished,lamp.bat,{event}\njob-finished,lamp.bat,again\njob-finished,notify,x\n",
+    )
+    .unwrap();
+    let o = run(&[
+        "simulate",
+        "examples/board.pos",
+        "examples/feeders.csv",
+        "--hooks",
+        p(&rules),
+        "--hooks-dry-run",
+    ]);
+    assert!(o.status.success(), "{}", text(&o.stderr));
+    let out = text(&o.stdout);
+    assert_eq!(
+        out.matches("warning: 'lamp.bat' is a batch file").count(),
+        1,
+        "{out}"
+    );
+    assert!(
+        out.contains("hook (not run): job-finished: lamp.bat \"job-finished\""),
+        "{out}"
+    );
+    assert!(!out.contains("warning: 'notify'"), "{out}");
+    // the warning comes before the job runs
+    let warn = out.find("warning:").unwrap();
+    let placed = out.find("placed 6 of 6").unwrap();
+    assert!(warn < placed, "{out}");
     let _ = std::fs::remove_dir_all(&dir);
 }
