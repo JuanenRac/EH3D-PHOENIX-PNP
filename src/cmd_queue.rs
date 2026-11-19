@@ -23,6 +23,15 @@ fn store(path: &str, queue: &Queue, lang: eh3d_phoenix_pnp::error::Lang) -> Resu
     queue::write_file(path, queue).map_err(|e| e.localized(lang))
 }
 
+/// The folder of the queue file, as an absolute path: where the relative paths of its entries are taken from.
+fn queue_dir(queue_path: &str) -> std::path::PathBuf {
+    let parent = Path::new(queue_path)
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    std::path::absolute(parent).unwrap_or_else(|_| parent.to_path_buf())
+}
+
 /// A file that has to be there, as the absolute path it is found at (a queue is run from other folders than the one it was made in).
 fn existing(path: &str, what: &str) -> Result<String, String> {
     if !Path::new(path).is_file() {
@@ -34,7 +43,8 @@ fn existing(path: &str, what: &str) -> Result<String, String> {
 }
 
 /// `queue-add QUEUE NAME SOURCE FEEDERS`: puts a job at the end of the queue (the file is made when it is not there). `--panel` says that the source is a panel, `--boards N` how many boards
-/// to make, `--config`, `--packages` and `--catalog` the files that go with the job and `--side top|bottom` the side.
+/// to make, `--config`, `--packages` and `--catalog` the files that go with the job and `--side top|bottom` the side. The paths are kept absolute; with `queue_relative_paths` on in the
+/// configuration of the job (or `--relative`) a file that is in the folder of the queue, or below it, is kept as a path from that folder, so that the folder can be moved.
 pub fn queue_add(mut args: Vec<String>) -> Result<(), String> {
     let config = flag(&mut args, "--config")?;
     let packages = flag(&mut args, "--packages")?;
@@ -54,11 +64,13 @@ pub fn queue_add(mut args: Vec<String>) -> Result<(), String> {
         None => 1,
     };
     let panel = switch(&mut args, "--panel");
+    let relative_switch = switch(&mut args, "--relative");
     let (lang, _) = language_and_config(&mut args)?;
     finish(&args, 4)?;
     let [path, name, source, feeders] = args.as_slice() else {
         return Err("queue-add needs a queue file, a name, the table of parts (or the panel) and the table of feeders".into());
     };
+    let mut relative = relative_switch;
     let mut entry = Entry::new(
         name,
         if panel { Kind::Panel } else { Kind::Parts },
@@ -74,7 +86,8 @@ pub fn queue_add(mut args: Vec<String>) -> Result<(), String> {
                 "{abs}: larger than the {MAX_CONFIG_BYTES} bytes of a configuration"
             ));
         }
-        MachineConfig::parse(&text).map_err(|e| e.localized(lang))?;
+        let parsed = MachineConfig::parse(&text).map_err(|e| e.localized(lang))?;
+        relative |= parsed.queue_relative_paths;
         entry.config = abs;
     }
     if let Some(p) = &packages {
@@ -84,6 +97,18 @@ pub fn queue_add(mut args: Vec<String>) -> Result<(), String> {
         entry.catalog = existing(c, "the catalog")?;
     }
     entry.side = side.unwrap_or_default();
+    if relative {
+        let dir = queue_dir(path);
+        for v in [
+            &mut entry.source,
+            &mut entry.feeders,
+            &mut entry.config,
+            &mut entry.packages,
+            &mut entry.catalog,
+        ] {
+            *v = queue::relative_to(v, &dir);
+        }
+    }
     let mut q = load(path, lang)?;
     q.add(entry).map_err(|e| e.localized(lang))?;
     store(path, &q, lang)?;
@@ -92,8 +117,8 @@ pub fn queue_add(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// What stands between an entry and its run: the reason it cannot be planned, or how its confirmation stands.
-fn standing(q: &Queue, e: &Entry, need_confirm: bool) -> Result<String, String> {
-    let id = plan_identity(e.arguments())?;
+fn standing(q: &Queue, e: &Entry, need_confirm: bool, dir: &Path) -> Result<String, String> {
+    let id = plan_identity(e.arguments_in(dir))?;
     match q.allowed(&e.name, &id, need_confirm) {
         Ok(()) => Ok(if e.confirmed.is_empty() {
             format!("plan {id}, not confirmed (queue_confirm is off)")
@@ -112,13 +137,14 @@ pub fn queue_status(mut args: Vec<String>) -> Result<(), String> {
     finish(&args, 1)?;
     let path = args.first().ok_or("queue-status needs a queue file")?;
     let q = load(path, lang)?;
+    let dir = queue_dir(path);
     print!("{}", q.text());
     if !check {
         return Ok(());
     }
     let mut blocked = 0;
     for e in q.to_do() {
-        match standing(&q, e, cfg.queue_confirm) {
+        match standing(&q, e, cfg.queue_confirm, &dir) {
             Ok(s) => println!("{}: can run - {s}", e.name),
             Err(reason) => {
                 blocked += 1;
@@ -145,7 +171,7 @@ pub fn queue_confirm(mut args: Vec<String>) -> Result<(), String> {
         .get(name)
         .ok_or_else(|| format!("there is no entry '{name}' in {path}"))?
         .clone();
-    let id = plan_identity(e.arguments())?;
+    let id = plan_identity(e.arguments_in(&queue_dir(path)))?;
     q.confirm(name, &id).map_err(|e| e.localized(lang))?;
     store(path, &q, lang)?;
     println!("confirmed '{name}' for the plan {id}");
@@ -209,6 +235,7 @@ pub fn queue_run(mut args: Vec<String>) -> Result<(), String> {
     let path = args.first().ok_or("queue-run needs a queue file")?.clone();
     let _lock = Lock::take(&path)?;
     let mut q = load(&path, lang)?;
+    let dir = queue_dir(&path);
     let names: Vec<String> = q
         .to_do()
         .filter(|e| only.as_ref().is_none_or(|o| *o == e.name))
@@ -224,7 +251,7 @@ pub fn queue_run(mut args: Vec<String>) -> Result<(), String> {
         let e = q.get(&name).cloned().ok_or("the entry is gone")?;
         for _ in e.done..e.boards {
             // the plan is looked at again before every board: a file that changed voids the confirmation
-            let id = match plan_identity(e.arguments()) {
+            let id = match plan_identity(e.arguments_in(&dir)) {
                 Ok(id) => id,
                 Err(msg) => {
                     q.set_state(&name, State::Failed, &msg).map_err(l)?;
@@ -248,7 +275,7 @@ pub fn queue_run(mut args: Vec<String>) -> Result<(), String> {
             q.set_state(&name, State::Running, "a board is under way")
                 .map_err(l)?;
             store(&path, &q, lang)?;
-            match simulate(e.arguments()) {
+            match simulate(e.arguments_in(&dir)) {
                 Ok(()) => {
                     q.board_done(&name).map_err(l)?;
                     store(&path, &q, lang)?;

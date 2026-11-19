@@ -102,6 +102,31 @@ impl Kind {
     }
 }
 
+/// `path` as a queue file in `dir` keeps it when the paths are kept relative (`queue_relative_paths`): the path from `dir`, with `/` between the names, when the file is in `dir` or below it;
+/// any other path (or one that is not absolute) is kept as it is.
+pub fn relative_to(path: &str, dir: &Path) -> String {
+    let p = Path::new(path);
+    if !p.is_absolute() {
+        return path.to_string();
+    }
+    match p.strip_prefix(dir) {
+        Ok(rest) if !rest.as_os_str().is_empty() => rest
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy().into_owned())
+            .collect::<Vec<_>>()
+            .join("/"),
+        _ => path.to_string(),
+    }
+}
+
+/// `path` as it is found from where the queue file is: an empty path stays empty, an absolute one stays as it is and a relative one is taken from `dir`.
+pub fn resolve(path: &str, dir: &Path) -> String {
+    if path.trim().is_empty() || Path::new(path).is_absolute() {
+        return path.to_string();
+    }
+    dir.join(path).to_string_lossy().into_owned()
+}
+
 /// One job of the queue.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Entry {
@@ -232,6 +257,22 @@ impl Entry {
         }
         a.push(self.feeders.clone());
         a
+    }
+
+    /// The arguments of the commands as `arguments` gives them, with every path that is relative taken from `dir` (the folder of the queue file), so that a queue that keeps relative paths
+    /// can be run from any folder.
+    pub fn arguments_in(&self, dir: &Path) -> Vec<String> {
+        let mut e = self.clone();
+        for v in [
+            &mut e.source,
+            &mut e.feeders,
+            &mut e.config,
+            &mut e.packages,
+            &mut e.catalog,
+        ] {
+            *v = resolve(v, dir);
+        }
+        e.arguments()
     }
 }
 

@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Queue paths from the queue's folder:** `queue_relative_paths` (default off) or `queue-add --relative` keeps the files of a job that are in the folder of the queue file, or below it, as paths from that folder (`queue::relative_to`), so the folder can be moved or shared; `queue::resolve` and `Entry::arguments_in` take them back from the folder of the queue at `queue-status`, `queue-confirm` and `queue-run`, whatever folder the command runs from. Absolute paths stay absolute and a queue that keeps either runs the same; the plan identity does not depend on how the paths are kept.
 ## [0.0.9] - Tools for nozzle life, part inspection, fiducials, feeders, plan comparison and the plan picture, a camera pattern calibration, a queue of jobs and text files in UTF-16
 
 - **Correcting the lens:** `camera_correct_lens` (default off) makes the camera take the bending of the lens (`camera_lens_k1`) out of what it sees: `CameraModel::to_machine_corrected` turns a pixel into a place after inverting `d * (1 + k1 * d * d)` (Newton's method, a bending that has no inverse leaves the pixel alone) and `read_corrected` is what a camera with a calibrated lens reports for a part; the simulated camera uses them, with and without a picture, when the setting is on.

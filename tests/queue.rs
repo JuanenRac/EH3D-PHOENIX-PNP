@@ -5,7 +5,8 @@ use eh3d_phoenix_pnp::error::{Code, Lang};
 use eh3d_phoenix_pnp::gui::toolbox::{queue_text, Tool, Toolbox};
 use eh3d_phoenix_pnp::gui::workspace::Workspace;
 use eh3d_phoenix_pnp::queue::{
-    identity, name_ok, read_file, write_file, Entry, Kind, Queue, State, MAX_BOARDS, MAX_ENTRIES,
+    identity, name_ok, read_file, relative_to, resolve, write_file, Entry, Kind, Queue, State,
+    MAX_BOARDS, MAX_ENTRIES,
 };
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -750,4 +751,123 @@ fn the_tool_of_the_window_reads_a_queue_and_writes_it_under_its_name_only_to_a_n
     tb.queue_text = "garbage".to_string();
     tb.run(&ws, Lang::En);
     assert!(tb.error.contains("PHOENIX-PNP-060"), "{}", tb.error);
+}
+
+// ---- the paths kept relative
+
+#[test]
+fn a_path_is_kept_from_the_folder_of_the_queue_only_when_it_is_in_it() {
+    let dir = scratch("rel_unit");
+    let inside = dir.join("sub").join("board.pos");
+    assert_eq!(relative_to(p(&inside), &dir), "sub/board.pos");
+    assert_eq!(
+        relative_to(p(&dir.join("f.csv")), &dir),
+        "f.csv",
+        "a file in the folder"
+    );
+    // outside, the folder itself, a path that is already relative and an empty one are kept as they are
+    let outside = std::env::temp_dir().join("elsewhere.pos");
+    assert_eq!(relative_to(p(&outside), &dir), p(&outside));
+    assert_eq!(relative_to(p(&dir), &dir), p(&dir));
+    assert_eq!(relative_to("a/b.pos", &dir), "a/b.pos");
+    assert_eq!(relative_to("", &dir), "");
+    // taken back from the folder, a relative path is found where it was; an absolute one and an empty one are not touched
+    assert_eq!(
+        Path::new(&resolve("sub/board.pos", &dir)),
+        dir.join("sub/board.pos")
+    );
+    assert_eq!(resolve(p(&outside), &dir), p(&outside));
+    assert_eq!(resolve("", &dir), "");
+    assert_eq!(resolve("  ", &dir), "  ");
+    let mut e = entry("a", 1);
+    e.config = "m.cfg".to_string();
+    e.packages = p(&outside).to_string();
+    let args = e.arguments_in(&dir);
+    assert_eq!(Path::new(&args[1]), dir.join("m.cfg"));
+    assert_eq!(args[3], p(&outside));
+    assert_eq!(Path::new(&args[4]), dir.join("board.pos"));
+    assert_eq!(Path::new(&args[5]), dir.join("feeders.csv"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_paths_are_kept_relative_when_the_setting_or_the_switch_asks_and_the_queue_runs_from_anywhere(
+) {
+    assert!(!MachineConfig::default().queue_relative_paths);
+    assert!(KEYS.contains(&"queue_relative_paths"));
+    assert!(MACHINE.contains("\nqueue_relative_paths = off"));
+    assert!(
+        MachineConfig::parse("queue_relative_paths = on")
+            .unwrap()
+            .queue_relative_paths
+    );
+    assert_eq!(
+        MachineConfig::parse("queue_relative_paths = soon")
+            .unwrap_err()
+            .code,
+        Code::ConfigBadValue
+    );
+    let dir = scratch("rel_cli");
+    let sub = dir.join("job");
+    std::fs::create_dir_all(&sub).unwrap();
+    for f in ["board.pos", "feeders.csv"] {
+        std::fs::copy(root().join("examples").join(f), sub.join(f)).unwrap();
+    }
+    let q = dir.join("q.csv");
+    let q = p(&q);
+    // by default the paths are absolute
+    ok(&[
+        "queue-add",
+        q,
+        "abs",
+        p(&sub.join("board.pos")),
+        p(&sub.join("feeders.csv")),
+    ]);
+    // with the switch the files below the folder of the queue are kept from it
+    ok(&[
+        "queue-add",
+        q,
+        "rel",
+        p(&sub.join("board.pos")),
+        p(&sub.join("feeders.csv")),
+        "--relative",
+    ]);
+    // and so do they with the setting in the configuration of the job
+    let cfg = sub.join("job.cfg");
+    std::fs::write(&cfg, "queue_relative_paths = on\n").unwrap();
+    ok(&[
+        "queue-add",
+        q,
+        "cfg",
+        p(&sub.join("board.pos")),
+        p(&sub.join("feeders.csv")),
+        "--config",
+        p(&cfg),
+    ]);
+    let saved = read_file(q, 1_000_000).unwrap();
+    assert!(Path::new(&saved.get("abs").unwrap().source).is_absolute());
+    let rel = saved.get("rel").unwrap();
+    assert_eq!(
+        (rel.source.as_str(), rel.feeders.as_str()),
+        ("job/board.pos", "job/feeders.csv")
+    );
+    let cfgd = saved.get("cfg").unwrap();
+    assert_eq!(cfgd.source, "job/board.pos");
+    assert_eq!(cfgd.config, "job/job.cfg");
+    // the queue is confirmed and run from another folder: the relative paths are taken from the queue
+    for name in ["rel", "cfg"] {
+        let out = ok(&["queue-confirm", q, name]);
+        assert!(out.starts_with(&format!("confirmed '{name}'")), "{out}");
+    }
+    let out = ok(&["queue-run", q, "--only", "rel"]);
+    assert!(out.contains("rel: done"), "{out}");
+    // the plan is the same whichever way the paths are kept
+    ok(&["queue-confirm", q, "abs"]);
+    let saved = read_file(q, 1_000_000).unwrap();
+    assert_eq!(
+        saved.get("abs").unwrap().confirmed,
+        saved.get("rel").unwrap().confirmed,
+        "the same files give the same plan"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
 }

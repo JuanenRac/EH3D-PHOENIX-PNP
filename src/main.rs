@@ -38,7 +38,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp bom-check PARTS BOM [--config F] [--lang CODE]   whether the bill of materials and the table of parts agree (references, values, packages, quantities)
   phoenix-pnp camera-calibrate FILE [--config F] [--lang CODE]   the settings of the camera from sightings of a mark (px,py,x_mm,y_mm), with how well they fit
   phoenix-pnp camera-pattern FILE [--pitch MM] [--config F] [--lang CODE]   the size of a pixel and the bending of the lens from the points of a pattern on a grid (col,row,px,py), with how well they fit; exits with 1 when a point is over camera_pattern_max_residual_mm
-  phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS [--panel] [--boards N] [--side top|bottom] [--config F] [--packages F] [--catalog F]   puts a job (a table of parts, or a panel with --panel) at the end of a queue of jobs
+  phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS [--panel] [--boards N] [--side top|bottom] [--config F] [--packages F] [--catalog F] [--relative]   puts a job (a table of parts, or a panel with --panel) at the end of a queue of jobs
   phoenix-pnp queue-status QUEUE [--check] [--config F]   the jobs of the queue and what became of each; --check plans the ones still to be made and exits with 1 when one cannot run now
   phoenix-pnp queue-confirm QUEUE NAME   records that the plan of the job, as it is now, was looked at and may be run (void when the files change)
   phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove   leaves a job out, puts it back to the start, takes its confirmation back or takes it out
