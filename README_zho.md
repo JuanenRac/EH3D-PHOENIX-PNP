@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 930 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 939 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.0.9` |
 | 成熟度 | 脚手架 |
-| 测试 | 930 |
+| 测试 | 939 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
 | 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 930 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 测试 | 🟡 | 939 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -106,6 +106,7 @@
 * **更准确的计划时间** (`src/planner.rs`)：在 `backlash_mode = approach` 下，机器会越过位置一个轴的间隙再退回，这需要时间；计划以前没有计入，现在逐段计入（仅在限位前有余量时），因此计划的秒数与模拟作业的秒数一致，`AdvancedPlan::approach_s`、计划报告及其 JSON 会说明第二次移动占了多少秒。吸嘴头仍按批分组，每批的供料器从近到远访问；不使用 approach 时没有任何变化。
 * **常用封装的尺寸** (`src/pkggen.rs`, `src/cmd_tools.rs`)：`phoenix-pnp package-gen 0603 SOT-23-5 SOIC-8 QFN-32-5x5 LQFP-48`（或用 `--from PARTS` 取位置文件中的封装）会根据 EIA 编码的贴片元件、SOT、SOD、SOIC（窄体和宽体）、TSSOP、QFN、DFN 和 QFP 的标称尺寸，写出封装表的行（`package,height_mm,tape_mm,body_long_mm,body_short_mm`），并给出容纳本体的料带宽度；`part-inspect` 的 `--packages` 和目录会读取该结果。未知的名称会报错并说明原因，绝不猜测。 `phoenix-pnp package-kicad PATH...` 可从 KiCad 封装文件做同样的事（`src/kicadmod.rs`、`examples/chip_0603.kicad_mod`）：本体是制造层图形的外框（没有时用占位区并给出提示），高度在名称已知时取该封装的值，否则用 `--height`；读取在大小、深度和元素数上都有限制，读不懂的文件会连同原因一起指出。
 * **学习得到的贴装偏移** (`src/learn.rs`, `src/cmd_tools.rs`, `src/job.rs`)：`phoenix-pnp place-learn READINGS --state F` 读取 `package,dx_mm,dy_mm` 行（零件最终偏离其位置多远），把每种封装的平均偏移保存在带校验号的文件中。与同封装其他读数相差很大的读数会被剔除，读数太少的封装保持不变，已知偏移最多按 `place_learn_memory` 个读数计算，以便跟随漂移的机器，任何偏移都不会超过 `place_learn_cap_mm`；`--residual` 用于已应用偏移后测得的读数，`--dry-run` 不写任何东西，`--show` 与 `--forget` 读取并修剪该文件。`place_learn` 打开前学习保持关闭，只有 `place_learn_apply` 打开时，`simulate --place-offsets FILE` 才会让贴装头前往每个位置减去其封装偏移之处；被截断或被手工改动的文件会被拒绝。
+* **供其他程序使用的作业文件** (`src/exchange.rs`, `src/commands.rs`, `src/cmd_tools.rs`)：`phoenix-pnp job-export PARTS FEEDERS OUT [--state F]` 把计划（即 `schedule` 的文档）、每个零件的状态（`pending`、`placed`、带原因的 `deferred`、`skipped`）和作业阶段（就绪、暂停、停止、完成）写入一个带版本和类型的 JSON 文件；给出 `simulate` 的已保存状态时，会说明该作业进行到了哪里。`phoenix-pnp job-import FILE [--csv F]` 带全部检查读取这样的文件（大小和贴装数上限、100000 mm 以内的有限数值、长度受限且无控制字符的名称和原因、每个引用只出现一次、批次和吸嘴的计数、每个贴装都有指向同一引用的状态行，以及与各状态一致的阶段），说明其内容，并可把贴装连同状态写成表格。不会从中运行任何东西，也不会对机器应用任何东西。
 * **相机联合标定** (`src/combined.rs`, `src/cmd_tools.rs`, `src/gui/toolbox.rs`)：`phoenix-pnp camera-combined FILE` 读取 `head_x,head_y,col,row,px,py`（`examples/camera_combined.csv`：图案固定在台面上，头移动到多个位置），并结合图案的位置（`camera_pattern_origin_x_mm`、`camera_pattern_origin_y_mm`）和间距，一次拟合出像素大小、旋转、镜像、吸嘴偏移、镜头畸变以及图案在台面上的旋转角；相当于把 `camera-calibrate` 的相机和 `camera-pattern` 的镜头一并完成。默认关闭（`camera_combined = off`；两个独立命令不依赖它），头必须位于两个或更多位置，偏移的精度取决于原点的测量精度。工具标签页有同样的标定；应用到机器不会开启 `camera_correct_lens`。 开启 `camera_combined_touch = on`（或使用 `--touch`）后，纸板的位置不再取自设置，而是取自文件中的 `origin,X,Y` 行（喷嘴接触点 0,0 时的位置）；默认关闭。
 * **工具标签页新增面板** (`src/gui/toolbox.rs`)：吸嘴头使用情况（`nozzle-life` 保存的记录，达到 `nozzle_life_warn` 的吸嘴头会被标出）、吸嘴上的元件与已加载封装尺寸的核对、基准点检查（每个标记的残差、不一致的标记，以及超过 `fiducial_max_residual_mm` 的标记警告）、供料器表检查、顺序与换头方式的比较（最快的方案能节省多少）以及方案的 SVG 图；每一项都以各自的名称把结果写入输出文件夹，且不会覆盖已有文件。标签页的准备清单在键入或读取吸嘴头记录后会读取它，并指出哪个吸嘴头已磨损。
 * **准备清单**（`src/setup.rs`、`src/commands.rs`、`src/gui/toolbox.rs`）：`phoenix-pnp setup-sheet 零件 供料器 --boards N` 以八种语言把以下内容汇总到一页：按槽位顺序排列的待装载供料器（类型、零件、料带、吸嘴头、所含数量、位置）、N 块板缺少的零件、本批次的吸嘴头及其相对 `nozzle_life_warn` 的磨损（`--life` 读取 `simulate --nozzle-life` 的记录）、作业所依赖的校准及其是否已设置（相机、吸嘴偏心、轴间隙、吸嘴头更换器位置、拼板基准点）以及警告（已关闭但装有电路板所需零件的供料器、装有有方向零件的散料供料器）；`--out` 把供料器写成 CSV，缺零件时命令以 1 退出。工具标签页提供同一份清单，可作为 `setup_sheet.txt` 打印。
@@ -187,6 +188,8 @@ phoenix-pnp vision-marks DESIGN [--shift X,Y] [--turn DEG]   按指定方式放�
 phoenix-pnp package-gen [NAME...] [--from PARTS]          根据 0603、SOT-23、SOIC-8、QFN-32 等标准名称生成封装表的行（本体、高度、料带）
 phoenix-pnp package-kicad PATH... [--height MM]            根据 KiCad 封装文件（.kicad_mod）或其文件夹生成封装表的行（本体、高度、料带）
 phoenix-pnp place-learn READINGS --state F                根据读数（package,dx_mm,dy_mm）学习每种封装贴装的平均偏移，剔除离群值并设上限（需要 place_learn = on）
+phoenix-pnp job-export PARTS FEEDERS OUT [--state F]       把计划和每个零件的状态写入供其他程序使用的 JSON 文件
+phoenix-pnp job-import FILE [--csv F]                      读取并检查这样的文件，说明其内容，并可把贴装连同状态写成表格
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       测量在内存中生成的零件图像
 ```
 
@@ -301,7 +304,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 930 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 939 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -332,6 +335,7 @@ EH3D-PHOENIX-PNP/
 │   ├── compare.rs                               用每种顺序和吸嘴头策略并排规划同一块板
 │   ├── config.rs                                机器的配置文件：键、范围和安全限制
 │   ├── error.rs                                 错误代码 PHOENIX-PNP-NNN 及其八种语言的含义
+│   ├── exchange.rs                              供其他程序使用的作业 JSON 文件：计划和每个零件的状态
 │   ├── export.rs                                报告、缺料清单和移动的 G 代码
 │   ├── feeders.rs                               逻辑的一部分
 │   ├── feeding.rs                               带优先级、托盘和料带的供料器，以及元件供料器的选择
@@ -404,6 +408,7 @@ EH3D-PHOENIX-PNP/
 │   ├── commands.rs                              使用配置的命令的测试
 │   ├── compare.rs                               顺序比较的测试：最快者、文本、建议和命令
 │   ├── encoding.rs                              文件编码的测试：UTF-8、UTF-16 和 Latin-1
+│   ├── exchange.rs                              作业交换文件测试：写入、读取、各种拒绝、命令
 │   ├── feeding.rs                               供料器测试：优先级、托盘和料带
 │   ├── feedlib.rs                               供料器库检查的测试
 │   ├── feedrep.rs                               每个供料器吸取情况的测试

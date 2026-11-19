@@ -42,6 +42,8 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp package-gen [NAME...] [--from PARTS] [--out F] [--config F] [--lang CODE]   the rows of a table of packages (height, tape, body) for packages named by their standard (0603, R0805, SOT-23, SOIC-8, TSSOP-14, QFN-32-5x5, LQFP-48...) and for those of a position file; exits with 1 when a name is not known
   phoenix-pnp package-kicad PATH... [--height MM] [--out F] [--config F] [--lang CODE]   the rows of a table of packages (body, tape, height) from footprint files of KiCad (.kicad_mod, or a folder of them): the body is the drawing on the fabrication layer; the height is that of the package when its name is a known one, or --height; exits with 1 when a footprint is not understood
   phoenix-pnp place-learn READINGS --state F [--residual] [--dry-run] [--config F] [--lang CODE]   learns the mean offset of the placement of each package from readings (package,dx_mm,dy_mm), leaving the strays out and holding it within place_learn_cap_mm; off until place_learn is on; --show and --forget PACKAGE read and trim the file
+  phoenix-pnp job-export PARTS FEEDERS OUT [OPTIONS] [--state F] [--partial]   the plan and where the job is (the saved state of simulate, if given) in one JSON file for other programs
+  phoenix-pnp job-import FILE [--csv F] [--config F] [--lang CODE]   reads and checks such a file and says what it holds; --csv writes the placements with their status as a table; exits with 1 when the file is not valid
   phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS [--panel] [--boards N] [--side top|bottom] [--config F] [--packages F] [--catalog F] [--relative]   puts a job (a table of parts, or a panel with --panel) at the end of a queue of jobs
   phoenix-pnp queue-status QUEUE [--check] [--config F]   the jobs of the queue and what became of each; --check plans the ones still to be made and exits with 1 when one cannot run now
   phoenix-pnp queue-confirm QUEUE NAME   records that the plan of the job, as it is now, was looked at and may be run (void when the files change)
@@ -225,6 +227,8 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "package-gen" => cmd_tools::package_gen(args),
         "package-kicad" => cmd_tools::package_kicad(args),
         "place-learn" => cmd_tools::place_learn(args),
+        "job-export" => commands::job_export(args),
+        "job-import" => cmd_tools::job_import(args),
         "queue-add" => cmd_queue::queue_add(args),
         "queue-status" => cmd_queue::queue_status(args),
         "queue-confirm" => cmd_queue::queue_confirm(args),

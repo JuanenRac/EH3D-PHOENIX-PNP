@@ -1,4 +1,4 @@
-// EH3D-PHOENIX-PNP - the commands that check, calibrate and make files: bom-check, bom-order, camera-calibrate, camera-pattern, camera-combined, package-kicad, place-learn, nozzle-calibrate, feeder-teach, panelize and polarity-sheet.
+// EH3D-PHOENIX-PNP - the commands that check, calibrate and make files: bom-check, bom-order, camera-calibrate, camera-pattern, camera-combined, package-kicad, place-learn, job-import, nozzle-calibrate, feeder-teach, panelize and polarity-sheet.
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 //
 // Each one reads its files, calls the library and prints; none of them moves or writes anything but the file named by --out, and a file that exists is never written over.
@@ -17,6 +17,7 @@ use eh3d_phoenix_pnp::combined::{
 };
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
+use eh3d_phoenix_pnp::exchange;
 use eh3d_phoenix_pnp::feeding;
 use eh3d_phoenix_pnp::kicadmod;
 use eh3d_phoenix_pnp::learn::{self, LearnSettings, Learned};
@@ -352,6 +353,25 @@ pub fn place_learn(mut args: Vec<String>) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+/// `job-import FILE [--csv F]`: reads a job exchange file (the plan and where the job is), checks it and says what it holds; `--csv` writes the placements with their status as a table, never
+/// over a file that exists. Nothing is run and nothing is applied to a machine. The exit code is 1 when the file is not valid.
+pub fn job_import(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let csv = flag(&mut args, "--csv")?;
+    finish(&args, 1)?;
+    let path = args.first().ok_or("job-import needs a job exchange file")?;
+    if let Some(c) = &csv {
+        refuse_same_file(std::slice::from_ref(path), c)?;
+    }
+    let found =
+        exchange::parse(&read_text(path, cfg.max_file_bytes)?).map_err(|e| e.localized(lang))?;
+    println!("{}", found.summary());
+    if let Some(c) = &csv {
+        report::write_new(c, &found.csv()).map_err(|e| e.localized(lang))?;
+    }
+    Ok(())
 }
 
 /// `nozzle-calibrate`: the runout of the nozzle tip from readings of its place at several angles; prints how good the fit is and the lines to put in the configuration.

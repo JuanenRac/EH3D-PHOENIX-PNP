@@ -197,6 +197,19 @@
           }
         },
         {
+          "name": "exchange.rs",
+          "desc": {
+            "en": "a job in a JSON file for other programs: the plan and the state of each part",
+            "es": "un trabajo en un fichero JSON para otros programas: el plan y el estado de cada pieza",
+            "de": "ein Auftrag in einer JSON-Datei für andere Programme: Plan und Zustand jedes Teils",
+            "fr": "un travail dans un fichier JSON pour d'autres programmes : le plan et l'état de chaque pièce",
+            "it": "un lavoro in un file JSON per altri programmi: il piano e lo stato di ogni parte",
+            "ja": "他のプログラム向けのジョブ JSON ファイル：計画と各部品の状態",
+            "zh": "供其他程序使用的作业 JSON 文件：计划和每个零件的状态",
+            "pt": "um trabalho num ficheiro JSON para outros programas: o plano e o estado de cada peça"
+          }
+        },
+        {
           "name": "export.rs",
           "desc": {
             "en": "the report, the list of what is missing and the G-code of the movements",
@@ -1124,6 +1137,19 @@
             "ja": "ファイルの文字コードのテスト：UTF-8、UTF-16、Latin-1",
             "zh": "文件编码的测试：UTF-8、UTF-16 和 Latin-1",
             "pt": "testes da codificação dos ficheiros: UTF-8, UTF-16 e Latin-1"
+          }
+        },
+        {
+          "name": "exchange.rs",
+          "desc": {
+            "en": "tests of the job exchange file: writing, reading, every refusal, the commands",
+            "es": "pruebas del fichero de intercambio de trabajos: escritura, lectura, cada rechazo, los comandos",
+            "de": "Tests der Austauschdatei eines Auftrags: Schreiben, Lesen, jede Ablehnung, die Befehle",
+            "fr": "tests du fichier d'échange d'un travail : écriture, lecture, chaque refus, les commandes",
+            "it": "test del file di scambio di un lavoro: scrittura, lettura, ogni rifiuto, i comandi",
+            "ja": "ジョブ交換ファイルのテスト：書き出し、読み込み、各拒否、コマンド",
+            "zh": "作业交换文件测试：写入、读取、各种拒绝、命令",
+            "pt": "testes do ficheiro de troca de um trabalho: escrita, leitura, cada recusa, os comandos"
           }
         },
         {

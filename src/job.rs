@@ -34,7 +34,8 @@ pub enum Status {
 }
 
 impl Status {
-    fn name(self) -> &'static str {
+    /// The name of the status as the saved state and the exchange file write it.
+    pub fn name(self) -> &'static str {
         match self {
             Status::Pending => "pending",
             Status::Placed => "placed",
@@ -43,7 +44,8 @@ impl Status {
         }
     }
 
-    fn parse(text: &str) -> Option<Status> {
+    /// The status that has this name.
+    pub fn parse(text: &str) -> Option<Status> {
         match text {
             "pending" => Some(Status::Pending),
             "placed" => Some(Status::Placed),

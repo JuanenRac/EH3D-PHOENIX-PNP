@@ -12,6 +12,7 @@ pub mod combined;
 pub mod compare;
 pub mod config;
 pub mod error;
+pub mod exchange;
 pub mod export;
 pub mod feeders;
 pub mod feeding;

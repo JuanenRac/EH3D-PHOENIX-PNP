@@ -8,6 +8,7 @@ use eh3d_phoenix_pnp::catalog::Catalog;
 use eh3d_phoenix_pnp::compare;
 use eh3d_phoenix_pnp::config::{MachineConfig, OrderStrategy, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Code, Lang, PnpError};
+use eh3d_phoenix_pnp::exchange;
 use eh3d_phoenix_pnp::export;
 use eh3d_phoenix_pnp::feeding::{self, FeederSpec, Picks};
 use eh3d_phoenix_pnp::feedrep;
@@ -600,6 +601,40 @@ pub fn plan_identity(args: Vec<String>) -> Result<String, String> {
     let job = Job::new(planned.plan, p.feeders.clone(), p.c.cfg.clone())
         .map_err(|e| e.localized(lang))?;
     Ok(eh3d_phoenix_pnp::queue::identity(job.hash(), &files))
+}
+
+/// `job-export PARTS FEEDERS OUT [--state F]`: the plan and where the job is, in one JSON file for other programs (`exchange`). Without `--state` every part is pending and the job is
+/// ready; with the saved state of a job (the one `simulate --state` writes) the file says what became of each part. The job is not run and nothing is moved.
+pub fn job_export(mut args: Vec<String>) -> Result<(), String> {
+    let state_path = flag(&mut args, "--state")?;
+    let partial = switch(&mut args, "--partial");
+    let p = prepare(args, 1)?;
+    let out = p
+        .rest
+        .first()
+        .ok_or("job-export needs an output file")?
+        .clone();
+    let mut inputs = p.inputs.clone();
+    if let Some(sp) = &state_path {
+        inputs.push(sp.clone());
+    }
+    refuse_same_file(&inputs, &out)?;
+    let planned = make_plan(&p)?;
+    stop_on_errors(&p, &planned, partial)?;
+    let lang = p.c.lang;
+    let l = move |e: PnpError| e.localized(lang);
+    let text = match &state_path {
+        Some(sp) => {
+            let mut job = Job::new(planned.plan, p.feeders.clone(), p.c.cfg.clone()).map_err(l)?;
+            job.restore_state(&read_text(sp, p.c.cfg.max_file_bytes)?)
+                .map_err(l)?;
+            exchange::from_job(&job)
+        }
+        None => exchange::from_plan(&planned.plan),
+    };
+    write_atomic(&out, &text)?;
+    println!("wrote {out}");
+    Ok(())
 }
 
 /// `simulate`: carries the plan out on the simulated machine, and can pause, save the state and resume from it.
