@@ -106,6 +106,19 @@
           }
         },
         {
+          "name": "changeover.rs",
+          "desc": {
+            "en": "what to change on the feeders between the jobs of a queue: reels to change, put in, keep",
+            "es": "qué cambiar en los alimentadores entre los trabajos de una cola: carretes a cambiar, poner, dejar",
+            "de": "was an den Zuführungen zwischen den Aufträgen einer Warteschlange zu ändern ist",
+            "fr": "ce qu'il faut changer sur les alimentateurs entre les travaux d'une file : bobines",
+            "it": "cosa cambiare sugli alimentatori tra i lavori di una coda: bobine da cambiare, mettere, lasciare",
+            "ja": "キューのジョブ間でフィーダーに必要な変更：交換、装着、そのまま",
+            "zh": "队列中作业之间供料器需要的更换：换料盘、装料盘、保留",
+            "pt": "o que mudar nos alimentadores entre os trabalhos de uma fila: bobinas a trocar, pôr, deixar"
+          }
+        },
+        {
           "name": "cli_args.rs",
           "desc": {
             "en": "the arguments of the command line, strict: an unknown option is an error",
@@ -665,6 +678,19 @@
           }
         },
         {
+          "name": "hotspots.rs",
+          "desc": {
+            "en": "which feeders give trouble over many simulated runs: failed picks, switched off, put aside",
+            "es": "qué alimentadores dan problemas en muchas ejecuciones simuladas: fallos, apagados, apartadas",
+            "de": "welche Zuführungen in vielen simulierten Läufen Probleme machen: Fehlgriffe, abgeschaltet",
+            "fr": "quels alimentateurs posent problème sur de nombreuses exécutions simulées : prises ratées",
+            "it": "quali alimentatori danno problemi in molte esecuzioni simulate: prelievi falliti, spenti",
+            "ja": "多数回のシミュレーションで問題を起こすフィーダー：ピック失敗、停止、取り置き",
+            "zh": "多次模拟运行中出问题的供料器：取料失败、被关闭、被搁置",
+            "pt": "que alimentadores dão problemas em muitas execuções simuladas: falhas, desligados, de parte"
+          }
+        },
+        {
           "name": "import.rs",
           "desc": {
             "en": "the import of position files: a centroid CSV with a column map, EAGLE text, KiCad .pos",
@@ -844,6 +870,19 @@
             "ja": "ノズルチップの使用状況：搭載数、装着回数、交換回数、警告レベル",
             "zh": "吸嘴头的使用情况：贴装数、安装次数、更换次数和警告阈值",
             "pt": "o uso das pontas dos bicos: peças colocadas, montagens, substituições e o nível de aviso"
+          }
+        },
+        {
+          "name": "nozzles.rs",
+          "desc": {
+            "en": "the board planned with one to six nozzles: batches, tips, travel, seconds, the gain",
+            "es": "la placa planificada con una a seis boquillas: lotes, puntas, recorrido, segundos y ganancia",
+            "de": "die Platine mit einer bis sechs Düsen geplant: Chargen, Spitzen, Weg, Sekunden, Gewinn",
+            "fr": "la carte planifiée avec une à six buses : lots, pointes, trajet, secondes et gain de chacune",
+            "it": "la scheda pianificata con da una a sei nozzle: lotti, punte, percorso, secondi e guadagno",
+            "ja": "ノズル1〜6本での計画：バッチ、チップ、移動、秒数、各本数の短縮時間",
+            "zh": "按1至6个吸嘴规划的板：批次、吸嘴头、行程、秒数及各自节省的时间",
+            "pt": "a placa planeada com um a seis bocais: lotes, pontas, percurso, segundos e ganho de cada um"
           }
         },
         {
@@ -1068,6 +1107,19 @@
           }
         },
         {
+          "name": "runway.rs",
+          "desc": {
+            "en": "how many whole boards each reel lasts, the reel that runs out first, the parts left over",
+            "es": "cuántas placas enteras dura cada carrete, el que se acaba primero, las piezas que sobran",
+            "de": "wie viele ganze Platinen jede Rolle reicht, welche zuerst leer wird, übrige Teile",
+            "fr": "combien de cartes entières dure chaque bobine, laquelle s'épuise la première, les restes",
+            "it": "quante schede intere dura ogni bobina, quale finisce per prima, le parti che avanzano",
+            "ja": "各リールが基板何枚分もつか、最初に尽きるリール、残る部品",
+            "zh": "每个料盘可完成多少整块板、最先用完的料盘、剩余零件",
+            "pt": "quantas placas inteiras dura cada bobina, a que acaba primeiro, as peças que sobram"
+          }
+        },
+        {
           "name": "setup.rs",
           "desc": {
             "en": "the setup sheet: feeders by slot, missing parts, tips, calibrations",
@@ -1130,6 +1182,19 @@
             "ja": "パッケージが受け付けるノズルチップと、部品の種類ごとの選択",
             "zh": "封装可接受的吸嘴，以及为每类零件选择其一",
             "pt": "as pontas que um encapsulamento aceita e a escolha de uma para cada tipo de peça"
+          }
+        },
+        {
+          "name": "toolvalues.rs",
+          "desc": {
+            "en": "the values of the tool forms as settings of the machine file, and keeping them there",
+            "es": "los valores de los formularios de las herramientas como ajustes del archivo, y guardarlos",
+            "de": "die Werte der Formulare der Werkzeuge als Einstellungen der Datei und ihr Speichern dort",
+            "fr": "les valeurs des formulaires des outils comme réglages du fichier, et leur enregistrement",
+            "it": "i valori dei moduli degli strumenti come impostazioni del file, e il loro salvataggio",
+            "ja": "ツールのフォーム値を設定ファイルの項目として扱い、そこへ保存する",
+            "zh": "工具表单的值作为设置文件的项目，以及将它们保存回文件",
+            "pt": "os valores dos formulários das ferramentas como definições do ficheiro e a sua gravação"
           }
         },
         {
@@ -1293,6 +1358,19 @@
             "ja": "カメラモデル、ヘッドのカメラ、シミュレーターのカメラのテスト",
             "zh": "相机模型、各贴装头的相机和模拟器相机的测试",
             "pt": "testes do modelo da câmara, das câmaras das cabeças e da câmara do simulador"
+          }
+        },
+        {
+          "name": "changeover.rs",
+          "desc": {
+            "en": "tests of the changes between jobs: reels to change, put in, keep, the queue, the command",
+            "es": "pruebas de los cambios entre trabajos: los tipos, los carretes que cambiar y poner, la cola, el comando",
+            "de": "Tests der Wechsel zwischen Aufträgen: die Sorten, zu wechselnde und einzusetzende Rollen, Warteschlange, Befehl",
+            "fr": "tests des changements entre travaux : les types, les bobines à changer et à mettre, la file, la commande",
+            "it": "test dei cambi tra lavori: i tipi, le bobine da cambiare e inserire, la coda, il comando",
+            "ja": "ジョブ間の変更のテスト：種類、交換と装着のリール、キュー、コマンド",
+            "zh": "作业间更换的测试：种类、要更换和装上的料盘、队列、命令",
+            "pt": "testes das trocas entre trabalhos: os tipos, as bobinas a trocar e pôr, a fila, o comando"
           }
         },
         {
@@ -1475,6 +1553,19 @@
             "ja": "フックのテスト：既定オフ、規則、出来事、呼び出し、実行、simulate --hooks",
             "zh": "钩子测试：默认关闭、规则、事件、调用、运行、simulate --hooks",
             "pt": "testes dos ganchos: desligados por omissão, regras, eventos, chamadas, execução, simulate --hooks"
+          }
+        },
+        {
+          "name": "hotspots.rs",
+          "desc": {
+            "en": "tests of the trouble spots of the runs: failed picks, switched off, the order, the command",
+            "es": "pruebas de los puntos conflictivos de las ejecuciones: recogidas, fallos, apagados, apartadas, orden, comando",
+            "de": "Tests der Problemstellen der Läufe: Aufnahmen, Fehler, abgeschaltet, beiseitegelegt, Reihenfolge, Befehl",
+            "fr": "tests des points sensibles des exécutions : prises, échecs, désactivés, mises de côté, ordre, commande",
+            "it": "test dei punti critici delle esecuzioni: prelievi, fallimenti, spenti, messe da parte, ordine, comando",
+            "ja": "実行の問題箇所のテスト：ピック、失敗、停止、取り置き、順序、コマンド",
+            "zh": "运行故障热点的测试：取料、失败、被关闭、被搁置、顺序、命令",
+            "pt": "testes dos pontos problemáticos das execuções: recolhas, falhas, desligados, de parte, ordem, comando"
           }
         },
         {
@@ -1683,6 +1774,19 @@
             "ja": "ノズルチップの使用状況のテスト：ファイル、ジョブが加えるもの、コマンド",
             "zh": "吸嘴头使用情况的测试：文件、作业新增的内容和命令",
             "pt": "testes do uso das pontas dos bicos: o ficheiro, o que um trabalho acrescenta, os comandos"
+          }
+        },
+        {
+          "name": "nozzles.rs",
+          "desc": {
+            "en": "tests of the nozzles compared: the rows, the fastest, the gain, the command",
+            "es": "pruebas de la comparación de boquillas: las filas, la más rápida, la ganancia, los cabezales, el comando",
+            "de": "Tests des Düsenvergleichs: die Zeilen, die schnellste, der Gewinn, ausgelassene Köpfe, der Befehl",
+            "fr": "tests de la comparaison des buses : les lignes, la plus rapide, le gain, les têtes laissées, la commande",
+            "it": "test del confronto delle nozzle: le righe, la più veloce, il guadagno, le teste escluse, il comando",
+            "ja": "ノズル比較のテスト：行、最速、短縮時間、除外されるヘッド、コマンド",
+            "zh": "吸嘴比较的测试：各行、最快者、节省时间、被排除的头部、命令",
+            "pt": "testes da comparação de bocais: as linhas, o mais rápido, o ganho, as cabeças de fora, o comando"
           }
         },
         {
@@ -1907,6 +2011,19 @@
           }
         },
         {
+          "name": "runway.rs",
+          "desc": {
+            "en": "tests of the boards a reel lasts: the count, the order, unused feeders, the command",
+            "es": "pruebas de las placas que dura un carrete: la cuenta, el orden, alimentadores apagados y sin uso, tabla, comando",
+            "de": "Tests der Platinen pro Rolle: die Zählung, die Reihenfolge, abgeschaltete und ungenutzte Zuführungen, Befehl",
+            "fr": "tests des cartes que dure une bobine : le compte, l'ordre, alimentateurs éteints et inutilisés, la commande",
+            "it": "test delle schede che dura una bobina: il conteggio, l'ordine, alimentatori spenti e inutilizzati, il comando",
+            "ja": "リールの持ち枚数のテスト：数え方、順序、無効・未使用のフィーダー、表、コマンド",
+            "zh": "料盘可用板数的测试：计数、顺序、关闭和未使用的供料器、表、命令",
+            "pt": "testes das placas que dura uma bobina: a conta, a ordem, alimentadores desligados e sem uso, o comando"
+          }
+        },
+        {
           "name": "samples.rs",
           "desc": {
             "en": "tests of the examples of the calibrations and of the file of measures of the feeders",
@@ -2050,6 +2167,19 @@
           }
         },
         {
+          "name": "toolflow.rs",
+          "desc": {
+            "en": "tests of the panels for reels, nozzles, trouble spots, changeovers and kept values",
+            "es": "pruebas de los paneles de carretes, boquillas, puntos conflictivos y cambios, y de guardar los valores",
+            "de": "Tests der Felder für Rollen, Düsen, Problemstellen und Wechsel und des Speicherns der Formularwerte",
+            "fr": "tests des panneaux de bobines, buses, points sensibles et changements, et de l'enregistrement des valeurs",
+            "it": "test dei pannelli di bobine, nozzle, punti critici e cambi, e del salvataggio dei valori dei moduli",
+            "ja": "リール、ノズル、問題箇所、段取り替えのパネルとフォーム値の保存のテスト",
+            "zh": "料盘、吸嘴、故障热点、换料面板及保存表单值的测试",
+            "pt": "testes dos painéis de bobinas, bocais, pontos problemáticos e trocas, e da gravação dos valores"
+          }
+        },
+        {
           "name": "toolmore.rs",
           "desc": {
             "en": "tests of the compare and count panels of the Tools tab: against the commands, the files",
@@ -2073,6 +2203,19 @@
             "ja": "リール、手作業の部品、ジョブの差分、フィーダー配置、複数回実行のパネルとタブの語句のテスト",
             "zh": "料盘、手工贴装零件、作业差异、供料器位置和多次运行面板及选项卡文字的测试",
             "pt": "testes dos painéis de bobinas, peças à mão, diferenças de trabalhos, lugares dos alimentadores e muitas execuções, e das palavras do separador"
+          }
+        },
+        {
+          "name": "toolvalues.rs",
+          "desc": {
+            "en": "tests of the form values as settings: ranges, defaults, commands, keeping them",
+            "es": "pruebas de los valores de formularios como ajustes: rangos, defectos, comandos, guardarlos en el archivo",
+            "de": "Tests der Formularwerte als Einstellungen: Bereiche, Standardwerte, Befehle, Speichern in der Datei",
+            "fr": "tests des valeurs des formulaires comme réglages : plages, défauts, commandes, enregistrement dans le fichier",
+            "it": "test dei valori dei moduli come impostazioni: intervalli, predefiniti, comandi, salvataggio nel file",
+            "ja": "フォーム値の設定項目のテスト：範囲、既定値、コマンド、ファイルへの保存",
+            "zh": "表单值作为设置项的测试：范围、默认值、命令、保存到文件",
+            "pt": "testes dos valores dos formulários como definições: intervalos, predefinições, comandos, gravação no ficheiro"
           }
         },
         {
