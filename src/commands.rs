@@ -18,6 +18,7 @@ use eh3d_phoenix_pnp::heads::plan_heads;
 use eh3d_phoenix_pnp::hooks;
 use eh3d_phoenix_pnp::import::{self, expand_references, ColumnMap, Format};
 use eh3d_phoenix_pnp::job::{Job, Phase};
+use eh3d_phoenix_pnp::journal;
 use eh3d_phoenix_pnp::loadsheet;
 use eh3d_phoenix_pnp::marks;
 use eh3d_phoenix_pnp::model::Machine;
@@ -698,6 +699,7 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let recipe_path = flag(&mut args, "--recipe")?;
     let offsets_path = flag(&mut args, "--place-offsets")?;
     let hooks_path = flag(&mut args, "--hooks")?;
+    let journal_path = flag(&mut args, "--journal")?;
     let hooks_dry = switch(&mut args, "--hooks-dry-run");
     let steps = match flag(&mut args, "--steps")? {
         Some(v) => {
@@ -762,11 +764,23 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
         }
         None => None,
     };
-    for r in [&report_path, &csv_path, &text_path, &html_path]
-        .into_iter()
-        .flatten()
+    for r in [
+        &report_path,
+        &csv_path,
+        &text_path,
+        &html_path,
+        &journal_path,
+    ]
+    .into_iter()
+    .flatten()
     {
         refuse_same_file(&inputs, r)?;
+    }
+    // the journal, as the page, is never written over a file: that is told before the job runs
+    if let Some(j) = &journal_path {
+        if Path::new(j).exists() {
+            return Err(PnpError::new(Code::ReportExists, j.as_str()).localized(lang));
+        }
     }
     // the page is never written over a file: that is told before the job runs, not after
     if let Some(h) = &html_path {
@@ -825,7 +839,18 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
             println!("resumed from {sp}");
         }
     }
-    let outcome = job.run(steps);
+    let (outcome, journal_rows, journal_cut) = if journal_path.is_some() {
+        journal::run_recorded(&mut job, steps, 0)
+    } else {
+        (job.run(steps), Vec::new(), false)
+    };
+    if let Some(jp) = &journal_path {
+        report::write_new(jp, &journal::csv(&journal_rows)).map_err(l)?;
+        println!("journal: {}", journal::summary(&journal_rows));
+        if journal_cut {
+            println!("journal: cut at {} rows", journal::MAX_ROWS);
+        }
+    }
     if let Some(sp) = &state_path {
         write_atomic(sp, &job.save_state())?;
     }

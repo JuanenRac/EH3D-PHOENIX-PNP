@@ -26,6 +26,7 @@ pub mod hooks;
 pub mod import;
 pub mod inspect;
 pub mod job;
+pub mod journal;
 pub mod kicadmod;
 pub mod learn;
 pub mod loadsheet;

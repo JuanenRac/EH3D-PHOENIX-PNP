@@ -646,6 +646,15 @@ impl Job {
         self.cursor
     }
 
+    /// What the next step is for: whether it is a pick (else a place) and the index of the placement in the plan; `None` when the job is finished.
+    pub fn next_step(&self) -> Option<(bool, usize)> {
+        match self.cursor {
+            Cursor::Pick { batch, k } => Some((true, self.batches[batch][k])),
+            Cursor::Place { batch, k } => Some((false, self.batches[batch][k])),
+            Cursor::Finished => None,
+        }
+    }
+
     pub fn error(&self) -> Option<&PnpError> {
         self.error.as_ref()
     }

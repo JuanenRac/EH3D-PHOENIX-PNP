@@ -626,6 +626,19 @@
           }
         },
         {
+          "name": "journal.rs",
+          "desc": {
+            "en": "the journal of a simulated job: a row for every step, with how it ended",
+            "es": "el diario de un trabajo simulado: una fila por cada paso, con cómo acabó",
+            "de": "das Journal eines simulierten Auftrags: eine Zeile je Schritt, mit seinem Ausgang",
+            "fr": "le journal d'un travail simulé : une ligne par étape, avec sa fin",
+            "it": "il diario di un lavoro simulato: una riga per ogni passo, con come è finito",
+            "ja": "模擬ジョブのジャーナル：各ステップの行と、その結果",
+            "zh": "模拟作业的日志：每一步一行，并记录结果",
+            "pt": "o diário de um trabalho simulado: uma linha por cada passo, com o modo como acabou"
+          }
+        },
+        {
           "name": "kicadmod.rs",
           "desc": {
             "en": "the size of the body of a package, read from a footprint file of KiCad",
@@ -1319,6 +1332,19 @@
             "ja": "画面なしのジョブタブのテスト：状態、フィルター、進捗、ダイアログ",
             "zh": "无屏幕的作业标签页测试：状态、筛选、进度、对话框",
             "pt": "testes do separador Trabalho sem ecrã: estados, filtros, progresso, diálogo"
+          }
+        },
+        {
+          "name": "journal.rs",
+          "desc": {
+            "en": "tests of the journal of a job: a row for every step, the error that stops it, the command",
+            "es": "pruebas del diario de un trabajo: una fila por paso, el error que lo detiene, el comando",
+            "de": "Tests des Journals eines Auftrags: eine Zeile je Schritt, der stoppende Fehler, der Befehl",
+            "fr": "tests du journal d'un travail : une ligne par étape, l'erreur qui l'arrête, la commande",
+            "it": "test del diario di un lavoro: una riga per passo, l'errore che lo ferma, il comando",
+            "ja": "ジョブのジャーナルのテスト：各ステップの行、止めるエラー、コマンド",
+            "zh": "作业日志的测试：每步一行、使其停止的错误、命令",
+            "pt": "testes do diário de um trabalho: uma linha por passo, o erro que o pára, o comando"
           }
         },
         {
