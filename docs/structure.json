@@ -41,6 +41,19 @@
           }
         },
         {
+          "name": "asmexport.rs",
+          "desc": {
+            "en": "the parts written for assemblers: placement list, KiCad .pos, plain CSV, mm or inch",
+            "es": "las piezas escritas para ensambladores: lista de colocación, .pos de KiCad, CSV, mm o pulgadas",
+            "de": "die Teile für Bestücker geschrieben: Bestückungsliste, KiCad-.pos, einfaches CSV, mm oder Zoll",
+            "fr": "les pièces écrites pour les assembleurs : liste de placement, .pos KiCad, CSV simple, mm ou pouces",
+            "it": "le parti scritte per gli assemblatori: lista di posizionamento, .pos di KiCad, CSV semplice, mm o pollici",
+            "ja": "組立業者向けに部品を書き出す：実装リスト、KiCad .pos、単純なCSV、mmまたはインチ",
+            "zh": "为贴装厂输出元件：贴装清单、KiCad .pos、简单CSV，毫米或英寸",
+            "pt": "as peças escritas para montadores: lista de colocação, .pos do KiCad, CSV simples, mm ou polegadas"
+          }
+        },
+        {
           "name": "boardstats.rs",
           "desc": {
             "en": "the counts of a table of parts and the pairs of parts that sit too near each other",
@@ -77,6 +90,19 @@
             "ja": "カメラとノズル先端の校正、フィーダーの教示",
             "zh": "相机和吸嘴头的校准，以及供料器的示教",
             "pt": "as calibrações da câmara e da ponta do bico, e o ensino dos alimentadores"
+          }
+        },
+        {
+          "name": "calibsim.rs",
+          "desc": {
+            "en": "a camera calibration tried on a camera that is made up: sightings, fit, error",
+            "es": "una calibración de cámara probada en una cámara inventada: avistamientos, ajuste, error",
+            "de": "eine Kamerakalibrierung an einer erfundenen Kamera: Sichtungen, Anpassung, Fehler",
+            "fr": "un étalonnage de caméra essayé sur une caméra inventée : repérages, ajustement, erreur",
+            "it": "una calibrazione di telecamera provata su una telecamera inventata: rilevamenti, adattamento, errore",
+            "ja": "架空のカメラで試すカメラ校正：観測、フィット、誤差",
+            "zh": "在虚构相机上试验的相机标定：观测、拟合、误差",
+            "pt": "uma calibração de câmara experimentada numa câmara inventada: avistamentos, ajuste, erro"
           }
         },
         {
@@ -132,6 +158,19 @@
           }
         },
         {
+          "name": "cmd_flow.rs",
+          "desc": {
+            "en": "the flow commands that need no machine: selftest, template, lots, split, odds",
+            "es": "los comandos del flujo de un trabajo sin máquina: autoprueba, plantilla, lotes, reparto, riesgo",
+            "de": "Befehle für den Ablauf eines Auftrags ohne Maschine: Selbsttest, Vorlage, Chargen, Aufteilung, Ausfallchance",
+            "fr": "commandes du déroulement d'un travail sans machine : autotest, modèle, lots, partage, risques",
+            "it": "comandi del flusso di un lavoro senza macchina: autotest, modello, lotti, ripartizione, rischi",
+            "ja": "機械なしでジョブの流れを扱うコマンド：自己試験、テンプレート、ロット、分割、失敗確率",
+            "zh": "无需机器的作业流程命令：自检、模板、批次、拆分、失败概率",
+            "pt": "comandos do fluxo de um trabalho sem máquina: autoteste, modelo, lotes, repartição, risco"
+          }
+        },
+        {
           "name": "cmd_more.rs",
           "desc": {
             "en": "the commands of the diffs, board-stats, queue-stock, feeder-deplete and feeder-refill",
@@ -155,6 +194,19 @@
             "ja": "ジョブキューのコマンド：追加、状態、確認、編集、実行",
             "zh": "作业队列的命令：添加、状态、确认、编辑、运行",
             "pt": "os comandos da fila de trabalhos: adicionar, estado, confirmar, editar, executar"
+          }
+        },
+        {
+          "name": "cmd_server.rs",
+          "desc": {
+            "en": "the commands that talk to the EH3D server: send, request, status, job",
+            "es": "los comandos que hablan con el servidor EH3D: enviar, petición, estado, trabajo",
+            "de": "die Befehle für den EH3D-Server: senden, Anfrage, Status, Auftrag",
+            "fr": "les commandes qui parlent au serveur EH3D : envoyer, requête, état, travail",
+            "it": "i comandi che parlano con il server EH3D: invio, richiesta, stato, lavoro",
+            "ja": "EH3Dサーバーと通信するコマンド：送信、リクエスト、状態、ジョブ",
+            "zh": "与EH3D服务器通信的命令：发送、请求、状态、作业",
+            "pt": "os comandos que falam com o servidor EH3D: enviar, pedido, estado, trabalho"
           }
         },
         {
@@ -298,6 +350,19 @@
             "ja": "レポート、不足の一覧、移動の G コード",
             "zh": "报告、缺料清单和移动的 G 代码",
             "pt": "o relatório, a lista do que falta e o G-code dos movimentos"
+          }
+        },
+        {
+          "name": "failodds.rs",
+          "desc": {
+            "en": "the chance that a board goes through with no error for the retries allowed, by package",
+            "es": "la probabilidad de que una placa pase sin error con los reintentos permitidos, por encapsulado",
+            "de": "die Chance, dass eine Platine mit den erlaubten Wiederholungen fehlerfrei durchläuft, je Gehäuse",
+            "fr": "la probabilité qu'une carte passe sans erreur avec les reprises permises, par boîtier",
+            "it": "la probabilità che una scheda passi senza errori con i tentativi ammessi, per package",
+            "ja": "許可した再試行で基板がエラーなく通る確率（パッケージ別）",
+            "zh": "在允许重试次数下板子无错误通过的概率（按封装）",
+            "pt": "a probabilidade de uma placa passar sem erro com as repetições permitidas, por encapsulamento"
           }
         },
         {
@@ -808,6 +873,19 @@
           }
         },
         {
+          "name": "lottrace.rs",
+          "desc": {
+            "en": "the lot and the reel each placed part came from, and what is missing",
+            "es": "el lote y el carrete de donde salió cada pieza colocada, y lo que falta",
+            "de": "Charge und Rolle, aus der jedes bestückte Teil stammt, und was fehlt",
+            "fr": "le lot et la bobine d'où vient chaque pièce posée, et ce qui manque",
+            "it": "il lotto e la bobina da cui viene ogni parte posizionata, e ciò che manca",
+            "ja": "配置した各部品のロットとリール、不足しているもの",
+            "zh": "每个已贴装元件所来自的批次和料盘，以及缺少的信息",
+            "pt": "o lote e a bobina de onde veio cada peça colocada, e o que falta"
+          }
+        },
+        {
           "name": "main.rs",
           "desc": {
             "en": "the command line, and the entry of the window when it runs with no command",
@@ -1068,6 +1146,19 @@
           }
         },
         {
+          "name": "reorient.rs",
+          "desc": {
+            "en": "a table of parts turned, flipped or moved as a whole, keeping the distances",
+            "es": "una tabla de piezas girada, volteada o movida entera, conservando las distancias",
+            "de": "eine Teiletabelle als Ganzes gedreht, gespiegelt oder verschoben, Abstände bleiben",
+            "fr": "une table de pièces tournée, retournée ou déplacée d'un bloc, distances conservées",
+            "it": "una tabella di parti ruotata, ribaltata o spostata in blocco, distanze conservate",
+            "ja": "部品表全体を回転・反転・移動する（距離は不変）",
+            "zh": "整体旋转、翻转或平移的元件表，距离保持不变",
+            "pt": "uma tabela de peças rodada, virada ou movida no conjunto, mantendo as distâncias"
+          }
+        },
+        {
           "name": "report.rs",
           "desc": {
             "en": "the report of a job: phases, picks, groups, errors; text, HTML, CSV, JSON",
@@ -1120,6 +1211,19 @@
           }
         },
         {
+          "name": "server.rs",
+          "desc": {
+            "en": "the way to the EH3D server: requests, jobs, plain HTTP and a server in memory",
+            "es": "el camino al servidor EH3D: peticiones, trabajos, HTTP simple y un servidor en memoria",
+            "de": "der Weg zum EH3D-Server: Anfragen, Aufträge, einfaches HTTP und ein Server im Speicher",
+            "fr": "le chemin vers le serveur EH3D : requêtes, travaux, HTTP simple et un serveur en mémoire",
+            "it": "il percorso verso il server EH3D: richieste, lavori, HTTP semplice e un server in memoria",
+            "ja": "EH3Dサーバーへの経路：リクエスト、ジョブ、素のHTTP、メモリ上のサーバー",
+            "zh": "通往EH3D服务器的途径：请求、作业、纯HTTP和内存中的服务器",
+            "pt": "o caminho para o servidor EH3D: pedidos, trabalhos, HTTP simples e um servidor em memória"
+          }
+        },
+        {
           "name": "setup.rs",
           "desc": {
             "en": "the setup sheet: feeders by slot, missing parts, tips, calibrations",
@@ -1159,6 +1263,19 @@
           }
         },
         {
+          "name": "splitjob.rs",
+          "desc": {
+            "en": "one board shared between machines: whole feeders to each, the work balanced",
+            "es": "una placa repartida entre máquinas: alimentadores enteros a cada una, trabajo equilibrado",
+            "de": "eine Platine auf Maschinen verteilt: ganze Zuführungen je Maschine, Arbeit ausgeglichen",
+            "fr": "une carte partagée entre machines : alimentateurs entiers pour chacune, travail équilibré",
+            "it": "una scheda divisa tra macchine: alimentatori interi a ciascuna, lavoro bilanciato",
+            "ja": "基板を複数の機械で分担：フィーダー単位で割り当て、作業量を均等化",
+            "zh": "一块板分给多台机器：整个供料器分配，工作量均衡",
+            "pt": "uma placa repartida entre máquinas: alimentadores inteiros a cada uma, trabalho equilibrado"
+          }
+        },
+        {
           "name": "stock.rs",
           "desc": {
             "en": "the parts the feeders hold against the parts a run of boards needs",
@@ -1169,6 +1286,19 @@
             "ja": "フィーダーにある部品と基板ロットに必要な部品の比較",
             "zh": "供料器中的零件与一批板所需零件的对比",
             "pt": "as peças dos alimentadores face às que uma série de placas pede"
+          }
+        },
+        {
+          "name": "template.rs",
+          "desc": {
+            "en": "starting points for the settings of a machine, each read by the settings reader",
+            "es": "puntos de partida para los ajustes de una máquina, cada uno leído por el lector de ajustes",
+            "de": "Ausgangspunkte für die Einstellungen einer Maschine, jeder vom Einstellungsleser gelesen",
+            "fr": "points de départ pour les réglages d'une machine, chacun lu par le lecteur de réglages",
+            "it": "punti di partenza per le impostazioni di una macchina, ognuno letto dal lettore delle impostazioni",
+            "ja": "機械設定の出発点。どれも設定リーダーで読み込まれる",
+            "zh": "机器设置的起点，每个都由设置读取器读取",
+            "pt": "pontos de partida para as definições de uma máquina, cada um lido pelo leitor de definições"
           }
         },
         {
@@ -1283,6 +1413,19 @@
           }
         },
         {
+          "name": "asmexport.rs",
+          "desc": {
+            "en": "tests of the files for assemblers: columns, units, sides, read back, the command",
+            "es": "pruebas de los archivos para ensambladores: columnas, unidades, caras, lectura de vuelta, comando",
+            "de": "Tests der Dateien für Bestücker: Spalten, Einheiten, Seiten, Rücklesen, Befehl",
+            "fr": "tests des fichiers pour assembleurs : colonnes, unités, faces, relecture, commande",
+            "it": "test dei file per assemblatori: colonne, unità, lati, rilettura, comando",
+            "ja": "組立業者向けファイルのテスト：列、単位、面、読み戻し、コマンド",
+            "zh": "贴装厂文件的测试：列、单位、面、读回、命令",
+            "pt": "testes dos ficheiros para montadores: colunas, unidades, lados, releitura, comando"
+          }
+        },
+        {
           "name": "backlash.rs",
           "desc": {
             "en": "tests of the slack of the axes of the simulated machine",
@@ -1348,6 +1491,19 @@
           }
         },
         {
+          "name": "calibsim.rs",
+          "desc": {
+            "en": "tests of the camera calibration on a made-up camera: fit, mirror, noise, the command",
+            "es": "pruebas de la calibración de cámara en una cámara inventada: ajuste, espejo, ruido, comando",
+            "de": "Tests der Kamerakalibrierung an einer erfundenen Kamera: Anpassung, Spiegelung, Rauschen, Befehl",
+            "fr": "tests de l'étalonnage sur une caméra inventée : ajustement, miroir, bruit, commande",
+            "it": "test della calibrazione su una telecamera inventata: adattamento, specchio, rumore, comando",
+            "ja": "架空カメラでの校正テスト：フィット、ミラー、ノイズ、コマンド",
+            "zh": "虚构相机标定的测试：拟合、镜像、噪声、命令",
+            "pt": "testes da calibração numa câmara inventada: ajuste, espelho, ruído, comando"
+          }
+        },
+        {
           "name": "camera.rs",
           "desc": {
             "en": "tests of the camera model, the cameras of the heads and the camera of the simulator",
@@ -1371,6 +1527,19 @@
             "ja": "ジョブ間の変更のテスト：種類、交換と装着のリール、キュー、コマンド",
             "zh": "作业间更换的测试：种类、要更换和装上的料盘、队列、命令",
             "pt": "testes das trocas entre trabalhos: os tipos, as bobinas a trocar e pôr, a fila, o comando"
+          }
+        },
+        {
+          "name": "cli_all.rs",
+          "desc": {
+            "en": "tests that every command answers an error line, never a panic, and the help names them all",
+            "es": "pruebas de que cada comando responde con una línea de error, nunca un pánico, y la ayuda los nombra",
+            "de": "Tests, dass jeder Befehl eine Fehlerzeile statt einer Panik liefert und die Hilfe alle nennt",
+            "fr": "tests que chaque commande répond par une ligne d'erreur, jamais une panique, et que l'aide les nomme",
+            "it": "test che ogni comando risponda con una riga d'errore, mai un panic, e che l'aiuto li nomini tutti",
+            "ja": "全コマンドがパニックせずエラー行を返し、ヘルプが全てを挙げることのテスト",
+            "zh": "测试每个命令都返回错误行而不是崩溃，且帮助列出全部命令",
+            "pt": "testes de que cada comando responde com uma linha de erro, nunca um pânico, e a ajuda os nomeia"
           }
         },
         {
@@ -1465,6 +1634,19 @@
           }
         },
         {
+          "name": "failodds.rs",
+          "desc": {
+            "en": "tests of the odds of a good board: the retries, the rules, the file of rules, the command",
+            "es": "pruebas de la probabilidad de una buena placa: reintentos, reglas, archivo de reglas, comando",
+            "de": "Tests der Chance auf eine gute Platine: Wiederholungen, Regeln, Regeldatei, Befehl",
+            "fr": "tests de la probabilité d'une bonne carte : reprises, règles, fichier de règles, commande",
+            "it": "test della probabilità di una scheda buona: tentativi, regole, file di regole, comando",
+            "ja": "良品基板の確率のテスト：再試行、ルール、ルールファイル、コマンド",
+            "zh": "良品板概率的测试：重试、规则、规则文件、命令",
+            "pt": "testes da probabilidade de uma boa placa: repetições, regras, ficheiro de regras, comando"
+          }
+        },
+        {
           "name": "feeding.rs",
           "desc": {
             "en": "tests of the feeders: priority, trays and strips",
@@ -1514,6 +1696,19 @@
             "ja": "フィデューシャル適合の確認のテスト",
             "zh": "基准点拟合检查的测试",
             "pt": "testes da verificação do ajuste de fiduciais"
+          }
+        },
+        {
+          "name": "fuzz.rs",
+          "desc": {
+            "en": "tests with chance on a fixed seed: damaged files never panic, what is written is read back",
+            "es": "pruebas con azar de semilla fija: los archivos dañados no provocan pánico, lo escrito se lee de vuelta",
+            "de": "Tests mit Zufall und festem Startwert: beschädigte Dateien lösen keine Panik aus, Geschriebenes wird gelesen",
+            "fr": "tests avec hasard à graine fixe : les fichiers abîmés ne paniquent jamais, ce qui est écrit se relit",
+            "it": "test con il caso a seme fisso: i file danneggiati non vanno in panic, ciò che si scrive si rilegge",
+            "ja": "固定シードの乱数テスト：壊れたファイルでパニックせず、書いたものは読み戻せる",
+            "zh": "固定种子的随机测试：损坏文件不会崩溃，写出的内容可读回",
+            "pt": "testes com acaso de semente fixa: ficheiros danificados não dão pânico, o que se escreve volta a ler-se"
           }
         },
         {
@@ -1660,6 +1855,19 @@
           }
         },
         {
+          "name": "keys.rs",
+          "desc": {
+            "en": "tests of every key of the settings: the list, the example, the checks, duplicates",
+            "es": "pruebas de cada clave de los ajustes: la lista, el ejemplo, las comprobaciones, duplicados",
+            "de": "Tests jedes Schlüssels der Einstellungen: Liste, Beispiel, Prüfungen, Doppelte",
+            "fr": "tests de chaque clé des réglages : la liste, l'exemple, les contrôles, les doublons",
+            "it": "test di ogni chiave delle impostazioni: l'elenco, l'esempio, i controlli, i duplicati",
+            "ja": "設定の全キーのテスト：一覧、例、検証、重複",
+            "zh": "设置中每个键的测试：列表、示例、校验、重复",
+            "pt": "testes de cada chave das definições: a lista, o exemplo, as verificações, duplicados"
+          }
+        },
+        {
           "name": "kicadmod.rs",
           "desc": {
             "en": "tests of the footprints of KiCad: the body, the courtyard, damaged files, the row, the command",
@@ -1709,6 +1917,19 @@
             "ja": "カメラの追加確認と、レポートでフィーダーごとに数える確認のテスト",
             "zh": "相机额外查看以及报告中按供料器统计查看的测试",
             "pt": "testes dos olhares extra da câmara e dos olhares contados por alimentador no relatório"
+          }
+        },
+        {
+          "name": "lottrace.rs",
+          "desc": {
+            "en": "tests of the lot trace: the lot of each part, what is missing, the table of lots, the command",
+            "es": "pruebas de la trazabilidad por lote: el lote de cada pieza, lo que falta, la tabla de lotes, comando",
+            "de": "Tests der Chargenverfolgung: Charge je Teil, was fehlt, Chargentabelle, Befehl",
+            "fr": "tests de la traçabilité par lot : le lot de chaque pièce, les manques, la table des lots, commande",
+            "it": "test della tracciabilità per lotto: il lotto di ogni parte, ciò che manca, la tabella dei lotti, comando",
+            "ja": "ロット追跡のテスト：各部品のロット、不足、ロット表、コマンド",
+            "zh": "批次追溯的测试：每个元件的批次、缺失项、批次表、命令",
+            "pt": "testes da rastreabilidade por lote: o lote de cada peça, o que falta, a tabela de lotes, comando"
           }
         },
         {
@@ -1985,6 +2206,19 @@
           }
         },
         {
+          "name": "reorient.rs",
+          "desc": {
+            "en": "tests of the table moved as a whole: turn, flip, shift, distances kept, the command",
+            "es": "pruebas de la tabla movida entera: giro, volteo, desplazamiento, distancias, comando",
+            "de": "Tests der als Ganzes bewegten Tabelle: Drehung, Spiegelung, Verschiebung, Abstände, Befehl",
+            "fr": "tests de la table déplacée d'un bloc : rotation, retournement, décalage, distances, commande",
+            "it": "test della tabella mossa in blocco: rotazione, ribaltamento, spostamento, distanze, comando",
+            "ja": "表全体の移動のテスト：回転、反転、シフト、距離の保持、コマンド",
+            "zh": "整体移动表格的测试：旋转、翻转、平移、距离保持、命令",
+            "pt": "testes da tabela movida no conjunto: rotação, viragem, deslocamento, distâncias, comando"
+          }
+        },
+        {
           "name": "report.rs",
           "desc": {
             "en": "tests of the job report: phases, picks, histograms, groups, decisions, formats",
@@ -2034,6 +2268,19 @@
             "ja": "校正の例とフィーダー測定ファイルのテスト",
             "zh": "校准示例与供料器测量文件的测试",
             "pt": "testes dos exemplos das calibrações e do ficheiro de medidas dos alimentadores"
+          }
+        },
+        {
+          "name": "server.rs",
+          "desc": {
+            "en": "tests of the server link: settings, requests, server in memory, HTTP, commands",
+            "es": "pruebas del camino al servidor: ajustes, peticiones, el servidor en memoria, HTTP, comandos",
+            "de": "Tests des Wegs zum Server: Einstellungen, Anfragen, Server im Speicher, HTTP, Befehle",
+            "fr": "tests du chemin vers le serveur : réglages, requêtes, serveur en mémoire, HTTP, commandes",
+            "it": "test del percorso verso il server: impostazioni, richieste, server in memoria, HTTP, comandi",
+            "ja": "サーバーへの経路のテスト：設定、リクエスト、メモリ上のサーバー、HTTP、コマンド",
+            "zh": "服务器通路的测试：设置、请求、内存服务器、HTTP、命令",
+            "pt": "testes do caminho para o servidor: definições, pedidos, servidor em memória, HTTP, comandos"
           }
         },
         {
@@ -2089,6 +2336,19 @@
           }
         },
         {
+          "name": "splitjob.rs",
+          "desc": {
+            "en": "tests of the board shared between machines: whole feeders, balance, the command",
+            "es": "pruebas de la placa repartida entre máquinas: alimentadores enteros, equilibrio, comando",
+            "de": "Tests der auf Maschinen verteilten Platine: ganze Zuführungen, Ausgleich, Befehl",
+            "fr": "tests de la carte partagée entre machines : alimentateurs entiers, équilibre, commande",
+            "it": "test della scheda divisa tra macchine: alimentatori interi, bilanciamento, comando",
+            "ja": "機械間の分担テスト：フィーダー単位、均等化、コマンド",
+            "zh": "多机分板的测试：整个供料器、均衡、命令",
+            "pt": "testes da placa repartida entre máquinas: alimentadores inteiros, equilíbrio, comando"
+          }
+        },
+        {
           "name": "stock.rs",
           "desc": {
             "en": "tests of the stock for a run and of the parts to buy",
@@ -2138,6 +2398,19 @@
             "ja": "テープとトレイの教示のテスト",
             "zh": "料带与料盘示教的测试",
             "pt": "testes do ensino de tiras e tabuleiros"
+          }
+        },
+        {
+          "name": "template.rs",
+          "desc": {
+            "en": "tests of the starting points for the settings: valid, what each changes, the command",
+            "es": "pruebas de los puntos de partida de los ajustes: válidos, lo que cambia cada uno, comando",
+            "de": "Tests der Ausgangspunkte für die Einstellungen: gültig, was jeder ändert, Befehl",
+            "fr": "tests des points de départ des réglages : valides, ce que chacun change, commande",
+            "it": "test dei punti di partenza delle impostazioni: validi, cosa cambia ciascuno, comando",
+            "ja": "設定の出発点のテスト：有効性、各テンプレートの変更点、コマンド",
+            "zh": "设置起点的测试：有效性、各自的改动、命令",
+            "pt": "testes dos pontos de partida das definições: válidos, o que cada um muda, comando"
           }
         },
         {
@@ -2447,6 +2720,19 @@
           }
         },
         {
+          "name": "failure_rules.csv",
+          "desc": {
+            "en": "retries by package for failure-odds",
+            "es": "reintentos por encapsulado para failure-odds",
+            "de": "Wiederholungen je Gehäuse für failure-odds",
+            "fr": "reprises par boîtier pour failure-odds",
+            "it": "tentativi per package per failure-odds",
+            "ja": "failure-odds用のパッケージ別再試行",
+            "zh": "failure-odds 按封装的重试次数",
+            "pt": "repetições por encapsulamento para failure-odds"
+          }
+        },
+        {
           "name": "feeder_measures.csv",
           "desc": {
             "en": "places measured for a strip and a tray, for feeder-teach",
@@ -2561,6 +2847,19 @@
             "ja": "最短のレシピ：準備、ピック、配置",
             "zh": "最短的配方：准备、拾取和贴装",
             "pt": "a receita mais curta: preparar, recolher e colocar"
+          }
+        },
+        {
+          "name": "lots.csv",
+          "desc": {
+            "en": "the lot and reel in each feeder, for lot-trace",
+            "es": "el lote y el carrete de cada alimentador, para lot-trace",
+            "de": "Charge und Rolle in jeder Zuführung, für lot-trace",
+            "fr": "le lot et la bobine de chaque alimentateur, pour lot-trace",
+            "it": "il lotto e la bobina di ogni alimentatore, per lot-trace",
+            "ja": "lot-trace用の各フィーダーのロットとリール",
+            "zh": "lot-trace 用的各供料器批次与料盘",
+            "pt": "o lote e a bobina de cada alimentador, para lot-trace"
           }
         },
         {
