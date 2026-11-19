@@ -1,10 +1,10 @@
-// EH3D-PHOENIX-PNP - the commands that check, calibrate and make files: bom-check, bom-order, camera-calibrate, camera-pattern, camera-combined, package-kicad, nozzle-calibrate, feeder-teach, panelize and polarity-sheet.
+// EH3D-PHOENIX-PNP - the commands that check, calibrate and make files: bom-check, bom-order, camera-calibrate, camera-pattern, camera-combined, package-kicad, place-learn, nozzle-calibrate, feeder-teach, panelize and polarity-sheet.
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 //
 // Each one reads its files, calls the library and prints; none of them moves or writes anything but the file named by --out, and a file that exists is never written over.
 
 use crate::cli_args::{finish, flag, num, switch};
-use crate::commands::{read_text, refuse_same_file};
+use crate::commands::{read_text, refuse_same_file, write_atomic};
 use eh3d_phoenix_pnp::bom::{
     buy_after_stock, buy_csv, compare, order as bom_order_lines, order_csv, Bom,
 };
@@ -19,6 +19,7 @@ use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::feeding;
 use eh3d_phoenix_pnp::kicadmod;
+use eh3d_phoenix_pnp::learn::{self, LearnSettings, Learned};
 use eh3d_phoenix_pnp::nozzlelife;
 use eh3d_phoenix_pnp::panel::{grid_panel, Grid};
 use eh3d_phoenix_pnp::parts::{parse_all, Side};
@@ -280,6 +281,76 @@ pub fn package_kicad(mut args: Vec<String>) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("{} footprints were not read", problems.len()))
+    }
+}
+
+/// `place-learn READINGS --state F [--residual] [--dry-run]`, `place-learn --state F --show` and `place-learn --state F --forget PACKAGE`: the offset of the placement of each package, learned
+/// from readings (`package,dx_mm,dy_mm`: how far a part ended from its place) and kept in the file of `--state`, which is written beside and renamed. Learning is off until `place_learn` is on
+/// (showing and forgetting are not). The strays are left out, a package with too few readings is not touched, and no offset is larger than `place_learn_cap_mm`. `--residual` says that the
+/// readings were taken on parts placed with the offsets already applied. `--dry-run` shows what would change and writes nothing.
+pub fn place_learn(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let state = flag(&mut args, "--state")?
+        .ok_or("place-learn needs --state FILE (the file of the learned offsets)")?;
+    let forget = flag(&mut args, "--forget")?;
+    let show = switch(&mut args, "--show");
+    let residual = switch(&mut args, "--residual");
+    let dry = switch(&mut args, "--dry-run");
+    finish(&args, 1)?;
+    let l = |e: PnpError| e.localized(lang);
+    let mut learned = if Path::new(&state).exists() {
+        Learned::parse(&read_text(&state, cfg.max_file_bytes)?).map_err(l)?
+    } else {
+        Learned::new()
+    };
+    if show {
+        if !args.is_empty() || forget.is_some() || residual || dry {
+            return Err("--show is used alone, with --state".into());
+        }
+        println!("{}", learned.summary());
+        return Ok(());
+    }
+    if let Some(name) = forget {
+        if !args.is_empty() || residual {
+            return Err("--forget is used with --state only".into());
+        }
+        if !learned.forget(&name) {
+            return Err(format!("nothing is learned of the package '{name}'"));
+        }
+        if !dry {
+            write_atomic(&state, &learned.to_text())?;
+        }
+        println!("{}", learned.summary());
+        return Ok(());
+    }
+    learn::allowed(&cfg)?;
+    let path = args
+        .first()
+        .ok_or("place-learn needs a file of readings (package,dx_mm,dy_mm)")?;
+    refuse_same_file(std::slice::from_ref(path), &state)?;
+    let readings = learn::parse_readings(&read_text(path, cfg.max_file_bytes)?).map_err(l)?;
+    if readings.is_empty() {
+        return Err("the file has no readings".into());
+    }
+    let outcomes = learned
+        .learn(&readings, &LearnSettings::from_config(&cfg), residual)
+        .map_err(l)?;
+    for o in &outcomes {
+        println!("{}", o.line());
+    }
+    let changed = outcomes.iter().filter(|o| o.skipped.is_none()).count();
+    if dry {
+        println!("{changed} packages would change; nothing was written (--dry-run)");
+    } else if changed > 0 {
+        write_atomic(&state, &learned.to_text())?;
+        println!("{changed} packages learned; written to {state}");
+    } else {
+        println!("nothing was learned; {state} was not written");
+    }
+    if changed == 0 {
+        Err("no package had enough readings".into())
+    } else {
+        Ok(())
     }
 }
 

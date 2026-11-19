@@ -319,6 +319,8 @@ pub struct Job {
     last_feeder: Option<usize>,
     /// The feeder that each nozzle took the part it holds from, to count the part as placed from that feeder.
     held_from: Vec<Option<usize>>,
+    /// The offset of the placement learned for each package (by the index of the package in `stats.kinds`), taken out of the place; empty when none is applied.
+    place_offsets: Vec<(f64, f64)>,
     /// The feeder that the pick step in progress takes from, to add the time of the step to the feeder.
     picking_from: Option<usize>,
     /// The part whose pick an error stopped, so that the pick tried again is not counted as one at the first attempt.
@@ -472,6 +474,7 @@ impl Job {
             trace: Trace::default(),
             last_feeder: None,
             held_from,
+            place_offsets: Vec::new(),
             picking_from: None,
             stopped_pick: None,
             recipe: None,
@@ -610,6 +613,22 @@ impl Job {
     /// The settings of the vision pipeline for the simulated camera. They count only when the configuration says `vision = pipeline`; otherwise the camera reports its offset directly.
     pub fn set_vision(&mut self, settings: VisionConfig) {
         self.camera.set_vision(settings);
+    }
+
+    /// Takes the offsets of the placement that were learned, `(package, dx, dy)`, out of the places: the head goes to the place of a part less the offset of its package. A package with no
+    /// offset is placed where the plan says. The offsets are not part of the saved state: give them again when a job is resumed.
+    pub fn set_place_offsets(&mut self, offsets: &[(String, f64, f64)]) {
+        self.place_offsets = self
+            .stats
+            .kinds
+            .iter()
+            .map(|k| {
+                offsets
+                    .iter()
+                    .find(|o| o.0.trim().eq_ignore_ascii_case(k.package.trim()))
+                    .map_or((0.0, 0.0), |o| (o.1, o.2))
+            })
+            .collect();
     }
 
     /// The simulated feeders, in the order of the list.
@@ -1368,10 +1387,26 @@ impl Job {
         }
         // the camera found the part off the nozzle by this much: the head goes to the place less that, and the nozzle turns less that
         let correction = self.corrections[nozzle];
-        let target = match correction {
+        let mut target = match correction {
             Some(c) => (pl.x - c.dx_mm, pl.y - c.dy_mm),
             None => (pl.x, pl.y),
         };
+        // the offset learned for the package, when there is one: the machine puts the parts of that package off by it, so the head goes the other way
+        let learned = self
+            .place_offsets
+            .get(self.kind_of(self.index[&pl.feeder]))
+            .copied()
+            .filter(|o| *o != (0.0, 0.0));
+        if let Some(o) = learned {
+            target = (target.0 - o.0, target.1 - o.1);
+            self.machine.note(format!(
+                "nozzle {} places {} with the learned offset X {:+.4} Y {:+.4} mm taken out",
+                nozzle + 1,
+                pl.reference,
+                o.0,
+                o.1
+            ));
+        }
         self.travel(target)?;
         if let Some(c) = correction {
             self.machine.note(format!(

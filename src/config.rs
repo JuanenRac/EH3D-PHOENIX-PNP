@@ -20,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 162] = [
+pub const KEYS: [&str; 168] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -183,6 +183,12 @@ pub const KEYS: [&str; 162] = [
     "camera_pattern_origin_y_mm",
     "camera_combined_touch",
     "align_rereads",
+    "place_learn",
+    "place_learn_apply",
+    "place_learn_cap_mm",
+    "place_learn_outlier",
+    "place_learn_min",
+    "place_learn_memory",
 ];
 
 /// The order in which the places are visited.
@@ -569,6 +575,18 @@ pub struct MachineConfig {
     pub camera_combined_touch: bool,
     /// How many more times the camera looks at a part whose first look was further than `pick_tolerance_mm` before the part is thrown away (0 to 5; 0 throws it away at once). A look that is within the tolerance is taken as the first look.
     pub align_rereads: u32,
+    /// Learning the offset of the placement of each package from readings (`place-learn`) is allowed. Off by default.
+    pub place_learn: bool,
+    /// A job may take the learned offsets out of the places (`simulate --place-offsets`). Off by default.
+    pub place_learn_apply: bool,
+    /// The largest learned offset, in millimetres either way (0.01 to 1).
+    pub place_learn_cap_mm: f64,
+    /// A reading farther from the median of its package than this many spreads is left out (1.5 to 10).
+    pub place_learn_outlier: f64,
+    /// The fewest readings of a package, once the strays are out, for its offset to change (1 to 1000).
+    pub place_learn_min: u32,
+    /// How many readings the offset that is already learned counts for when new readings come in (1 to 100000).
+    pub place_learn_memory: u32,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -725,6 +743,12 @@ impl Default for MachineConfig {
             camera_pattern_origin_y_mm: 0.0,
             camera_combined_touch: false,
             align_rereads: 0,
+            place_learn: false,
+            place_learn_apply: false,
+            place_learn_cap_mm: 0.3,
+            place_learn_outlier: 3.5,
+            place_learn_min: 3,
+            place_learn_memory: 100,
         }
     }
 }
@@ -1287,6 +1311,12 @@ impl MachineConfig {
             "camera_pattern_origin_y_mm" => self.camera_pattern_origin_y_mm = n(-10000.0, 10000.0)?,
             "camera_combined_touch" => self.camera_combined_touch = flag(line, key, v)?,
             "align_rereads" => self.align_rereads = int(line, key, v, 0, 5)? as u32,
+            "place_learn" => self.place_learn = flag(line, key, v)?,
+            "place_learn_apply" => self.place_learn_apply = flag(line, key, v)?,
+            "place_learn_cap_mm" => self.place_learn_cap_mm = n(0.01, 1.0)?,
+            "place_learn_outlier" => self.place_learn_outlier = n(1.5, 10.0)?,
+            "place_learn_min" => self.place_learn_min = int(line, key, v, 1, 1000)? as u32,
+            "place_learn_memory" => self.place_learn_memory = int(line, key, v, 1, 100000)? as u32,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

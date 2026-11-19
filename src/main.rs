@@ -27,7 +27,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
 
   phoenix-pnp schedule PARTS FEEDERS OUT.json [OPTIONS] [--report-text F] [--gcode F] [--missing F] [--svg F] [--partial]
   phoenix-pnp preflight PARTS FEEDERS [OPTIONS]            the checks before a job, without writing anything
-  phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--report-csv F] [--report-text F] [--report-html F] [--report-feeders F] [--nozzle-life F] [--vision F] [--recipe F] [--partial]
+  phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--report-csv F] [--report-text F] [--report-html F] [--report-feeders F] [--nozzle-life F] [--vision F] [--recipe F] [--place-offsets F] [--partial]
   phoenix-pnp loadsheet PARTS SLOTS OUT.csv [OPTIONS] [--feeders-out F]
   phoenix-pnp setup-sheet PARTS FEEDERS [OPTIONS] [--boards N] [--life F] [--out F]   what to load in which slot, the parts missing for N boards, the nozzle tips and how worn they are, the calibrations the job depends on and whether they are set, in the language of --lang; exits with 1 when parts are missing
   phoenix-pnp order-compare PARTS FEEDERS [OPTIONS]   the board planned with every order of the places and every way of changing the nozzle tips, side by side: batches, tip changes, travel and seconds, the fastest marked and what it would save over the configuration
@@ -41,6 +41,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp camera-combined FILE [--pitch MM] [--origin X,Y | --touch] [--config F] [--lang CODE]   the camera, the turn of the sheet and the bending of the lens from a pattern fixed to the bed while the head moves (head_x,head_y,col,row,px,py); off until camera_combined is on; --touch (or camera_combined_touch = on) takes the origin from a row origin,X,Y of the file; exits with 1 when a sighting is over camera_pattern_max_residual_mm
   phoenix-pnp package-gen [NAME...] [--from PARTS] [--out F] [--config F] [--lang CODE]   the rows of a table of packages (height, tape, body) for packages named by their standard (0603, R0805, SOT-23, SOIC-8, TSSOP-14, QFN-32-5x5, LQFP-48...) and for those of a position file; exits with 1 when a name is not known
   phoenix-pnp package-kicad PATH... [--height MM] [--out F] [--config F] [--lang CODE]   the rows of a table of packages (body, tape, height) from footprint files of KiCad (.kicad_mod, or a folder of them): the body is the drawing on the fabrication layer; the height is that of the package when its name is a known one, or --height; exits with 1 when a footprint is not understood
+  phoenix-pnp place-learn READINGS --state F [--residual] [--dry-run] [--config F] [--lang CODE]   learns the mean offset of the placement of each package from readings (package,dx_mm,dy_mm), leaving the strays out and holding it within place_learn_cap_mm; off until place_learn is on; --show and --forget PACKAGE read and trim the file
   phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS [--panel] [--boards N] [--side top|bottom] [--config F] [--packages F] [--catalog F] [--relative]   puts a job (a table of parts, or a panel with --panel) at the end of a queue of jobs
   phoenix-pnp queue-status QUEUE [--check] [--config F]   the jobs of the queue and what became of each; --check plans the ones still to be made and exits with 1 when one cannot run now
   phoenix-pnp queue-confirm QUEUE NAME   records that the plan of the job, as it is now, was looked at and may be run (void when the files change)
@@ -223,6 +224,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "camera-combined" => cmd_tools::camera_combined(args),
         "package-gen" => cmd_tools::package_gen(args),
         "package-kicad" => cmd_tools::package_kicad(args),
+        "place-learn" => cmd_tools::place_learn(args),
         "queue-add" => cmd_queue::queue_add(args),
         "queue-status" => cmd_queue::queue_status(args),
         "queue-confirm" => cmd_queue::queue_confirm(args),

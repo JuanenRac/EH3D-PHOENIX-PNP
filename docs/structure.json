@@ -613,6 +613,19 @@
           }
         },
         {
+          "name": "learn.rs",
+          "desc": {
+            "en": "the offset of the placement of each package, learned from readings",
+            "es": "el desplazamiento de colocación de cada paquete, aprendido de lecturas",
+            "de": "der Bestückungsversatz je Package, aus Messwerten gelernt",
+            "fr": "le décalage de placement de chaque boîtier, appris à partir de mesures",
+            "it": "lo scostamento di posizionamento di ogni package, appreso da misure",
+            "ja": "測定値から学習するパッケージごとの搭載ずれ",
+            "zh": "根据读数学习的每种封装的贴装偏移",
+            "pt": "o desvio de colocação de cada encapsulamento, aprendido de leituras"
+          }
+        },
+        {
           "name": "lib.rs",
           "desc": {
             "en": "the library: what every command uses",
@@ -1267,6 +1280,19 @@
             "ja": "KiCad フットプリントのテスト：本体、コートヤード、壊れたファイル、行、コマンド",
             "zh": "KiCad 封装测试：本体、占位区、损坏文件、行、命令",
             "pt": "testes das pegadas do KiCad: o corpo, a área de reserva, ficheiros danificados, a linha, o comando"
+          }
+        },
+        {
+          "name": "learn.rs",
+          "desc": {
+            "en": "tests of the learned offsets: the readings, the strays, the cap, the file, the job, the command",
+            "es": "pruebas de los desplazamientos aprendidos: lecturas, atípicos, tope, fichero, trabajo, comando",
+            "de": "Tests der gelernten Versätze: Messwerte, Ausreißer, Grenze, Datei, Auftrag, Befehl",
+            "fr": "tests des décalages appris : mesures, aberrantes, plafond, fichier, travail, commande",
+            "it": "test degli scostamenti appresi: misure, anomali, limite, file, lavoro, comando",
+            "ja": "学習したずれのテスト：測定値、外れ値、上限、ファイル、ジョブ、コマンド",
+            "zh": "学习偏移测试：读数、离群值、上限、文件、作业、命令",
+            "pt": "testes dos desvios aprendidos: leituras, atípicos, limite, ficheiro, trabalho, comando"
           }
         },
         {

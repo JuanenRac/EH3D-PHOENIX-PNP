@@ -613,6 +613,7 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let life_path = flag(&mut args, "--nozzle-life")?;
     let vision_path = flag(&mut args, "--vision")?;
     let recipe_path = flag(&mut args, "--recipe")?;
+    let offsets_path = flag(&mut args, "--place-offsets")?;
     let steps = match flag(&mut args, "--steps")? {
         Some(v) => {
             let n = num(&v, "--steps")?;
@@ -644,6 +645,18 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
                 VisionConfig::parse(&read_text(vp, MAX_VISION_BYTES as u64)?).map_err(l)?;
             inputs.push(vp.clone());
             Some(settings)
+        }
+        None => None,
+    };
+    // the offsets that were learned are found valid, and allowed, before the job is run
+    let offsets = match &offsets_path {
+        Some(op) => {
+            eh3d_phoenix_pnp::learn::apply_allowed(&p.c.cfg)?;
+            let learned =
+                eh3d_phoenix_pnp::learn::Learned::parse(&read_text(op, p.c.cfg.max_file_bytes)?)
+                    .map_err(l)?;
+            inputs.push(op.clone());
+            Some(learned.for_job(p.c.cfg.place_learn_cap_mm))
         }
         None => None,
     };
@@ -694,6 +707,9 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let mut job = Job::new(planned.plan, p.feeders.clone(), p.c.cfg.clone()).map_err(l)?;
     if let Some(settings) = vision {
         job.set_vision(settings);
+    }
+    if let Some(o) = &offsets {
+        job.set_place_offsets(o);
     }
     if let Some(r) = recipe {
         job.set_recipe(r).map_err(l)?;
