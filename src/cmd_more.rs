@@ -6,10 +6,10 @@
 use crate::cli_args::{finish, flag, num};
 use crate::cmd_tools::language_and_config;
 use crate::commands::{read_text, refuse_same_file};
-use eh3d_phoenix_pnp::error::PnpError;
+use eh3d_phoenix_pnp::config::MAX_CONFIG_BYTES;
+use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::parts::parse_all;
-use eh3d_phoenix_pnp::partsdiff;
-use eh3d_phoenix_pnp::report;
+use eh3d_phoenix_pnp::{configdiff, partsdiff, report};
 
 /// `parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F]`: what changed between two tables of parts, part by part (added, removed, moved, turned, another value, another package,
 /// the other side). The report goes to the screen, or the changes as a CSV to `--out` (never over a file that exists). The exit code is 1 when the tables differ.
@@ -42,5 +42,32 @@ pub fn parts_diff(mut args: Vec<String>) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("{} parts differ", diff.parts_changed()))
+    }
+}
+
+/// `config-diff FIRST SECOND [--lang CODE]`: the settings that two configuration files give differently, in what they mean (`yes` and `on`, `5` and `5.0`, and a line that gives the
+/// default are the same as they are). The exit code is 1 when the machines differ.
+pub fn config_diff(mut args: Vec<String>) -> Result<(), String> {
+    let lang = match flag(&mut args, "--lang")? {
+        Some(l) => Lang::from_code(&l)
+            .ok_or_else(|| format!("--lang '{l}' is not one of en es de fr it ja zh pt"))?,
+        None => Lang::En,
+    };
+    finish(&args, 2)?;
+    let (a, b) = match (args.first(), args.get(1)) {
+        (Some(a), Some(b)) => (a.clone(), b.clone()),
+        _ => return Err("config-diff needs two configuration files".into()),
+    };
+    let first = read_text(&a, MAX_CONFIG_BYTES as u64)?;
+    let second = read_text(&b, MAX_CONFIG_BYTES as u64)?;
+    let diff = configdiff::diff(&first, &second).map_err(|(which, e)| {
+        let path = if which == "first" { &a } else { &b };
+        format!("{path}: {}", e.localized(lang))
+    })?;
+    print!("{}", diff.text());
+    if diff.is_same() {
+        Ok(())
+    } else {
+        Err(format!("{} settings differ", diff.changes.len()))
     }
 }

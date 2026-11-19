@@ -11,6 +11,7 @@ pub mod catalog;
 pub mod combined;
 pub mod compare;
 pub mod config;
+pub mod configdiff;
 pub mod error;
 pub mod exchange;
 pub mod export;

@@ -197,6 +197,19 @@
           }
         },
         {
+          "name": "configdiff.rs",
+          "desc": {
+            "en": "what two configuration files give differently, in what they mean",
+            "es": "lo que dos ficheros de configuración dan distinto, en lo que significan",
+            "de": "was zwei Konfigurationsdateien verschieden festlegen, nach Bedeutung",
+            "fr": "ce que deux fichiers de configuration donnent différemment, selon leur sens",
+            "it": "ciò che due file di configurazione danno in modo diverso, nel significato",
+            "ja": "2つの設定ファイルで意味が異なる項目",
+            "zh": "两个配置文件在含义上的差异",
+            "pt": "o que dois ficheiros de configuração dão de forma diferente, no significado"
+          }
+        },
+        {
           "name": "error.rs",
           "desc": {
             "en": "the error codes PHOENIX-PNP-NNN and their meaning in eight languages",
@@ -1176,6 +1189,19 @@
             "ja": "順序比較のテスト：最速、テキスト、助言、コマンド",
             "zh": "顺序比较的测试：最快者、文本、建议和命令",
             "pt": "testes da comparação das ordens: a mais rápida, o texto, o conselho, o comando"
+          }
+        },
+        {
+          "name": "configdiff.rs",
+          "desc": {
+            "en": "tests of the difference of two configurations: same meaning, the default, lists",
+            "es": "pruebas de la diferencia entre configuraciones: mismo sentido, el valor por defecto, listas",
+            "de": "Tests des Unterschieds zweier Konfigurationen: gleiche Bedeutung, Standardwert, Listen",
+            "fr": "tests de la différence entre deux configurations : même sens, valeur par défaut, listes",
+            "it": "test della differenza tra configurazioni: stesso significato, valore predefinito, liste",
+            "ja": "設定の差分のテスト：同じ意味、既定値、リスト",
+            "zh": "配置差异的测试：相同含义、默认值、列表",
+            "pt": "testes da diferença entre configurações: mesmo significado, valor por omissão, listas"
           }
         },
         {
