@@ -27,7 +27,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
 
   phoenix-pnp schedule PARTS FEEDERS OUT.json [OPTIONS] [--report-text F] [--gcode F] [--missing F] [--svg F] [--partial]
   phoenix-pnp preflight PARTS FEEDERS [OPTIONS]            the checks before a job, without writing anything
-  phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--report-csv F] [--report-text F] [--report-html F] [--report-feeders F] [--nozzle-life F] [--vision F] [--recipe F] [--place-offsets F] [--partial]
+  phoenix-pnp simulate PARTS FEEDERS [OPTIONS] [--state F] [--steps N] [--report F] [--report-csv F] [--report-text F] [--report-html F] [--report-feeders F] [--nozzle-life F] [--vision F] [--recipe F] [--place-offsets F] [--hooks F] [--hooks-dry-run] [--partial]
   phoenix-pnp loadsheet PARTS SLOTS OUT.csv [OPTIONS] [--feeders-out F]
   phoenix-pnp setup-sheet PARTS FEEDERS [OPTIONS] [--boards N] [--life F] [--out F]   what to load in which slot, the parts missing for N boards, the nozzle tips and how worn they are, the calibrations the job depends on and whether they are set, in the language of --lang; exits with 1 when parts are missing
   phoenix-pnp order-compare PARTS FEEDERS [OPTIONS]   the board planned with every order of the places and every way of changing the nozzle tips, side by side: batches, tip changes, travel and seconds, the fastest marked and what it would save over the configuration

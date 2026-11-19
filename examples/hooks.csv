@@ -1,0 +1,8 @@
+# event,program,argument...
+# The program is the name of a file that lies in the same folder as this file, made of letters, digits, '.', '_' and '-'. It is run with no shell, with these arguments only.
+# {event} {reference} {feeder} {reason} {phase} {placed} {total} stand for the data of the event. Hooks are off until hooks = on in the configuration.
+event,program,argument
+job-finished,notify,{event},{placed},{total}
+job-stopped,notify,{event},{phase}
+part-aside,notify,{event},{reference},{reason}
+feeder-off,notify,{event},{feeder}

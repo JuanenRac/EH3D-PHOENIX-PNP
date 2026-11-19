@@ -20,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 168] = [
+pub const KEYS: [&str; 171] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -189,6 +189,9 @@ pub const KEYS: [&str; 168] = [
     "place_learn_outlier",
     "place_learn_min",
     "place_learn_memory",
+    "hooks",
+    "hooks_timeout_s",
+    "hooks_max_runs",
 ];
 
 /// The order in which the places are visited.
@@ -587,6 +590,12 @@ pub struct MachineConfig {
     pub place_learn_min: u32,
     /// How many readings the offset that is already learned counts for when new readings come in (1 to 100000).
     pub place_learn_memory: u32,
+    /// Programs may be run for the events of a job (`simulate --hooks`). Off by default.
+    pub hooks: bool,
+    /// The seconds a hook may run before it is stopped (1 to 60).
+    pub hooks_timeout_s: f64,
+    /// The most programs run for one job (1 to 100); the rest are left out and told.
+    pub hooks_max_runs: u32,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -749,6 +758,9 @@ impl Default for MachineConfig {
             place_learn_outlier: 3.5,
             place_learn_min: 3,
             place_learn_memory: 100,
+            hooks: false,
+            hooks_timeout_s: 5.0,
+            hooks_max_runs: 20,
         }
     }
 }
@@ -1317,6 +1329,9 @@ impl MachineConfig {
             "place_learn_outlier" => self.place_learn_outlier = n(1.5, 10.0)?,
             "place_learn_min" => self.place_learn_min = int(line, key, v, 1, 1000)? as u32,
             "place_learn_memory" => self.place_learn_memory = int(line, key, v, 1, 100000)? as u32,
+            "hooks" => self.hooks = flag(line, key, v)?,
+            "hooks_timeout_s" => self.hooks_timeout_s = n(1.0, 60.0)?,
+            "hooks_max_runs" => self.hooks_max_runs = int(line, key, v, 1, 100)? as u32,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

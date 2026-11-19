@@ -22,6 +22,7 @@ pub mod fidcheck;
 pub mod fiducial;
 pub mod gui;
 pub mod heads;
+pub mod hooks;
 pub mod import;
 pub mod inspect;
 pub mod job;

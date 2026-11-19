@@ -15,6 +15,7 @@ use eh3d_phoenix_pnp::feedrep;
 use eh3d_phoenix_pnp::fidcheck;
 use eh3d_phoenix_pnp::fiducial;
 use eh3d_phoenix_pnp::heads::plan_heads;
+use eh3d_phoenix_pnp::hooks;
 use eh3d_phoenix_pnp::import::{self, expand_references, ColumnMap, Format};
 use eh3d_phoenix_pnp::job::{Job, Phase};
 use eh3d_phoenix_pnp::loadsheet;
@@ -637,6 +638,53 @@ pub fn job_export(mut args: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
+/// Runs the hooks for the events of a job (or only lists them, with `dry`): what each one did is told, and none of it changes the job or the exit code.
+fn run_hooks(rules: &[hooks::Rule], rules_path: &str, job: &Job, dry: bool) {
+    let cfg = job.config();
+    let (calls, left_out) =
+        hooks::calls_for(rules, &hooks::events_of(job), cfg.hooks_max_runs as usize);
+    let folder = Path::new(rules_path)
+        .parent()
+        .filter(|f| !f.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    for c in &calls {
+        if dry {
+            println!("hook (not run): {}", c.line());
+            continue;
+        }
+        match hooks::run_call(folder, c, cfg.hooks_timeout_s) {
+            hooks::Outcome::Ran { code: 0, output } => {
+                println!("hook {}: ran{}", c.line(), shown(&output));
+            }
+            hooks::Outcome::Ran { code, output } => {
+                println!(
+                    "hook {}: ended with code {code}{}",
+                    c.line(),
+                    shown(&output)
+                );
+            }
+            hooks::Outcome::TimedOut => {
+                println!("hook {}: stopped after {} s", c.line(), cfg.hooks_timeout_s)
+            }
+            hooks::Outcome::Failed(why) => println!("hook {}: not run, {why}", c.line()),
+        }
+    }
+    if left_out > 0 {
+        println!(
+            "{left_out} more hooks were left out: hooks_max_runs is {}",
+            cfg.hooks_max_runs
+        );
+    }
+}
+
+fn shown(output: &str) -> String {
+    if output.is_empty() {
+        String::new()
+    } else {
+        format!(", it said: {}", output.replace('\n', " | "))
+    }
+}
+
 /// `simulate`: carries the plan out on the simulated machine, and can pause, save the state and resume from it.
 pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let state_path = flag(&mut args, "--state")?;
@@ -649,6 +697,8 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     let vision_path = flag(&mut args, "--vision")?;
     let recipe_path = flag(&mut args, "--recipe")?;
     let offsets_path = flag(&mut args, "--place-offsets")?;
+    let hooks_path = flag(&mut args, "--hooks")?;
+    let hooks_dry = switch(&mut args, "--hooks-dry-run");
     let steps = match flag(&mut args, "--steps")? {
         Some(v) => {
             let n = num(&v, "--steps")?;
@@ -682,6 +732,23 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
             Some(settings)
         }
         None => None,
+    };
+    // the rules of the hooks are found valid, and allowed, before the job is run
+    let hook_rules = match &hooks_path {
+        Some(hp) => {
+            if !hooks_dry {
+                hooks::allowed(&p.c.cfg)?;
+            }
+            let rules = hooks::parse_rules(&read_text(hp, hooks::MAX_BYTES as u64)?).map_err(l)?;
+            inputs.push(hp.clone());
+            Some(rules)
+        }
+        None => {
+            if hooks_dry {
+                return Err("--hooks-dry-run needs --hooks FILE".into());
+            }
+            None
+        }
     };
     // the offsets that were learned are found valid, and allowed, before the job is run
     let offsets = match &offsets_path {
@@ -783,6 +850,10 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
     };
     if let Some(fp) = &feeders_path {
         report::write_new(fp, &feedrep::csv(&feeder_rows)).map_err(l)?;
+    }
+    // the hooks are run for the job as it stands, also when an error stopped it
+    if let (Some(rules), Some(hp)) = (&hook_rules, &hooks_path) {
+        run_hooks(rules, hp, &job, hooks_dry);
     }
     let phase = outcome.map_err(l)?;
     if let Some(lp) = &life_path {

@@ -574,6 +574,19 @@
           }
         },
         {
+          "name": "hooks.rs",
+          "desc": {
+            "en": "programs run for the events of a job, off by default, with a limited list and time",
+            "es": "programas ejecutados ante eventos de un trabajo, apagados por defecto, con lista y tiempo limitados",
+            "de": "bei Ereignissen eines Auftrags ausgeführte Programme, standardmäßig aus, mit begrenzter Liste und Zeit",
+            "fr": "programmes exécutés lors des événements d'un travail, désactivés par défaut, liste et durée limitées",
+            "it": "programmi eseguiti per gli eventi di un lavoro, spenti per impostazione predefinita, con elenco e tempo limitati",
+            "ja": "ジョブの出来事で実行するプログラム。既定ではオフで、一覧と時間に上限がある",
+            "zh": "针对作业事件运行的程序，默认关闭，清单和时间均有限制",
+            "pt": "programas executados em eventos de um trabalho, desligados por omissão, com lista e tempo limitados"
+          }
+        },
+        {
           "name": "import.rs",
           "desc": {
             "en": "the import of position files: a centroid CSV with a column map, EAGLE text, KiCad .pos",
@@ -1228,6 +1241,19 @@
             "ja": "ヘッドのテスト：設定の行、到達範囲、割り当て、時計、schedule",
             "zh": "贴装头测试：配置行、可达范围、分配、时钟和 schedule",
             "pt": "testes das cabeças: linhas da configuração, alcance, distribuição, o relógio e schedule"
+          }
+        },
+        {
+          "name": "hooks.rs",
+          "desc": {
+            "en": "tests of the hooks: off by default, the rules, the events, the calls, running, simulate --hooks",
+            "es": "pruebas de los ganchos: apagados por defecto, reglas, eventos, llamadas, ejecución, simulate --hooks",
+            "de": "Tests der Hooks: standardmäßig aus, Regeln, Ereignisse, Aufrufe, Ausführung, simulate --hooks",
+            "fr": "tests des hooks : désactivés par défaut, règles, événements, appels, exécution, simulate --hooks",
+            "it": "test degli hook: spenti per impostazione predefinita, regole, eventi, chiamate, esecuzione, simulate --hooks",
+            "ja": "フックのテスト：既定オフ、規則、出来事、呼び出し、実行、simulate --hooks",
+            "zh": "钩子测试：默认关闭、规则、事件、调用、运行、simulate --hooks",
+            "pt": "testes dos ganchos: desligados por omissão, regras, eventos, chamadas, execução, simulate --hooks"
           }
         },
         {
@@ -1989,6 +2015,19 @@
             "ja": "テープに加えてチューブとバルクのフィーダーを含むフィーダー表",
             "zh": "除料带外还含料管和散料供料器的供料器表",
             "pt": "uma tabela de alimentadores com um tubo e um a granel além de uma fita"
+          }
+        },
+        {
+          "name": "hooks.csv",
+          "desc": {
+            "en": "rules of the hooks for simulate --hooks: an event and a program for each",
+            "es": "reglas de los ganchos para simulate --hooks: un evento y un programa en cada una",
+            "de": "Regeln der Hooks für simulate --hooks: je ein Ereignis und ein Programm",
+            "fr": "règles des hooks pour simulate --hooks : un événement et un programme chacune",
+            "it": "regole degli hook per simulate --hooks: un evento e un programma ciascuna",
+            "ja": "simulate --hooks 用のフック規則：出来事とプログラムを 1 組ずつ",
+            "zh": "simulate --hooks 的钩子规则：每条含一个事件和一个程序",
+            "pt": "regras dos ganchos para simulate --hooks: um evento e um programa em cada"
           }
         },
         {
