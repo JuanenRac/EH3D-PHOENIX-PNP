@@ -411,7 +411,8 @@ fn a_program_that_takes_too_long_is_stopped() {
         std::fs::copy(source, dir.join(name)).unwrap();
     } else {
         // a script, because a copy of a multi-call binary does not know its new name
-        write_script(&dir.join(name), "#!/bin/sh\nsleep 30\n");
+        // exec: the sleep takes the place of the shell, so that the stop reaches it and not a child that keeps the output open
+        write_script(&dir.join(name), "#!/bin/sh\nexec sleep 30\n");
     }
     let started = std::time::Instant::now();
     let outcome = run_call(&dir, &call(name, &args), 0.5);
