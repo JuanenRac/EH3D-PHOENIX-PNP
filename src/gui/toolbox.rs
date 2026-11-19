@@ -64,10 +64,15 @@ pub enum Tool {
     QueueStock,
     FeederDeplete,
     Journal,
+    FeederRefill,
+    AsideSheet,
+    JobDiff,
+    FeederSlots,
+    Runs,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 24] = [
+    pub const ALL: [Tool; 29] = [
         Tool::Backlash,
         Tool::Runout,
         Tool::Camera,
@@ -92,6 +97,11 @@ impl Tool {
         Tool::QueueStock,
         Tool::FeederDeplete,
         Tool::Journal,
+        Tool::FeederRefill,
+        Tool::AsideSheet,
+        Tool::JobDiff,
+        Tool::FeederSlots,
+        Tool::Runs,
     ];
 
     /// The name of the tool on the command line of the window (`--tool`) and in the log.
@@ -121,6 +131,11 @@ impl Tool {
             Tool::QueueStock => "queuestock",
             Tool::FeederDeplete => "deplete",
             Tool::Journal => "journal",
+            Tool::FeederRefill => "refill",
+            Tool::AsideSheet => "aside",
+            Tool::JobDiff => "jobdiff",
+            Tool::FeederSlots => "slots",
+            Tool::Runs => "runs",
         }
     }
 
@@ -156,6 +171,11 @@ impl Tool {
             Tool::QueueStock => Text::ToolQueueStock,
             Tool::FeederDeplete => Text::ToolFeederDeplete,
             Tool::Journal => Text::ToolJournal,
+            Tool::FeederRefill => Text::ToolFeederRefill,
+            Tool::AsideSheet => Text::ToolAsideSheet,
+            Tool::JobDiff => Text::ToolJobDiff,
+            Tool::FeederSlots => Text::ToolFeederSlots,
+            Tool::Runs => Text::ToolRuns,
         }
     }
 
@@ -177,6 +197,9 @@ impl Tool {
                 | Tool::PartsDiff
                 | Tool::ConfigDiff
                 | Tool::FeederDeplete
+                | Tool::FeederRefill
+                | Tool::AsideSheet
+                | Tool::JobDiff
         )
     }
 
@@ -184,7 +207,11 @@ impl Tool {
     pub fn reads_second(self) -> bool {
         matches!(
             self,
-            Tool::PartsDiff | Tool::ConfigDiff | Tool::FeederDeplete
+            Tool::PartsDiff
+                | Tool::ConfigDiff
+                | Tool::FeederDeplete
+                | Tool::FeederRefill
+                | Tool::JobDiff
         )
     }
 
@@ -211,6 +238,11 @@ impl Tool {
             Tool::QueueStock => Some("queue_stock.csv"),
             Tool::FeederDeplete => Some("feeders_after_job.csv"),
             Tool::Journal => Some("journal.csv"),
+            Tool::FeederRefill => Some("feeders_refilled.csv"),
+            Tool::AsideSheet => Some("aside_sheet.csv"),
+            Tool::JobDiff => Some("job_diff.csv"),
+            Tool::FeederSlots => Some("feeders_slots.csv"),
+            Tool::Runs => Some("runs.csv"),
             _ => None,
         }
     }
@@ -293,6 +325,18 @@ pub struct Toolbox {
     pub near_mm: f64,
     pub near_limit: usize,
     pub journal_steps: usize,
+    /// The table of feeders and the table of refills of the reels that were changed, the two files of `job-export` that are compared and the saved state for the sheet of the parts by hand.
+    pub refill_feeders: String,
+    pub refill_rows: String,
+    pub jobdiff_first: String,
+    pub jobdiff_second: String,
+    pub aside_state: String,
+    /// Whether the parts that the job did not get to are on the sheet of the parts by hand.
+    pub aside_pending: bool,
+    /// The most plans that the search for the places of the feeders makes, and the number of runs and the first seed of the runs.
+    pub slots_plans: usize,
+    pub runs_count: usize,
+    pub runs_seed: u64,
     /// The saved state of the job that is under way in the Job tab, for the depletion when no state is given (the window fills it before a run).
     pub job_state: String,
     /// The side the sheet of polarity and the stock are limited to (both when none).
@@ -349,6 +393,15 @@ impl Toolbox {
             near_mm: 0.0,
             near_limit: 20,
             journal_steps: 0,
+            refill_feeders: String::new(),
+            refill_rows: String::new(),
+            jobdiff_first: String::new(),
+            jobdiff_second: String::new(),
+            aside_state: String::new(),
+            aside_pending: false,
+            slots_plans: 5000,
+            runs_count: 20,
+            runs_seed: cfg.sim_seed,
             job_state: String::new(),
             polarity_side: None,
             boards: cfg.order_boards,
@@ -364,6 +417,7 @@ impl Toolbox {
     /// Takes the starting values of the forms from the configuration again (when a configuration was loaded).
     pub fn take_defaults(&mut self, cfg: &MachineConfig) {
         self.boards = cfg.order_boards;
+        self.runs_seed = cfg.sim_seed;
         let (file, x_out) = (
             std::mem::take(&mut self.panel.board_file),
             std::mem::take(&mut self.panel.x_out),
@@ -389,6 +443,9 @@ impl Toolbox {
             Tool::PartsDiff => Some(&mut self.parts_first),
             Tool::ConfigDiff => Some(&mut self.config_first),
             Tool::FeederDeplete => Some(&mut self.deplete_feeders),
+            Tool::FeederRefill => Some(&mut self.refill_feeders),
+            Tool::AsideSheet => Some(&mut self.aside_state),
+            Tool::JobDiff => Some(&mut self.jobdiff_first),
             _ => None,
         }
     }
@@ -399,6 +456,8 @@ impl Toolbox {
             Tool::PartsDiff => Some(&mut self.parts_second),
             Tool::ConfigDiff => Some(&mut self.config_second),
             Tool::FeederDeplete => Some(&mut self.deplete_state),
+            Tool::FeederRefill => Some(&mut self.refill_rows),
+            Tool::JobDiff => Some(&mut self.jobdiff_second),
             _ => None,
         }
     }
@@ -526,6 +585,21 @@ impl Toolbox {
                 lang,
             ),
             Tool::Journal => toolmore::journal_text(ws, self.journal_steps, lang),
+            Tool::FeederRefill => {
+                toolmore::feeder_refill_text(ws, &self.refill_feeders, &self.refill_rows, lang)
+            }
+            Tool::AsideSheet => toolmore::aside_sheet_text(
+                ws,
+                &self.aside_state,
+                &self.job_state,
+                self.aside_pending,
+                lang,
+            ),
+            Tool::JobDiff => {
+                toolmore::job_diff_text(ws, &self.jobdiff_first, &self.jobdiff_second, lang)
+            }
+            Tool::FeederSlots => toolmore::feeder_slots_text(ws, self.slots_plans, lang),
+            Tool::Runs => toolmore::runs_text(ws, self.runs_count, self.runs_seed, lang),
         };
         match result {
             Ok((info, output)) => {

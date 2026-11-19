@@ -9,7 +9,10 @@ use crate::config::MAX_CONFIG_BYTES;
 use crate::error::{Code, Lang, PnpError};
 use crate::parts::{parse_all, Part};
 use crate::preflight::has_errors;
-use crate::{boardstats, configdiff, deplete, feeding, job, journal, partsdiff, queuestock};
+use crate::{
+    asidesheet, boardstats, configdiff, deplete, exchange, feeding, job, jobdiff, journal,
+    partsdiff, queuestock, refill, runs, slots,
+};
 use std::path::Path;
 
 /// The most lines of a result that are shown above the text of the file; the rest is in the file.
@@ -174,4 +177,128 @@ pub fn journal_text(ws: &Workspace, steps: usize, lang: Lang) -> Result<(String,
     }
     let csv = journal::csv(&rows);
     Ok((info, csv))
+}
+
+/// The table of feeders after reels were changed, as `feeder-refill` says it: what each refilled feeder holds now, and the table as a CSV. The table is `feeders`, or the one that is loaded
+/// when it is blank; `refills` is the table `id,count[,x,y]` and is needed.
+pub fn feeder_refill_text(
+    ws: &Workspace,
+    feeders: &str,
+    refills: &str,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    if refills.trim().is_empty() {
+        return Err("(type or read the table of refills: id,count[,x,y])".to_string());
+    }
+    let max = ws.cfg.max_file_bytes;
+    sized("the table of refills", refills, max)?;
+    let table = if feeders.trim().is_empty() {
+        if ws.feeders.is_empty() {
+            return Err("(no table of feeders is loaded: load one or type the table)".to_string());
+        }
+        feeding::to_csv(&ws.feeders)
+    } else {
+        sized("the table of feeders", feeders, max)?;
+        feeders.to_string()
+    };
+    let rows = refill::parse_refills(refills).map_err(|e| e.localized(lang))?;
+    let found = refill::refill(&table, &rows).map_err(|e| e.localized(lang))?;
+    Ok((shown(&found.text()), found.csv))
+}
+
+/// The parts that a person has to place by hand after the job of a saved state, as `aside-sheet` says it: the first lines of the sheet and the sheet as a CSV. The state is `state`, or the
+/// state of the job that is under way (`job_state`) when it is blank; with `pending` the parts that the job did not get to are on the sheet too.
+pub fn aside_sheet_text(
+    ws: &Workspace,
+    state: &str,
+    job_state: &str,
+    pending: bool,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    if !ws.can_plan() {
+        return Err("(load a table of parts and a table of feeders)".to_string());
+    }
+    let state = if state.trim().is_empty() {
+        if job_state.trim().is_empty() {
+            return Err("(type or read a saved state, or start a job in the Job tab)".to_string());
+        }
+        job_state
+    } else {
+        sized("the state", state, ws.cfg.max_file_bytes)?;
+        state
+    };
+    let planned = ws.make_plan().map_err(|e| e.localized(lang))?;
+    if has_errors(&planned.checks) {
+        return Err(PnpError::new(Code::PreflightFailed, "see the Problems tab").localized(lang));
+    }
+    let mut run = job::Job::new(planned.plan, ws.feeders.clone(), ws.cfg.clone())
+        .map_err(|e| e.localized(lang))?;
+    run.restore_state(state).map_err(|e| e.localized(lang))?;
+    let sheet = asidesheet::build(&run, &ws.parts, pending);
+    Ok((shown(&sheet.text()), sheet.csv()))
+}
+
+/// What differs between two files of `job-export`, as `job-diff` says it: the first lines of the report and the differences as a CSV. A file that is not valid is named as the first or the
+/// second, with its code.
+pub fn job_diff_text(
+    ws: &Workspace,
+    first: &str,
+    second: &str,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    if first.trim().is_empty() || second.trim().is_empty() {
+        return Err("(type or read the two files of job-export)".to_string());
+    }
+    let max = ws.cfg.max_file_bytes;
+    sized("the first file", first, max)?;
+    sized("the second file", second, max)?;
+    let read = |name: &str, text: &str| {
+        exchange::parse(text).map_err(|e| format!("the {name} file: {}", e.localized(lang)))
+    };
+    let found = jobdiff::diff(&read("first", first)?, &read("second", second)?);
+    Ok((shown(&found.text()), found.csv()))
+}
+
+/// The places of the loaded feeders that make the plan the fastest, as `feeder-slots` says it: the first lines of the report and the table of feeders with the new places as a CSV. At most
+/// `max_plans` plans are made.
+pub fn feeder_slots_text(
+    ws: &Workspace,
+    max_plans: usize,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    if !ws.can_plan() {
+        return Err("(load a table of parts and a table of feeders)".to_string());
+    }
+    let parts = ws.active_parts();
+    let options = ws.planning_options(&parts);
+    let found = slots::optimize(
+        &parts,
+        &feeding::to_csv(&ws.feeders),
+        &ws.catalog,
+        &ws.cfg,
+        &options,
+        max_plans,
+    )
+    .map_err(|e| e.localized(lang))?;
+    Ok((shown(&found.text()), found.csv))
+}
+
+/// The job of the loaded tables run `count` times on the simulated machine from the seeds `seed`, `seed + 1` and so on, as `simulate-runs` says it: what the runs say as a whole and a row
+/// for each run as a CSV. A plan with errors is not run.
+pub fn runs_text(
+    ws: &Workspace,
+    count: usize,
+    seed: u64,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    if !ws.can_plan() {
+        return Err("(load a table of parts and a table of feeders to run the job)".to_string());
+    }
+    let planned = ws.make_plan().map_err(|e| e.localized(lang))?;
+    if has_errors(&planned.checks) {
+        return Err(PnpError::new(Code::PreflightFailed, "see the Problems tab").localized(lang));
+    }
+    let found = runs::run_many(&planned.plan, &ws.feeders, &ws.cfg, count, seed)
+        .map_err(|e| e.localized(lang))?;
+    Ok((shown(&found.text()), found.csv()))
 }

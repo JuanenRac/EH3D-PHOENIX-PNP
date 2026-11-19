@@ -835,7 +835,7 @@ impl AppState {
     pub fn tools_run(&mut self) {
         let lang = self.ui.lang;
         // the depletion of the feeders takes the state of the job that is under way when no state is given
-        if self.tools.tool == Tool::FeederDeplete {
+        if matches!(self.tools.tool, Tool::FeederDeplete | Tool::AsideSheet) {
             self.tools.job_state = self
                 .session
                 .job()

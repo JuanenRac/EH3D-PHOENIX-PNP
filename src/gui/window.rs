@@ -2355,6 +2355,23 @@ impl PnpApp {
                 self.tool_io(ui, Some(Text::HintQueueStock));
             }
             Tool::FeederDeplete => self.tool_io(ui, Some(Text::HintFeederDeplete)),
+            Tool::FeederRefill => self.tool_io(ui, Some(Text::HintFeederRefill)),
+            Tool::AsideSheet => {
+                ui.checkbox(
+                    &mut self.s.tools.aside_pending,
+                    tr(Text::AsidePending, lang),
+                );
+                self.tool_io(ui, Some(Text::HintAsideSheet));
+            }
+            Tool::JobDiff => self.tool_io(ui, Some(Text::HintJobDiff)),
+            Tool::FeederSlots => {
+                self.tool_slots_form(ui);
+                self.tool_io(ui, Some(Text::HintFeederSlots));
+            }
+            Tool::Runs => {
+                self.tool_runs_form(ui);
+                self.tool_io(ui, Some(Text::HintRuns));
+            }
             Tool::Journal => {
                 self.tool_journal_form(ui);
                 self.tool_io(ui, Some(Text::HintJournal));
@@ -2414,6 +2431,32 @@ impl PnpApp {
             ui.label(tr(Text::QueueFile, lang));
             ui.add(egui::TextEdit::singleline(&mut self.s.tools.queue.file).desired_width(360.0));
         });
+        ui.separator();
+    }
+
+    fn tool_slots_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        ui.horizontal(|ui| {
+            ui.label(tr(Text::SlotsPlans, lang));
+            ui.add(egui::DragValue::new(&mut self.s.tools.slots_plans).range(1..=1_000_000));
+        });
+        ui.separator();
+    }
+
+    fn tool_runs_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        let t = &mut self.s.tools;
+        egui::Grid::new("tool_runs_form")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                ui.label(tr(Text::RunsCount, lang));
+                ui.add(egui::DragValue::new(&mut t.runs_count).range(1..=10_000));
+                ui.end_row();
+                ui.label(tr(Text::RunsSeed, lang));
+                ui.add(egui::DragValue::new(&mut t.runs_seed).range(0..=u64::MAX));
+                ui.end_row();
+            });
         ui.separator();
     }
 
