@@ -32,6 +32,7 @@ pub mod nozzlelife;
 pub mod panel;
 pub mod parts;
 pub mod pattern;
+pub mod pkggen;
 pub mod plan;
 pub mod planner;
 pub mod polarity;

@@ -730,6 +730,19 @@
           }
         },
         {
+          "name": "pkggen.rs",
+          "desc": {
+            "en": "the sizes of the common packages from their names",
+            "es": "los tamaños de los encapsulados comunes a partir de sus nombres",
+            "de": "die Größen der gängigen Gehäuse aus ihren Namen",
+            "fr": "les tailles des boîtiers courants d'après leurs noms",
+            "it": "le dimensioni dei package comuni dai loro nomi",
+            "ja": "一般的なパッケージの名前からの寸法",
+            "zh": "根据名称得到常用封装的尺寸",
+            "pt": "os tamanhos dos encapsulamentos comuns a partir dos seus nomes"
+          }
+        },
+        {
           "name": "plan.rs",
           "desc": {
             "en": "a part of the logic",
@@ -1345,6 +1358,19 @@
             "ja": "パターン校正のテスト：ファイル、あてはめ、上限、コマンド、ツール",
             "zh": "图案标定的测试：文件、拟合、限值、命令和工具",
             "pt": "testes da calibração com um padrão: o ficheiro, o ajuste, o limite, o comando e a ferramenta"
+          }
+        },
+        {
+          "name": "pkggen.rs",
+          "desc": {
+            "en": "tests of the sizes of the packages: the families, the errors, the table, the command",
+            "es": "pruebas de los tamaños de los encapsulados: las familias, los errores, la tabla, el comando",
+            "de": "Tests der Gehäusegrößen: die Familien, die Fehler, die Tabelle, der Befehl",
+            "fr": "tests des tailles de boîtiers : les familles, les erreurs, la table, la commande",
+            "it": "test delle dimensioni dei package: le famiglie, gli errori, la tabella, il comando",
+            "ja": "パッケージ寸法のテスト：種類、エラー、表、コマンド",
+            "zh": "封装尺寸的测试：各类、错误、表、命令",
+            "pt": "testes dos tamanhos dos encapsulamentos: as famílias, os erros, a tabela, o comando"
           }
         },
         {

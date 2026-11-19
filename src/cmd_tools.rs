@@ -20,6 +20,7 @@ use eh3d_phoenix_pnp::nozzlelife;
 use eh3d_phoenix_pnp::panel::{grid_panel, Grid};
 use eh3d_phoenix_pnp::parts::{parse_all, Side};
 use eh3d_phoenix_pnp::pattern::{calibrate_pattern, parse_pattern};
+use eh3d_phoenix_pnp::pkggen;
 use eh3d_phoenix_pnp::polarity;
 use eh3d_phoenix_pnp::report;
 use eh3d_phoenix_pnp::stock::stock_plan;
@@ -138,6 +139,58 @@ pub fn camera_combined(mut args: Vec<String>) -> Result<(), String> {
     match found.warning(cfg.camera_pattern_max_residual_mm) {
         Some(w) => Err(w),
         None => Ok(()),
+    }
+}
+
+/// `package-gen [NAME...] [--from PARTS] [--out F]`: the rows of a table of packages (`package,height_mm,tape_mm,body_long_mm,body_short_mm`) for the packages called NAME (chips by EIA code,
+/// SOT, SOD, SOIC, TSSOP, QFN, DFN and QFP) and for those of a position file; the sizes are the nominal ones of the standards. The rows go to the screen or to `--out` (never over a file that
+/// exists). The exit code is 1 when a name is not known; the ones that are known are written all the same.
+pub fn package_gen(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let from = flag(&mut args, "--from")?;
+    let out = flag(&mut args, "--out")?;
+    let mut names: Vec<String> = Vec::new();
+    for a in &args {
+        if a.starts_with("--") {
+            return Err(format!("{a} is not an option of package-gen"));
+        }
+        names.push(a.clone());
+    }
+    if let Some(path) = &from {
+        let parsed = parse_all(&read_text(path, cfg.max_file_bytes)?, &cfg.profile)?;
+        names.extend(parsed.parts.iter().map(|p| p.package.trim().to_string()));
+    }
+    if names.is_empty() {
+        return Err("package-gen needs the names of packages or --from FILE".into());
+    }
+    if let (Some(o), Some(f)) = (&out, &from) {
+        refuse_same_file(std::slice::from_ref(f), o)?;
+    }
+    let mut seen: Vec<String> = Vec::new();
+    let (mut specs, mut unknown) = (Vec::new(), Vec::new());
+    for n in names.iter().filter(|n| !n.is_empty()) {
+        let key = n.to_ascii_lowercase();
+        if seen.contains(&key) {
+            continue;
+        }
+        seen.push(key);
+        match pkggen::generate(n) {
+            Ok(s) => specs.push(s),
+            Err(e) => unknown.push(e.localized(lang)),
+        }
+    }
+    let csv = pkggen::table_csv(&specs);
+    match &out {
+        Some(o) => report::write_new(o, &csv).map_err(|e| e.localized(lang))?,
+        None => print!("{csv}"),
+    }
+    for u in &unknown {
+        eprintln!("{u}");
+    }
+    if unknown.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("{} packages are not known", unknown.len()))
     }
 }
 
