@@ -2341,7 +2341,89 @@ impl PnpApp {
             Tool::CameraCombined => self.tool_io(ui, Some(Text::HintCameraCombined)),
             Tool::Queue => self.tool_queue(ui),
             Tool::FeederCheck | Tool::Compare | Tool::Preview => self.tool_io(ui, None),
+            Tool::PartsDiff => {
+                self.tool_diff_tolerances(ui);
+                self.tool_io(ui, Some(Text::HintPartsDiff));
+            }
+            Tool::ConfigDiff => self.tool_io(ui, Some(Text::HintConfigDiff)),
+            Tool::BoardStats => {
+                self.tool_near_form(ui);
+                self.tool_io(ui, Some(Text::HintBoardStats));
+            }
+            Tool::QueueStock => {
+                self.tool_stock_queue_file(ui);
+                self.tool_io(ui, Some(Text::HintQueueStock));
+            }
+            Tool::FeederDeplete => self.tool_io(ui, Some(Text::HintFeederDeplete)),
+            Tool::Journal => {
+                self.tool_journal_form(ui);
+                self.tool_io(ui, Some(Text::HintJournal));
+            }
         }
+    }
+
+    fn tool_diff_tolerances(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        let t = &mut self.s.tools;
+        egui::Grid::new("tool_diff_tolerances")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                ui.label(tr(Text::TolPlaceMm, lang));
+                ui.add(
+                    egui::DragValue::new(&mut t.diff_tol_mm)
+                        .range(0.0..=100.0)
+                        .speed(0.005),
+                );
+                ui.end_row();
+                ui.label(tr(Text::TolTurnDeg, lang));
+                ui.add(
+                    egui::DragValue::new(&mut t.diff_rot_tol_deg)
+                        .range(0.0..=180.0)
+                        .speed(0.1),
+                );
+                ui.end_row();
+            });
+        ui.separator();
+    }
+
+    fn tool_near_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        let t = &mut self.s.tools;
+        egui::Grid::new("tool_near_form")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                ui.label(tr(Text::NearMm, lang));
+                ui.add(
+                    egui::DragValue::new(&mut t.near_mm)
+                        .range(0.0..=1000.0)
+                        .speed(0.05),
+                );
+                ui.end_row();
+                ui.label(tr(Text::NearLimit, lang));
+                ui.add(egui::DragValue::new(&mut t.near_limit).range(1..=1000));
+                ui.end_row();
+            });
+        ui.separator();
+    }
+
+    fn tool_stock_queue_file(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        ui.horizontal(|ui| {
+            ui.label(tr(Text::QueueFile, lang));
+            ui.add(egui::TextEdit::singleline(&mut self.s.tools.queue.file).desired_width(360.0));
+        });
+        ui.separator();
+    }
+
+    fn tool_journal_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        ui.horizontal(|ui| {
+            ui.label(tr(Text::JournalSteps, lang));
+            ui.add(egui::DragValue::new(&mut self.s.tools.journal_steps).range(0..=1_000_000));
+        });
+        ui.separator();
     }
 
     fn tool_backlash(&mut self, ui: &mut egui::Ui) {
@@ -2669,8 +2751,10 @@ impl PnpApp {
         let pal = self.s.ui.theme.palette();
         let lang = self.s.lang();
         let tool = self.s.tools.tool;
-        if let (Some(hint), true) = (hint, tool.reads_text()) {
+        if let Some(hint) = hint {
             ui.label(RichText::new(tr(hint, lang)).color(col(pal.dim)));
+        }
+        if tool.reads_text() {
             if let Some(text) = self.s.tools.text_mut() {
                 ui.add(
                     egui::TextEdit::multiline(text)
@@ -2687,6 +2771,27 @@ impl PnpApp {
                 );
                 if ui.button(tr(Text::ToolRead, lang)).clicked() {
                     self.s.tools_read_file();
+                }
+            });
+        }
+        if tool.reads_second() {
+            ui.label(RichText::new(tr(Text::ToolSecondText, lang)).color(col(pal.dim)));
+            if let Some(text) = self.s.tools.second_text_mut() {
+                ui.add(
+                    egui::TextEdit::multiline(text)
+                        .font(egui::TextStyle::Monospace)
+                        .desired_rows(6)
+                        .desired_width(f32::INFINITY),
+                );
+            }
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.s.tools.second_path_text)
+                        .desired_width(300.0)
+                        .hint_text(tr(Text::ToolPathHint, lang)),
+                );
+                if ui.button(tr(Text::ToolRead, lang)).clicked() {
+                    self.s.tools_read_second_file();
                 }
             });
         }

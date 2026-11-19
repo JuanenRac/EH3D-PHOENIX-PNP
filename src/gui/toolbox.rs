@@ -7,6 +7,7 @@
 
 use super::queuetab::QueueTab;
 use super::texts::Text;
+use super::toolmore;
 use super::workspace::{FileKind, Workspace};
 use crate::bom::{compare, order, order_csv, Bom};
 use crate::calibrate::{
@@ -26,6 +27,7 @@ use crate::inspect;
 use crate::nozzlelife::NozzleLife;
 use crate::panel::{grid_panel, Grid};
 use crate::parts::Side;
+use crate::partsdiff;
 use crate::pattern::{calibrate_pattern, parse_pattern, PatternCalibration};
 use crate::polarity;
 use crate::preview;
@@ -56,10 +58,16 @@ pub enum Tool {
     CameraPattern,
     CameraCombined,
     Queue,
+    PartsDiff,
+    ConfigDiff,
+    BoardStats,
+    QueueStock,
+    FeederDeplete,
+    Journal,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 18] = [
+    pub const ALL: [Tool; 24] = [
         Tool::Backlash,
         Tool::Runout,
         Tool::Camera,
@@ -78,6 +86,12 @@ impl Tool {
         Tool::CameraPattern,
         Tool::CameraCombined,
         Tool::Queue,
+        Tool::PartsDiff,
+        Tool::ConfigDiff,
+        Tool::BoardStats,
+        Tool::QueueStock,
+        Tool::FeederDeplete,
+        Tool::Journal,
     ];
 
     /// The name of the tool on the command line of the window (`--tool`) and in the log.
@@ -101,6 +115,12 @@ impl Tool {
             Tool::CameraPattern => "pattern",
             Tool::CameraCombined => "combined",
             Tool::Queue => "queue",
+            Tool::PartsDiff => "partsdiff",
+            Tool::ConfigDiff => "configdiff",
+            Tool::BoardStats => "boardstats",
+            Tool::QueueStock => "queuestock",
+            Tool::FeederDeplete => "deplete",
+            Tool::Journal => "journal",
         }
     }
 
@@ -130,6 +150,12 @@ impl Tool {
             Tool::CameraPattern => Text::ToolCameraPattern,
             Tool::CameraCombined => Text::ToolCameraCombined,
             Tool::Queue => Text::ToolQueue,
+            Tool::PartsDiff => Text::ToolPartsDiff,
+            Tool::ConfigDiff => Text::ToolConfigDiff,
+            Tool::BoardStats => Text::ToolBoardStats,
+            Tool::QueueStock => Text::ToolQueueStock,
+            Tool::FeederDeplete => Text::ToolFeederDeplete,
+            Tool::Journal => Text::ToolJournal,
         }
     }
 
@@ -148,6 +174,17 @@ impl Tool {
                 | Tool::CameraPattern
                 | Tool::CameraCombined
                 | Tool::Queue
+                | Tool::PartsDiff
+                | Tool::ConfigDiff
+                | Tool::FeederDeplete
+        )
+    }
+
+    /// Whether the tool reads a second text, beside the first (the tools that compare two files, or a table and a state).
+    pub fn reads_second(self) -> bool {
+        matches!(
+            self,
+            Tool::PartsDiff | Tool::ConfigDiff | Tool::FeederDeplete
         )
     }
 
@@ -168,6 +205,12 @@ impl Tool {
             Tool::Preview => Some("plan.svg"),
             Tool::CameraPattern => Some("camera_pattern.cfg"),
             Tool::CameraCombined => Some("camera_combined.cfg"),
+            Tool::PartsDiff => Some("parts_diff.csv"),
+            Tool::ConfigDiff => Some("config_diff.txt"),
+            Tool::BoardStats => Some("board_stats.txt"),
+            Tool::QueueStock => Some("queue_stock.csv"),
+            Tool::FeederDeplete => Some("feeders_after_job.csv"),
+            Tool::Journal => Some("journal.csv"),
             _ => None,
         }
     }
@@ -235,6 +278,23 @@ pub struct Toolbox {
     pub queue: QueueTab,
     /// A path typed to read the text of the tool from.
     pub path_text: String,
+    /// The first and the second table of the parts diff, the two configuration files, and the table of feeders and the saved state of the depletion (a blank first is what is loaded).
+    pub parts_first: String,
+    pub parts_second: String,
+    pub config_first: String,
+    pub config_second: String,
+    pub deplete_feeders: String,
+    pub deplete_state: String,
+    /// A path typed to read the second text of the tool from.
+    pub second_path_text: String,
+    /// The tolerances of the parts diff, the distance and the number of pairs of the board statistics (0 is off) and the steps of the journal (0 is all).
+    pub diff_tol_mm: f64,
+    pub diff_rot_tol_deg: f64,
+    pub near_mm: f64,
+    pub near_limit: usize,
+    pub journal_steps: usize,
+    /// The saved state of the job that is under way in the Job tab, for the depletion when no state is given (the window fills it before a run).
+    pub job_state: String,
     /// The side the sheet of polarity and the stock are limited to (both when none).
     pub polarity_side: Option<Side>,
     pub boards: usize,
@@ -253,6 +313,14 @@ fn failed(e: PnpError, lang: Lang) -> String {
     e.localized(lang)
 }
 
+/// Whether two paths are the same file.
+fn same_file(a: &str, b: &str) -> bool {
+    match (Path::new(a).canonicalize(), Path::new(b).canonicalize()) {
+        (Ok(x), Ok(y)) => x == y,
+        _ => a == b,
+    }
+}
+
 impl Toolbox {
     pub fn new(cfg: &MachineConfig) -> Toolbox {
         Toolbox {
@@ -269,6 +337,19 @@ impl Toolbox {
             queue_text: String::new(),
             queue: QueueTab::new(),
             path_text: String::new(),
+            parts_first: String::new(),
+            parts_second: String::new(),
+            config_first: String::new(),
+            config_second: String::new(),
+            deplete_feeders: String::new(),
+            deplete_state: String::new(),
+            second_path_text: String::new(),
+            diff_tol_mm: partsdiff::Settings::default().tol_mm,
+            diff_rot_tol_deg: partsdiff::Settings::default().rot_tol_deg,
+            near_mm: 0.0,
+            near_limit: 20,
+            journal_steps: 0,
+            job_state: String::new(),
             polarity_side: None,
             boards: cfg.order_boards,
             panel: PanelForm::from_config(cfg),
@@ -305,6 +386,19 @@ impl Toolbox {
             Tool::CameraPattern => Some(&mut self.pattern_text),
             Tool::CameraCombined => Some(&mut self.combined_text),
             Tool::Queue => Some(&mut self.queue_text),
+            Tool::PartsDiff => Some(&mut self.parts_first),
+            Tool::ConfigDiff => Some(&mut self.config_first),
+            Tool::FeederDeplete => Some(&mut self.deplete_feeders),
+            _ => None,
+        }
+    }
+
+    /// The second text of the tool that is open, for a box to edit.
+    pub fn second_text_mut(&mut self) -> Option<&mut String> {
+        match self.tool {
+            Tool::PartsDiff => Some(&mut self.parts_second),
+            Tool::ConfigDiff => Some(&mut self.config_second),
+            Tool::FeederDeplete => Some(&mut self.deplete_state),
             _ => None,
         }
     }
@@ -320,9 +414,20 @@ impl Toolbox {
 
     /// Reads the text of the tool that is open from the file at `path_text`. A file over `MAX_TOOL_BYTES` is refused, and so is anything that is not text.
     pub fn read_file(&mut self) -> bool {
+        let path = self.path_text.trim().to_string();
+        self.read_path(&path, false)
+    }
+
+    /// Reads the second text of the tool that is open from the file at `second_path_text`, as `read_file` does.
+    pub fn read_second_file(&mut self) -> bool {
+        let path = self.second_path_text.trim().to_string();
+        self.read_path(&path, true)
+    }
+
+    fn read_path(&mut self, path: &str, second: bool) -> bool {
         self.error.clear();
         self.notice.clear();
-        let path = self.path_text.trim().to_string();
+        let path = path.to_string();
         if path.is_empty() {
             return false;
         }
@@ -341,7 +446,11 @@ impl Toolbox {
             }
         })();
         match read {
-            Ok(text) => match self.text_mut() {
+            Ok(text) => match if second {
+                self.second_text_mut()
+            } else {
+                self.text_mut()
+            } {
                 Some(slot) => {
                     *slot = text;
                     true
@@ -394,6 +503,29 @@ impl Toolbox {
                 combined_text(&self.combined_text, &ws.cfg, lang).map(|(_, i, o)| (i, o))
             }
             Tool::Queue => queue_text(&self.queue_text, lang),
+            Tool::PartsDiff => toolmore::parts_diff_text(
+                ws,
+                &self.parts_first,
+                &self.parts_second,
+                &partsdiff::Settings {
+                    tol_mm: self.diff_tol_mm,
+                    rot_tol_deg: self.diff_rot_tol_deg,
+                },
+                lang,
+            ),
+            Tool::ConfigDiff => {
+                toolmore::config_diff_text(&self.config_first, &self.config_second, lang)
+            }
+            Tool::BoardStats => toolmore::board_stats_text(ws, self.near_mm, self.near_limit, lang),
+            Tool::QueueStock => toolmore::queue_stock_text(ws, &self.queue.file, lang),
+            Tool::FeederDeplete => toolmore::feeder_deplete_text(
+                ws,
+                &self.deplete_feeders,
+                &self.deplete_state,
+                &self.job_state,
+                lang,
+            ),
+            Tool::Journal => toolmore::journal_text(ws, self.journal_steps, lang),
         };
         match result {
             Ok((info, output)) => {
@@ -484,6 +616,15 @@ impl Toolbox {
             return None;
         }
         let path = Path::new(dir).join(name).to_string_lossy().into_owned();
+        // what was read is never written over, as the commands refuse an output that is also an input
+        let inputs = [&self.path_text, &self.second_path_text, &self.queue.file];
+        if inputs
+            .iter()
+            .any(|i| !i.trim().is_empty() && same_file(i.trim(), &path))
+        {
+            self.error = format!("{path}: the output file is also an input; write to a new file");
+            return None;
+        }
         match report::write_new(&path, &self.output) {
             Ok(()) => Some(path),
             Err(e) => {

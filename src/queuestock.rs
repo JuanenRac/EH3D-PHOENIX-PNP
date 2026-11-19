@@ -161,3 +161,129 @@ pub fn csv(kinds: &[KindNeed]) -> String {
     }
     out
 }
+
+/// The most bytes of a queue file that `from_queue` reads.
+pub const MAX_QUEUE_BYTES: u64 = 1_048_576;
+
+/// What a queue asks of its feeders, as the text the command prints, the table to write and the files that were read.
+#[derive(Debug, Clone, PartialEq)]
+pub struct QueueReport {
+    /// The lines of the report (the panels that are not counted, and for each table of feeders its findings).
+    pub text: String,
+    /// The table of every kind of every table of feeders; `None` when there was nothing to count.
+    pub csv: Option<String>,
+    /// How many kinds of part fall short.
+    pub short: usize,
+    /// The queue file and the tables of feeders that were read: what an output must not be written over.
+    pub inputs: Vec<String>,
+}
+
+/// The folder that the paths of a queue file are taken from (absolute, because a queue is run from other folders than the one it was made in).
+pub fn queue_dir(queue_path: &str) -> std::path::PathBuf {
+    let parent = std::path::Path::new(queue_path)
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| std::path::Path::new("."));
+    std::path::absolute(parent).unwrap_or_else(|_| parent.to_path_buf())
+}
+
+/// Whether the feeders hold enough parts for all the jobs of the queue file `path` that are still to be made, one after the other, and the job in which each reel that falls short runs
+/// out. Jobs that share a table of feeders share its reels; a panel is not counted (the report says so). `read` reads a text file of at most the given bytes (it is the command's reader
+/// or the window's). This is what `queue-stock` and the Queue stock tool of the window both run.
+pub fn from_queue(
+    path: &str,
+    cfg: &crate::config::MachineConfig,
+    lang: crate::error::Lang,
+    read: &dyn Fn(&str, u64) -> Result<String, String>,
+) -> Result<QueueReport, String> {
+    use crate::config::MAX_CONFIG_BYTES;
+    use crate::error::PnpError;
+    use crate::parts::{parse_all, Side};
+    use crate::queue::{self, Kind};
+    let l = |e: PnpError| e.localized(lang);
+    // a queue file that is not there is not an empty queue: the name is most likely wrong
+    if !std::path::Path::new(path).is_file() {
+        return Err(format!("{path}: there is no such queue file"));
+    }
+    let q = queue::read_file(path, MAX_QUEUE_BYTES).map_err(l)?;
+    let dir = queue_dir(path);
+    // the jobs that are still to be made, by the table of feeders they take from, in the order of the queue
+    let mut groups: BTreeMap<String, Vec<JobNeed>> = BTreeMap::new();
+    let mut panels = 0usize;
+    for e in q.to_do() {
+        let boards = u64::from(e.boards.saturating_sub(e.done));
+        if boards == 0 {
+            continue;
+        }
+        if e.kind == Kind::Panel {
+            panels += 1;
+            continue;
+        }
+        let own = if e.config.trim().is_empty() {
+            cfg.clone()
+        } else {
+            let p = queue::resolve(&e.config, &dir);
+            crate::config::MachineConfig::parse(&read(&p, MAX_CONFIG_BYTES as u64)?).map_err(l)?
+        };
+        let source = queue::resolve(&e.source, &dir);
+        let parsed = parse_all(&read(&source, own.max_file_bytes)?, &own.profile)?;
+        let side = if e.side.trim().eq_ignore_ascii_case("bottom") {
+            Side::Bottom
+        } else {
+            Side::Top
+        };
+        groups
+            .entry(queue::resolve(&e.feeders, &dir))
+            .or_default()
+            .push(JobNeed {
+                name: e.name.clone(),
+                parts: parsed
+                    .parts
+                    .into_iter()
+                    .filter(|p| p.side == side)
+                    .collect(),
+                boards,
+            });
+    }
+    let mut text = String::new();
+    if panels > 0 {
+        text.push_str(&format!("{panels} panel jobs are not counted\n"));
+    }
+    let mut inputs = vec![path.to_string()];
+    if groups.is_empty() {
+        text.push_str("nothing to count: no job of a table of parts is still to be made\n");
+        return Ok(QueueReport {
+            text,
+            csv: None,
+            short: 0,
+            inputs,
+        });
+    }
+    let mut all_csv = String::new();
+    let mut short = 0usize;
+    for (feeders_path, jobs) in &groups {
+        let feeders =
+            crate::feeding::from_csv_with(&read(feeders_path, cfg.max_file_bytes)?, cfg.tray_fill)
+                .map_err(l)?;
+        let kinds = needs(jobs, &feeders);
+        text.push_str(&format!("feeders {feeders_path}:\n"));
+        text.push_str(&self::text(&kinds, jobs.len()));
+        short += kinds.iter().filter(|k| k.short > 0).count();
+        for (i, line) in self::csv(&kinds).lines().enumerate() {
+            if i == 0 {
+                if all_csv.is_empty() {
+                    all_csv.push_str(&format!("feeders,{line}\n"));
+                }
+            } else {
+                all_csv.push_str(&format!("{},{line}\n", csv_field(feeders_path)));
+            }
+        }
+        inputs.push(feeders_path.clone());
+    }
+    Ok(QueueReport {
+        text,
+        csv: Some(all_csv),
+        short,
+        inputs,
+    })
+}

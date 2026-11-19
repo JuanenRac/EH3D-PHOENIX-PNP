@@ -13,7 +13,7 @@ use super::settings::UiSettings;
 use super::tables::{CellEdit, FeederColumn, PartColumn, PlanColumn, Selection, SortState};
 use super::texts::{tr, Text};
 use super::theme::ThemeId;
-use super::toolbox::Toolbox;
+use super::toolbox::{Tool, Toolbox};
 use super::view::{Scene, Viewport};
 use super::wizard::{PlanState, Wizard};
 use super::workspace::{FileKind, Planned, Workspace};
@@ -834,6 +834,14 @@ impl AppState {
     /// Runs the open tool on what was loaded and typed.
     pub fn tools_run(&mut self) {
         let lang = self.ui.lang;
+        // the depletion of the feeders takes the state of the job that is under way when no state is given
+        if self.tools.tool == Tool::FeederDeplete {
+            self.tools.job_state = self
+                .session
+                .job()
+                .map(|j| j.save_state())
+                .unwrap_or_default();
+        }
         self.tools.run(&self.ws, lang);
         if !self.tools.error.is_empty() {
             self.log.error(self.tools.error.clone());
@@ -843,6 +851,17 @@ impl AppState {
     /// Reads the text of the open tool from the file typed in its box.
     pub fn tools_read_file(&mut self) {
         if !self.tools.read_file() {
+            if !self.tools.error.is_empty() {
+                self.log.error(self.tools.error.clone());
+            }
+            return;
+        }
+        self.tools_run();
+    }
+
+    /// Reads the second text of the open tool from the file typed in its box.
+    pub fn tools_read_second_file(&mut self) {
+        if !self.tools.read_second_file() {
             if !self.tools.error.is_empty() {
                 self.log.error(self.tools.error.clone());
             }
