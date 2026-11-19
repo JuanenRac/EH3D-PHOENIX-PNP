@@ -4,6 +4,7 @@
 //! The parts of a board with their positions, the feeders that hold them and the order in which a machine with one or more nozzles places them; the configuration of the machine,
 //! a planner that knows it, a simulated machine and a job that carries a plan out on it step by step, and the window that shows them (its logic needs no screen). It plans and simulates: it does not drive a machine.
 
+pub mod boardstats;
 pub mod bom;
 pub mod calibrate;
 pub mod camera;

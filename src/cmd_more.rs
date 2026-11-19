@@ -9,7 +9,7 @@ use crate::commands::{read_text, refuse_same_file};
 use eh3d_phoenix_pnp::config::MAX_CONFIG_BYTES;
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::parts::parse_all;
-use eh3d_phoenix_pnp::{configdiff, partsdiff, report};
+use eh3d_phoenix_pnp::{boardstats, configdiff, partsdiff, report};
 
 /// `parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F]`: what changed between two tables of parts, part by part (added, removed, moved, turned, another value, another package,
 /// the other side). The report goes to the screen, or the changes as a CSV to `--out` (never over a file that exists). The exit code is 1 when the tables differ.
@@ -69,5 +69,39 @@ pub fn config_diff(mut args: Vec<String>) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("{} settings differ", diff.changes.len()))
+    }
+}
+
+/// `board-stats PARTS [--near MM] [--limit N]`: what the table holds (the parts on each side, the kinds, a line for each package, the box of the centres) and, with `--near`, the pairs of
+/// parts of one side whose centres are closer than that distance. The exit code is 1 when `--near` finds a pair.
+pub fn board_stats(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let near = match flag(&mut args, "--near")? {
+        Some(v) => Some(num(&v, "--near")?),
+        None => None,
+    };
+    let limit = match flag(&mut args, "--limit")? {
+        Some(v) => v
+            .trim()
+            .parse::<usize>()
+            .map_err(|_| format!("--limit '{v}' is not a whole number"))?,
+        None => 20,
+    };
+    finish(&args, 1)?;
+    let path = args.first().ok_or("board-stats needs a table of parts")?;
+    let parsed = parse_all(&read_text(path, cfg.max_file_bytes)?, &cfg.profile)?;
+    print!(
+        "{}",
+        boardstats::stats(&parsed.parts, parsed.dnp.len()).text()
+    );
+    let Some(within) = near else {
+        return Ok(());
+    };
+    let pairs = boardstats::near(&parsed.parts, within).map_err(|e| e.localized(lang))?;
+    print!("{}", boardstats::near_text(&pairs, within, limit));
+    if pairs.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("{} pairs of parts are too near", pairs.len()))
     }
 }

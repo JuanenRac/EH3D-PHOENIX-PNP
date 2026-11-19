@@ -28,6 +28,19 @@
       "accent": "a",
       "rows": [
         {
+          "name": "boardstats.rs",
+          "desc": {
+            "en": "the counts of a table of parts and the pairs of parts that sit too near each other",
+            "es": "los recuentos de una tabla de piezas y los pares de piezas demasiado juntas",
+            "de": "die Zählungen einer Bauteiltabelle und die Paare zu nah beieinander liegender Bauteile",
+            "fr": "les décomptes d'une table de pièces et les paires de pièces trop proches",
+            "it": "i conteggi di una tabella di parti e le coppie di parti troppo vicine",
+            "ja": "部品テーブルの集計と、近すぎる部品の組",
+            "zh": "零件表的统计和过近的零件对",
+            "pt": "as contagens de uma tabela de peças e os pares de peças demasiado próximos"
+          }
+        },
+        {
           "name": "bom.rs",
           "desc": {
             "en": "the bill of materials: reading, the check against the board, the order",
@@ -1098,6 +1111,19 @@
             "ja": "シミュレート機械の軸バックラッシュのテスト",
             "zh": "模拟机器轴间隙的测试",
             "pt": "testes da folga dos eixos da máquina simulada"
+          }
+        },
+        {
+          "name": "boardstats.rs",
+          "desc": {
+            "en": "tests of the counts and of the parts that sit too near: the grid against every pair",
+            "es": "pruebas de los recuentos y de las piezas demasiado juntas: la cuadrícula frente a cada par",
+            "de": "Tests der Zählungen und der zu nahen Bauteile: das Raster gegen jedes Paar",
+            "fr": "tests des décomptes et des pièces trop proches : la grille contre chaque paire",
+            "it": "test dei conteggi e delle parti troppo vicine: la griglia contro ogni coppia",
+            "ja": "集計と近すぎる部品のテスト：グリッドと全組の比較",
+            "zh": "统计与过近零件的测试：网格与逐对比较",
+            "pt": "testes das contagens e das peças demasiado próximas: a grelha contra cada par"
           }
         },
         {
