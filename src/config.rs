@@ -20,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 161] = [
+pub const KEYS: [&str; 162] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -182,6 +182,7 @@ pub const KEYS: [&str; 161] = [
     "camera_pattern_origin_x_mm",
     "camera_pattern_origin_y_mm",
     "camera_combined_touch",
+    "align_rereads",
 ];
 
 /// The order in which the places are visited.
@@ -566,6 +567,8 @@ pub struct MachineConfig {
     pub camera_pattern_origin_y_mm: f64,
     /// The combined calibration takes the origin of the sheet from a row `origin,X,Y` of the file of sightings (the place of the nozzle when it touched the point 0,0) instead of from `camera_pattern_origin_x_mm` and `camera_pattern_origin_y_mm`. Off by default.
     pub camera_combined_touch: bool,
+    /// How many more times the camera looks at a part whose first look was further than `pick_tolerance_mm` before the part is thrown away (0 to 5; 0 throws it away at once). A look that is within the tolerance is taken as the first look.
+    pub align_rereads: u32,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -721,6 +724,7 @@ impl Default for MachineConfig {
             camera_pattern_origin_x_mm: 0.0,
             camera_pattern_origin_y_mm: 0.0,
             camera_combined_touch: false,
+            align_rereads: 0,
         }
     }
 }
@@ -1282,6 +1286,7 @@ impl MachineConfig {
             "camera_pattern_origin_x_mm" => self.camera_pattern_origin_x_mm = n(-10000.0, 10000.0)?,
             "camera_pattern_origin_y_mm" => self.camera_pattern_origin_y_mm = n(-10000.0, 10000.0)?,
             "camera_combined_touch" => self.camera_combined_touch = flag(line, key, v)?,
+            "align_rereads" => self.align_rereads = int(line, key, v, 0, 5)? as u32,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

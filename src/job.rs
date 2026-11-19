@@ -178,9 +178,22 @@ pub struct FeederStats {
     pub placed: u32,
     /// The time of the steps that picked from this feeder (the way to it, the feed, the pick and the look), in microseconds of the clock of the machine.
     pub busy_us: u64,
+    /// The parts of this feeder whose first look of the camera was over `pick_tolerance_mm`.
+    pub looks_over: u32,
+    /// The extra looks (`align_rereads`) made at parts of this feeder, and the parts of it that a later look found within the tolerance.
+    pub rereads: u32,
+    pub recovered: u32,
+    /// The parts of this feeder that the camera threw away (over the tolerance at every look) and the looks of the camera that gave no reading.
+    pub thrown_away: u32,
+    pub no_reading: u32,
 }
 
 impl FeederStats {
+    /// Whether the camera did anything worth a line in the report for this feeder: a look over the tolerance, an extra look, a part thrown away or a look without a reading.
+    pub fn has_looks(&self) -> bool {
+        self.looks_over + self.rereads + self.thrown_away + self.no_reading > 0
+    }
+
     /// The time the feeder kept the machine busy, in seconds.
     pub fn busy_s(&self) -> f64 {
         self.busy_us as f64 / 1e6
@@ -221,6 +234,9 @@ pub struct AlignStats {
     pub max_mm: f64,
     /// The largest turn that was corrected, in degrees (without its sign).
     pub max_deg: f64,
+    /// The extra looks made at parts whose first look was over the tolerance (`align_rereads`), and the parts that one of them found within it.
+    pub rereads: u32,
+    pub recovered: u32,
 }
 
 impl AlignStats {
@@ -1121,7 +1137,7 @@ impl Job {
                     won_at = attempt;
                     break;
                 }
-                Ok(()) => match self.align_part(nozzle) {
+                Ok(()) => match self.align_part(nozzle, f) {
                     Ok(correction) => {
                         self.corrections[nozzle] = Some(correction);
                         picked = true;
@@ -1206,9 +1222,9 @@ impl Job {
     /// The align step: the part that the nozzle has just picked is looked at by the camera `align_passes` times, waiting `align_settle_s` before each look, and what the camera sees
     /// is corrected each time. The first reading decides whether the part is good enough (it is not when it is further from the nozzle than `pick_tolerance_mm`). Gives the sum of the
     /// corrections, which the place applies.
-    fn align_part(&mut self, nozzle: usize) -> Result<Offset, PnpError> {
+    fn align_part(&mut self, nozzle: usize, f: usize) -> Result<Offset, PnpError> {
         let started = self.machine.now_us();
-        let looked = self.align_looks(nozzle);
+        let looked = self.align_looks(nozzle, f);
         self.trace.align_us += self.machine.now_us().saturating_sub(started);
         if let Err(e) = &looked {
             self.trace.count(e.code);
@@ -1216,7 +1232,40 @@ impl Job {
         looked
     }
 
-    fn align_looks(&mut self, nozzle: usize) -> Result<Offset, PnpError> {
+    /// One look of the camera at the part on `nozzle`, which came from the feeder `f`: the reading, or the error of a look that gave none (counted for the feeder).
+    fn look_once(&mut self, nozzle: usize, f: usize) -> Result<Offset, PnpError> {
+        match self.camera.measure(nozzle) {
+            Ok(o) => Ok(o),
+            Err(e) if e.code == Code::SimFault => {
+                self.stats.align.camera_failures += 1;
+                self.stats.feeders[f].no_reading += 1;
+                self.machine.note(format!(
+                    "the camera gave no reading of the part on nozzle {}",
+                    nozzle + 1
+                ));
+                Err(PnpError::new(Code::AlignFailed, e.detail))
+            }
+            // the pipeline of the vision found no part in the picture: a look without a reading, with the code that says why
+            Err(e)
+                if matches!(
+                    e.code,
+                    Code::VisionNotFound | Code::VisionAreaOutOfRange | Code::VisionSeveralSpots
+                ) =>
+            {
+                self.stats.align.camera_failures += 1;
+                self.stats.feeders[f].no_reading += 1;
+                self.machine.note(format!(
+                    "the vision found no part on nozzle {}: {}",
+                    nozzle + 1,
+                    e.code.label()
+                ));
+                Err(e)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    fn align_looks(&mut self, nozzle: usize, f: usize) -> Result<Offset, PnpError> {
         self.camera.clear();
         let mut total = Offset::default();
         let mut first = Offset::default();
@@ -1227,54 +1276,47 @@ impl Job {
             .unwrap_or(self.cfg.pick_tolerance_mm);
         for pass in 0..self.cfg.align_passes {
             self.machine.wait(self.cfg.align_settle_s);
-            let seen = match self.camera.measure(nozzle) {
-                Ok(o) => o,
-                Err(e) if e.code == Code::SimFault => {
-                    self.stats.align.camera_failures += 1;
-                    self.machine.note(format!(
-                        "the camera gave no reading of the part on nozzle {}",
-                        nozzle + 1
-                    ));
-                    return Err(PnpError::new(Code::AlignFailed, e.detail));
-                }
-                // the pipeline of the vision found no part in the picture: a look without a reading, with the code that says why
-                Err(e)
-                    if matches!(
-                        e.code,
-                        Code::VisionNotFound
-                            | Code::VisionAreaOutOfRange
-                            | Code::VisionSeveralSpots
-                    ) =>
-                {
-                    self.stats.align.camera_failures += 1;
-                    self.machine.note(format!(
-                        "the vision found no part on nozzle {}: {}",
-                        nozzle + 1,
-                        e.code.label()
-                    ));
-                    return Err(e);
-                }
-                Err(e) => return Err(e),
-            };
-            let away_mm: f64 = seen.dx_mm.hypot(seen.dy_mm);
+            let mut seen = self.look_once(nozzle, f)?;
+            let mut away_mm: f64 = seen.dx_mm.hypot(seen.dy_mm);
             if pass == 0 {
+                if away_mm > tolerance {
+                    self.stats.feeders[f].looks_over += 1;
+                    // the camera looks again, as many times as the configuration says, before the part is given up
+                    let mut again = 0;
+                    while away_mm > tolerance && again < self.cfg.align_rereads {
+                        again += 1;
+                        self.stats.align.rereads += 1;
+                        self.stats.feeders[f].rereads += 1;
+                        self.machine.note(format!(
+                            "the part on nozzle {} is {:.3} mm from the nozzle: the camera looks again",
+                            nozzle + 1,
+                            away_mm
+                        ));
+                        self.machine.wait(self.cfg.align_settle_s);
+                        seen = self.look_once(nozzle, f)?;
+                        away_mm = seen.dx_mm.hypot(seen.dy_mm);
+                    }
+                    if away_mm > tolerance {
+                        self.stats.align.rejected += 1;
+                        self.stats.feeders[f].thrown_away += 1;
+                        self.machine.note(format!(
+                            "the part on nozzle {} is {:.3} mm from the nozzle: thrown away",
+                            nozzle + 1,
+                            away_mm
+                        ));
+                        return Err(PnpError::new(
+                            Code::AlignRejected,
+                            format!(
+                                "{:.3} mm from the nozzle, the tolerance is {} mm",
+                                away_mm, tolerance
+                            ),
+                        ));
+                    }
+                    self.stats.align.recovered += 1;
+                    self.stats.feeders[f].recovered += 1;
+                }
                 first = seen;
                 first_mm = away_mm;
-                if away_mm > tolerance {
-                    self.stats.align.rejected += 1;
-                    self.machine.note(format!(
-                        "the part on nozzle {} is {:.3} mm from the nozzle: thrown away",
-                        nozzle + 1,
-                        away_mm
-                    ));
-                    return Err(PnpError::new(
-                        Code::AlignRejected,
-                        format!(
-                            "{:.3} mm from the nozzle, the tolerance is {} mm",
-                            away_mm, tolerance
-                        ),
-                    ));
-                }
             }
             total.dx_mm += seen.dx_mm;
             total.dy_mm += seen.dy_mm;
@@ -1592,7 +1634,7 @@ impl Job {
         let feeders: Vec<Value> = s
             .feeders
             .iter()
-            .map(|f| json!({"picked": f.picked, "faults": f.faults, "disabled": f.disabled, "pick_failures": f.pick_failures, "placed": f.placed, "busy_us": f.busy_us}))
+            .map(|f| json!({"picked": f.picked, "faults": f.faults, "disabled": f.disabled, "pick_failures": f.pick_failures, "placed": f.placed, "busy_us": f.busy_us, "looks_over": f.looks_over, "rereads": f.rereads, "recovered": f.recovered, "thrown_away": f.thrown_away, "no_reading": f.no_reading}))
             .collect();
         let kinds: Vec<Value> = s
             .kinds
@@ -1739,6 +1781,8 @@ impl Job {
                 "sum_mm": bits(s.align.sum_mm),
                 "max_mm": bits(s.align.max_mm),
                 "max_deg": bits(s.align.max_deg),
+                "rereads": s.align.rereads,
+                "recovered": s.align.recovered,
                 "corrections": corrections
             });
         }
@@ -1904,6 +1948,13 @@ impl Job {
             // a state saved before these two were kept starts them again from zero
             f.placed = saved.get("placed").and_then(Value::as_u64).unwrap_or(0) as u32;
             f.busy_us = saved.get("busy_us").and_then(Value::as_u64).unwrap_or(0);
+            // the counters of the looks of the camera came later still
+            let kept = |key: &str| saved.get(key).and_then(Value::as_u64).unwrap_or(0) as u32;
+            f.looks_over = kept("looks_over");
+            f.rereads = kept("rereads");
+            f.recovered = kept("recovered");
+            f.thrown_away = kept("thrown_away");
+            f.no_reading = kept("no_reading");
         }
         stats.skipped = s.get("skipped").and_then(Value::as_u64).unwrap_or(0) as usize;
         // a state saved before the report was kept has no trace: it starts again from zero
@@ -2034,6 +2085,9 @@ impl Job {
                     sum_mm: bits("sum_mm")?,
                     max_mm: bits("max_mm")?,
                     max_deg: bits("max_deg")?,
+                    // a state saved before the extra looks existed has none
+                    rereads: a.get("rereads").and_then(Value::as_u64).unwrap_or(0) as u32,
+                    recovered: a.get("recovered").and_then(Value::as_u64).unwrap_or(0) as u32,
                 };
                 align_state = Some((
                     counters,

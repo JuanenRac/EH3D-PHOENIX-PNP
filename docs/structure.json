@@ -1283,6 +1283,19 @@
           }
         },
         {
+          "name": "looks.rs",
+          "desc": {
+            "en": "tests of the extra looks of the camera and of the looks counted for each feeder in the report",
+            "es": "pruebas de las miradas extra de la cámara y de las miradas contadas por alimentador en el informe",
+            "de": "Tests der zusätzlichen Kamerablicke und der je Zuführung gezählten Blicke im Bericht",
+            "fr": "tests des regards en plus de la caméra et des regards comptés par alimentateur dans le rapport",
+            "it": "test degli sguardi extra della telecamera e di quelli contati per alimentatore nel rapporto",
+            "ja": "カメラの追加確認と、レポートでフィーダーごとに数える確認のテスト",
+            "zh": "相机额外查看以及报告中按供料器统计查看的测试",
+            "pt": "testes dos olhares extra da câmara e dos olhares contados por alimentador no relatório"
+          }
+        },
+        {
           "name": "marks.rs",
           "desc": {
             "en": "tests of the boards marked as bad, the parts that are marks and the marks of two levels",

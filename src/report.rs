@@ -129,6 +129,9 @@ pub struct WorkReport {
     pub corrected: u32,
     pub over_tolerance: u32,
     pub no_reading: u32,
+    /// The extra looks made at parts whose first look was over the tolerance, and the parts that one of them saved (`align_rereads`).
+    pub rereads: u32,
+    pub recovered: u32,
     pub mean_mm: f64,
     pub max_mm: f64,
     pub max_deg: f64,
@@ -315,6 +318,8 @@ pub fn build(job: &Job, input: &ReportInput) -> WorkReport {
         corrected: s.align.corrected,
         over_tolerance: s.align.rejected,
         no_reading: s.align.camera_failures,
+        rereads: s.align.rereads,
+        recovered: s.align.recovered,
         mean_mm: s.align.mean_mm(),
         max_mm: s.align.max_mm,
         max_deg: s.align.max_deg,
@@ -444,6 +449,14 @@ enum K {
     ColUsesBefore,
     ColUsesAfter,
     ColWorn,
+    Rereads,
+    Recovered,
+    CameraByFeeder,
+    ColLooksOver,
+    ColRereads,
+    ColRecovered,
+    ColThrown,
+    ColNoReading,
 }
 
 #[rustfmt::skip]
@@ -491,6 +504,14 @@ fn word(k: K, lang: Lang) -> &'static str {
         K::ColMounted => ["Mounted", "Montada", "Montiert", "Montée", "Montata", "装着回数", "安装次数", "Montada"],
         K::ColUsesBefore => ["Uses before", "Usos antes", "Einsätze vorher", "Usages avant", "Usi prima", "使用前", "之前使用", "Usos antes"],
         K::ColUsesAfter => ["Uses after", "Usos después", "Einsätze nachher", "Usages après", "Usi dopo", "使用後", "之后使用", "Usos depois"],
+        K::Rereads => ["Extra looks at a part over the tolerance", "Miradas extra a una pieza fuera de tolerancia", "Zusätzliche Blicke auf ein Teil außerhalb der Toleranz", "Regards supplémentaires sur une pièce hors tolérance", "Osservazioni extra su una parte fuori tolleranza", "許容差超過の部品への追加確認", "对超出公差零件的额外查看", "Olhares extra a uma peça fora da tolerância"],
+        K::Recovered => ["Parts saved by an extra look", "Piezas salvadas por una mirada extra", "Durch einen zusätzlichen Blick gerettete Teile", "Pièces sauvées par un regard supplémentaire", "Parti salvate da un'osservazione extra", "追加確認で救われた部品", "靠额外查看保住的零件", "Peças salvas por um olhar extra"],
+        K::CameraByFeeder => ["Camera by feeder", "Cámara por alimentador", "Kamera nach Zuführung", "Caméra par alimentateur", "Telecamera per alimentatore", "フィーダー別のカメラ", "按供料器的相机", "Câmara por alimentador"],
+        K::ColLooksOver => ["Over the tolerance", "Fuera de tolerancia", "Außerhalb der Toleranz", "Hors tolérance", "Fuori tolleranza", "許容差超過", "超出公差", "Fora da tolerância"],
+        K::ColRereads => ["Extra looks", "Miradas extra", "Zusatzblicke", "Regards en plus", "Osservazioni extra", "追加確認", "额外查看", "Olhares extra"],
+        K::ColRecovered => ["Saved", "Salvadas", "Gerettet", "Sauvées", "Salvate", "救済", "已保住", "Salvas"],
+        K::ColThrown => ["Thrown away", "Descartadas", "Verworfen", "Rejetées", "Scartate", "破棄", "已丢弃", "Descartadas"],
+        K::ColNoReading => ["No reading", "Sin lectura", "Ohne Messwert", "Sans mesure", "Senza misura", "測定値なし", "无读数", "Sem leitura"],
         K::ColWorn => ["Look at it", "Revisarla", "Prüfen", "À vérifier", "Da controllare", "要確認", "需检查", "Verificar"],
         K::ByFeeder => ["By feeder", "Por alimentador", "Nach Zuführung", "Par alimentateur", "Per alimentatore", "フィーダー別", "按供料器", "Por alimentador"],
         K::ByNozzle => ["By nozzle (head)", "Por boquilla (cabeza)", "Nach Düse (Kopf)", "Par buse (tête)", "Per ugello (testa)", "ノズル（ヘッド）別", "按吸嘴（吸头）", "Por bico (cabeça)"],
@@ -714,7 +735,46 @@ impl WorkReport {
             ] {
                 cam.pairs.push((word(k, lang).to_string(), v));
             }
+            if self.rereads > 0 {
+                cam.pairs
+                    .push((word(K::Rereads, lang).to_string(), self.rereads.to_string()));
+                cam.pairs.push((
+                    word(K::Recovered, lang).to_string(),
+                    self.recovered.to_string(),
+                ));
+            }
             out.push(cam);
+            if self.feeders.iter().any(crate::job::FeederStats::has_looks) {
+                let mut by = section(word(K::CameraByFeeder, lang));
+                by.tables.push((
+                    String::new(),
+                    plain(
+                        &[
+                            word(K::ColName, lang),
+                            word(K::ColLooksOver, lang),
+                            word(K::ColRereads, lang),
+                            word(K::ColRecovered, lang),
+                            word(K::ColThrown, lang),
+                            word(K::ColNoReading, lang),
+                        ],
+                        self.feeders
+                            .iter()
+                            .filter(|f| f.has_looks())
+                            .map(|f| {
+                                vec![
+                                    f.id.clone(),
+                                    f.looks_over.to_string(),
+                                    f.rereads.to_string(),
+                                    f.recovered.to_string(),
+                                    f.thrown_away.to_string(),
+                                    f.no_reading.to_string(),
+                                ]
+                            })
+                            .collect(),
+                    ),
+                ));
+                out.push(by);
+            }
             let mut hist = section(word(K::Hist, lang));
             for h in &self.histograms {
                 let biggest = h.counts.iter().copied().max().unwrap_or(0);
@@ -1016,7 +1076,9 @@ impl WorkReport {
                 json!({
                     "id": f.id, "picked": f.picked, "pick_failures": f.pick_failures, "placed": f.placed,
                     "put_aside": aside, "left_out": left, "faults": f.faults,
-                    "busy_seconds": f.busy_s(), "switched_off": f.disabled
+                    "busy_seconds": f.busy_s(), "switched_off": f.disabled,
+                    "looks_over": f.looks_over, "rereads": f.rereads, "recovered": f.recovered,
+                    "thrown_away": f.thrown_away, "no_reading": f.no_reading
                 })
             }).collect::<Vec<_>>(),
             "nozzle_life": {
@@ -1043,7 +1105,8 @@ impl WorkReport {
             doc["camera"] = json!({
                 "corrected": self.corrected, "over_tolerance": self.over_tolerance,
                 "no_reading": self.no_reading, "mean_mm": self.mean_mm,
-                "max_mm": self.max_mm, "max_deg": self.max_deg
+                "max_mm": self.max_mm, "max_deg": self.max_deg,
+                "rereads": self.rereads, "recovered": self.recovered
             });
             let mut hist = serde_json::Map::new();
             for h in &self.histograms {
@@ -1059,7 +1122,8 @@ impl WorkReport {
 
     /// The sections that come after the rows of `Job::stats_csv` in the CSV of the statistics. The header does not change: each row is `section,name,value` and the columns after
     /// the value (`picked`, `pick_failures`, `placed`, `place_failures`, `faults`, `disabled`) are used by the groups as the header of the file says: for `nozzle`, `tip` and `board`
-    /// the value is the parts planned, `placed` the parts placed and `faults` the parts not placed.
+    /// the value is the parts planned, `placed` the parts placed and `faults` the parts not placed. A `look` row is for a feeder whose parts the camera looked at with something to tell: the value
+    /// is the parts whose first look was over the tolerance and the columns after it, in the order of the header, the extra looks, the parts saved by one, the parts thrown away and the looks without a reading.
     pub fn csv_sections(&self) -> String {
         let mut out = String::new();
         let mut row = |section: &str, name: &str, value: String| {
@@ -1130,6 +1194,17 @@ impl WorkReport {
                 csv_field(id),
                 aside + left,
                 aside + left
+            ));
+        }
+        for f in self.feeders.iter().filter(|f| f.has_looks()) {
+            out.push_str(&format!(
+                "look,{},{},{},{},{},{},,\n",
+                csv_field(&f.id),
+                f.looks_over,
+                f.rereads,
+                f.recovered,
+                f.thrown_away,
+                f.no_reading
             ));
         }
         for t in &self.tip_life {
@@ -1369,6 +1444,14 @@ pub fn words_complete() -> bool {
         ColUsesBefore,
         ColUsesAfter,
         ColWorn,
+        Rereads,
+        Recovered,
+        CameraByFeeder,
+        ColLooksOver,
+        ColRereads,
+        ColRecovered,
+        ColThrown,
+        ColNoReading,
     ];
     all.iter()
         .all(|k| Lang::ALL.iter().all(|l| !word(*k, *l).is_empty()))
