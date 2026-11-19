@@ -27,6 +27,8 @@ const MIN_TRAVEL_MM: f64 = 0.5;
 /// The bending of the lens that `camera_lens_k1` takes, either way.
 const MAX_K1: f64 = 0.01;
 
+const ORIGIN_ROW_REFUSED: &str = "the file has a row 'origin,X,Y' but the origin of the sheet is taken from the configuration: set camera_combined_touch = on (or use --touch) to take it from the file";
+
 fn bad(detail: impl Into<String>) -> PnpError {
     PnpError::new(Code::CalibrationBad, detail)
 }
@@ -40,6 +42,33 @@ pub fn allowed(cfg: &MachineConfig) -> Result<(), String> {
     }
 }
 
+/// The place of the point 0,0 of the sheet: the one the file gives when the touch mode is on, the one of the configuration otherwise. `file` is what `parse_combined_touch` found; `given` is
+/// an origin written on the command line, which cannot be mixed with the one of the file.
+pub fn resolve_origin(
+    cfg: &MachineConfig,
+    touch: bool,
+    file: FileOrigin,
+    given: Option<(f64, f64)>,
+) -> Result<(f64, f64), PnpError> {
+    if !touch {
+        if file.is_some() {
+            return Err(bad(ORIGIN_ROW_REFUSED));
+        }
+        return Ok(given.unwrap_or((
+            cfg.camera_pattern_origin_x_mm,
+            cfg.camera_pattern_origin_y_mm,
+        )));
+    }
+    if given.is_some() {
+        return Err(bad(
+            "the origin is given twice: the touch mode takes it from the row 'origin,X,Y' of the file, so leave --origin out",
+        ));
+    }
+    file.ok_or_else(|| {
+        bad("the touch mode needs a row 'origin,X,Y' in the file: the place of the axis of the nozzle when it touched the point 0,0 of the sheet")
+    })
+}
+
 /// One sighting of a point of the sheet: where the head was, which point it was and where the camera saw it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CombinedPoint {
@@ -51,8 +80,22 @@ pub struct CombinedPoint {
     pub py: f64,
 }
 
-/// Reads a file of sightings: the columns `head_x,head_y,col,row,px,py`, one row for each, with an optional header and comment lines (`#`).
+/// The place of the point 0,0 of the sheet that the file says (a row `origin,X,Y`, the place of the axis of the nozzle when it touched that point), or `None` when the file has no such row.
+/// Only the first row of the kind counts; a second one is an error.
+pub type FileOrigin = Option<(f64, f64)>;
+
+/// Reads a file of sightings: the columns `head_x,head_y,col,row,px,py`, one row for each, with an optional header and comment lines (`#`). A row `origin,X,Y` is refused here: use
+/// `parse_combined_touch`, which is for the mode that takes the origin of the sheet from the file.
 pub fn parse_combined(text: &str) -> Result<Vec<CombinedPoint>, PnpError> {
+    let (rows, origin) = parse_combined_touch(text)?;
+    if origin.is_some() {
+        return Err(bad(ORIGIN_ROW_REFUSED));
+    }
+    Ok(rows)
+}
+
+/// Reads a file of sightings that may carry the origin of the sheet in a row `origin,X,Y` (millimetres, within 10000 either way, anywhere among the rows): the sightings and the origin.
+pub fn parse_combined_touch(text: &str) -> Result<(Vec<CombinedPoint>, FileOrigin), PnpError> {
     let text = text.trim_start_matches('\u{feff}');
     let kept: String = text
         .lines()
@@ -69,10 +112,42 @@ pub fn parse_combined(text: &str) -> Result<Vec<CombinedPoint>, PnpError> {
     let records = read_records_numbered(&kept, detect_delimiter(head))
         .map_err(|(line, e)| bad(format!("line {line}: {e}")))?;
     let mut out: Vec<CombinedPoint> = Vec::new();
-    for (i, (line, record)) in records.into_iter().enumerate() {
-        if i == 0 && record.first().is_some_and(|c| c.parse::<f64>().is_err()) {
+    let mut origin: FileOrigin = None;
+    let mut started = false;
+    for (line, record) in records {
+        if record
+            .first()
+            .is_some_and(|c| c.eq_ignore_ascii_case("origin"))
+        {
+            if origin.is_some() {
+                return Err(bad(format!(
+                    "line {line}: the origin of the sheet is given twice"
+                )));
+            }
+            if record.len() != 3 {
+                return Err(bad(format!(
+                    "line {line}: the origin of the sheet needs 2 numbers (origin,X,Y), this row has {}",
+                    record.len() - 1
+                )));
+            }
+            let mut v = [0.0; 2];
+            for (slot, cell) in v.iter_mut().zip(&record[1..]) {
+                let n: f64 = cell
+                    .parse()
+                    .map_err(|_| bad(format!("line {line}: '{cell}' is not a number")))?;
+                if !n.is_finite() || n.abs() > 10_000.0 {
+                    return Err(bad(format!("line {line}: '{cell}' is not a usable number")));
+                }
+                *slot = n;
+            }
+            origin = Some((v[0], v[1]));
             continue;
         }
+        if !started && record.first().is_some_and(|c| c.parse::<f64>().is_err()) {
+            started = true;
+            continue;
+        }
+        started = true;
         if record.len() != 6 {
             return Err(bad(format!(
                 "line {line}: a sighting needs 6 numbers (head_x,head_y,col,row,px,py), this row has {}",
@@ -112,7 +187,7 @@ pub fn parse_combined(text: &str) -> Result<Vec<CombinedPoint>, PnpError> {
             py: v[5],
         });
     }
-    Ok(out)
+    Ok((out, origin))
 }
 
 /// What the combined calibration found.

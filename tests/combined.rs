@@ -3,7 +3,8 @@
 
 use eh3d_phoenix_pnp::camera::CameraModel;
 use eh3d_phoenix_pnp::combined::{
-    allowed, calibrate_combined, parse_combined, CombinedPoint, MAX_TURN_DEG, MIN_POINTS,
+    allowed, calibrate_combined, parse_combined, parse_combined_touch, resolve_origin,
+    CombinedPoint, MAX_TURN_DEG, MIN_POINTS,
 };
 use eh3d_phoenix_pnp::config::{MachineConfig, KEYS};
 use eh3d_phoenix_pnp::error::{Code, Lang};
@@ -590,4 +591,170 @@ fn the_tool_of_the_window_is_off_until_the_setting_is_on_then_fits_applies_and_w
     tb.run(&ws, Lang::Es);
     assert!(tb.error.contains("PHOENIX-PNP-058"), "{}", tb.error);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---- the touch mode: the origin of the sheet from a row of the file
+
+const TOUCH: &str = "camera_combined = on\ncamera_combined_touch = on\n";
+
+#[test]
+fn the_touch_mode_is_off_by_default_and_is_a_setting() {
+    let d = MachineConfig::default();
+    assert!(!d.camera_combined_touch);
+    assert!(KEYS.contains(&"camera_combined_touch"));
+    assert!(MACHINE.contains("\ncamera_combined_touch = off"));
+    assert!(!MachineConfig::parse(MACHINE).unwrap().camera_combined_touch);
+    assert!(MachineConfig::parse(TOUCH).unwrap().camera_combined_touch);
+    assert!(MachineConfig::parse("camera_combined_touch = sometimes").is_err());
+}
+
+#[test]
+fn a_row_origin_is_read_among_the_sightings_and_refused_where_it_is_not_wanted() {
+    let text = format!("# the nozzle touched the corner\norigin,30.25,-20\n{EXAMPLE}");
+    let (rows, origin) = parse_combined_touch(&text).unwrap();
+    assert_eq!(origin, Some((30.25, -20.0)));
+    assert_eq!(rows.len(), parse_combined(EXAMPLE).unwrap().len());
+    // the row may come at the end, in capitals
+    let after = format!("{EXAMPLE}ORIGIN,1,2\n");
+    assert_eq!(parse_combined_touch(&after).unwrap().1, Some((1.0, 2.0)));
+    // the header may come after the row
+    let head = "origin,3.5,4\nhead_x,head_y,col,row,px,py\n1,2,0,0,5,6\n";
+    let (r, o) = parse_combined_touch(head).unwrap();
+    assert_eq!((r.len(), o), (1, Some((3.5, 4.0))));
+    // no row, no origin
+    assert_eq!(parse_combined_touch(EXAMPLE).unwrap().1, None);
+    // the plain reader does not take it quietly
+    let e = parse_combined(&text).unwrap_err();
+    assert_eq!(e.code, Code::CalibrationBad);
+    assert!(e.detail.contains("camera_combined_touch"), "{}", e.detail);
+    // damaged rows are refused with their line
+    for (bad, want) in [
+        (
+            "origin,1\n",
+            "line 1: the origin of the sheet needs 2 numbers",
+        ),
+        ("origin,1,2,3\n", "needs 2 numbers"),
+        ("origin,a,2\n", "'a' is not a number"),
+        ("origin,1,20000\n", "not a usable number"),
+        (
+            "origin,1,2\nhead_x,y\norigin,3,4\n",
+            "line 3: the origin of the sheet is given twice",
+        ),
+    ] {
+        let e = parse_combined_touch(bad).unwrap_err();
+        assert!(e.detail.contains(want), "{bad}: {}", e.detail);
+    }
+}
+
+#[test]
+fn the_origin_is_the_one_of_the_file_only_in_the_touch_mode() {
+    let cfg =
+        MachineConfig::parse("camera_pattern_origin_x_mm = 7\ncamera_pattern_origin_y_mm = 8\n")
+            .unwrap();
+    // off: the configuration, or the one given on the command line; a row of the file is an error
+    assert_eq!(resolve_origin(&cfg, false, None, None).unwrap(), (7.0, 8.0));
+    assert_eq!(
+        resolve_origin(&cfg, false, None, Some((1.0, 2.0))).unwrap(),
+        (1.0, 2.0)
+    );
+    let e = resolve_origin(&cfg, false, Some((1.0, 2.0)), None).unwrap_err();
+    assert!(e.detail.contains("--touch"), "{}", e.detail);
+    // on: the file, nothing else; a missing row or a second origin is an error
+    assert_eq!(
+        resolve_origin(&cfg, true, Some((1.0, 2.0)), None).unwrap(),
+        (1.0, 2.0)
+    );
+    let e = resolve_origin(&cfg, true, None, None).unwrap_err();
+    assert!(
+        e.detail.contains("needs a row 'origin,X,Y'"),
+        "{}",
+        e.detail
+    );
+    let e = resolve_origin(&cfg, true, Some((1.0, 2.0)), Some((3.0, 4.0))).unwrap_err();
+    assert!(e.detail.contains("given twice"), "{}", e.detail);
+}
+
+#[test]
+fn the_touch_mode_gives_the_same_fit_as_the_origin_of_the_configuration() {
+    let t = Truth::default();
+    let rows = sightings(&t, &HEADS, 3);
+    let by_key = calibrate_combined(&rows, t.pitch, t.origin).unwrap();
+    let text = format!("origin,{},{}\n{}", t.origin.0, t.origin.1, to_file(&rows));
+    let (read, file_origin) = parse_combined_touch(&text).unwrap();
+    let origin = resolve_origin(&MachineConfig::default(), true, file_origin, None).unwrap();
+    let by_touch = calibrate_combined(&read, t.pitch, origin).unwrap();
+    assert_eq!(by_key, by_touch);
+    // a file that touched somewhere else gives a camera whose nozzle is somewhere else
+    let moved = calibrate_combined(&read, t.pitch, (t.origin.0 + 0.5, t.origin.1)).unwrap();
+    assert!(
+        (moved.camera.model.offset_x_mm - by_key.camera.model.offset_x_mm).abs() > 0.1,
+        "{:?}",
+        moved.camera.model
+    );
+}
+
+#[test]
+fn the_command_takes_the_origin_from_the_file_with_touch_or_the_setting() {
+    let dir = scratch("touch");
+    let key = dir.join("key.cfg");
+    std::fs::write(&key, ON).unwrap();
+    let touch = dir.join("touch.cfg");
+    std::fs::write(&touch, TOUCH).unwrap();
+    let file = dir.join("with_origin.csv");
+    std::fs::write(&file, format!("origin,30,20\n{EXAMPLE}")).unwrap();
+    // by the configuration the row is refused with the way out
+    let o = run(&["camera-combined", p(&file), "--config", p(&key)]);
+    assert!(!o.status.success());
+    assert!(text(&o.stderr).contains("--touch"), "{}", text(&o.stderr));
+    // --touch takes it from the file; the result is that of the origin in the configuration
+    let plain = "examples/camera_combined.csv";
+    let by_key = run(&["camera-combined", plain, "--config", p(&key)]);
+    assert!(by_key.status.success(), "{}", text(&by_key.stderr));
+    let o = run(&["camera-combined", p(&file), "--touch", "--config", p(&key)]);
+    assert!(o.status.success(), "{}", text(&o.stderr));
+    assert_eq!(text(&o.stdout), text(&by_key.stdout));
+    // the setting does the same without the switch
+    let o = run(&["camera-combined", p(&file), "--config", p(&touch)]);
+    assert!(o.status.success(), "{}", text(&o.stderr));
+    assert_eq!(text(&o.stdout), text(&by_key.stdout));
+    // a file without the row, or with --origin as well, is refused
+    let o = run(&["camera-combined", plain, "--touch", "--config", p(&key)]);
+    assert!(!o.status.success());
+    assert!(text(&o.stderr).contains("needs a row 'origin,X,Y'"));
+    let o = run(&[
+        "camera-combined",
+        p(&file),
+        "--touch",
+        "--origin",
+        "1,2",
+        "--config",
+        p(&key),
+    ]);
+    assert!(!o.status.success());
+    assert!(text(&o.stderr).contains("given twice"));
+    // touch does not turn the combined mode on
+    let off = dir.join("off.cfg");
+    std::fs::write(&off, "camera_combined_touch = on\n").unwrap();
+    let o = run(&["camera-combined", p(&file), "--config", p(&off)]);
+    assert!(!o.status.success());
+    assert!(text(&o.stderr).contains("camera_combined = on"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_tool_of_the_window_takes_the_origin_from_the_text_in_the_touch_mode() {
+    let on = MachineConfig::parse(TOUCH).unwrap();
+    let text = format!("origin,30,20\n{EXAMPLE}");
+    let (_, info, _) = combined_text(&text, &on, Lang::En).unwrap();
+    assert!(info.starts_with("62 sightings"), "{info}");
+    // the text without the row is refused with its reason
+    let e = combined_text(EXAMPLE, &on, Lang::En).unwrap_err();
+    assert!(
+        e.contains("origin,X,Y") && e.contains("PHOENIX-PNP-058"),
+        "{e}"
+    );
+    // and the row is refused when the mode is off
+    let key = MachineConfig::parse(ON).unwrap();
+    let e = combined_text(&text, &key, Lang::En).unwrap_err();
+    assert!(e.contains("camera_combined_touch"), "{e}");
 }

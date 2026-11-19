@@ -13,7 +13,9 @@ use crate::calibrate::{
     calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples, taught_csv,
     teach_file, CameraCalibration, NozzleRunout, Taught,
 };
-use crate::combined::{self, calibrate_combined, parse_combined, CombinedCalibration};
+use crate::combined::{
+    self, calibrate_combined, parse_combined_touch, resolve_origin, CombinedCalibration,
+};
 use crate::compare;
 use crate::config::MachineConfig;
 use crate::error::{Code, Lang, PnpError};
@@ -568,18 +570,17 @@ pub fn apply_pattern(cfg: &mut MachineConfig, found: &PatternCalibration) {
 }
 
 /// The camera, the turn of the sheet and the bending of the lens from the sightings in `text` of a pattern fixed to the bed (the pitch and the origin are those of the configuration): the
-/// fit, the summary (with the warning when a sighting is over `camera_pattern_max_residual_mm`) and the lines for the configuration. Refused while `camera_combined` is off.
+/// fit, the summary (with the warning when a sighting is over `camera_pattern_max_residual_mm`) and the lines for the configuration. Refused while `camera_combined` is off. With
+/// `camera_combined_touch` on the origin is the row `origin,X,Y` of the text.
 pub fn combined_text(
     text: &str,
     cfg: &MachineConfig,
     lang: Lang,
 ) -> Result<(CombinedCalibration, String, String), String> {
     combined::allowed(cfg)?;
-    let rows = parse_combined(text).map_err(|e| failed(e, lang))?;
-    let origin = (
-        cfg.camera_pattern_origin_x_mm,
-        cfg.camera_pattern_origin_y_mm,
-    );
+    let (rows, file_origin) = parse_combined_touch(text).map_err(|e| failed(e, lang))?;
+    let origin = resolve_origin(cfg, cfg.camera_combined_touch, file_origin, None)
+        .map_err(|e| failed(e, lang))?;
     let found = calibrate_combined(&rows, cfg.camera_pattern_pitch_mm, origin)
         .map_err(|e| failed(e, lang))?;
     let mut summary = found.summary();

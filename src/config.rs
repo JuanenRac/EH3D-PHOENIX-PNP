@@ -20,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 160] = [
+pub const KEYS: [&str; 161] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -181,6 +181,7 @@ pub const KEYS: [&str; 160] = [
     "camera_combined",
     "camera_pattern_origin_x_mm",
     "camera_pattern_origin_y_mm",
+    "camera_combined_touch",
 ];
 
 /// The order in which the places are visited.
@@ -563,6 +564,8 @@ pub struct MachineConfig {
     pub camera_pattern_origin_x_mm: f64,
     /// See `camera_pattern_origin_x_mm`.
     pub camera_pattern_origin_y_mm: f64,
+    /// The combined calibration takes the origin of the sheet from a row `origin,X,Y` of the file of sightings (the place of the nozzle when it touched the point 0,0) instead of from `camera_pattern_origin_x_mm` and `camera_pattern_origin_y_mm`. Off by default.
+    pub camera_combined_touch: bool,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -717,6 +720,7 @@ impl Default for MachineConfig {
             camera_combined: false,
             camera_pattern_origin_x_mm: 0.0,
             camera_pattern_origin_y_mm: 0.0,
+            camera_combined_touch: false,
         }
     }
 }
@@ -1277,6 +1281,7 @@ impl MachineConfig {
             "camera_combined" => self.camera_combined = flag(line, key, v)?,
             "camera_pattern_origin_x_mm" => self.camera_pattern_origin_x_mm = n(-10000.0, 10000.0)?,
             "camera_pattern_origin_y_mm" => self.camera_pattern_origin_y_mm = n(-10000.0, 10000.0)?,
+            "camera_combined_touch" => self.camera_combined_touch = flag(line, key, v)?,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {
