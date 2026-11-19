@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.0] - Journal of the simulated job, parts and configuration diffs, board statistics, queue stock and feeder depletion
+
 - **The pictures of the window in the README are taken again with the newest build:** the Job tab with the simulated job on its way, in the eight languages.
 - **Hooks, off by default:** `simulate --hooks FILE` runs a program of the operator for the events of a job (`job-finished`, `job-paused`, `job-stopped`, `part-aside` for each part put aside, `feeder-off` for each feeder switched off), to light a lamp, play a sound or send a message. Nothing is run until `hooks` is on; `--hooks-dry-run` lists the calls and runs nothing (`hooks::events_of`, `hooks::calls_for`, `hooks::run_call`).
 - **What a hook may be:** the rules file (`event,program,argument...`, `examples/hooks.csv`) is the list of what may be run. A program is a file in the folder of the rules, named with letters, digits, `.`, `_` and `-`: no path, no search of the system, no shell, no link out of the folder, no `.bat` or `.cmd`. The arguments are passed one by one, with `{event}`, `{reference}`, `{feeder}`, `{reason}`, `{phase}`, `{placed}` and `{total}` filled in once (data that looks like a name between brackets is not filled in again). A rules file is at most 64 KiB and 50 rules, a rule has at most 8 arguments of 256 characters without control characters, and a rule that is not safe is refused with its line before the job runs (`PHOENIX-PNP-009`).
