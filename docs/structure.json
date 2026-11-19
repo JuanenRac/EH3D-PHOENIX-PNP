@@ -28,6 +28,19 @@
       "accent": "a",
       "rows": [
         {
+          "name": "asidesheet.rs",
+          "desc": {
+            "en": "the sheet of the parts a person places by hand: put aside, left out, not placed yet",
+            "es": "la hoja de las piezas que una persona coloca a mano tras un trabajo: apartadas, omitidas, aún sin colocar",
+            "de": "das Blatt der Teile, die eine Person nach einem Auftrag von Hand setzt: beiseitegelegt, ausgelassen, noch nicht gesetzt",
+            "fr": "la feuille des pièces qu'une personne pose à la main après un travail : mises de côté, laissées, pas encore posées",
+            "it": "il foglio delle parti che una persona posiziona a mano dopo un lavoro: messe da parte, escluse, non ancora posizionate",
+            "ja": "ジョブの後に人が手で置く部品のシート：取り置き、スキップ、未配置",
+            "zh": "作业之后需要人工贴装的零件清单：被搁置、被跳过、尚未贴装",
+            "pt": "a folha das peças que uma pessoa coloca à mão depois de um trabalho: postas de parte, deixadas de fora, ainda não colocadas"
+          }
+        },
+        {
           "name": "boardstats.rs",
           "desc": {
             "en": "the counts of a table of parts and the pairs of parts that sit too near each other",
@@ -108,14 +121,14 @@
         {
           "name": "cmd_more.rs",
           "desc": {
-            "en": "the commands parts-diff, config-diff, board-stats, queue-stock and feeder-deplete",
-            "es": "los comandos parts-diff, config-diff, board-stats, queue-stock y feeder-deplete",
-            "de": "die Befehle parts-diff, config-diff, board-stats, queue-stock und feeder-deplete",
-            "fr": "les commandes parts-diff, config-diff, board-stats, queue-stock et feeder-deplete",
-            "it": "i comandi parts-diff, config-diff, board-stats, queue-stock e feeder-deplete",
-            "ja": "コマンド parts-diff、config-diff、board-stats、queue-stock、feeder-deplete",
-            "zh": "命令 parts-diff、config-diff、board-stats、queue-stock 和 feeder-deplete",
-            "pt": "os comandos parts-diff, config-diff, board-stats, queue-stock e feeder-deplete"
+            "en": "the commands of the diffs, board-stats, queue-stock, feeder-deplete and feeder-refill",
+            "es": "los comandos parts-diff, config-diff, board-stats, queue-stock, feeder-deplete, feeder-refill y job-diff",
+            "de": "die Befehle parts-diff, config-diff, board-stats, queue-stock, feeder-deplete, feeder-refill und job-diff",
+            "fr": "les commandes parts-diff, config-diff, board-stats, queue-stock, feeder-deplete, feeder-refill et job-diff",
+            "it": "i comandi parts-diff, config-diff, board-stats, queue-stock, feeder-deplete, feeder-refill e job-diff",
+            "ja": "コマンド parts-diff、config-diff、board-stats、queue-stock、feeder-deplete、feeder-refill、job-diff",
+            "zh": "命令 parts-diff、config-diff、board-stats、queue-stock、feeder-deplete、feeder-refill 和 job-diff",
+            "pt": "os comandos parts-diff, config-diff, board-stats, queue-stock, feeder-deplete, feeder-refill e job-diff"
           }
         },
         {
@@ -548,6 +561,19 @@
           }
         },
         {
+          "name": "gui/toolmore.rs",
+          "desc": {
+            "en": "the compare and count panels of the Tools tab, without the window",
+            "es": "los paneles de la pestaña de herramientas que comparan y cuentan, sin la ventana: diferencias, estadísticas, existencias, diario, ejecuciones",
+            "de": "die Felder des Werkzeug-Reiters, die vergleichen und zählen, ohne das Fenster: Vergleiche, Statistik, Bestand, Journal, Läufe",
+            "fr": "les panneaux de l'onglet des outils qui comparent et comptent, sans la fenêtre : écarts, statistiques, stock, journal, exécutions",
+            "it": "i pannelli della scheda degli strumenti che confrontano e contano, senza la finestra: differenze, statistiche, scorte, diario, esecuzioni",
+            "ja": "比較と集計を行うツールタブのパネル（ウィンドウなし）：差分、統計、在庫、記録、複数回実行",
+            "zh": "工具页中比较与统计的面板（不含窗口）：差异、统计、库存、日志、多次运行",
+            "pt": "os painéis do separador de ferramentas que comparam e contam, sem a janela: diferenças, estatísticas, existências, diário, execuções"
+          }
+        },
+        {
           "name": "gui/view.rs",
           "desc": {
             "en": "the geometry of the map: bodies, polarity marks, fit, zoom and hit",
@@ -675,6 +701,19 @@
             "ja": "ジョブ：ステップ、一時停止、再試行、方針、統計、保存状態",
             "zh": "作业：步骤、暂停、重试、策略、统计和已保存状态",
             "pt": "o trabalho: passos, pausa, repetições, políticas, estatísticas e estado guardado"
+          }
+        },
+        {
+          "name": "jobdiff.rs",
+          "desc": {
+            "en": "what differs between two jobs in files, part by part and in the plan as a whole",
+            "es": "lo que difiere entre dos trabajos en ficheros, pieza a pieza y en el plan en conjunto",
+            "de": "was zwei Aufträge in Dateien unterscheidet, Teil für Teil und im Plan insgesamt",
+            "fr": "ce qui diffère entre deux travaux en fichiers, pièce par pièce et dans le plan dans son ensemble",
+            "it": "cosa differisce tra due lavori in file, parte per parte e nel piano nel suo insieme",
+            "ja": "ファイルにした2つのジョブの違い：部品ごと、および計画全体",
+            "zh": "两个作业文件之间的差异：逐个零件以及整个计划",
+            "pt": "o que difere entre dois trabalhos em ficheiros, peça a peça e no plano no seu conjunto"
           }
         },
         {
@@ -977,6 +1016,19 @@
           }
         },
         {
+          "name": "refill.rs",
+          "desc": {
+            "en": "the table of feeders after reels are changed: the new count and the first place of a strip",
+            "es": "la tabla de alimentadores tras cambiar carretes: la cuenta nueva y el primer lugar de una tira",
+            "de": "die Zuführungstabelle nach einem Rollenwechsel: die neue Anzahl und der erste Platz eines Streifens",
+            "fr": "la table des alimentateurs après un changement de bobines : le nouveau compte et la première place d'une bande",
+            "it": "la tabella dei feeder dopo il cambio delle bobine: il nuovo conteggio e il primo posto di una striscia",
+            "ja": "リール交換後のフィーダー表：新しい個数とストリップの最初の位置",
+            "zh": "更换料盘后的供料器表：新的数量和料带的第一个位置",
+            "pt": "a tabela de alimentadores depois de trocar bobinas: a nova contagem e o primeiro lugar de uma tira"
+          }
+        },
+        {
           "name": "report.rs",
           "desc": {
             "en": "the report of a job: phases, picks, groups, errors; text, HTML, CSV, JSON",
@@ -1003,6 +1055,19 @@
           }
         },
         {
+          "name": "runs.rs",
+          "desc": {
+            "en": "the same job run many times on the simulated machine, each time from another seed",
+            "es": "el mismo trabajo ejecutado muchas veces en la máquina simulada, cada vez desde otra semilla",
+            "de": "derselbe Auftrag viele Male auf der simulierten Maschine, jedes Mal mit einem anderen Startwert",
+            "fr": "le même travail exécuté de nombreuses fois sur la machine simulée, chaque fois avec une autre graine",
+            "it": "lo stesso lavoro eseguito molte volte sulla macchina simulata, ogni volta da un altro seme",
+            "ja": "同じジョブをシミュレーション機で、毎回別のシードで何度も実行",
+            "zh": "在模拟机上以不同种子多次运行同一作业",
+            "pt": "o mesmo trabalho executado muitas vezes na máquina simulada, cada vez a partir de outra semente"
+          }
+        },
+        {
           "name": "setup.rs",
           "desc": {
             "en": "the setup sheet: feeders by slot, missing parts, tips, calibrations",
@@ -1026,6 +1091,19 @@
             "ja": "模擬機械：仮想時計と注入できる故障",
             "zh": "模拟机器：虚拟时钟和可注入的故障",
             "pt": "a máquina simulada: relógio virtual e falhas que se podem injetar"
+          }
+        },
+        {
+          "name": "slots.rs",
+          "desc": {
+            "en": "where the feeders stand so that the plan is fastest: swaps of places between feeders",
+            "es": "dónde colocar los alimentadores para que el plan sea más rápido: intercambios de lugares entre alimentadores del mismo tipo",
+            "de": "wo die Zuführungen stehen, damit der Plan am schnellsten ist: Platztausch zwischen Zuführungen derselben Art",
+            "fr": "où placer les alimentateurs pour que le plan soit le plus rapide : échanges de places entre alimentateurs du même type",
+            "it": "dove mettere i feeder perché il piano sia il più veloce: scambi di posti tra feeder dello stesso tipo",
+            "ja": "計画が最も速くなるフィーダーの配置：同じ種類のフィーダー同士の位置の入れ替え",
+            "zh": "让计划最快的供料器位置：同类供料器之间的位置交换",
+            "pt": "onde colocar os alimentadores para o plano ser o mais rápido: trocas de lugares entre alimentadores do mesmo tipo"
           }
         },
         {
@@ -1124,6 +1202,19 @@
             "ja": "approach 時の計画時間のテスト：2 回目の動きとジョブの秒数",
             "zh": "approach 下计划时间的测试：第二次移动与作业秒数",
             "pt": "testes do tempo do plano com approach: as segundas passagens e os segundos do trabalho"
+          }
+        },
+        {
+          "name": "asidesheet.rs",
+          "desc": {
+            "en": "tests of the sheet of parts by hand: put aside, left out, pending, the order, the command",
+            "es": "pruebas de la hoja de piezas a mano: apartadas, omitidas, pendientes, el orden, el comando",
+            "de": "Tests des Blatts der Teile von Hand: beiseitegelegt, ausgelassen, ausstehend, die Reihenfolge, der Befehl",
+            "fr": "tests de la feuille des pièces à la main : mises de côté, laissées, en attente, l'ordre, la commande",
+            "it": "test del foglio delle parti a mano: messe da parte, escluse, in attesa, l'ordine, il comando",
+            "ja": "手作業の部品シートのテスト：取り置き、スキップ、未配置、順序、コマンド",
+            "zh": "手工贴装清单的测试：搁置、跳过、待处理、顺序、命令",
+            "pt": "testes da folha de peças à mão: postas de parte, deixadas de fora, pendentes, a ordem, o comando"
           }
         },
         {
@@ -1423,6 +1514,19 @@
             "ja": "ジョブのテスト：ステップ、再試行、保存状態",
             "zh": "作业测试：步骤、重试和已保存状态",
             "pt": "testes do trabalho: passos, repetições e estado guardado"
+          }
+        },
+        {
+          "name": "jobdiff.rs",
+          "desc": {
+            "en": "tests of the difference of two jobs: each change, the tolerances, the order, the command",
+            "es": "pruebas de lo que difiere entre dos trabajos: cada tipo de cambio, las tolerancias, el orden, el comando",
+            "de": "Tests dessen, was zwei Aufträge unterscheidet: jede Art von Änderung, die Toleranzen, die Reihenfolge, der Befehl",
+            "fr": "tests de ce qui diffère entre deux travaux : chaque type de changement, les tolérances, l'ordre, la commande",
+            "it": "test di ciò che differisce tra due lavori: ogni tipo di modifica, le tolleranze, l'ordine, il comando",
+            "ja": "2つのジョブの差分のテスト：変更の種類ごと、許容差、順序、コマンド",
+            "zh": "两个作业差异的测试：各类变化、容差、顺序、命令",
+            "pt": "testes do que difere entre dois trabalhos: cada tipo de alteração, as tolerâncias, a ordem, o comando"
           }
         },
         {
@@ -1764,6 +1868,19 @@
           }
         },
         {
+          "name": "refill.rs",
+          "desc": {
+            "en": "tests of the table after reels are changed: counts, strip, tray, refusals, the command",
+            "es": "pruebas de la tabla de alimentadores tras cambiar carretes: las cuentas, la tira, la bandeja, cada rechazo, el comando",
+            "de": "Tests der Zuführungstabelle nach einem Rollenwechsel: die Anzahlen, der Streifen, das Tray, jede Ablehnung, der Befehl",
+            "fr": "tests de la table des alimentateurs après un changement de bobines : les comptes, la bande, le plateau, chaque refus, la commande",
+            "it": "test della tabella dei feeder dopo il cambio delle bobine: i conteggi, la striscia, il vassoio, ogni rifiuto, il comando",
+            "ja": "リール交換後のフィーダー表のテスト：個数、ストリップ、トレイ、各拒否、コマンド",
+            "zh": "更换料盘后供料器表的测试：数量、料带、托盘、各类拒绝、命令",
+            "pt": "testes da tabela de alimentadores depois de trocar bobinas: as contagens, a tira, o tabuleiro, cada recusa, o comando"
+          }
+        },
+        {
           "name": "report.rs",
           "desc": {
             "en": "tests of the job report: phases, picks, histograms, groups, decisions, formats",
@@ -1774,6 +1891,19 @@
             "ja": "レポートのテスト：工程、ピック、ヒストグラム、グループ、判断、形式",
             "zh": "报告测试：阶段、拾取、直方图、分组、决定、格式",
             "pt": "testes do relatório: fases, recolhas, histogramas, grupos, decisões, formatos"
+          }
+        },
+        {
+          "name": "runs.rs",
+          "desc": {
+            "en": "tests of the many runs of a job: seeds, errors, times, the command",
+            "es": "pruebas de las muchas ejecuciones de un trabajo: las semillas, las que colocaron todo, los errores, los tiempos, el comando",
+            "de": "Tests der vielen Läufe eines Auftrags: die Startwerte, die Läufe mit allen Teilen, die Fehler, die Zeiten, der Befehl",
+            "fr": "tests des nombreuses exécutions d'un travail : les graines, celles qui ont tout posé, les erreurs, les durées, la commande",
+            "it": "test delle molte esecuzioni di un lavoro: i semi, quelle che hanno posizionato tutto, gli errori, i tempi, il comando",
+            "ja": "ジョブの複数回実行のテスト：シード、全部品を置けた回、エラー、時間、コマンド",
+            "zh": "作业多次运行的测试：种子、贴完全部零件的运行、错误、耗时、命令",
+            "pt": "testes das muitas execuções de um trabalho: as sementes, as que colocaram tudo, os erros, os tempos, o comando"
           }
         },
         {
@@ -1826,6 +1956,19 @@
             "ja": "模擬機械のテスト",
             "zh": "模拟机器的测试",
             "pt": "testes da máquina simulada"
+          }
+        },
+        {
+          "name": "slots.rs",
+          "desc": {
+            "en": "tests of the places of the feeders: the swaps, what they save, the slots, the command",
+            "es": "pruebas de los lugares de los alimentadores: los intercambios, lo que ahorran, lo que nunca se mueve, los nombres de ranura, el límite, el comando",
+            "de": "Tests der Zuführungsplätze: die Tausche, was sie sparen, was sich nie bewegt, die Platznamen, die Grenze, der Befehl",
+            "fr": "tests des places des alimentateurs : les échanges, ce qu'ils font gagner, ce qui ne bouge jamais, les noms d'emplacement, la limite, la commande",
+            "it": "test dei posti dei feeder: gli scambi, quanto fanno risparmiare, ciò che non si muove mai, i nomi degli slot, il limite, il comando",
+            "ja": "フィーダー配置のテスト：入れ替え、節約量、動かないもの、スロット名、上限、コマンド",
+            "zh": "供料器位置的测试：交换、节省量、从不移动的部分、槽位名称、上限、命令",
+            "pt": "testes dos lugares dos alimentadores: as trocas, o que poupam, o que nunca se move, os nomes das ranhuras, o limite, o comando"
           }
         },
         {
@@ -1904,6 +2047,32 @@
             "ja": "ツールタブのテスト：設定、例に対する各ツール、反映と書き出し",
             "zh": "工具页的测试：其设置、各工具对示例的处理、所应用与写出的内容",
             "pt": "testes do separador de ferramentas: as suas definições, cada ferramenta com os exemplos, o que aplica e escreve"
+          }
+        },
+        {
+          "name": "toolmore.rs",
+          "desc": {
+            "en": "tests of the compare and count panels of the Tools tab: against the commands, the files",
+            "es": "pruebas de los paneles de comparar y contar de la pestaña de herramientas: cada uno frente a su comando, los rechazos, los ficheros",
+            "de": "Tests der Vergleichs- und Zählfelder des Werkzeug-Reiters: jedes gegen seinen Befehl, die Ablehnungen, die Dateien",
+            "fr": "tests des panneaux de comparaison et de comptage de l'onglet des outils : chacun face à sa commande, les refus, les fichiers",
+            "it": "test dei pannelli di confronto e conteggio della scheda degli strumenti: ognuno rispetto al suo comando, i rifiuti, i file",
+            "ja": "ツールタブの比較・集計パネルのテスト：各パネルとそのコマンド、拒否、ファイル",
+            "zh": "工具页比较与统计面板的测试：各面板与其命令的对照、拒绝、文件",
+            "pt": "testes dos painéis de comparar e contar do separador de ferramentas: cada um face ao seu comando, as recusas, os ficheiros"
+          }
+        },
+        {
+          "name": "toolpanels.rs",
+          "desc": {
+            "en": "tests of the panels for reels, parts by hand, jobs diff, places and runs, and their words",
+            "es": "pruebas de los paneles de carretes, piezas a mano, diferencias de trabajos, lugares de alimentadores y muchas ejecuciones, y de las palabras de la pestaña",
+            "de": "Tests der Felder für Rollen, Teile von Hand, Auftragsvergleich, Zuführungsplätze und viele Läufe sowie der Wörter des Reiters",
+            "fr": "tests des panneaux des bobines, des pièces à la main, des écarts de travaux, des places d'alimentateurs et des nombreuses exécutions, et des mots de l'onglet",
+            "it": "test dei pannelli per bobine, parti a mano, differenze dei lavori, posti dei feeder e molte esecuzioni, e delle parole della scheda",
+            "ja": "リール、手作業の部品、ジョブの差分、フィーダー配置、複数回実行のパネルとタブの語句のテスト",
+            "zh": "料盘、手工贴装零件、作业差异、供料器位置和多次运行面板及选项卡文字的测试",
+            "pt": "testes dos painéis de bobinas, peças à mão, diferenças de trabalhos, lugares dos alimentadores e muitas execuções, e das palavras do separador"
           }
         },
         {
