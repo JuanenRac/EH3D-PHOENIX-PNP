@@ -49,6 +49,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp config-diff FIRST SECOND [--lang CODE]   the settings that two configuration files give differently, in what they mean (yes and on, 5 and 5.0 and a line that gives the default are the same); exits with 1 when the machines differ
   phoenix-pnp board-stats PARTS [--near MM] [--limit N] [--config F] [--lang CODE]   what a table of parts holds (the sides, the kinds, each package, the box of the centres) and, with --near, the pairs of parts of one side whose centres are closer than MM; exits with 1 when it finds a pair
   phoenix-pnp queue-stock QUEUE [--out F] [--config F] [--lang CODE]   whether the feeders hold enough parts for all the jobs of the queue that are still to be made, one after the other, and the job in which each reel that falls short runs out; exits with 1 when one does
+  phoenix-pnp feeder-deplete FEEDERS --state F [--out F] [--config F] [--lang CODE]   the table of feeders as it stands after the job of a saved state: what is left in each feeder and the next place of each strip; exits with 1 when a feeder is low or empty
   phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS [--panel] [--boards N] [--side top|bottom] [--config F] [--packages F] [--catalog F] [--relative]   puts a job (a table of parts, or a panel with --panel) at the end of a queue of jobs
   phoenix-pnp queue-status QUEUE [--check] [--config F]   the jobs of the queue and what became of each; --check plans the ones still to be made and exits with 1 when one cannot run now
   phoenix-pnp queue-confirm QUEUE NAME   records that the plan of the job, as it is now, was looked at and may be run (void when the files change)
@@ -233,6 +234,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "config-diff" => cmd_more::config_diff(args),
         "board-stats" => cmd_more::board_stats(args),
         "queue-stock" => cmd_more::queue_stock(args),
+        "feeder-deplete" => cmd_more::feeder_deplete(args),
         "package-gen" => cmd_tools::package_gen(args),
         "package-kicad" => cmd_tools::package_kicad(args),
         "place-learn" => cmd_tools::place_learn(args),

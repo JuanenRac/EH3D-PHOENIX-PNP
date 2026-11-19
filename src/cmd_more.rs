@@ -11,7 +11,7 @@ use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::parts::{parse_all, Side};
 use eh3d_phoenix_pnp::queue::{self, Kind};
-use eh3d_phoenix_pnp::{boardstats, configdiff, feeding, partsdiff, queuestock, report};
+use eh3d_phoenix_pnp::{boardstats, configdiff, deplete, feeding, partsdiff, queuestock, report};
 use std::collections::BTreeMap;
 
 /// `parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F]`: what changed between two tables of parts, part by part (added, removed, moved, turned, another value, another package,
@@ -208,5 +208,36 @@ pub fn queue_stock(mut args: Vec<String>) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("{short} kinds of part fall short for the queue"))
+    }
+}
+
+/// `feeder-deplete FEEDERS --state STATE [--out F]`: the table of feeders as it stands after the job that the saved state (`simulate --state`) is of: the count of each feeder is what is left
+/// and the next place of a strip moves along. Without `--out` it only says what each feeder gave; with it the table is written (never over a file that exists, and never over the table
+/// that was read). The exit code is 1 when a feeder is low or empty.
+pub fn feeder_deplete(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let state = flag(&mut args, "--state")?.ok_or("feeder-deplete needs --state FILE")?;
+    let out = flag(&mut args, "--out")?;
+    finish(&args, 1)?;
+    let feeders = args
+        .first()
+        .ok_or("feeder-deplete needs a table of feeders")?
+        .clone();
+    let l = |e: PnpError| e.localized(lang);
+    let result = deplete::deplete(
+        &read_text(&feeders, cfg.max_file_bytes)?,
+        &read_text(&state, cfg.max_file_bytes)?,
+    )
+    .map_err(l)?;
+    print!("{}", result.text());
+    if let Some(o) = &out {
+        refuse_same_file(&[feeders, state], o)?;
+        report::write_new(o, &result.csv).map_err(l)?;
+        println!("written to {o}");
+    }
+    if result.low() == 0 {
+        Ok(())
+    } else {
+        Err(format!("{} feeders are low or empty", result.low()))
     }
 }

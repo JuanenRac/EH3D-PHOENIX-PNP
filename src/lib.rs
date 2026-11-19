@@ -13,6 +13,7 @@ pub mod combined;
 pub mod compare;
 pub mod config;
 pub mod configdiff;
+pub mod deplete;
 pub mod error;
 pub mod exchange;
 pub mod export;

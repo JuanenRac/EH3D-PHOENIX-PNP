@@ -223,6 +223,19 @@
           }
         },
         {
+          "name": "deplete.rs",
+          "desc": {
+            "en": "the table of feeders after a job: the parts left and the next place of the strips",
+            "es": "la tabla de alimentadores tras un trabajo: las piezas que quedan y el siguiente lugar de las tiras",
+            "de": "die Zuführungstabelle nach einem Auftrag: die restlichen Teile und der nächste Platz der Streifen",
+            "fr": "la table des alimentateurs après un travail : les pièces restantes et la prochaine place des bandes",
+            "it": "la tabella dei feeder dopo un lavoro: le parti rimaste e il posto successivo delle strisce",
+            "ja": "ジョブ後のフィーダー表：残りの部品とストリップの次の位置",
+            "zh": "作业之后的供料器表：剩余零件数和料条的下一个位置",
+            "pt": "a tabela de alimentadores depois de um trabalho: as peças que restam e o lugar seguinte das tiras"
+          }
+        },
+        {
           "name": "error.rs",
           "desc": {
             "en": "the error codes PHOENIX-PNP-NNN and their meaning in eight languages",
@@ -1241,6 +1254,19 @@
             "ja": "設定の差分のテスト：同じ意味、既定値、リスト",
             "zh": "配置差异的测试：相同含义、默认值、列表",
             "pt": "testes da diferença entre configurações: mesmo significado, valor por omissão, listas"
+          }
+        },
+        {
+          "name": "deplete.rs",
+          "desc": {
+            "en": "tests of the table of feeders after a job: the counts, the strip, the tray, the command",
+            "es": "pruebas de la tabla de alimentadores tras un trabajo: cuentas, tira, bandeja, comando",
+            "de": "Tests der Zuführungstabelle nach einem Auftrag: Bestände, Streifen, Tray, Befehl",
+            "fr": "tests de la table des alimentateurs après un travail : comptes, bande, plateau, commande",
+            "it": "test della tabella dei feeder dopo un lavoro: conteggi, striscia, vassoio, comando",
+            "ja": "ジョブ後のフィーダー表のテスト：個数、ストリップ、トレイ、コマンド",
+            "zh": "作业后供料器表的测试：数量、料条、托盘、命令",
+            "pt": "testes da tabela de alimentadores depois de um trabalho: contagens, tira, tabuleiro, comando"
           }
         },
         {
