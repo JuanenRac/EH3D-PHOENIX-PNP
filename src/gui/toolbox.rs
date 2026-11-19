@@ -13,6 +13,7 @@ use crate::calibrate::{
     calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples, taught_csv,
     teach_file, CameraCalibration, NozzleRunout, Taught,
 };
+use crate::combined::{self, calibrate_combined, parse_combined, CombinedCalibration};
 use crate::compare;
 use crate::config::MachineConfig;
 use crate::error::{Code, Lang, PnpError};
@@ -51,11 +52,12 @@ pub enum Tool {
     Compare,
     Preview,
     CameraPattern,
+    CameraCombined,
     Queue,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 17] = [
+    pub const ALL: [Tool; 18] = [
         Tool::Backlash,
         Tool::Runout,
         Tool::Camera,
@@ -72,6 +74,7 @@ impl Tool {
         Tool::Compare,
         Tool::Preview,
         Tool::CameraPattern,
+        Tool::CameraCombined,
         Tool::Queue,
     ];
 
@@ -94,6 +97,7 @@ impl Tool {
             Tool::Compare => "compare",
             Tool::Preview => "preview",
             Tool::CameraPattern => "pattern",
+            Tool::CameraCombined => "combined",
             Tool::Queue => "queue",
         }
     }
@@ -122,6 +126,7 @@ impl Tool {
             Tool::Compare => Text::ToolCompare,
             Tool::Preview => Text::ToolPreview,
             Tool::CameraPattern => Text::ToolCameraPattern,
+            Tool::CameraCombined => Text::ToolCameraCombined,
             Tool::Queue => Text::ToolQueue,
         }
     }
@@ -139,6 +144,7 @@ impl Tool {
                 | Tool::Inspect
                 | Tool::FidCheck
                 | Tool::CameraPattern
+                | Tool::CameraCombined
                 | Tool::Queue
         )
     }
@@ -159,6 +165,7 @@ impl Tool {
             Tool::Compare => Some("order_compare.txt"),
             Tool::Preview => Some("plan.svg"),
             Tool::CameraPattern => Some("camera_pattern.cfg"),
+            Tool::CameraCombined => Some("camera_combined.cfg"),
             _ => None,
         }
     }
@@ -218,6 +225,8 @@ pub struct Toolbox {
     pub fiducials_text: String,
     /// The points of a pattern seen by the camera.
     pub pattern_text: String,
+    /// The sightings of a pattern that is fixed to the bed while the head moves.
+    pub combined_text: String,
     /// The text of a queue of jobs.
     pub queue_text: String,
     /// The Queue tool: the queue file as a list of jobs, the form of a new job and the buttons.
@@ -254,6 +263,7 @@ impl Toolbox {
             inspect_text: String::new(),
             fiducials_text: String::new(),
             pattern_text: String::new(),
+            combined_text: String::new(),
             queue_text: String::new(),
             queue: QueueTab::new(),
             path_text: String::new(),
@@ -291,6 +301,7 @@ impl Toolbox {
             Tool::Inspect => Some(&mut self.inspect_text),
             Tool::FidCheck => Some(&mut self.fiducials_text),
             Tool::CameraPattern => Some(&mut self.pattern_text),
+            Tool::CameraCombined => Some(&mut self.combined_text),
             Tool::Queue => Some(&mut self.queue_text),
             _ => None,
         }
@@ -377,6 +388,9 @@ impl Toolbox {
             Tool::CameraPattern => {
                 pattern_text(&self.pattern_text, &ws.cfg, lang).map(|(_, i, o)| (i, o))
             }
+            Tool::CameraCombined => {
+                combined_text(&self.combined_text, &ws.cfg, lang).map(|(_, i, o)| (i, o))
+            }
             Tool::Queue => queue_text(&self.queue_text, lang),
         };
         match result {
@@ -408,6 +422,22 @@ impl Toolbox {
                 Ok((found, _, _)) => match found.warning(cfg.camera_pattern_max_residual_mm) {
                     None => {
                         apply_pattern(cfg, &found);
+                        true
+                    }
+                    Some(w) => {
+                        self.error = w;
+                        false
+                    }
+                },
+                Err(e) => {
+                    self.error = e;
+                    false
+                }
+            },
+            Tool::CameraCombined => match combined_text(&self.combined_text, cfg, lang) {
+                Ok((found, _, _)) => match found.warning(cfg.camera_pattern_max_residual_mm) {
+                    None => {
+                        apply_combined(cfg, &found);
                         true
                     }
                     Some(w) => {
@@ -534,6 +564,37 @@ pub fn pattern_text(
 /// Puts the size of a pixel and the bending of the lens that the pattern gave in the configuration; the turn, the mirror and the offset are left as they were.
 pub fn apply_pattern(cfg: &mut MachineConfig, found: &PatternCalibration) {
     cfg.camera.units_per_px = found.units_per_px;
+    cfg.camera.lens_k1 = found.lens_k1.clamp(-0.01, 0.01);
+}
+
+/// The camera, the turn of the sheet and the bending of the lens from the sightings in `text` of a pattern fixed to the bed (the pitch and the origin are those of the configuration): the
+/// fit, the summary (with the warning when a sighting is over `camera_pattern_max_residual_mm`) and the lines for the configuration. Refused while `camera_combined` is off.
+pub fn combined_text(
+    text: &str,
+    cfg: &MachineConfig,
+    lang: Lang,
+) -> Result<(CombinedCalibration, String, String), String> {
+    combined::allowed(cfg)?;
+    let rows = parse_combined(text).map_err(|e| failed(e, lang))?;
+    let origin = (
+        cfg.camera_pattern_origin_x_mm,
+        cfg.camera_pattern_origin_y_mm,
+    );
+    let found = calibrate_combined(&rows, cfg.camera_pattern_pitch_mm, origin)
+        .map_err(|e| failed(e, lang))?;
+    let mut summary = found.summary();
+    if let Some(w) = found.warning(cfg.camera_pattern_max_residual_mm) {
+        summary.push_str("\nwarning: ");
+        summary.push_str(&w);
+    }
+    let lines = found.config_lines();
+    Ok((found, summary, lines))
+}
+
+/// Puts the camera and the bending of the lens that the combined calibration found in the configuration. `camera_correct_lens` is left as it was: whether the camera takes the bending out of
+/// what it sees is the person's to turn on.
+pub fn apply_combined(cfg: &mut MachineConfig, found: &CombinedCalibration) {
+    apply_camera(cfg, &found.camera);
     cfg.camera.lens_k1 = found.lens_k1.clamp(-0.01, 0.01);
 }
 

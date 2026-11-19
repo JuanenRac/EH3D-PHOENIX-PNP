@@ -14,7 +14,7 @@ use crate::units::rotate_xy;
 
 /// The point `d` (millimetres from the middle of the picture) whose bent image is `v`, for the bending `k1`: the length `r` with `r * (1 + k1 * r * r)` equal to that of `v`, found by
 /// Newton's method (a bending that has no such length leaves `v` as it is).
-fn unbend(v: (f64, f64), k1: f64) -> (f64, f64) {
+pub(crate) fn unbend(v: (f64, f64), k1: f64) -> (f64, f64) {
     let target = v.0.hypot(v.1);
     if k1 == 0.0 || target == 0.0 {
         return v;

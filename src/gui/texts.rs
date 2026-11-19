@@ -305,11 +305,13 @@ pub enum Text {
     QueueConfirmed,
     QueueNotConfirmed,
     QueueBoardsDone,
+    ToolCameraCombined,
+    HintCameraCombined,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::QueueBoardsDone as usize + 1;
+    pub const COUNT: usize = Text::HintCameraCombined as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -717,4 +719,6 @@ static TABLE: &[[&str; 8]] = &[
     ["confirmed", "confirmado", "bestätigt", "confirmé", "confermato", "確認済み", "已确认", "confirmado"],
     ["not confirmed", "sin confirmar", "nicht bestätigt", "non confirmé", "non confermato", "未確認", "未确认", "por confirmar"],
     ["boards made", "placas hechas", "Platinen gefertigt", "cartes faites", "schede fatte", "製造済み基板", "已完成板数", "placas feitas"],
+    ["Combined camera", "Cámara combinada", "Kamera kombiniert", "Caméra combinée", "Telecamera combinata", "カメラ（統合）", "相机联合标定", "Câmara combinada"],
+    ["One sighting per line: head_x,head_y,col,row,px,py (where the head was, the point of the fixed sheet and where the camera saw it; the origin and pitch of the sheet are camera_pattern_origin_x_mm, camera_pattern_origin_y_mm and camera_pattern_pitch_mm, and camera_combined must be on)", "Una observación por línea: head_x,head_y,col,row,px,py (dónde estaba el cabezal, el punto de la hoja fija y dónde lo vio la cámara; el origen y el paso de la hoja son camera_pattern_origin_x_mm, camera_pattern_origin_y_mm y camera_pattern_pitch_mm, y camera_combined debe estar activo)", "Eine Sichtung pro Zeile: head_x,head_y,col,row,px,py (wo der Kopf war, der Punkt des festen Blattes und wo die Kamera ihn sah; Ursprung und Raster des Blattes sind camera_pattern_origin_x_mm, camera_pattern_origin_y_mm und camera_pattern_pitch_mm, und camera_combined muss an sein)", "Une observation par ligne : head_x,head_y,col,row,px,py (où était la tête, le point de la feuille fixe et où la caméra l'a vu ; l'origine et le pas de la feuille sont camera_pattern_origin_x_mm, camera_pattern_origin_y_mm et camera_pattern_pitch_mm, et camera_combined doit être activé)", "Un'osservazione per riga: head_x,head_y,col,row,px,py (dove era la testa, il punto del foglio fisso e dove lo ha visto la telecamera; origine e passo del foglio sono camera_pattern_origin_x_mm, camera_pattern_origin_y_mm e camera_pattern_pitch_mm, e camera_combined deve essere attivo)", "1 行に 1 回の観測：head_x,head_y,col,row,px,py（ヘッドの位置、固定したシートの点、カメラで見えた位置。シートの原点とピッチは camera_pattern_origin_x_mm、camera_pattern_origin_y_mm、camera_pattern_pitch_mm で、camera_combined をオンにする必要があります）", "每行一次观测：head_x,head_y,col,row,px,py（头的位置、固定图案上的点以及相机看到它的位置；图案的原点和间距为 camera_pattern_origin_x_mm、camera_pattern_origin_y_mm 和 camera_pattern_pitch_mm，且必须开启 camera_combined）", "Uma observação por linha: head_x,head_y,col,row,px,py (onde estava a cabeça, o ponto da folha fixa e onde a câmara o viu; a origem e o passo da folha são camera_pattern_origin_x_mm, camera_pattern_origin_y_mm e camera_pattern_pitch_mm, e camera_combined tem de estar ligado)"],
 ];

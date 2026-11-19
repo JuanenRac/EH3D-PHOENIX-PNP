@@ -20,7 +20,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 157] = [
+pub const KEYS: [&str; 160] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -178,6 +178,9 @@ pub const KEYS: [&str; 157] = [
     "camera_correct_lens",
     "queue_relative_paths",
     "queue_gui_ask_run",
+    "camera_combined",
+    "camera_pattern_origin_x_mm",
+    "camera_pattern_origin_y_mm",
 ];
 
 /// The order in which the places are visited.
@@ -554,6 +557,12 @@ pub struct MachineConfig {
     pub queue_relative_paths: bool,
     /// The Run button of the Queue tool asks first (the second press starts the run); off starts the run at the first press. A run is on the simulated machine in either case.
     pub queue_gui_ask_run: bool,
+    /// The combined calibration of the camera (`camera-combined`, the Combined camera tool) is allowed: a pattern fixed to the bed while the head moves. Off by default; the separate calibrations do not depend on it.
+    pub camera_combined: bool,
+    /// Where the point 0,0 of the pattern lies in the machine (millimetres) when the pattern is fixed to the bed: `camera-combined`.
+    pub camera_pattern_origin_x_mm: f64,
+    /// See `camera_pattern_origin_x_mm`.
+    pub camera_pattern_origin_y_mm: f64,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -705,6 +714,9 @@ impl Default for MachineConfig {
             camera_correct_lens: false,
             queue_relative_paths: false,
             queue_gui_ask_run: true,
+            camera_combined: false,
+            camera_pattern_origin_x_mm: 0.0,
+            camera_pattern_origin_y_mm: 0.0,
         }
     }
 }
@@ -1262,6 +1274,9 @@ impl MachineConfig {
             "camera_correct_lens" => self.camera_correct_lens = flag(line, key, v)?,
             "queue_relative_paths" => self.queue_relative_paths = flag(line, key, v)?,
             "queue_gui_ask_run" => self.queue_gui_ask_run = flag(line, key, v)?,
+            "camera_combined" => self.camera_combined = flag(line, key, v)?,
+            "camera_pattern_origin_x_mm" => self.camera_pattern_origin_x_mm = n(-10000.0, 10000.0)?,
+            "camera_pattern_origin_y_mm" => self.camera_pattern_origin_y_mm = n(-10000.0, 10000.0)?,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

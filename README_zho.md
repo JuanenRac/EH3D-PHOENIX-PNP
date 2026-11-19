@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 850 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 859 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.0.9` |
 | 成熟度 | 脚手架 |
-| 测试 | 850 |
+| 测试 | 859 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
 | 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 850 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 测试 | 🟡 | 859 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -100,6 +100,7 @@
 * **校正镜头** (`src/camera.rs`, `src/sim.rs`)：设置 `camera_correct_lens = on` 后，相机会从所见图像中去除镜头畸变（`camera_lens_k1`，即 `camera-pattern` 得到的值），因此对位步骤的读数相当于一个没有畸变的镜头；`CameraModel::to_machine_corrected` 和 `read_corrected` 通过反解 `d * (1 + k1 * d * d)` 来实现。关闭（默认）时畸变会留在读数中。此时 `camera_units_per_px` 应为像素的真实大小，即 `camera-pattern` 给出的值。
 * **相对于队列文件夹的路径** (`src/queue.rs`, `src/cmd_queue.rs`)：`queue_relative_paths = on`（或 `queue-add --relative`）时，位于队列文件所在文件夹内（或其下）的作业文件以相对于该文件夹的路径保存，因此文件夹可以移动或共享；`queue-status`、`queue-confirm` 和 `queue-run` 无论从哪个文件夹运行，都以队列文件夹为基准解析。关闭（默认）保存绝对路径；两者运行结果相同，计划标识也相同。
 * **带按钮的队列** (`src/gui/queuetab.rs`, `src/gui/window.rs`)：工具标签页的队列工具把队列文件读成作业列表，并提供按钮：添加作业（表单以窗口语言校验）、检查计划、确认所选作业的计划、撤销确认、跳过、重置、移除和运行。每个按钮都用窗口旁的程序运行同名命令，因此窗口和命令行以同一种方式规划、确认和运行（相同的计划标识、相同的锁）。第一次按“运行”只会询问（`queue_gui_ask_run`，默认开启）；第二次才在模拟机器上于后台开始运行，并带有停止按钮。
+* **相机联合标定** (`src/combined.rs`, `src/cmd_tools.rs`, `src/gui/toolbox.rs`)：`phoenix-pnp camera-combined FILE` 读取 `head_x,head_y,col,row,px,py`（`examples/camera_combined.csv`：图案固定在台面上，头移动到多个位置），并结合图案的位置（`camera_pattern_origin_x_mm`、`camera_pattern_origin_y_mm`）和间距，一次拟合出像素大小、旋转、镜像、吸嘴偏移、镜头畸变以及图案在台面上的旋转角；相当于把 `camera-calibrate` 的相机和 `camera-pattern` 的镜头一并完成。默认关闭（`camera_combined = off`；两个独立命令不依赖它），头必须位于两个或更多位置，偏移的精度取决于原点的测量精度。工具标签页有同样的标定；应用到机器不会开启 `camera_correct_lens`。
 * **工具标签页新增面板** (`src/gui/toolbox.rs`)：吸嘴头使用情况（`nozzle-life` 保存的记录，达到 `nozzle_life_warn` 的吸嘴头会被标出）、吸嘴上的元件与已加载封装尺寸的核对、基准点检查（每个标记的残差、不一致的标记，以及超过 `fiducial_max_residual_mm` 的标记警告）、供料器表检查、顺序与换头方式的比较（最快的方案能节省多少）以及方案的 SVG 图；每一项都以各自的名称把结果写入输出文件夹，且不会覆盖已有文件。标签页的准备清单在键入或读取吸嘴头记录后会读取它，并指出哪个吸嘴头已磨损。
 * **准备清单**（`src/setup.rs`、`src/commands.rs`、`src/gui/toolbox.rs`）：`phoenix-pnp setup-sheet 零件 供料器 --boards N` 以八种语言把以下内容汇总到一页：按槽位顺序排列的待装载供料器（类型、零件、料带、吸嘴头、所含数量、位置）、N 块板缺少的零件、本批次的吸嘴头及其相对 `nozzle_life_warn` 的磨损（`--life` 读取 `simulate --nozzle-life` 的记录）、作业所依赖的校准及其是否已设置（相机、吸嘴偏心、轴间隙、吸嘴头更换器位置、拼板基准点）以及警告（已关闭但装有电路板所需零件的供料器、装有有方向零件的散料供料器）；`--out` 把供料器写成 CSV，缺零件时命令以 1 退出。工具标签页提供同一份清单，可作为 `setup_sheet.txt` 打印。
 * **工具页**（`src/gui/toolbox.rs`）：轴间隙、吸嘴偏心、相机校准、供料器示教、有方向零件表、物料清单的核对与订购、批量库存，以及电路板网格拼板，各自使用与对应命令相同的库函数；文本可以键入或从文件读取，结果显示在屏幕上，会生成文件的工具有一个按钮，把文件写入输出文件夹且不会覆盖已有文件；相机和偏心可以应用到机器上。表单的初始值是 `machine.cfg` 的键（`order_boards`、`panel_cols`、`panel_rows`、`panel_pitch_x_mm`、`panel_pitch_y_mm`、`panel_fiducial_mm`、`panel_board_width_mm`、`panel_board_height_mm`）。
@@ -174,6 +175,7 @@ phoenix-pnp queue-status QUEUE [--check]                 队列中的作业及�
 phoenix-pnp queue-confirm QUEUE NAME                     记录某作业当前的计划可以运行
 phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove   跳过、重新开始、撤销确认或移除作业
 phoenix-pnp queue-run QUEUE [--only NAME]                在模拟机上逐块板完成已确认的作业
+phoenix-pnp camera-combined FILE [--pitch MM] [--origin X,Y]   用固定在台面上的图案并移动头，得到相机、图案的旋转和镜头畸变（需要 camera_combined = on）
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       测量在内存中生成的零件图像
 ```
 
@@ -288,7 +290,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 850 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 859 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -314,6 +316,7 @@ EH3D-PHOENIX-PNP/
 │   ├── cmd_queue.rs                             作业队列的命令：添加、状态、确认、编辑、运行
 │   ├── cmd_tools.rs                             检查、校准和生成文件的命令：物料清单、校准、拼板
 │   ├── cmd_vis.rs                               命令 part-inspect、fiducial-check 和 feeder-check
+│   ├── combined.rs                              固定图案加头移动的相机标定
 │   ├── commands.rs                              使用配置的命令、tables-check 和 check-bottom
 │   ├── compare.rs                               用每种顺序和吸嘴头策略并排规划同一块板
 │   ├── config.rs                                机器的配置文件：键、范围和安全限制
@@ -381,6 +384,7 @@ EH3D-PHOENIX-PNP/
 │   ├── bom_order.rs                             采购清单的测试
 │   ├── calibrate.rs                             校准测试：拟合、文件、配置行、G 代码
 │   ├── camera.rs                                相机模型、各贴装头的相机和模拟器相机的测试
+│   ├── combined.rs                              联合标定的测试：文件、拟合、模式、命令、工具
 │   ├── commands.rs                              使用配置的命令的测试
 │   ├── compare.rs                               顺序比较的测试：最快者、文本、建议和命令
 │   ├── encoding.rs                              文件编码的测试：UTF-8、UTF-16 和 Latin-1
@@ -431,6 +435,7 @@ EH3D-PHOENIX-PNP/
 │   ├── board.pos                                试用的示例
 │   ├── board_dnp.csv                            带 dnp 列的电路板：其中两个零件不贴装
 │   ├── bom.csv                                  与 board.pos 一致的物料清单
+│   ├── camera_combined.csv                      camera-combined 用的、从头的四个位置看到的固定图案观测
 │   ├── camera_points.csv                        camera-calibrate 用的标记观测点
 │   ├── camera_pattern.csv                       camera-pattern 用的网格图案上的点
 │   ├── catalog.csv                              零件表：等级和高度

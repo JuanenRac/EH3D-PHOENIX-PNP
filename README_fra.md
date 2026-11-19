@@ -18,7 +18,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 850 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il a aussi une fenêtre (construite avec `--features gui`) dont la logique est testée sans écran ; le dessin lui-même n'est pas couvert par des tests et, bien que le programme prenne des captures de sa propre fenêtre (`--shot`), aucune personne n'a vérifié le dessin sur un écran. Il ne pilote aucune machine : il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 859 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il a aussi une fenêtre (construite avec `--features gui`) dont la logique est testée sans écran ; le dessin lui-même n'est pas couvert par des tests et, bien que le programme prenne des captures de sa propre fenêtre (`--shot`), aucune personne n'a vérifié le dessin sur un écran. Il ne pilote aucune machine : il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.9` |
 | Maturité | Échafaudage |
-| Tests | 850 |
+| Tests | 859 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -47,7 +47,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 |---|---|---|
 | Cœur | 🟡 | lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (priorité, plateau, bande), planifie l'ordre de pose pour une tête de jusqu'à six buses avec des rangs, des pointes de buse, des limites d'angle et le temps des déplacements, planifie des panneaux et écrit la feuille de chargement ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
 | Ligne de commande | 🟡 | `phoenix-pnp` exécute les mêmes fonctions que la bibliothèque (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) et affiche le résultat ; chaque erreur revient comme un message avec son code `PHOENIX-PNP-NNN` et un code de sortie non nul. |
-| Tests | 🟡 | 850 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
+| Tests | 🟡 | 859 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
 | Configuration de la machine | 🟡 | un fichier `clé = valeur` avec une version, un validateur qui nomme la ligne et les limites de sécurité (course de Z, limites de X et Y, nouvelles tentatives, angles de buse) ; les valeurs n'ont pas été comparées à une machine réelle. |
 | Simulateur et travail | 🟡 | une horloge virtuelle, des pannes injectées au hasard (avec une graine) ou à un endroit choisi, des nouvelles tentatives, les politiques alerte et report, des alimentateurs qui s'éteignent après des pannes répétées, pause, pas à pas et un état enregistré pour reprendre ; il ne fait que simuler, rien n'a piloté une machine. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
@@ -100,6 +100,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 * **Corriger l'objectif** (`src/camera.rs`, `src/sim.rs`) : avec `camera_correct_lens = on` la caméra retire de ce qu'elle voit la distorsion de l'objectif (`camera_lens_k1`, telle que `camera-pattern` la trouve), de sorte que les mesures de l'étape d'alignement sont celles d'un objectif qui ne déforme rien ; `CameraModel::to_machine_corrected` et `read_corrected` le font en inversant `d * (1 + k1 * d * d)`. Désactivé (par défaut), la distorsion reste dans les mesures. `camera_units_per_px` doit alors être la vraie taille d'un pixel, comme la donne `camera-pattern`.
 * **Chemins de la file depuis son dossier** (`src/queue.rs`, `src/cmd_queue.rs`) : avec `queue_relative_paths = on` (ou `queue-add --relative`) les fichiers d'un travail qui sont dans le dossier du fichier de la file, ou en dessous, sont gardés comme chemins depuis ce dossier, de sorte que le dossier peut être déplacé ou partagé ; `queue-status`, `queue-confirm` et `queue-run` les reprennent depuis le dossier de la file, quel que soit le dossier d'où ils s'exécutent. Désactivé (par défaut) garde des chemins absolus ; les deux fonctionnent pareil et donnent la même identité du plan.
 * **La file avec des boutons** (`src/gui/queuetab.rs`, `src/gui/window.rs`) : l'outil File de l'onglet Outils lit un fichier de file comme une liste de travaux et a des boutons pour ajouter un travail (un formulaire vérifié dans la langue de la fenêtre), vérifier les plans, confirmer le plan du travail choisi, retirer la confirmation, ignorer, réinitialiser, retirer et exécuter. Chaque bouton lance la commande du même nom comme le programme à côté de la fenêtre, de sorte que la fenêtre et la ligne de commande planifient, confirment et exécutent d'une seule façon (même identité du plan, même verrou). Le premier appui sur Exécuter ne fait que demander (`queue_gui_ask_run`, activé par défaut) ; le second lance l'exécution sur la machine simulée, en arrière-plan, avec un bouton Arrêter.
+* **Étalonnage combiné de la caméra** (`src/combined.rs`, `src/cmd_tools.rs`, `src/gui/toolbox.rs`) : `phoenix-pnp camera-combined FILE` lit `head_x,head_y,col,row,px,py` (`examples/camera_combined.csv` : une feuille fixée à la table, la tête déplacée à plusieurs endroits) et, avec l'emplacement de la feuille (`camera_pattern_origin_x_mm`, `camera_pattern_origin_y_mm`) et son pas, trouve en un seul ajustement la taille du pixel, la rotation, le miroir, le décalage de la buse, la distorsion de l'objectif et de combien la feuille est tournée sur la table ; la caméra de `camera-calibrate` et l'objectif de `camera-pattern` d'un coup. Désactivé par défaut (`camera_combined = off` ; les deux commandes séparées n'en dépendent pas), la tête doit se trouver à deux endroits ou plus, et le décalage n'est aussi bon que la mesure de l'origine. L'onglet Outils a le même étalonnage ; l'appliquer à la machine n'active pas `camera_correct_lens`.
 * **Plus de panneaux dans l'onglet Outils** (`src/gui/toolbox.rs`) : l'usage des pointes de buse (le relevé que garde `nozzle-life`, avec les pointes arrivées à `nozzle_life_warn` marquées), le contrôle des pièces sur la buse contre les tailles des boîtiers chargés, le contrôle des repères (le résidu de chaque repère, le repère qui ne concorde pas et un avertissement pour un repère au-delà de `fiducial_max_residual_mm`), le contrôle de la table des alimentateurs, la comparaison des ordres et des changements de pointe (ce que le plus rapide économiserait) et le dessin du plan en SVG ; chacun écrit son résultat dans le dossier de sortie sous son propre nom sans écraser un fichier existant. La fiche de préparation de l'onglet lit le relevé des pointes quand on en tape ou lit un, et dit alors quelle pointe est usée.
 * **La fiche de préparation** (`src/setup.rs`, `src/commands.rs`, `src/gui/toolbox.rs`) : `phoenix-pnp setup-sheet PIÈCES ALIMENTATEURS --boards N` réunit sur une page, dans les huit langues, les alimentateurs à charger dans l'ordre de leurs emplacements (type, pièce, bande, pointe, pièces contenues, endroit), les pièces manquantes pour N cartes, les pointes de buse de la série avec leur usure face à `nozzle_life_warn` (`--life` lit le relevé de `simulate --nozzle-life`), les étalonnages dont dépend le travail et s'ils sont réglés (caméra, faux-rond de la buse, jeu des axes, endroit du changeur de pointes, repères d'un panneau) et les avertissements (un alimentateur éteint qui contient une pièce dont la carte a besoin, un alimentateur en vrac qui contient une pièce ayant un sens) ; `--out` écrit les alimentateurs en CSV et la commande sort avec 1 tant qu'il manque des pièces. L'onglet Outils a la même fiche à imprimer sous `setup_sheet.txt`.
 * **Onglet des outils** (`src/gui/toolbox.rs`) : le jeu des axes, le faux-rond de la buse, l'étalonnage de la caméra, l'apprentissage des alimentateurs, la feuille des pièces à sens, la vérification et la commande d'une nomenclature, le stock pour une série et le panneau d'une grille de cartes, chacun avec les fonctions de la bibliothèque de sa commande, un texte saisi ou lu dans un fichier, le résultat à l'écran et, quand il fait un fichier, un bouton qui l'écrit dans le dossier de sortie sans écraser un fichier existant ; la caméra et le faux-rond peuvent être mis dans la machine. Les valeurs de départ des formulaires sont des clés de `machine.cfg` (`order_boards`, `panel_cols`, `panel_rows`, `panel_pitch_x_mm`, `panel_pitch_y_mm`, `panel_fiducial_mm`, `panel_board_width_mm`, `panel_board_height_mm`).
@@ -174,6 +175,7 @@ phoenix-pnp queue-status QUEUE [--check]                 les travaux de la file 
 phoenix-pnp queue-confirm QUEUE NAME                     enregistre que le plan d'un travail, tel qu'il est maintenant, peut être exécuté
 phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove   saute un travail, le recommence, retire sa confirmation ou l'enlève
 phoenix-pnp queue-run QUEUE [--only NAME]                fait les travaux confirmés carte par carte sur la machine simulée
+phoenix-pnp camera-combined FILE [--pitch MM] [--origin X,Y]   la caméra, la rotation de la feuille et la distorsion de l'objectif avec une mire fixée à la table pendant que la tête se déplace (demande camera_combined = on)
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mesure l'image d'une pièce créée en mémoire
 ```
 
@@ -288,7 +290,7 @@ La dernière ligne ouvre la fenêtre ; `phoenix-pnp` sans commande le fait aussi
 
 ## 🧪 Tests
 
-La suite compte 850 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
+La suite compte 859 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
@@ -314,6 +316,7 @@ EH3D-PHOENIX-PNP/
 │   ├── cmd_queue.rs                             les commandes de la file de travaux : ajouter, état, confirmer, modifier, exécuter
 │   ├── cmd_tools.rs                             les commandes qui vérifient, étalonnent et créent : nomenclature, étalonnage, panneau
 │   ├── cmd_vis.rs                               les commandes part-inspect, fiducial-check et feeder-check
+│   ├── combined.rs                              l'étalonnage de la caméra avec une mire fixe pendant que la tête bouge
 │   ├── commands.rs                              les commandes avec configuration, tables-check et check-bottom
 │   ├── compare.rs                               la carte planifiée avec chaque ordre et stratégie de pointes, côte à côte
 │   ├── config.rs                                le fichier de configuration de la machine : clés, plages et limites de sécurité
@@ -381,6 +384,7 @@ EH3D-PHOENIX-PNP/
 │   ├── bom_order.rs                             tests de la liste des pièces à acheter
 │   ├── calibrate.rs                             tests des étalonnages : ajustements, fichiers, lignes de configuration, G-code
 │   ├── camera.rs                                tests du modèle de caméra, des caméras des têtes et de la caméra du simulateur
+│   ├── combined.rs                              tests de l'étalonnage combiné : le fichier, l'ajustement, le mode, la commande, l'outil
 │   ├── commands.rs                              tests des commandes qui utilisent la configuration
 │   ├── compare.rs                               tests de la comparaison des ordres : la plus rapide, le texte, le conseil, la commande
 │   ├── encoding.rs                              tests de l'encodage des fichiers : UTF-8, UTF-16 et Latin-1
@@ -431,6 +435,7 @@ EH3D-PHOENIX-PNP/
 │   ├── board.pos                                un exemple pour essayer le programme
 │   ├── board_dnp.csv                            une carte avec une colonne dnp : deux de ses pièces ne sont pas montées
 │   ├── bom.csv                                  une nomenclature qui concorde avec board.pos
+│   ├── camera_combined.csv                      observations d'une mire fixe depuis quatre positions de la tête pour camera-combined
 │   ├── camera_points.csv                        relevés d'une marque pour camera-calibrate
 │   ├── camera_pattern.csv                       points d'une mire sur une grille pour camera-pattern
 │   ├── catalog.csv                              une table de pièces : rang et hauteur

@@ -132,6 +132,19 @@
           }
         },
         {
+          "name": "combined.rs",
+          "desc": {
+            "en": "the calibration of the camera from a fixed pattern while the head moves",
+            "es": "la calibración de la cámara con un patrón fijo mientras se mueve el cabezal",
+            "de": "die Kamerakalibrierung mit festem Muster, während der Kopf fährt",
+            "fr": "l'étalonnage de la caméra avec une mire fixe pendant que la tête bouge",
+            "it": "la calibrazione della telecamera con un motivo fisso mentre la testa si sposta",
+            "ja": "固定パターンとヘッド移動によるカメラ校正",
+            "zh": "固定图案加头移动的相机标定",
+            "pt": "a calibração da câmara com um padrão fixo enquanto a cabeça se move"
+          }
+        },
+        {
           "name": "commands.rs",
           "desc": {
             "en": "the commands that use the configuration, tables-check and check-bottom",
@@ -997,6 +1010,19 @@
           }
         },
         {
+          "name": "combined.rs",
+          "desc": {
+            "en": "tests of the combined calibration: the file, the fit, the mode, the command, the tool",
+            "es": "pruebas de la calibración combinada: el fichero, el ajuste, el modo, el comando, la herramienta",
+            "de": "Tests der kombinierten Kalibrierung: Datei, Anpassung, Modus, Befehl, Werkzeug",
+            "fr": "tests de l'étalonnage combiné : le fichier, l'ajustement, le mode, la commande, l'outil",
+            "it": "test della calibrazione combinata: il file, l'adattamento, la modalità, il comando, lo strumento",
+            "ja": "統合校正のテスト：ファイル、あてはめ、モード、コマンド、ツール",
+            "zh": "联合标定的测试：文件、拟合、模式、命令、工具",
+            "pt": "testes da calibração combinada: o ficheiro, o ajuste, o modo, o comando, a ferramenta"
+          }
+        },
+        {
           "name": "commands.rs",
           "desc": {
             "en": "tests of the commands that use the configuration",
@@ -1638,6 +1664,19 @@
             "ja": "board.pos と一致する部品表",
             "zh": "与 board.pos 一致的物料清单",
             "pt": "uma lista de materiais que coincide com board.pos"
+          }
+        },
+        {
+          "name": "camera_combined.csv",
+          "desc": {
+            "en": "sightings of a fixed pattern from four places of the head for camera-combined",
+            "es": "observaciones de un patrón fijo desde cuatro sitios del cabezal para camera-combined",
+            "de": "Sichtungen eines festen Musters von vier Kopfpositionen für camera-combined",
+            "fr": "observations d'une mire fixe depuis quatre positions de la tête pour camera-combined",
+            "it": "osservazioni di un motivo fisso da quattro posizioni della testa per camera-combined",
+            "ja": "camera-combined 用の、ヘッド 4 か所から見た固定パターンの観測",
+            "zh": "camera-combined 用的、从头的四个位置看到的固定图案观测",
+            "pt": "observações de um padrão fixo a partir de quatro sítios da cabeça para camera-combined"
           }
         },
         {

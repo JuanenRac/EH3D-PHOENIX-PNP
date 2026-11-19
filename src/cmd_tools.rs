@@ -1,4 +1,4 @@
-// EH3D-PHOENIX-PNP - the commands that check, calibrate and make files: bom-check, bom-order, camera-calibrate, camera-pattern, nozzle-calibrate, feeder-teach, panelize and polarity-sheet.
+// EH3D-PHOENIX-PNP - the commands that check, calibrate and make files: bom-check, bom-order, camera-calibrate, camera-pattern, camera-combined, nozzle-calibrate, feeder-teach, panelize and polarity-sheet.
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 //
 // Each one reads its files, calls the library and prints; none of them moves or writes anything but the file named by --out, and a file that exists is never written over.
@@ -12,6 +12,7 @@ use eh3d_phoenix_pnp::calibrate::{
     calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples, taught_csv,
     teach_file, teach_strip, teach_tray, Taught,
 };
+use eh3d_phoenix_pnp::combined::{allowed, calibrate_combined, parse_combined};
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::feeding;
@@ -95,6 +96,43 @@ pub fn camera_pattern(mut args: Vec<String>) -> Result<(), String> {
     let l = |e: PnpError| e.localized(lang);
     let points = parse_pattern(&read_text(path, cfg.max_file_bytes)?).map_err(l)?;
     let found = calibrate_pattern(&points, pitch).map_err(l)?;
+    println!("{}", found.summary());
+    print!("{}", found.config_lines());
+    match found.warning(cfg.camera_pattern_max_residual_mm) {
+        Some(w) => Err(w),
+        None => Ok(()),
+    }
+}
+
+/// `camera-combined`: the camera, the turn of the sheet and the bending of the lens from the points of a pattern that is fixed to the bed while the head moves (`head_x,head_y,col,row,px,py`);
+/// prints how good the fit is and the lines to put in the configuration. Off until `camera_combined` is on. `--pitch MM` and `--origin X,Y` take the place of
+/// `camera_pattern_pitch_mm` and of `camera_pattern_origin_x_mm`, `camera_pattern_origin_y_mm`. The exit code is 1 when a sighting is over `camera_pattern_max_residual_mm`.
+pub fn camera_combined(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let pitch = match flag(&mut args, "--pitch")? {
+        Some(v) => num(&v, "--pitch")?,
+        None => cfg.camera_pattern_pitch_mm,
+    };
+    let origin = match flag(&mut args, "--origin")? {
+        Some(v) => {
+            let (x, y) = v
+                .split_once(',')
+                .ok_or_else(|| format!("--origin '{v}' is not X,Y"))?;
+            (num(x, "--origin")?, num(y, "--origin")?)
+        }
+        None => (
+            cfg.camera_pattern_origin_x_mm,
+            cfg.camera_pattern_origin_y_mm,
+        ),
+    };
+    finish(&args, 1)?;
+    allowed(&cfg)?;
+    let path = args
+        .first()
+        .ok_or("camera-combined needs a file of the sightings of the pattern")?;
+    let l = |e: PnpError| e.localized(lang);
+    let rows = parse_combined(&read_text(path, cfg.max_file_bytes)?).map_err(l)?;
+    let found = calibrate_combined(&rows, pitch, origin).map_err(l)?;
     println!("{}", found.summary());
     print!("{}", found.config_lines());
     match found.warning(cfg.camera_pattern_max_residual_mm) {

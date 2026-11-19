@@ -2338,6 +2338,7 @@ impl PnpApp {
             Tool::Inspect => self.tool_io(ui, Some(Text::HintInspect)),
             Tool::FidCheck => self.tool_io(ui, Some(Text::HintFidCheck)),
             Tool::CameraPattern => self.tool_io(ui, Some(Text::HintCameraPattern)),
+            Tool::CameraCombined => self.tool_io(ui, Some(Text::HintCameraCombined)),
             Tool::Queue => self.tool_queue(ui),
             Tool::FeederCheck | Tool::Compare | Tool::Preview => self.tool_io(ui, None),
         }
@@ -2694,8 +2695,11 @@ impl PnpApp {
             if ui.button(tr(Text::ToolRun, lang)).clicked() {
                 self.s.tools_run();
             }
-            let can_apply =
-                made && matches!(tool, Tool::Camera | Tool::Runout | Tool::CameraPattern);
+            let can_apply = made
+                && matches!(
+                    tool,
+                    Tool::Camera | Tool::Runout | Tool::CameraPattern | Tool::CameraCombined
+                );
             if ui
                 .add_enabled(can_apply, egui::Button::new(tr(Text::ToolApply, lang)))
                 .clicked()
