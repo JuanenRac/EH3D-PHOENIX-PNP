@@ -1,4 +1,4 @@
-// EH3D-PHOENIX-PNP - the commands that check, calibrate and make files: bom-check, bom-order, camera-calibrate, camera-pattern, camera-combined, nozzle-calibrate, feeder-teach, panelize and polarity-sheet.
+// EH3D-PHOENIX-PNP - the commands that check, calibrate and make files: bom-check, bom-order, camera-calibrate, camera-pattern, camera-combined, package-kicad, nozzle-calibrate, feeder-teach, panelize and polarity-sheet.
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 //
 // Each one reads its files, calls the library and prints; none of them moves or writes anything but the file named by --out, and a file that exists is never written over.
@@ -18,6 +18,7 @@ use eh3d_phoenix_pnp::combined::{
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::feeding;
+use eh3d_phoenix_pnp::kicadmod;
 use eh3d_phoenix_pnp::nozzlelife;
 use eh3d_phoenix_pnp::panel::{grid_panel, Grid};
 use eh3d_phoenix_pnp::parts::{parse_all, Side};
@@ -193,6 +194,92 @@ pub fn package_gen(mut args: Vec<String>) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("{} packages are not known", unknown.len()))
+    }
+}
+
+/// The most footprints that `package-kicad` reads in one run.
+const MAX_FOOTPRINTS: usize = 2000;
+
+/// `package-kicad PATH... [--height MM] [--out F]`: the rows of a table of packages (`package,height_mm,tape_mm,body_long_mm,body_short_mm`) from footprints of KiCad. A PATH is a `.kicad_mod`
+/// file or a folder (a `.pretty` library, not searched deeper) of them; the body is the drawing on the fabrication layer. The height is that of the package when the name is a known one, or
+/// `--height`. The rows go to the screen or to `--out` (never over a file that exists); a footprint that is not understood is named on the error output with its reason, the others are written
+/// all the same, and the exit code is 1.
+pub fn package_kicad(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let height = match flag(&mut args, "--height")? {
+        Some(v) => Some(num(&v, "--height")?),
+        None => None,
+    };
+    let out = flag(&mut args, "--out")?;
+    if let Some(a) = args.iter().find(|a| a.starts_with("--")) {
+        return Err(format!("{a} is not an option of package-kicad"));
+    }
+    if args.is_empty() {
+        return Err("package-kicad needs footprint files (.kicad_mod) or a folder of them".into());
+    }
+    let mut files: Vec<String> = Vec::new();
+    for a in &args {
+        let path = Path::new(a);
+        if path.is_dir() {
+            let mut found: Vec<String> = std::fs::read_dir(path)
+                .map_err(|e| format!("{a}: {e}"))?
+                .filter_map(Result::ok)
+                .map(|e| e.path())
+                .filter(|p| {
+                    p.is_file()
+                        && p.extension()
+                            .is_some_and(|x| x.eq_ignore_ascii_case("kicad_mod"))
+                })
+                .map(|p| p.to_string_lossy().into_owned())
+                .collect();
+            found.sort();
+            files.extend(found);
+        } else {
+            files.push(a.clone());
+        }
+        if files.len() > MAX_FOOTPRINTS {
+            return Err(format!(
+                "more than {MAX_FOOTPRINTS} footprints: read them in several runs"
+            ));
+        }
+    }
+    if files.is_empty() {
+        return Err("there is no .kicad_mod file in the folder".into());
+    }
+    if let Some(o) = &out {
+        refuse_same_file(&files, o)?;
+    }
+    let limit = cfg.max_file_bytes.min(kicadmod::MAX_BYTES as u64);
+    let (mut specs, mut problems): (Vec<pkggen::PackageSpec>, Vec<String>) =
+        (Vec::new(), Vec::new());
+    for f in &files {
+        let spec = read_text(f, limit).and_then(|text| {
+            let fp = kicadmod::parse_footprint(&text).map_err(|e| e.localized(lang))?;
+            if let Some(n) = fp.note() {
+                eprintln!("note: {f}: {n}");
+            }
+            kicadmod::package_spec(&fp, height).map_err(|e| e.localized(lang))
+        });
+        match spec {
+            Ok(s) if specs.iter().any(|o| o.name.eq_ignore_ascii_case(&s.name)) => {
+                problems.push(format!("{f}: the package '{}' is listed twice", s.name));
+            }
+            Ok(s) => specs.push(s),
+            Err(e) => problems.push(format!("{f}: {e}")),
+        }
+    }
+    let csv = pkggen::table_csv(&specs);
+    match &out {
+        Some(o) => report::write_new(o, &csv).map_err(|e| e.localized(lang))?,
+        None => print!("{csv}"),
+    }
+    for p in &problems {
+        eprintln!("{p}");
+    }
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("{} footprints were not read", problems.len()))
     }
 }
 

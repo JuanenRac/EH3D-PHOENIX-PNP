@@ -24,6 +24,7 @@ pub mod heads;
 pub mod import;
 pub mod inspect;
 pub mod job;
+pub mod kicadmod;
 pub mod loadsheet;
 pub mod marks;
 pub mod model;

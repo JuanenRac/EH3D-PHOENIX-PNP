@@ -40,6 +40,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp camera-pattern FILE [--pitch MM] [--config F] [--lang CODE]   the size of a pixel and the bending of the lens from the points of a pattern on a grid (col,row,px,py), with how well they fit; exits with 1 when a point is over camera_pattern_max_residual_mm
   phoenix-pnp camera-combined FILE [--pitch MM] [--origin X,Y | --touch] [--config F] [--lang CODE]   the camera, the turn of the sheet and the bending of the lens from a pattern fixed to the bed while the head moves (head_x,head_y,col,row,px,py); off until camera_combined is on; --touch (or camera_combined_touch = on) takes the origin from a row origin,X,Y of the file; exits with 1 when a sighting is over camera_pattern_max_residual_mm
   phoenix-pnp package-gen [NAME...] [--from PARTS] [--out F] [--config F] [--lang CODE]   the rows of a table of packages (height, tape, body) for packages named by their standard (0603, R0805, SOT-23, SOIC-8, TSSOP-14, QFN-32-5x5, LQFP-48...) and for those of a position file; exits with 1 when a name is not known
+  phoenix-pnp package-kicad PATH... [--height MM] [--out F] [--config F] [--lang CODE]   the rows of a table of packages (body, tape, height) from footprint files of KiCad (.kicad_mod, or a folder of them): the body is the drawing on the fabrication layer; the height is that of the package when its name is a known one, or --height; exits with 1 when a footprint is not understood
   phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS [--panel] [--boards N] [--side top|bottom] [--config F] [--packages F] [--catalog F] [--relative]   puts a job (a table of parts, or a panel with --panel) at the end of a queue of jobs
   phoenix-pnp queue-status QUEUE [--check] [--config F]   the jobs of the queue and what became of each; --check plans the ones still to be made and exits with 1 when one cannot run now
   phoenix-pnp queue-confirm QUEUE NAME   records that the plan of the job, as it is now, was looked at and may be run (void when the files change)
@@ -221,6 +222,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "camera-pattern" => cmd_tools::camera_pattern(args),
         "camera-combined" => cmd_tools::camera_combined(args),
         "package-gen" => cmd_tools::package_gen(args),
+        "package-kicad" => cmd_tools::package_kicad(args),
         "queue-add" => cmd_queue::queue_add(args),
         "queue-status" => cmd_queue::queue_status(args),
         "queue-confirm" => cmd_queue::queue_confirm(args),

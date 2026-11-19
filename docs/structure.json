@@ -600,6 +600,19 @@
           }
         },
         {
+          "name": "kicadmod.rs",
+          "desc": {
+            "en": "the size of the body of a package, read from a footprint file of KiCad",
+            "es": "el tamaño del cuerpo de un paquete, leído de un fichero de huella de KiCad",
+            "de": "die Gehäusegröße eines Packages, aus einer KiCad-Footprint-Datei gelesen",
+            "fr": "la taille du corps d'un boîtier, lue dans un fichier d'empreinte de KiCad",
+            "it": "la dimensione del corpo di un package, letta da un file di impronta di KiCad",
+            "ja": "KiCad のフットプリントファイルから読むパッケージ本体の大きさ",
+            "zh": "从 KiCad 封装文件读取的封装本体尺寸",
+            "pt": "o tamanho do corpo de um encapsulamento, lido de um ficheiro de pegada do KiCad"
+          }
+        },
+        {
           "name": "lib.rs",
           "desc": {
             "en": "the library: what every command uses",
@@ -1244,6 +1257,19 @@
           }
         },
         {
+          "name": "kicadmod.rs",
+          "desc": {
+            "en": "tests of the footprints of KiCad: the body, the courtyard, damaged files, the row, the command",
+            "es": "pruebas de las huellas de KiCad: el cuerpo, el área de reserva, ficheros dañados, la fila, el comando",
+            "de": "Tests der KiCad-Footprints: Gehäuse, Courtyard, beschädigte Dateien, die Zeile, der Befehl",
+            "fr": "tests des empreintes de KiCad : le corps, la zone d'exclusion, fichiers abîmés, la ligne, la commande",
+            "it": "test delle impronte di KiCad: il corpo, l'area di ingombro, file danneggiati, la riga, il comando",
+            "ja": "KiCad フットプリントのテスト：本体、コートヤード、壊れたファイル、行、コマンド",
+            "zh": "KiCad 封装测试：本体、占位区、损坏文件、行、命令",
+            "pt": "testes das pegadas do KiCad: o corpo, a área de reserva, ficheiros danificados, a linha, o comando"
+          }
+        },
+        {
           "name": "loadsheet.rs",
           "desc": {
             "en": "tests of the load sheet and the exports",
@@ -1833,6 +1859,19 @@
             "ja": "別の列名、見出しにミル単位、面を表す語を持つセントロイド CSV",
             "zh": "使用其他列名、表头带密耳单位、并用词语表示面的质心 CSV",
             "pt": "um CSV de centroides com outros nomes de colunas, milésimas de polegada nos cabeçalhos e palavras para as faces"
+          }
+        },
+        {
+          "name": "chip_0603.kicad_mod",
+          "desc": {
+            "en": "a footprint of KiCad of a 0603 chip, for package-kicad",
+            "es": "una huella de KiCad de un chip 0603, para package-kicad",
+            "de": "ein KiCad-Footprint eines 0603-Chips, für package-kicad",
+            "fr": "une empreinte de KiCad d'une puce 0603, pour package-kicad",
+            "it": "un'impronta di KiCad di un chip 0603, per package-kicad",
+            "ja": "package-kicad 用の、0603 チップの KiCad フットプリント",
+            "zh": "用于 package-kicad 的 0603 贴片 KiCad 封装",
+            "pt": "uma pegada do KiCad de um chip 0603, para package-kicad"
           }
         },
         {
