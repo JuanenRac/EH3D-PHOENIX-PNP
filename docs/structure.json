@@ -54,6 +54,19 @@
           }
         },
         {
+          "name": "asmimport.rs",
+          "desc": {
+            "en": "the position files of assemblers read as parts: Mid X, mil, TopLayer, units in numbers",
+            "es": "los ficheros de posiciones de ensambladores leídos como piezas: Mid X, mil, TopLayer",
+            "de": "Positionsdateien von Bestückern als Teile gelesen: Mid X, mil, TopLayer, Einheiten",
+            "fr": "les fichiers de positions d'assembleurs lus comme pièces : Mid X, mil, TopLayer",
+            "it": "i file di posizioni degli assemblatori letti come componenti: Mid X, mil, TopLayer",
+            "ja": "アセンブラの位置ファイルを部品として読む：Mid X、mil、TopLayer、単位付きの数値",
+            "zh": "把贴片厂的位置文件读成零件表：Mid X、mil、TopLayer、带单位的数字",
+            "pt": "os ficheiros de posições de montadores lidos como peças: Mid X, mil, TopLayer"
+          }
+        },
+        {
           "name": "boardstats.rs",
           "desc": {
             "en": "the counts of a table of parts and the pairs of parts that sit too near each other",
@@ -77,6 +90,19 @@
             "ja": "部品表：読み込み、基板との照合、発注",
             "zh": "物料清单：读取、与电路板核对、订购",
             "pt": "a lista de materiais: leitura, verificação com a placa, encomenda"
+          }
+        },
+        {
+          "name": "bommerge.rs",
+          "desc": {
+            "en": "the bills of materials of several boards added up into one list to buy",
+            "es": "las listas de materiales de varias placas sumadas en una lista de compra",
+            "de": "die Stücklisten mehrerer Platinen zu einer Einkaufsliste addiert",
+            "fr": "les nomenclatures de plusieurs cartes additionnées en une liste d'achat",
+            "it": "le distinte base di più schede sommate in un'unica lista d'acquisto",
+            "ja": "複数基板の部品表を合算して1つの購入リストにする",
+            "zh": "把多块板的物料清单合并成一份采购清单",
+            "pt": "as listas de materiais de várias placas somadas numa lista de compra"
           }
         },
         {
@@ -160,14 +186,14 @@
         {
           "name": "cmd_flow.rs",
           "desc": {
-            "en": "the flow commands that need no machine: selftest, template, lots, split, odds",
-            "es": "los comandos del flujo de un trabajo sin máquina: autoprueba, plantilla, lotes, reparto, riesgo",
-            "de": "Befehle für den Ablauf eines Auftrags ohne Maschine: Selbsttest, Vorlage, Chargen, Aufteilung, Ausfallchance",
-            "fr": "commandes du déroulement d'un travail sans machine : autotest, modèle, lots, partage, risques",
-            "it": "comandi del flusso di un lavoro senza macchina: autotest, modello, lotti, ripartizione, rischi",
-            "ja": "機械なしでジョブの流れを扱うコマンド：自己試験、テンプレート、ロット、分割、失敗確率",
-            "zh": "无需机器的作业流程命令：自检、模板、批次、拆分、失败概率",
-            "pt": "comandos do fluxo de um trabalho sem máquina: autoteste, modelo, lotes, repartição, risco"
+            "en": "the flow commands without a machine: lots, split, odds, nozzle heights, marks, imports, bills",
+            "es": "comandos del flujo sin máquina: lotes, reparto, riesgo, alturas, marcas, importación, listas",
+            "de": "Ablaufbefehle ohne Maschine: Chargen, Aufteilung, Risiko, Düsenhöhen, Marken, Import, Listen",
+            "fr": "commandes du déroulement sans machine : lots, partage, risques, hauteurs, repères, import, listes",
+            "it": "comandi del flusso senza macchina: lotti, ripartizione, rischi, altezze, fiduciali, import, liste",
+            "ja": "機械なしの流れのコマンド：ロット、分割、確率、ノズル高さ、マーク、取り込み、部品表",
+            "zh": "无需机器的流程命令：批次、拆分、概率、吸嘴高度、标记、导入、清单",
+            "pt": "comandos do fluxo sem máquina: lotes, repartição, risco, alturas, marcas, importação, listas"
           }
         },
         {
@@ -199,14 +225,14 @@
         {
           "name": "cmd_server.rs",
           "desc": {
-            "en": "the commands that talk to the EH3D server: send, request, status, job",
-            "es": "los comandos que hablan con el servidor EH3D: enviar, petición, estado, trabajo",
-            "de": "die Befehle für den EH3D-Server: senden, Anfrage, Status, Auftrag",
-            "fr": "les commandes qui parlent au serveur EH3D : envoyer, requête, état, travail",
-            "it": "i comandi che parlano con il server EH3D: invio, richiesta, stato, lavoro",
-            "ja": "EH3Dサーバーと通信するコマンド：送信、リクエスト、状態、ジョブ",
-            "zh": "与EH3D服务器通信的命令：发送、请求、状态、作业",
-            "pt": "os comandos que falam com o servidor EH3D: enviar, pedido, estado, trabalho"
+            "en": "the commands that talk to the EH3D server: send, request, status, job, feeders, calibrate",
+            "es": "los comandos que hablan con el servidor EH3D: enviar, petición, estado, trabajo, alimentadores",
+            "de": "die Befehle für den EH3D-Server: senden, Anfrage, Status, Auftrag, Zuführungen, Kalibrieren",
+            "fr": "les commandes qui parlent au serveur EH3D : envoi, requête, état, travail, alimentateurs",
+            "it": "i comandi che parlano con il server EH3D: invio, richiesta, stato, lavoro, feeder, calibrazione",
+            "ja": "EH3Dサーバーと通信するコマンド：送信、リクエスト、状態、ジョブ、フィーダー、校正",
+            "zh": "与EH3D服务器通信的命令：发送、请求、状态、作业、供料器、校准",
+            "pt": "os comandos que falam com o servidor EH3D: enviar, pedido, estado, trabalho, alimentadores"
           }
         },
         {
@@ -251,14 +277,14 @@
         {
           "name": "commands.rs",
           "desc": {
-            "en": "the commands that use the configuration, tables-check and check-bottom",
-            "es": "las órdenes que usan la configuración, tables-check y check-bottom",
-            "de": "die Befehle mit Konfiguration, tables-check und check-bottom",
-            "fr": "les commandes avec configuration, tables-check et check-bottom",
-            "it": "i comandi con configurazione, tables-check e check-bottom",
-            "ja": "設定を使うコマンド、tables-check、check-bottom",
-            "zh": "使用配置的命令、tables-check 和 check-bottom",
-            "pt": "os comandos com configuração, tables-check e check-bottom"
+            "en": "the commands with configuration: tables-check, check-bottom, tape-steps, shift-oee",
+            "es": "las órdenes que usan la configuración, tables-check, check-bottom, tape-steps, shift-oee",
+            "de": "die Befehle mit Konfiguration, tables-check, check-bottom, tape-steps, shift-oee",
+            "fr": "les commandes avec configuration, tables-check, check-bottom, tape-steps, shift-oee",
+            "it": "i comandi con configurazione, tables-check, check-bottom, tape-steps, shift-oee",
+            "ja": "設定を使うコマンド、tables-check、check-bottom、tape-steps、shift-oee",
+            "zh": "使用配置的命令、tables-check、check-bottom、tape-steps 和 shift-oee",
+            "pt": "os comandos com configuração, tables-check, check-bottom, tape-steps, shift-oee"
           }
         },
         {
@@ -964,6 +990,19 @@
           }
         },
         {
+          "name": "nozzlez.rs",
+          "desc": {
+            "en": "the height of each nozzle tip from probings: mean, spread, offset, correction, simulated",
+            "es": "la altura de cada boquilla por tanteos: media, dispersión, desvío, corrección, simulada",
+            "de": "die Höhe jeder Düse aus Antastungen: Mittel, Streuung, Abweichung, Korrektur, simuliert",
+            "fr": "la hauteur de chaque buse par palpages : moyenne, écart, décalage, correction, simulée",
+            "it": "l'altezza di ogni nozzle dai tastaggi: media, dispersione, scarto, correzione, simulata",
+            "ja": "ノズルごとの高さをプロービングから求める：平均、ばらつき、オフセット、補正、模擬",
+            "zh": "由探测得到每个吸嘴的高度：均值、离散、偏差、修正，可模拟",
+            "pt": "a altura de cada bocal por apalpações: média, dispersão, desvio, correção, simulada"
+          }
+        },
+        {
           "name": "panel.rs",
           "desc": {
             "en": "panels: boards and panels inside panels, each in its place",
@@ -974,6 +1013,19 @@
             "ja": "パネル：パネルの中の基板とパネル、それぞれの位置",
             "zh": "拼板：拼板中的电路板和拼板，各在其位",
             "pt": "painéis: placas e painéis dentro de painéis, cada um no seu lugar"
+          }
+        },
+        {
+          "name": "panelfids.rs",
+          "desc": {
+            "en": "the marks of each board of a panel, in panel coordinates, and which cannot be aligned",
+            "es": "las marcas de cada placa de un panel, en coordenadas del panel, y cuáles no se alinean",
+            "de": "die Marken jeder Platine eines Nutzens in Nutzenkoordinaten, und welche nicht passen",
+            "fr": "les repères de chaque carte d'un panneau, en coordonnées du panneau, et ceux non alignables",
+            "it": "i fiduciali di ogni scheda di un pannello, in coordinate del pannello, e quali non si allineano",
+            "ja": "パネル座標での各基板のマークと、位置合わせできない基板",
+            "zh": "拼板中每块板的标记（按拼板坐标），以及无法对准的板",
+            "pt": "as marcas de cada placa de um painel, em coordenadas do painel, e quais não se alinham"
           }
         },
         {
@@ -1213,14 +1265,14 @@
         {
           "name": "server.rs",
           "desc": {
-            "en": "the way to the EH3D server: requests, jobs, plain HTTP and a server in memory",
-            "es": "el camino al servidor EH3D: peticiones, trabajos, HTTP simple y un servidor en memoria",
-            "de": "der Weg zum EH3D-Server: Anfragen, Aufträge, einfaches HTTP und ein Server im Speicher",
-            "fr": "le chemin vers le serveur EH3D : requêtes, travaux, HTTP simple et un serveur en mémoire",
-            "it": "il percorso verso il server EH3D: richieste, lavori, HTTP semplice e un server in memoria",
-            "ja": "EH3Dサーバーへの経路：リクエスト、ジョブ、素のHTTP、メモリ上のサーバー",
-            "zh": "通往EH3D服务器的途径：请求、作业、纯HTTP和内存中的服务器",
-            "pt": "o caminho para o servidor EH3D: pedidos, trabalhos, HTTP simples e um servidor em memória"
+            "en": "the way to the EH3D server: requests, jobs, the common client and a server in memory",
+            "es": "el camino al servidor EH3D: peticiones, trabajos, el cliente común y un servidor en memoria",
+            "de": "der Weg zum EH3D-Server: Anfragen, Aufträge, der gemeinsame Client, ein Server im Speicher",
+            "fr": "le chemin vers le serveur EH3D : requêtes, travaux, le client commun et un serveur en mémoire",
+            "it": "il percorso verso il server EH3D: richieste, lavori, il client comune e un server in memoria",
+            "ja": "EH3Dサーバーへの経路：リクエスト、ジョブ、共通クライアント、メモリ上のサーバー",
+            "zh": "通往EH3D服务器的途径：请求、作业、公共客户端和内存中的服务器",
+            "pt": "o caminho para o servidor EH3D: pedidos, trabalhos, o cliente comum e um servidor em memória"
           }
         },
         {
@@ -1234,6 +1286,19 @@
             "ja": "段取りシート：フィーダー、不足部品、チップ、校正",
             "zh": "准备清单：按槽位的供料器、缺件、吸嘴头、校准",
             "pt": "a folha de preparação: alimentadores, peças, pontas, calibrações"
+          }
+        },
+        {
+          "name": "shiftoee.rs",
+          "desc": {
+            "en": "the effectiveness of a shift: availability, performance, quality, boards that fit, simulated",
+            "es": "la eficacia de un turno: disponibilidad, rendimiento, calidad, placas que caben, simulada",
+            "de": "die Effektivität einer Schicht: Verfügbarkeit, Leistung, Qualität, Platinen, simuliert",
+            "fr": "l'efficacité d'une équipe : disponibilité, performance, qualité, cartes possibles, simulée",
+            "it": "l'efficacia di un turno: disponibilità, prestazione, qualità, schede possibili, simulata",
+            "ja": "シフトの総合設備効率：稼働率、性能、品質、生産できる基板数（模擬）",
+            "zh": "班次的综合效率：可用率、性能、质量、可完成的板数，可模拟",
+            "pt": "a eficácia de um turno: disponibilidade, desempenho, qualidade, placas possíveis, simulada"
           }
         },
         {
@@ -1286,6 +1351,19 @@
             "ja": "フィーダーにある部品と基板ロットに必要な部品の比較",
             "zh": "供料器中的零件与一批板所需零件的对比",
             "pt": "as peças dos alimentadores face às que uma série de placas pede"
+          }
+        },
+        {
+          "name": "tapesteps.rs",
+          "desc": {
+            "en": "the tapes checked at every step: parts left, pitch, reach, low, last, empty",
+            "es": "las cintas revisadas en cada paso: piezas que quedan, paso, alcance, bajo, último, vacío",
+            "de": "die Gurte bei jedem Schritt geprüft: Restteile, Raster, Reichweite, knapp, letzte, leer",
+            "fr": "les bandes vérifiées à chaque pas : pièces restantes, pas, portée, bas, dernier, vide",
+            "it": "i nastri verificati a ogni passo: parti rimaste, passo, portata, basso, ultimo, vuoto",
+            "ja": "各ステップでテープを検査：残数、ピッチ、到達範囲、残少、最後、空",
+            "zh": "逐步检查料带：剩余数量、间距、可达范围、偏少、最后一个、已空",
+            "pt": "as fitas verificadas em cada passo: peças que restam, passo, alcance, baixo, última, vazia"
           }
         },
         {
@@ -1696,6 +1774,19 @@
             "ja": "フィデューシャル適合の確認のテスト",
             "zh": "基准点拟合检查的测试",
             "pt": "testes da verificação do ajuste de fiduciais"
+          }
+        },
+        {
+          "name": "flow2.rs",
+          "desc": {
+            "en": "tests of nozzle heights, panel marks, tapes, the shift, assembler files, merged bills",
+            "es": "pruebas de boquillas, marcas de panel, cintas, turno, ficheros de ensambladores y listas",
+            "de": "Tests zu Düsenhöhen, Nutzenmarken, Gurten, Schicht, Bestücker-Dateien und Stücklisten",
+            "fr": "tests des hauteurs de buses, repères de panneau, bandes, équipe, fichiers d'assembleurs, listes",
+            "it": "test di altezze nozzle, fiduciali di pannello, nastri, turno, file degli assemblatori, distinte",
+            "ja": "ノズル高さ、パネルのマーク、テープ、シフト、アセンブラのファイル、部品表合算のテスト",
+            "zh": "吸嘴高度、拼板标记、料带、班次、贴片厂文件和合并清单的测试",
+            "pt": "testes de alturas de bocais, marcas de painel, fitas, turno, ficheiros de montadores e listas"
           }
         },
         {
@@ -2273,14 +2364,14 @@
         {
           "name": "server.rs",
           "desc": {
-            "en": "tests of the server link: settings, requests, server in memory, HTTP, commands",
-            "es": "pruebas del camino al servidor: ajustes, peticiones, el servidor en memoria, HTTP, comandos",
-            "de": "Tests des Wegs zum Server: Einstellungen, Anfragen, Server im Speicher, HTTP, Befehle",
-            "fr": "tests du chemin vers le serveur : réglages, requêtes, serveur en mémoire, HTTP, commandes",
-            "it": "test del percorso verso il server: impostazioni, richieste, server in memoria, HTTP, comandi",
-            "ja": "サーバーへの経路のテスト：設定、リクエスト、メモリ上のサーバー、HTTP、コマンド",
-            "zh": "服务器通路的测试：设置、请求、内存服务器、HTTP、命令",
-            "pt": "testes do caminho para o servidor: definições, pedidos, servidor em memória, HTTP, comandos"
+            "en": "tests of the server link: settings, retries, routes, server in memory, commands",
+            "es": "pruebas del camino al servidor: ajustes, reintentos, rutas, servidor en memoria, comandos",
+            "de": "Tests des Wegs zum Server: Einstellungen, Wiederholungen, Routen, Server im Speicher, Befehle",
+            "fr": "tests du chemin vers le serveur : réglages, reprises, routes, serveur en mémoire, commandes",
+            "it": "test del percorso verso il server: impostazioni, tentativi, rotte, server in memoria, comandi",
+            "ja": "サーバーへの経路のテスト：設定、再試行、ルート、メモリ上のサーバー、コマンド",
+            "zh": "服务器通路的测试：设置、重试、路由、内存服务器、命令",
+            "pt": "testes do caminho para o servidor: definições, repetições, rotas, servidor em memória, comandos"
           }
         },
         {
@@ -2564,6 +2655,19 @@
       "accent": "d",
       "rows": [
         {
+          "name": "altium_pnp.csv",
+          "desc": {
+            "en": "a position file in the Altium shape, places in mils, for import-assembler",
+            "es": "un fichero de posiciones al estilo Altium, en mils, para import-assembler",
+            "de": "eine Positionsdatei im Altium-Format, in mil, für import-assembler",
+            "fr": "un fichier de positions au format Altium, en mils, pour import-assembler",
+            "it": "un file di posizioni nel formato Altium, in mil, per import-assembler",
+            "ja": "Altium 形式の位置ファイル（mil 単位）、import-assembler 用",
+            "zh": "Altium 格式的位置文件（单位 mil），供 import-assembler 使用",
+            "pt": "um ficheiro de posições no formato Altium, em mils, para import-assembler"
+          }
+        },
+        {
           "name": "board.mnt",
           "desc": {
             "en": "the positions of a board as the text of EAGLE has them",
@@ -2603,6 +2707,19 @@
           }
         },
         {
+          "name": "board_marks.pos",
+          "desc": {
+            "en": "the example board with two fiducial parts, for panel-fids",
+            "es": "la placa de ejemplo con dos piezas fiduciales, para panel-fids",
+            "de": "die Beispielplatine mit zwei Fiducial-Teilen, für panel-fids",
+            "fr": "la carte d'exemple avec deux pièces repères, pour panel-fids",
+            "it": "la scheda di esempio con due fiduciali, per panel-fids",
+            "ja": "フィデューシャル部品を2つ加えた例の基板、panel-fids 用",
+            "zh": "带两个基准标记零件的示例板，供 panel-fids 使用",
+            "pt": "a placa de exemplo com duas peças fiduciais, para panel-fids"
+          }
+        },
+        {
           "name": "bom.csv",
           "desc": {
             "en": "a bill of materials that agrees with board.pos",
@@ -2613,6 +2730,19 @@
             "ja": "board.pos と一致する部品表",
             "zh": "与 board.pos 一致的物料清单",
             "pt": "uma lista de materiais que coincide com board.pos"
+          }
+        },
+        {
+          "name": "bom_b.csv",
+          "desc": {
+            "en": "the bill of materials of a second board, for bom-merge",
+            "es": "la lista de materiales de una segunda placa, para bom-merge",
+            "de": "die Stückliste einer zweiten Platine, für bom-merge",
+            "fr": "la nomenclature d'une deuxième carte, pour bom-merge",
+            "it": "la distinta base di una seconda scheda, per bom-merge",
+            "ja": "2枚目の基板の部品表、bom-merge 用",
+            "zh": "第二块板的物料清单，供 bom-merge 使用",
+            "pt": "a lista de materiais de uma segunda placa, para bom-merge"
           }
         },
         {
@@ -2993,6 +3123,19 @@
           }
         },
         {
+          "name": "panel_marks.json",
+          "desc": {
+            "en": "a panel of boards with marks, one turned and one marked bad, for panel-fids",
+            "es": "un panel de placas con marcas, una girada y una mala, para panel-fids",
+            "de": "ein Nutzen mit Marken, eine Platine gedreht, eine schlecht, für panel-fids",
+            "fr": "un panneau de cartes à repères, une tournée, une mauvaise, pour panel-fids",
+            "it": "un pannello di schede con fiduciali, una ruotata, una scartata, per panel-fids",
+            "ja": "マーク付き基板のパネル（1枚は回転、1枚は不良）、panel-fids 用",
+            "zh": "带标记的拼板，一块旋转、一块标记为坏，供 panel-fids 使用",
+            "pt": "um painel de placas com marcas, uma rodada e uma má, para panel-fids"
+          }
+        },
+        {
           "name": "slots.csv",
           "desc": {
             "en": "the slots of the machine",
@@ -3016,6 +3159,19 @@
             "ja": "画像処理の設定（すべてのキーを説明）",
             "zh": "视觉处理设置，每个键均有说明",
             "pt": "as definições da cadeia de visão, cada chave explicada"
+          }
+        },
+        {
+          "name": "z_probe.csv",
+          "desc": {
+            "en": "probings of two nozzle tips, for nozzle-zcal",
+            "es": "tanteos de dos boquillas, para nozzle-zcal",
+            "de": "Antastungen zweier Düsen, für nozzle-zcal",
+            "fr": "palpages de deux buses, pour nozzle-zcal",
+            "it": "tastaggi di due nozzle, per nozzle-zcal",
+            "ja": "2本のノズルのプロービング、nozzle-zcal 用",
+            "zh": "两个吸嘴的探测记录，供 nozzle-zcal 使用",
+            "pt": "apalpações de dois bocais, para nozzle-zcal"
           }
         }
       ]
