@@ -9,11 +9,13 @@ use crate::cmd_flow::{deliver, whole};
 use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
 use eh3d_phoenix_pnp::assist::{self, Answer, Assist, Order};
+use eh3d_phoenix_pnp::error::Lang;
 use eh3d_phoenix_pnp::feeders::from_csv as feeders_csv;
 use eh3d_phoenix_pnp::lookmove::{self, Params, Sim};
 use eh3d_phoenix_pnp::msg8::{num as show, say};
 use eh3d_phoenix_pnp::openpnp::{self, Imported, Severity};
-use eh3d_phoenix_pnp::parts::parse_all;
+use eh3d_phoenix_pnp::parts::{parse_all, Part, Side};
+use eh3d_phoenix_pnp::process::{self, Doer, Process, ProcessError, Task};
 use eh3d_phoenix_pnp::testboard::{self, Kind, Spec};
 use eh3d_phoenix_pnp::vacuumcal;
 use std::io::BufRead;
@@ -121,8 +123,68 @@ pub fn import_openpnp(mut args: Vec<String>) -> Result<(), String> {
     }
 }
 
-/// `assist PARTS [--feeders F] [--order reel|reference] [--answers F] [--resume F] [--out F]`: walks a person through the board, a part at a time; the answers come from the file of `--answers`
-/// or from what is typed.
+/// Takes the answers one by one, from a file or from the keyboard.
+type Answers = Box<dyn Iterator<Item = String>>;
+
+/// Walks a person through the parts of `walk`, asking for each, until the walk is finished or the person quits. The parts that were skipped are offered once more at the end. Gives whether the
+/// person asked to quit.
+fn walk_parts(walk: &mut Assist, lines: &mut Answers, lang: Lang) -> bool {
+    let mut revisited = false;
+    loop {
+        if walk.current().is_none() {
+            if !revisited && !walk.skipped().is_empty() {
+                revisited = true;
+                walk.revisit_skipped();
+                continue;
+            }
+            return false;
+        }
+        println!("{}", assist::prompt(walk, lang));
+        let Some(line) = lines.next() else {
+            return false;
+        };
+        if line.trim().is_empty() || line.trim_start().starts_with('#') {
+            continue;
+        }
+        let ans = walk.respond(&line);
+        println!("{}", assist::feedback(&ans, walk, lang));
+        if ans == Answer::Quit {
+            return true;
+        }
+    }
+}
+
+/// Waits for the person to say `done` after a task that is not the placing of parts; `quit` (or the end of the answers) gives false.
+fn wait_done(lines: &mut Answers, lang: Lang) -> bool {
+    println!("{}", process::confirm_prompt(lang));
+    loop {
+        let Some(line) = lines.next() else {
+            return false;
+        };
+        let word = line.trim().to_ascii_lowercase();
+        if word.is_empty() || word.starts_with('#') {
+            continue;
+        }
+        match word.as_str() {
+            "done" => return true,
+            "quit" => return false,
+            _ => println!("{}", process::confirm_prompt(lang)),
+        }
+    }
+}
+
+/// The process the person asked for: a preset or a file.
+fn load_process(name: &str, max_bytes: u64, lang: Lang) -> Result<Process, String> {
+    if let Some(p) = Process::preset(name) {
+        return Ok(p);
+    }
+    let text = read_text(name, max_bytes.min(process::MAX_PROCESS_BYTES as u64))?;
+    Process::parse(&text).map_err(|e| format!("{name}: {}", e.localized(lang)))
+}
+
+/// `assist PARTS [--feeders F] [--order reel|reference] [--process pnp|manual|FILE] [--answers F] [--resume F] [--out F]`: walks a person through the board, a part at a time; the answers come
+/// from the file of `--answers` or from what is typed. With `--process` the walk goes phase by phase: the parts of a side placed by hand are walked one at a time, the other tasks (loading
+/// the board, the oven, soldering, looking) are told and wait for `done`, and a side that the machine places is told.
 pub fn assist_cmd(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let feeders_path = flag(&mut args, "--feeders")?;
@@ -132,10 +194,14 @@ pub fn assist_cmd(mut args: Vec<String>) -> Result<(), String> {
         }
         None => Order::Reel,
     };
+    let process_name = flag(&mut args, "--process")?;
     let answers = flag(&mut args, "--answers")?;
     let resume = flag(&mut args, "--resume")?;
     let out = flag(&mut args, "--out")?;
     finish(&args, 1)?;
+    if process_name.is_some() && resume.is_some() {
+        return Err("--process and --resume cannot be given together".into());
+    }
     let path = args.first().ok_or("assist needs a table of parts")?.clone();
     let mut inputs = vec![path.clone()];
     let parsed = parse_all(&read_text(&path, cfg.max_file_bytes)?, &cfg.profile)?;
@@ -146,19 +212,7 @@ pub fn assist_cmd(mut args: Vec<String>) -> Result<(), String> {
         }
         None => Vec::new(),
     };
-    let mut walk = Assist::new(
-        &parsed.parts,
-        &feeders,
-        order,
-        &cfg.polarity_refs,
-        &cfg.polarity_packages,
-    )?;
-    if let Some(r) = &resume {
-        inputs.push(r.clone());
-        let n = walk.resume(&read_text(r, cfg.max_file_bytes)?)?;
-        println!("{n} parts taken from {r}");
-    }
-    let mut lines: Box<dyn Iterator<Item = String>> = match &answers {
+    let mut lines: Answers = match &answers {
         Some(p) => {
             inputs.push(p.clone());
             let text = read_text(p, cfg.max_file_bytes)?;
@@ -171,27 +225,39 @@ pub fn assist_cmd(mut args: Vec<String>) -> Result<(), String> {
         }
         None => Box::new(std::io::stdin().lock().lines().map_while(Result::ok)),
     };
-    let mut revisited = false;
-    loop {
-        if walk.current().is_none() {
-            if !revisited && !walk.skipped().is_empty() {
-                revisited = true;
-                walk.revisit_skipped();
-                continue;
-            }
-            break;
+    if let Some(name) = &process_name {
+        let mut process = load_process(name, cfg.max_file_bytes, lang)?;
+        let has_top = parsed.parts.iter().any(|p| p.side == Side::Top);
+        let has_bottom = parsed.parts.iter().any(|p| p.side == Side::Bottom);
+        process.only_sides(has_top, has_bottom);
+        if process.phases.is_empty() {
+            return Err(ProcessError::Empty.localized(lang));
         }
-        println!("{}", assist::prompt(&walk, lang));
-        let Some(line) = lines.next() else { break };
-        if line.trim().is_empty() || line.trim_start().starts_with('#') {
-            continue;
-        }
-        let ans = walk.respond(&line);
-        println!("{}", assist::feedback(&ans, &walk, lang));
-        if ans == Answer::Quit {
-            break;
-        }
+        return walk_process(
+            &mut process,
+            &parsed.parts,
+            &feeders,
+            order,
+            &cfg,
+            &mut lines,
+            lang,
+            out.as_deref(),
+            &inputs,
+        );
     }
+    let mut walk = Assist::new(
+        &parsed.parts,
+        &feeders,
+        order,
+        &cfg.polarity_refs,
+        &cfg.polarity_packages,
+    )?;
+    if let Some(r) = &resume {
+        inputs.push(r.clone());
+        let n = walk.resume(&read_text(r, cfg.max_file_bytes)?)?;
+        println!("{n} parts taken from {r}");
+    }
+    walk_parts(&mut walk, &mut lines, lang);
     println!("{}", assist::feedback(&Answer::Done, &walk, lang));
     if let Some(o) = &out {
         deliver(&walk.checklist_csv(), Some(o), &inputs, lang)?;
@@ -199,6 +265,88 @@ pub fn assist_cmd(mut args: Vec<String>) -> Result<(), String> {
     let (placed, skipped, total) = walk.progress();
     if placed + skipped < total || skipped > 0 {
         Err(format!("{} parts are not placed", total - placed))
+    } else {
+        Ok(())
+    }
+}
+
+/// The walk of a process: each phase is started, its tasks are done one after the other and it is finished. The checklists of the sides placed by hand are written together with `--out`.
+#[allow(clippy::too_many_arguments)]
+fn walk_process(
+    process: &mut Process,
+    parts: &[Part],
+    feeders: &[eh3d_phoenix_pnp::feeders::Feeder],
+    order: Order,
+    cfg: &eh3d_phoenix_pnp::config::MachineConfig,
+    lines: &mut Answers,
+    lang: Lang,
+    out: Option<&str>,
+    inputs: &[String],
+) -> Result<(), String> {
+    let total = process.phases.len();
+    let mut checklist = String::new();
+    let mut left = 0usize;
+    let mut quit = false;
+    'phases: for i in 0..total {
+        process.start(i).map_err(|e| e.localized(lang))?;
+        let name = process.phases[i].name.clone();
+        println!("{}", process::phase_header(lang, i + 1, total, &name));
+        for task in process.phases[i].tasks.clone() {
+            match task {
+                Task::Place(side, Doer::Hand) => {
+                    let of_side: Vec<Part> =
+                        parts.iter().filter(|p| p.side == side).cloned().collect();
+                    println!("{}", task.describe(lang));
+                    let mut walk = Assist::new(
+                        &of_side,
+                        feeders,
+                        order,
+                        &cfg.polarity_refs,
+                        &cfg.polarity_packages,
+                    )?;
+                    let stopped = walk_parts(&mut walk, lines, lang);
+                    println!("{}", assist::feedback(&Answer::Done, &walk, lang));
+                    let sheet = walk.checklist_csv();
+                    let mut rows = sheet.lines();
+                    let header = rows.next().unwrap_or("");
+                    if checklist.is_empty() {
+                        checklist.push_str(header);
+                        checklist.push('\n');
+                    }
+                    for row in rows {
+                        checklist.push_str(row);
+                        checklist.push('\n');
+                    }
+                    let (placed, _, all) = walk.progress();
+                    left += all - placed;
+                    if stopped {
+                        quit = true;
+                        break 'phases;
+                    }
+                }
+                other => {
+                    println!("{}", other.describe(lang));
+                    if !wait_done(lines, lang) {
+                        quit = true;
+                        break 'phases;
+                    }
+                }
+            }
+        }
+        process.finish(i).map_err(|e| e.localized(lang))?;
+    }
+    print!("{}", process.summary(lang));
+    if let Some(o) = out {
+        if !checklist.is_empty() {
+            deliver(&checklist, Some(o), inputs, lang)?;
+        }
+    }
+    if quit || left > 0 || !process.finished() {
+        Err(format!(
+            "the process is not finished: {} of {} phases are done, {left} parts are not placed",
+            process.progress().0,
+            total
+        ))
     } else {
         Ok(())
     }

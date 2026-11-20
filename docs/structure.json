@@ -1081,6 +1081,19 @@
           }
         },
         {
+          "name": "interlock.rs",
+          "desc": {
+            "en": "the rules that keep an axis from moving while a signal is not as it should be",
+            "es": "las reglas que impiden mover un eje mientras una señal no esté como debe",
+            "de": "die Regeln, die eine Achse sperren, solange ein Signal nicht stimmt",
+            "fr": "les règles qui interdisent de bouger un axe tant qu'un signal n'est pas comme il faut",
+            "it": "le regole che impediscono di muovere un asse finché un segnale non è come deve",
+            "ja": "信号が正しい状態でない間は軸を動かさないための規則",
+            "zh": "信号不符合要求时禁止轴移动的规则",
+            "pt": "as regras que impedem mover um eixo enquanto um sinal não estiver como deve"
+          }
+        },
+        {
           "name": "ipcname.rs",
           "desc": {
             "en": "the names of footprints by the public convention of IPC-7351B, written and read",
@@ -1494,6 +1507,19 @@
             "ja": "計画の図：フィーダー、位置、ヘッドの経路",
             "zh": "计划图：供料器、位置和贴装头路径",
             "pt": "uma imagem do plano: alimentadores, lugares, percurso da cabeça"
+          }
+        },
+        {
+          "name": "process.rs",
+          "desc": {
+            "en": "the phases of a board (load, place, oven, solder, inspect), their order and their load-out",
+            "es": "las fases de una placa (cargar, colocar, horno, soldar, mirar), su orden y su carga",
+            "de": "die Phasen einer Platine (laden, bestücken, Ofen, löten, prüfen), Reihenfolge und Bestückung",
+            "fr": "les phases d'une carte (charger, poser, four, souder, regarder), leur ordre et leur chargement",
+            "it": "le fasi di una scheda (carica, posa, forno, saldatura, controllo), il loro ordine e il carico",
+            "ja": "基板のフェーズ（搭載、実装、リフロー、はんだ付け、確認）、その順序と搭載内容",
+            "zh": "电路板的阶段（装载、贴装、回流、焊接、检查）、顺序和装料",
+            "pt": "as fases de uma placa (carregar, colocar, forno, soldar, olhar), a sua ordem e a sua carga"
           }
         },
         {
@@ -2531,6 +2557,19 @@
           }
         },
         {
+          "name": "interlock.rs",
+          "desc": {
+            "en": "tests of the interlocks: the rules, the refusal, the stop and moves made by chance",
+            "es": "pruebas de los bloqueos: las reglas, el rechazo, la parada y movimientos al azar",
+            "de": "Tests der Verriegelungen: Regeln, Ablehnung, Stopp und zufällige Bewegungen",
+            "fr": "tests des verrouillages : les règles, le refus, l'arrêt et des mouvements au hasard",
+            "it": "test degli interblocchi: le regole, il rifiuto, l'arresto e movimenti casuali",
+            "ja": "インターロックのテスト：規則、拒否、停止、乱数による動作",
+            "zh": "互锁的测试：规则、拒绝、停止和随机移动",
+            "pt": "testes dos bloqueios: as regras, a recusa, a paragem e movimentos ao acaso"
+          }
+        },
+        {
           "name": "ipc.rs",
           "desc": {
             "en": "tests of the names of footprints by IPC-7351B and of the search in a library",
@@ -2918,6 +2957,19 @@
             "ja": "計画図のテスト：要素、エスケープ、サイズ、--svg",
             "zh": "计划图的测试：内容、转义、尺寸和 --svg",
             "pt": "testes da imagem do plano: as partes, a proteção, o tamanho e --svg"
+          }
+        },
+        {
+          "name": "process.rs",
+          "desc": {
+            "en": "tests of the process: phases, order, load-out, saved state and the walk of the guided mode",
+            "es": "pruebas del proceso: fases, orden, carga, estado guardado y el recorrido del modo guiado",
+            "de": "Tests des Ablaufs: Phasen, Reihenfolge, Bestückung, gespeicherter Zustand, geführter Modus",
+            "fr": "tests du processus : phases, ordre, chargement, état enregistré et parcours du mode guidé",
+            "it": "test del processo: fasi, ordine, carico, stato salvato e percorso della modalità guidata",
+            "ja": "プロセスのテスト：フェーズ、順序、搭載、保存した状態、ガイドモードの進行",
+            "zh": "流程的测试：阶段、顺序、装料、已保存的状态和引导模式的流程",
+            "pt": "testes do processo: fases, ordem, carga, estado guardado e o percurso do modo guiado"
           }
         },
         {

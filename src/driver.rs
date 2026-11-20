@@ -5,8 +5,10 @@
 //! asked for or a refused move stop the session after the lines of `safe_stop` (the pump off, the motors released) and nothing more is sent until a new session: it fails closed. The
 //! rules of `safety` slow the moves down after each trouble and never speed them up again. The only link there is today is a simulated one: this is evidence of a simulator.
 
+use crate::error::Lang;
 use crate::gcodedriver::{DriverProfile, Op, Pos, Reply, Target};
 use crate::gcodesim::{Link, LinkError};
+use crate::interlock::{self, Signals, MAX_SIGNAL};
 use crate::plan::Placement;
 use crate::safety::{Event, Governor, Level, Rules};
 
@@ -27,6 +29,8 @@ pub enum Kind {
     Mismatch,
     /// The link is closed or the answer cannot be read.
     Link,
+    /// A rule of the profile keeps this move from being made.
+    Interlock,
 }
 
 /// A failure of a session.
@@ -81,8 +85,13 @@ pub struct Session<L: Link> {
     pub log: Vec<Entry>,
     /// Whether every move is followed by a question about where the head is.
     pub verify_moves: bool,
+    /// The signals the interlocks of the profile look at: the actuators (what was last switched) and what a sensor was reported to be.
+    pub signals: Signals,
     state: State,
 }
+
+/// The most signals a session keeps.
+pub const MAX_SIGNALS: usize = 64;
 
 fn near(a: f64, b: f64, tol: f64) -> bool {
     (a - b).abs() <= tol
@@ -96,8 +105,26 @@ impl<L: Link> Session<L> {
             governor: Governor::new(Rules::from_profile(profile)),
             log: Vec::new(),
             verify_moves: true,
+            signals: profile
+                .actuators
+                .iter()
+                .map(|a| (a.name.clone(), false))
+                .collect(),
             state: State::New,
         }
+    }
+
+    /// Tells the session what a sensor says (a door closed, the nozzles lifted). A name that is not a name (letters, digits and `_`, at most `MAX_SIGNAL`) and a new name when `MAX_SIGNALS`
+    /// are kept are refused, and the answer is false.
+    pub fn set_signal(&mut self, name: &str, on: bool) -> bool {
+        let valid = !name.is_empty()
+            && name.len() <= MAX_SIGNAL
+            && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        if !valid || (self.signals.len() >= MAX_SIGNALS && !self.signals.contains_key(name)) {
+            return false;
+        }
+        self.signals.insert(name.to_string(), on);
+        true
     }
 
     /// Whether the session was stopped by a failure.
@@ -297,6 +324,10 @@ impl<L: Link> Session<L> {
     /// Moves the head. The feed is cut to the share the rules allow, the move is refused when they hold the machine, and the head is asked for its place afterward (`verify_moves`).
     pub fn move_to(&mut self, target: &Target, feed: f64) -> Result<(), Failure> {
         self.ready()?;
+        if let Err(violation) = interlock::check(&self.profile.interlocks, &self.signals, target) {
+            let why = violation.localized(Lang::En);
+            return Err(self.fail(Kind::Interlock, why, Event::LimitRefused));
+        }
         let limits = self.governor.limits();
         if !limits.moves {
             return Err(Failure::new(
@@ -414,6 +445,7 @@ impl<L: Link> Session<L> {
         self.send(&line, t, true)?;
         let wait = self.profile.wait.clone();
         self.send(&wait, t, true)?;
+        self.signals.insert(name.to_string(), on);
         Ok(())
     }
 

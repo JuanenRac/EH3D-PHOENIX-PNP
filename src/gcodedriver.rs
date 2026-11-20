@@ -7,6 +7,7 @@
 //! shows is evidence of a simulator.
 
 use crate::error::Lang;
+use crate::interlock::Interlock;
 use crate::msg8::{num, say};
 use crate::plan::Placement;
 use crate::textmatch::{Captures, Pattern};
@@ -22,7 +23,7 @@ pub const MAX_LINE: usize = 200;
 pub const MAX_PROFILE_BYTES: usize = 65_536;
 
 /// Every key of a profile file, in the order of the examples.
-pub const KEYS: [&str; 56] = [
+pub const KEYS: [&str; 57] = [
     "schema_version",
     "dialect",
     "transport",
@@ -44,6 +45,7 @@ pub const KEYS: [&str; 56] = [
     "release",
     "pump_settle_ms",
     "release_settle_ms",
+    "interlock",
     "ok_pattern",
     "error_pattern",
     "busy_pattern",
@@ -82,7 +84,14 @@ pub const KEYS: [&str; 56] = [
 ];
 
 /// The keys that may be written more than once.
-const LISTS: [&str; 5] = ["connect", "disable", "home", "safe_stop", "actuator"];
+const LISTS: [&str; 6] = [
+    "connect",
+    "disable",
+    "home",
+    "safe_stop",
+    "actuator",
+    "interlock",
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Dialect {
@@ -328,6 +337,8 @@ pub struct DriverProfile {
     pub release: String,
     pub pump_settle_ms: u32,
     pub release_settle_ms: u32,
+    /// The rules that keep an axis from moving while a signal is not as it should be (`interlock = SIGNAL | on|off | xy|z|rot|all`).
+    pub interlocks: Vec<Interlock>,
     pub ok: Pattern,
     pub error: Pattern,
     pub busy: Pattern,
@@ -444,6 +455,7 @@ impl Default for DriverProfile {
             release: "blow".into(),
             pump_settle_ms: 150,
             release_settle_ms: 80,
+            interlocks: Vec::new(),
             ok: pat(r"^ok"),
             error: pat(r"(?i)^(error|!!)"),
             busy: pat(r"(?i)^(echo:)?busy"),
@@ -701,6 +713,20 @@ impl DriverProfile {
                     on: parts[1].to_string(),
                     off: parts[2].to_string(),
                 });
+            }
+            "interlock" => {
+                if !started.contains(&"interlock") {
+                    started.push("interlock");
+                    self.interlocks.clear();
+                }
+                if self.interlocks.len() >= MAX_LIST {
+                    return Err(err(Fault::TooMany(MAX_LIST)));
+                }
+                let rule = Interlock::parse(v).map_err(|e| err(Fault::BadValue(e)))?;
+                if self.interlocks.contains(&rule) {
+                    return Err(err(Fault::Duplicate));
+                }
+                self.interlocks.push(rule);
             }
             "pump" => self.pump = word(32)?,
             "release" => {
