@@ -18,7 +18,7 @@
 
 ---
 
-**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 1292 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、プログラム自身が自分のウィンドウの画像（`--shot`）を撮りますが、人が画面で描画を確認してはいません。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
+**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 1429 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、プログラム自身が自分のウィンドウの画像（`--shot`）を撮りますが、人が画面で描画を確認してはいません。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | バージョン | `0.1.1` |
 | 成熟度 | 足場 |
-| テスト | 1292 |
+| テスト | 1429 |
 | 技術スタック | Rust |
 | 実機での動作 | 未試験：ここにあるものは機械で動かしたことがありません |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | コア | 🟡 | 基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップ）、最大6本のノズルを持つヘッドの配置順をランク、ノズルチップ、角度の制限、移動時間とともに計画し、パネルを計画し、搭載シートを書き出します。通常の入力と壊れた入力でコンピューター上でテスト済みですが、実際のファイル群ではありません。 |
 | コマンドライン | 🟡 | `phoenix-pnp` はライブラリと同じ関数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）を実行して結果を表示します。エラーはすべて `PHOENIX-PNP-NNN` のコード付きメッセージと0以外の終了コードで返ります。 |
-| テスト | 🟡 | 1292 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
+| テスト | 🟡 | 1429 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
 | 機械の設定 | 🟡 | バージョン付きの `キー = 値` ファイル、行を示す検証、安全限界（Z の行程、X と Y の限界、再試行、ノズルの角度）。値は実機とは比較していません。 |
 | シミュレーターとジョブ | 🟡 | 仮想時計、確率（シード付き）または指定した場所で注入する故障、再試行、警告と保留の方針、故障が続くと止まるフィーダー、一時停止、一手ずつの実行、再開用に保存する状態。模擬のみで、実機は動かしていません。 |
 | セキュリティ | 🟡 | 安全な Rust のみ（`forbid(unsafe_code)`）。受け取ったファイルでパニックせず、不正な値は理由付きのエラーになります。独立したレビューはありません。 |
@@ -141,6 +141,13 @@
 * **シフトの総合設備効率** (`src/shiftoee.rs`, `src/commands.rs`)：`phoenix-pnp shift-oee PARTS FEEDERS [--runs N] [--seed S] [--shift MINUTES] [--reel-change SECONDS] [--min-oee PERCENT] [--out F]` は、計画を模擬の機械で何度も実行し、稼働率（シフトから、基板に必要なリール交換の時間を引いたもの。`shift_minutes` と `reel_change_s`）、性能（計画の理想時間と実行の平均時間の比）、品質（すべての部品を配置できた実行の割合）、シフトに入る基板数、そして3つの積である総合効率を示します。`--min-oee` を下回ると終了コード 1 です。模擬の機械での計画と設定の数字であり、実際のシフトのものではありません。
 * **アセンブラの位置ファイル** (`src/asmimport.rs`, `src/cmd_flow.rs`, `examples/altium_pnp.csv`)：`phoenix-pnp import-assembler FILE [--format cpl|kicad-pos|generic] [--unit mm|inch] [--out F]` は、アセンブラや他のプログラムが書く位置ファイル（リファレンス列、部品の中心を `Mid X` や `Center-X(mil)`、層を `Top`、`T`、`TopLayer`、`12.5mm` や `490mil` のように単位付きの数値）を読み、どの形式かを知らせ、部品をミリメートルで、どのコマンドでも読める形に出力します。`export-assembler` が書いたものは読み戻せ、読めない行は行番号付きのエラーです。
 * **複数の部品表を1つの購入リストに** (`src/bommerge.rs`, `src/cmd_flow.rs`, `examples/bom_b.csv`)：`phoenix-pnp bom-merge FILE[:BOARDS]... [--out F]` は、複数の基板の部品表を、それぞれ必要な枚数分合算し、同じ部品の行（同じ書き方の値、パッケージ、品番）をまとめ、各部品がどの部品表のものかを示します。
+* **サーバーパネルとサーバー検索** (`src/gui/serverui.rs`, `src/server.rs`, `Cargo.toml`)：ウィンドウの「マシン」タブの末尾に、EH3D-COMMON の `eh3d-view` のパネルがあります。サーバーの設定、接続の状態、接続テスト、人のログインとログアウトを扱います（サーバーに対するプログラム名は `phoenix-pnp`、パスワードは送信直後に消去されます）。適用した内容は設定に反映され、`mode` はアドレスに従い、キーは読み込んだ設定ファイルに保存されます（トークンは保存されません）。`phoenix-pnp server-discover [--sim]` はローカルネットワークのサーバーを一覧にします。`server_mdns = on` かつ `--features mdns` でビルドした場合に限りネットワークに問い合わせます。`server_attempts` は `server_retries` の旧名として読まれ、注意が表示されます。
+* **ツールタブに6つのパネルを追加** (`src/gui/toolbox.rs`, `src/gui/toolmore.rs`)：ノズルの高さ (`nozzle-zcal`)、パネルのマーク (`panel-fids`)、テープの工程別確認 (`tape-steps`)、シフトの稼働効率 (`shift-oee`)、実装業者の位置ファイル (`import-assembler`)、複数の部品表 (`bom-merge`)。それぞれコマンドと同じ出力、8言語の文言、出力フォルダに一度だけ書かれる表（既存ファイルは上書きしません）を持ちます。
+* **シリアル番号ごとの基板記録** (`src/serialsig.rs`, `src/sha256.rs`, `src/cmd_shop.rs`, `examples/lots.csv`)：`phoenix-pnp serial-sign PARTS FEEDERS --serial S [--lots F] [--prev SIG] [--key-file F] [--out F]` は、シリアル番号、各テーブルのフィンガープリント（`job-fingerprint` で表示）、配置した各リファレンスとそのフィーダー・リールのロット、署名（SHA-256、またはファイルの鍵による HMAC-SHA-256。鍵は表示されません）を書きます。`--prev` で記録を前の基板に連鎖させます。`phoenix-pnp serial-verify FILE [--key-file F] [--prev SIG]` は記録が完全かどうかを判定し、1バイトの変更、行の削除、鍵の誤り、連鎖の断絶を検出します。
+* **シフトと複数ヘッド** (`src/shiftplan.rs`, `src/headsplit.rs`, `src/cmd_shop.rs`)：`phoenix-pnp shift-plan PARTS FEEDERS [--boards N] [--shift MINUTES] [--reel-change SECONDS]` はシフトを基板ごとに進め、どの基板の何分にどのリールを交換するか、何枚収まるか、1時間あたりの枚数を示します。`phoenix-pnp head-split PARTS FEEDERS [--heads N]` は、同じフィーダーから取る最大8ヘッドの機械で基板を再現します（リールは一度に1つのヘッドだけが使用）。基板を帯に分ける方法とヘッドごとにフィーダー全体を割り当てる方法を比べ、各ヘッドの時間、待ち、速い方法を示します。
+* **パッケージと間隔** (`src/footcheck.rs`, `src/clearance.rs`, `src/cmd_shop.rs`)：`phoenix-pnp footprint-check PARTS [--packages F]` は、基板の各パッケージがパッケージ表に対してどうなっているか（既知、`R_0603` に対する `R_0603_1608Metric` のような別名、名前から生成可、1〜2文字違い、不明）を示します。`phoenix-pnp clearance PARTS --packages F [--min MM]` は、同じ面で、部品とともに回転した本体が最小値 (`clearance_min_mm`) より近い、または重なる部品の組を見つけます。
+* **部品ごとの不良とリトライ** (`src/rejects.rs`, `src/retrypolicy.rs`, `src/cmd_shop.rs`, `examples/rejects.csv`, `examples/retry_rules.csv`)：`phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT]` はロットの不良部品を、理由（パレート図の順）、パッケージ、フィーダー、リファレンス別に示します。`phoenix-pnp retry-policy PARTS FEEDERS RULES` は、リファレンス・値・パッケージ・フィーダーに最初に合う規則のリトライを各部品に与え、良品基板になる確率を計算し、何にも合わない規則や働かない規則を知らせます。
+* **ロットの費用とリールの経過期間** (`src/bomcost.rs`, `src/lotage.rs`, `src/cmd_shop.rs`, `examples/prices.csv`)：`phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT]` は数量別価格表からロットの費用を計算します（必要数が少ないときは販売最小数量を購入）。`phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N]` は、各フィーダーのロットの経過期間を日付コードから求め、指定した週と `lot_max_weeks` に照らして示します。
 * **無作為のテストと、全キー・全コマンドのテスト** (`tests/fuzz.rs`, `tests/keys.rs`, `tests/cli_all.rs`)：さまざまに壊した例ファイルと無作為のバイト列（固定シードなので再現できます）をすべてのファイルリーダーに与え、パニックしてはなりません。無作為の基板は、ツールが約束する性質を保ちます（書いた内容は読み戻せる、変換は距離を保ち元に戻せる、分担は各部品をちょうど1回割り当てる、確率は 0〜1 に収まる、作ったリクエストはメモリ上のサーバーが受け付ける）。設定の全キーは、例、検証、重複について確かめ、ヘルプにある全コマンドは、引数なし、誤ったオプション、存在しないファイルで実行され、パニックではなくエラー行で答えなければなりません。
 * **ランダムなテストと新コマンドごとのテストを追加** (`tests/flow2.rs`, `tests/server.rs`)：固定シードで作ったランダムな基板で、`export-assembler` が書いたものを `import-assembler` が読み戻せること（mm とインチ）、ノズルのオフセットが作った高さを見つけること、シフトの総合効率が3つの割合の積であること、新しい読み取り処理が壊れたファイルで落ちないことを確かめます。サーバーとの接続は、最初の数回失敗するトランスポートとメモリ上のサーバーで試します。
 * **カメラの統合校正** (`src/combined.rs`, `src/cmd_tools.rs`, `src/gui/toolbox.rs`)：`phoenix-pnp camera-combined FILE` は `head_x,head_y,col,row,px,py`（`examples/camera_combined.csv`：テーブルに固定したシートとヘッドを複数の位置へ動かした観測）を読み、シートの位置（`camera_pattern_origin_x_mm`、`camera_pattern_origin_y_mm`）とピッチから、1 ピクセルの大きさ、回転、ミラー、ノズルのオフセット、レンズの歪み、テーブル上でのシートの回転を 1 回のあてはめで求めます。`camera-calibrate` のカメラと `camera-pattern` のレンズを一度に求めるものです。既定ではオフ（`camera_combined = off`、別々の 2 つのコマンドはこれに依存しません）で、ヘッドは 2 か所以上に置く必要があり、オフセットの精度は原点の測定精度までです。ツールタブにも同じ校正があり、機械へ反映しても `camera_correct_lens` はオンになりません。 `camera_combined_touch = on`（または `--touch`）にすると、シートの位置は設定ではなく、ノズルが点 0,0 に触れた場所を書いたファイルの `origin,X,Y` 行から取ります。既定ではオフです。
@@ -259,6 +266,18 @@ phoenix-pnp tape-steps PARTS FEEDERS [--out F]  計画の各ステップでの�
 phoenix-pnp shift-oee PARTS FEEDERS [--runs N] [--shift MINUTES] [--min-oee PERCENT]  模擬の機械でのシフトの稼働率、性能、品質
 phoenix-pnp import-assembler FILE [--format F] [--unit U] [--out F]  アセンブラの位置ファイルをミリメートルの部品として読む
 phoenix-pnp bom-merge FILE[:BOARDS]... [--out F]  複数の基板の部品表を合算した1つの購入リスト
+phoenix-pnp job-fingerprint FILE...  各テーブルの SHA-256（改行を統一）と、全体で1つ
+phoenix-pnp serial-sign PARTS FEEDERS --serial S [--lots F] [--key-file F] [--out F]  シリアル番号ごとの基板記録（ハッシュまたは鍵で署名し、前の基板と連鎖）
+phoenix-pnp serial-verify FILE [--key-file F] [--prev SIG]  記録が完全かどうか（そうでなければ終了コード 1）
+phoenix-pnp shift-plan PARTS FEEDERS [--boards N] [--shift MINUTES] [--out F]  シフトを基板ごとに追う：リール交換の位置と収まる枚数
+phoenix-pnp head-split PARTS FEEDERS [--heads N] [--out F]  同じフィーダーを使う複数ヘッド：帯分割とフィーダー単位、待ち、速い方法
+phoenix-pnp footprint-check PARTS [--packages F] [--out F]  基板のパッケージをパッケージ表と照合（確認が要る場合は終了コード 1）
+phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT] [--out F]  ロットの不良部品を理由・パッケージ・フィーダー・リファレンス別に集計
+phoenix-pnp retry-policy PARTS FEEDERS RULES [--out F]  規則から部品ごとのリトライを決める。何にも合わない規則（終了コード 1）
+phoenix-pnp clearance PARTS --packages F [--min MM] [--out F]  本体が近すぎる、または重なる部品（あれば終了コード 1）
+phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT] [--out F]  数量別価格でのロットの費用（価格のない部品があれば終了コード 1）
+phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N] [--out F]  各フィーダーのロットの経過期間（古いものがあれば終了コード 1）
+phoenix-pnp server-discover [--sim]  ローカルネットワーク上のサーバー（server_mdns = on と --features mdns が必要）
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       メモリ内に作った部品の画像を測定
 ```
 
@@ -373,7 +392,7 @@ cargo run --release --features gui
 
 ## 🧪 テスト
 
-テストは 1292 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
+テストは 1429 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
 
 ## 🏗️ ビルドとリリース
 
@@ -396,17 +415,20 @@ EH3D-PHOENIX-PNP/
 │   ├── asmimport.rs                             アセンブラの位置ファイルを部品として読む：Mid X、mil、TopLayer、単位付きの数値
 │   ├── boardstats.rs                            部品テーブルの集計と、近すぎる部品の組
 │   ├── bom.rs                                   部品表：読み込み、基板との照合、発注
+│   ├── bomcost.rs                               部品表と数量別価格表から生産ロットの費用を計算
 │   ├── bommerge.rs                              複数基板の部品表を合算して1つの購入リストにする
 │   ├── calibrate.rs                             カメラとノズル先端の校正、フィーダーの教示
 │   ├── calibsim.rs                              架空のカメラで試すカメラ校正：観測、フィット、誤差
 │   ├── camera.rs                                カメラのモデル：ピクセルサイズ、オフセット、回転、ミラー、レンズ
 │   ├── catalog.rs                               部品とパッケージの表、およびその属性の継承
 │   ├── changeover.rs                            キューのジョブ間でフィーダーに必要な変更：交換、装着、そのまま
+│   ├── clearance.rs                             基板上の部品本体の間隔：近すぎる、または重なっている組
 │   ├── cli_args.rs                              コマンドライン引数（厳格：未知のオプションはエラー）
 │   ├── cmd_flow.rs                              機械なしの流れのコマンド：ロット、分割、確率、ノズル高さ、マーク、取り込み、部品表
 │   ├── cmd_more.rs                              コマンド parts-diff、config-diff、board-stats、queue-stock、feeder-deplete、feeder-refill、job-diff
 │   ├── cmd_queue.rs                             ジョブキューのコマンド：追加、状態、確認、編集、実行
 │   ├── cmd_server.rs                            EH3Dサーバーと通信するコマンド：送信、リクエスト、状態、ジョブ、フィーダー、校正
+│   ├── cmd_shop.rs                              現場向けコマンド：記録、シフト、ヘッド、フットプリント、不良、費用、ロット
 │   ├── cmd_tools.rs                             確認・校正・ファイル作成のコマンド：部品表、校正、パネル
 │   ├── cmd_vis.rs                               コマンド part-inspect、fiducial-check、feeder-check
 │   ├── combined.rs                              固定パターンとヘッド移動によるカメラ校正
@@ -425,6 +447,7 @@ EH3D-PHOENIX-PNP/
 │   ├── feedrep.rs                               作業でのフィーダーごとのピック
 │   ├── fidcheck.rs                              フィデューシャル適合の判定：回転・倍率・せん断・移動・外れた印
 │   ├── fiducial.rs                              パネルのフィデューシャル：実測マークの補正計算と部品の位置補正
+│   ├── footcheck.rs                             基板のパッケージをパッケージ表と照合：既知、別名、生成可、類似
 │   ├── gui.rs                                   ウィンドウ：画面不要のモジュールと window.rs の描画
 │   ├── gui/app.rs                               ウィンドウの状態：読み込み、計画、開始、一時停止、ステップ、修正、保存
 │   ├── gui/browse.rs                            ファイル選択：フォルダーとファイル、上へ、入力したパス
@@ -433,6 +456,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui/problems.rs                          ジョブの問題と、それを直す修正
 │   ├── gui/queuetab.rs                          ウィンドウなしのキューツール：ジョブ一覧、フォーム、ボタン
 │   ├── gui/samples.rs                           小さな基板から大きな基板までのサンプル
+│   ├── gui/serverui.rs                          ウィンドウのサーバーパネル：設定、接続、ログイン（トークンは保存しない）
 │   ├── gui/session.rs                           開始・一時停止・再開・ステップができる模擬ジョブ
 │   ├── gui/settings.rs                          ウィンドウが記憶するもの：言語、テーマ、レイヤー、フォルダー、列の幅
 │   ├── gui/shot.rs                              ウィンドウの画像モード（--shot）：その引数
@@ -447,6 +471,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui/workspace.rs                         読み込んだファイル、計画、編集（ウィンドウなし）
 │   ├── gui_main.rs                              独立したウィンドウ用プログラム（Windows ではコンソールなし）
 │   ├── heads.rs                                 複数ヘッド：到達範囲、部品の割り当て、フィーダー待ち
+│   ├── headsplit.rs                             1枚の基板と1列のフィーダーに複数ヘッド：帯分割かフィーダー単位か、待ち時間
 │   ├── hooks.rs                                 ジョブの出来事で実行するプログラム。既定ではオフで、一覧と時間に上限がある
 │   ├── hotspots.rs                              多数回のシミュレーションで問題を起こすフィーダー：ピック失敗、停止、取り置き
 │   ├── import.rs                                位置ファイルの取り込み：列マップ付きセントロイド CSV、EAGLE のテキスト、KiCad の .pos
@@ -458,6 +483,7 @@ EH3D-PHOENIX-PNP/
 │   ├── learn.rs                                 測定値から学習するパッケージごとの搭載ずれ
 │   ├── lib.rs                                   ライブラリ：各コマンドが使うもの
 │   ├── loadsheet.rs                             搭載シート：各テープのスロット
+│   ├── lotage.rs                                日付コードから各リールのロットの経過週数を、指定週と上限に照らして判定
 │   ├── lottrace.rs                              配置した各部品のロットとリール、不足しているもの
 │   ├── main.rs                                  コマンドラインと、コマンドなしで実行したときのウィンドウの入口
 │   ├── marks.rs                                 2階層のマーク：マークである部品と、パネルと各基板のフィット
@@ -481,14 +507,19 @@ EH3D-PHOENIX-PNP/
 │   ├── queuestock.rs                            キューのジョブ分のフィーダーが足りるか、どこでリールが尽きるか
 │   ├── recipe.rs                                ジョブのレシピ：ファイル、手順、パッケージ・フィーダー・チップ別のパラメーター
 │   ├── refill.rs                                リール交換後のフィーダー表：新しい個数とストリップの最初の位置
+│   ├── rejects.rs                               ロットの不良部品を理由・パッケージ・フィーダー・リファレンス別にパレート順で集計
 │   ├── reorient.rs                              部品表全体を回転・反転・移動する（距離は不変）
 │   ├── report.rs                                ジョブのレポート：工程、ピック、グループ、エラー（テキスト・HTML・CSV・JSON）
+│   ├── retrypolicy.rs                           リファレンス・値・パッケージ・フィーダーの規則で決まる部品ごとのリトライ
 │   ├── rotation.rs                              パッケージ別の回転補正と、制限付きノズルの回し方
 │   ├── runs.rs                                  同じジョブをシミュレーション機で、毎回別のシードで何度も実行
 │   ├── runway.rs                                各リールが基板何枚分もつか、最初に尽きるリール、残る部品
+│   ├── serialsig.rs                             基板のシリアル別記録：ハッシュで署名し、前の基板と連鎖させる
 │   ├── server.rs                                EH3Dサーバーへの経路：リクエスト、ジョブ、共通クライアント、メモリ上のサーバー
 │   ├── setup.rs                                 段取りシート：フィーダー、不足部品、チップ、校正
+│   ├── sha256.rs                                SHA-256とHMAC-SHA-256（公開テストベクトルで検証）
 │   ├── shiftoee.rs                              シフトの総合設備効率：稼働率、性能、品質、生産できる基板数（模擬）
+│   ├── shiftplan.rs                             シフトを基板ごとに追う：リール交換の位置と収まる枚数
 │   ├── sim.rs                                   模擬機械：仮想時計と注入できる故障
 │   ├── slots.rs                                 計画が最も速くなるフィーダーの配置：同じ種類のフィーダー同士の位置の入れ替え
 │   ├── splitjob.rs                              基板を複数の機械で分担：フィーダー単位で割り当て、作業量を均等化
@@ -527,6 +558,7 @@ EH3D-PHOENIX-PNP/
 │   ├── feedrep.rs                               フィーダーごとのピックのテスト
 │   ├── fidcheck.rs                              フィデューシャル適合の確認のテスト
 │   ├── flow2.rs                                 ノズル高さ、パネルのマーク、テープ、シフト、アセンブラのファイル、部品表合算のテスト
+│   ├── flow3.rs                                 固定シードの乱数：新しい読み取り・記録・シフト・本体・費用・不良のテスト
 │   ├── fuzz.rs                                  固定シードの乱数テスト：壊れたファイルでパニックせず、書いたものは読み戻せる
 │   ├── gui.rs                                   画面なしのウィンドウのテスト：状態、計画、ジョブ、地図、表、ガイド
 │   ├── heads.rs                                 ヘッドのテスト：設定の行、到達範囲、割り当て、時計、schedule
@@ -572,7 +604,9 @@ EH3D-PHOENIX-PNP/
 │   ├── runway.rs                                リールの持ち枚数のテスト：数え方、順序、無効・未使用のフィーダー、表、コマンド
 │   ├── samples.rs                               校正の例とフィーダー測定ファイルのテスト
 │   ├── server.rs                                サーバーへの経路のテスト：設定、再試行、ルート、メモリ上のサーバー、コマンド
+│   ├── serverui.rs                              メモリ上のサーバーでウィンドウのサーバーパネルを試験：設定、ログイン、ファイル、トークンなし
 │   ├── setup.rs                                 段取りシートのテスト：一覧、言語、コマンド、ツール
+│   ├── shop.rs                                  現場向けコマンドを人が実行するのと同じようにサンプルファイルで実行
 │   ├── shot.rs                                  ウィンドウの画像モードのテスト：画面なしで読み取り・確認される引数
 │   ├── sim.rs                                   模擬機械のテスト
 │   ├── slots.rs                                 フィーダー配置のテスト：入れ替え、節約量、動かないもの、スロット名、上限、コマンド
@@ -587,6 +621,7 @@ EH3D-PHOENIX-PNP/
 │   ├── toolflow.rs                              リール、ノズル、問題箇所、段取り替えのパネルとフォーム値の保存のテスト
 │   ├── toolmore.rs                              ツールタブの比較・集計パネルのテスト：各パネルとそのコマンド、拒否、ファイル
 │   ├── toolpanels.rs                            リール、手作業の部品、ジョブの差分、フィーダー配置、複数回実行のパネルとタブの語句のテスト
+│   ├── toolshop.rs                              ツールタブの新しい6つのパネル：コマンドの出力、文言、保存される表
 │   ├── toolvalues.rs                            フォーム値の設定項目のテスト：範囲、既定値、コマンド、ファイルへの保存
 │   ├── vacuum.rs                                真空、アクチュエーター、フィーダーの故障ウィンドウのテスト
 │   ├── vis_cli.rs                               コマンド part-inspect、fiducial-check、feeder-check、--report-feeders のテスト
@@ -631,6 +666,9 @@ EH3D-PHOENIX-PNP/
 │   ├── packages_common.csv                      一般的なパッケージの表（0201抵抗からQFNまで）。自分の部品に合わせて調整する
 │   ├── panel.json                               2枚の基板のパネル
 │   ├── panel_marks.json                         マーク付き基板のパネル（1枚は回転、1枚は不良）、panel-fids 用
+│   ├── prices.csv                               bom-cost 用の数量別価格表
+│   ├── rejects.csv                              reject-report 用の、理由と基板付きの不良部品一覧
+│   ├── retry_rules.csv                          retry-policy 用の、リファレンス・値・パッケージ・フィーダー別のリトライ規則
 │   ├── slots.csv                                機械のスロット
 │   ├── vision.cfg                               画像処理の設定（すべてのキーを説明）
 │   └── z_probe.csv                              2本のノズルのプロービング、nozzle-zcal 用

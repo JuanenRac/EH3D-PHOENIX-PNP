@@ -18,7 +18,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 1292 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e, embora o programa tire imagens da sua própria janela (`--shot`), nenhuma pessoa verificou o desenho num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
+**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`phoenix-pnp`) com 1429 testes que correm num computador: lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (com prioridades, tabuleiros e tiras), lê as definições da máquina de um ficheiro, planeia a ordem de colocação para uma cabeça de até seis bicos (níveis, pontas de bico, limites de ângulo, tempo dos movimentos, painéis), escreve uma folha de carga e, numa máquina simulada, executa o plano passo a passo com falhas injetadas. Também tem uma janela (compilada com `--features gui`) cuja lógica é testada sem ecrã; o desenho em si não está coberto por testes e, embora o programa tire imagens da sua própria janela (`--shot`), nenhuma pessoa verificou o desenho num ecrã. Não controla nenhuma máquina: não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versão | `0.1.1` |
 | Maturidade | Estrutura inicial |
-| Testes | 1292 |
+| Testes | 1429 |
 | Tecnologias | Rust |
 | Em hardware real | Não experimentado: nada disto correu numa máquina |
 
@@ -47,7 +47,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 |---|---|---|
 | Núcleo | 🟡 | lê o ficheiro de posições de uma placa, dá a cada componente o seu alimentador (prioridade, tabuleiro, tira), planeia a ordem de colocação para uma cabeça de até seis bicos com níveis, pontas de bico, limites de ângulo e o tempo dos movimentos, planeia painéis e escreve a folha de carga; testado num computador com entradas normais e danificadas, não com uma coleção de ficheiros reais. |
 | Linha de comandos | 🟡 | `phoenix-pnp` executa as mesmas funções da biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) e imprime o resultado; cada erro volta como uma mensagem com o seu código `PHOENIX-PNP-NNN` e um código de saída diferente de zero. |
-| Testes | 🟡 | 1292 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
+| Testes | 🟡 | 1429 testes passam (`cargo test`), com casos normais, casos-limite, entradas danificadas e pequenos casos gerados. |
 | Configuração da máquina | 🟡 | um ficheiro `chave = valor` com versão, um validador que indica a linha e os limites de segurança (curso de Z, limites de X e Y, repetições, ângulos do bico); os valores não foram comparados com uma máquina real. |
 | Simulador e trabalho | 🟡 | um relógio virtual, falhas injetadas ao acaso (com semente) ou num sítio escolhido, repetições, as políticas alerta e adiar, alimentadores que se desligam após falhas repetidas, pausa, passo a passo e um estado guardado para retomar; apenas simula, nada moveu uma máquina. |
 | Segurança | 🟡 | Rust seguro e simples (`forbid(unsafe_code)`): nada entra em pânico com os ficheiros recebidos e um valor mau é um erro com o seu motivo; sem revisão independente. |
@@ -141,6 +141,13 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 * **A eficácia de um turno** (`src/shiftoee.rs`, `src/commands.rs`): `phoenix-pnp shift-oee PARTS FEEDERS [--runs N] [--seed S] [--shift MINUTES] [--reel-change SECONDS] [--min-oee PERCENT] [--out F]` executa o plano muitas vezes na máquina simulada e dá a disponibilidade (o turno menos as trocas de bobina de que as suas placas precisam, `shift_minutes` e `reel_change_s`), o desempenho (o tempo ideal do plano face ao tempo médio das execuções), a qualidade (as execuções que colocaram todas as peças), as placas que cabem no turno e a eficácia, o produto das três. Sai com 1 se ficar abaixo de `--min-oee`. É um número para o plano e as definições numa máquina simulada, não para um turno real.
 * **Ficheiros de posições de montadores** (`src/asmimport.rs`, `src/cmd_flow.rs`, `examples/altium_pnp.csv`): `phoenix-pnp import-assembler FILE [--format cpl|kicad-pos|generic] [--unit mm|inch] [--out F]` lê os ficheiros de posições que os montadores e outros programas escrevem (uma coluna de designadores, o centro da peça como `Mid X` ou `Center-X(mil)`, a camada como `Top`, `T` ou `TopLayer`, números com a sua unidade como `12.5mm` ou `490mil`), diz que forma encontrou e dá as peças em milímetros numa forma que todos os comandos leem. O que o `export-assembler` escreve é lido de volta; uma linha ilegível é um erro com o seu número.
 * **Várias listas de materiais numa só** (`src/bommerge.rs`, `src/cmd_flow.rs`, `examples/bom_b.csv`): `phoenix-pnp bom-merge FILE[:BOARDS]... [--out F]` soma as listas de materiais de várias placas, cada uma pelo número de placas pretendido, junta as linhas que são a mesma peça (o valor escrito igual, o encapsulamento, o número de peça) e diz para que lista é cada peça.
+* **O painel do servidor e a procura de servidores** (`src/gui/serverui.rs`, `src/server.rs`, `Cargo.toml`): o separador Máquina da janela termina com o painel de `eh3d-view` do EH3D-COMMON: as definições do servidor, o estado da ligação, o teste de ligação e o início e fim de sessão de uma pessoa (o programa é `phoenix-pnp` para o servidor e a palavra-passe é apagada assim que é enviada). O que se aplica passa para a configuração, `mode` segue o endereço e as chaves são guardadas no ficheiro de definições carregado, nunca o token. `phoenix-pnp server-discover [--sim]` lista os servidores da rede local: não pergunta nada à rede a não ser com `server_mdns = on` e uma compilação com `--features mdns`. `server_attempts` é lido como o nome antigo de `server_retries`, com um aviso.
+* **Mais seis painéis no separador Ferramentas** (`src/gui/toolbox.rs`, `src/gui/toolmore.rs`): as alturas dos bocais (`nozzle-zcal`), as marcas do painel (`panel-fids`), as fitas passo a passo (`tape-steps`), a eficácia de um turno (`shift-oee`), o ficheiro de posições de um montador (`import-assembler`) e várias listas de materiais (`bom-merge`), cada um com o mesmo texto do seu comando, as suas palavras nas oito línguas e a sua tabela escrita uma vez na pasta de saída, nunca sobre um ficheiro.
+* **O registo de uma placa pelo número de série** (`src/serialsig.rs`, `src/sha256.rs`, `src/cmd_shop.rs`, `examples/lots.csv`): `phoenix-pnp serial-sign PARTS FEEDERS --serial S [--lots F] [--prev SIG] [--key-file F] [--out F]` escreve o número de série, as impressões digitais das tabelas (o `job-fingerprint` imprime-as), cada referência colocada com o seu alimentador e o lote da sua bobina, e uma assinatura (SHA-256, ou HMAC-SHA-256 com uma chave de um ficheiro, que nunca é impressa); `--prev` encadeia o registo à placa anterior. `phoenix-pnp serial-verify FILE [--key-file F] [--prev SIG]` diz se um registo está inteiro: um byte alterado, uma linha retirada, a chave errada ou uma cadeia partida são encontrados.
+* **Um turno e várias cabeças** (`src/shiftplan.rs`, `src/headsplit.rs`, `src/cmd_shop.rs`): `phoenix-pnp shift-plan PARTS FEEDERS [--boards N] [--shift MINUTES] [--reel-change SECONDS]` percorre o turno placa a placa e diz em que placa e a que minuto se tem de trocar cada bobina, quantas placas cabem e as placas por hora; `phoenix-pnp head-split PARTS FEEDERS [--heads N]` simula a placa numa máquina com até 8 cabeças que tiram dos mesmos alimentadores (uma bobina é servida por uma cabeça de cada vez), com a placa cortada em faixas contra alimentadores inteiros por cabeça: o tempo de cada cabeça, as esperas e a forma mais rápida.
+* **Encapsulamentos e espaços** (`src/footcheck.rs`, `src/clearance.rs`, `src/cmd_shop.rs`): `phoenix-pnp footprint-check PARTS [--packages F]` diz como está cada encapsulamento da placa face à tabela de encapsulamentos (conhecido, um alias como `R_0603_1608Metric` para `R_0603`, gerado a partir do nome, a um erro de distância ou desconhecido); `phoenix-pnp clearance PARTS --packages F [--min MM]` encontra os pares de peças de uma face cujos corpos, rodados com a peça, estão mais perto do que o mínimo (`clearance_min_mm`) ou se sobrepõem.
+* **Rejeições e repetições por peça** (`src/rejects.rs`, `src/retrypolicy.rs`, `src/cmd_shop.rs`, `examples/rejects.csv`, `examples/retry_rules.csv`): `phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT]` dá as peças rejeitadas de uma série por motivo (pela ordem de um diagrama de Pareto), encapsulamento, alimentador e referência; `phoenix-pnp retry-policy PARTS FEEDERS RULES` dá a cada peça as repetições da primeira regra que serve a sua referência, valor, encapsulamento ou alimentador, calcula a probabilidade de uma boa placa e aponta as regras que não servem a nada ou nunca atuam.
+* **O custo de uma série e a idade das bobinas** (`src/bomcost.rs`, `src/lotage.rs`, `src/cmd_shop.rs`, `examples/prices.csv`): `phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT]` calcula o custo de uma série a partir de uma tabela de preços por escalões (compra-se a quantidade mínima à venda quando são precisas menos); `phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N]` diz a idade do lote de cada alimentador pelo seu código de data, face à semana dada e a `lot_max_weeks`.
 * **Testes com acaso, de cada chave e de cada comando** (`tests/fuzz.rs`, `tests/keys.rs`, `tests/cli_all.rs`): os ficheiros de exemplo danificados de muitas maneiras e bytes feitos ao acaso (de semente fixa, por isso repetem-se) são dados a cada leitor de ficheiros e nenhum pode dar pânico; as placas feitas ao acaso mantêm as propriedades que as ferramentas prometem (o que se escreve volta a ler-se, uma transformação mantém as distâncias e desfaz-se, uma repartição dá cada peça uma vez, as probabilidades ficam entre 0 e 1, um pedido que se faz é aceite pelo servidor em memória); cada chave das definições é verificada contra o exemplo, a sua verificação e os duplicados; e cada comando da ajuda corre sem nada, com uma opção errada e com ficheiros que não existem, e tem de responder com uma linha de erro e nunca um pânico.
 * **Mais testes ao acaso e de cada comando novo** (`tests/flow2.rs`, `tests/server.rs`): placas feitas ao acaso com semente fixa verificam que o que o `export-assembler` escreve é lido de volta pelo `import-assembler` (em mm e em polegadas), que os desvios dos bocais encontram as alturas inventadas, que a eficácia de um turno é o produto das suas três partes e que os leitores novos nunca entram em pânico com ficheiros danificados; a ligação ao servidor é experimentada com um transporte que falha as primeiras vezes e com o servidor em memória.
 * **Calibração combinada da câmara** (`src/combined.rs`, `src/cmd_tools.rs`, `src/gui/toolbox.rs`): `phoenix-pnp camera-combined FILE` lê `head_x,head_y,col,row,px,py` (`examples/camera_combined.csv`: uma folha fixa à mesa, a cabeça movida para vários sítios) e, com o lugar da folha (`camera_pattern_origin_x_mm`, `camera_pattern_origin_y_mm`) e o seu passo, encontra num só ajuste o tamanho do píxel, a rotação, o espelho, o desvio do bico, a distorção da lente e quanto a folha está rodada na mesa; a câmara de `camera-calibrate` e a lente de `camera-pattern` de uma vez. Está desligada por predefinição (`camera_combined = off`; os dois comandos separados não dependem dela), a cabeça tem de estar em dois ou mais sítios e o desvio só é tão bom quanto a medida da origem. O separador Ferramentas tem a mesma calibração; aplicá-la à máquina não liga `camera_correct_lens`. Com `camera_combined_touch = on` (ou `--touch`) o lugar da folha é tirado de uma linha `origin,X,Y` do ficheiro, onde o bocal tocou o ponto 0,0, em vez das definições; desligado por omissão.
@@ -259,6 +266,18 @@ phoenix-pnp tape-steps PARTS FEEDERS [--out F]  as fitas em cada passo do plano:
 phoenix-pnp shift-oee PARTS FEEDERS [--runs N] [--shift MINUTES] [--min-oee PERCENT]  disponibilidade, desempenho e qualidade de um turno na máquina simulada
 phoenix-pnp import-assembler FILE [--format F] [--unit U] [--out F]  um ficheiro de posições de um montador lido como peças em milímetros
 phoenix-pnp bom-merge FILE[:BOARDS]... [--out F]  as listas de materiais de várias placas somadas numa lista de compra
+phoenix-pnp job-fingerprint FILE...  o SHA-256 de cada tabela com os fins de linha igualados, e um para o conjunto
+phoenix-pnp serial-sign PARTS FEEDERS --serial S [--lots F] [--key-file F] [--out F]  o registo de uma placa pelo número de série, assinado com um hash (ou uma chave) e encadeado à anterior
+phoenix-pnp serial-verify FILE [--key-file F] [--prev SIG]  se um registo está inteiro (sai com 1 se não estiver)
+phoenix-pnp shift-plan PARTS FEEDERS [--boards N] [--shift MINUTES] [--out F]  o turno placa a placa: onde se trocam as bobinas e quantas placas cabem
+phoenix-pnp head-split PARTS FEEDERS [--heads N] [--out F]  várias cabeças nos mesmos alimentadores: faixas contra alimentadores inteiros, esperas e a forma mais rápida
+phoenix-pnp footprint-check PARTS [--packages F] [--out F]  os encapsulamentos da placa face à tabela de encapsulamentos (sai com 1 se algum pede revisão)
+phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT] [--out F]  as peças rejeitadas de uma série por motivo, encapsulamento, alimentador e referência
+phoenix-pnp retry-policy PARTS FEEDERS RULES [--out F]  as repetições de cada peça segundo regras; as regras que não servem a nada (sai com 1)
+phoenix-pnp clearance PARTS --packages F [--min MM] [--out F]  as peças cujos corpos estão demasiado perto ou se sobrepõem (sai com 1 se houver alguma)
+phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT] [--out F]  o custo de uma série com escalões de preço (sai com 1 se uma peça não tiver preço)
+phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N] [--out F]  a idade do lote de cada alimentador (sai com 1 se algum for velho)
+phoenix-pnp server-discover [--sim]  os servidores da rede local (precisa de server_mdns = on e --features mdns)
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       mede a imagem de uma peça feita em memória
 ```
 
@@ -373,7 +392,7 @@ A última linha abre a janela; `phoenix-pnp` sem comando também a abre se foi c
 
 ## 🧪 Testes
 
-O conjunto tem 1292 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
+O conjunto tem 1429 testes (`cargo test`, executados em Windows e Linux na CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam um pânico. Pequenos casos gerados (a partir de uma semente fixa, por isso dão os mesmos números em cada execução) verificam que o plano não depende da ordem dos ficheiros, que um percurso nunca fica mais comprido, que um trabalho guardado e retomado em qualquer ponto acaba como o que nunca parou, e que os comprimentos e os ângulos se convertem de ida e volta. A CI também executa `cargo fmt --check`, `cargo clippy` com os avisos como erros e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilação e publicação
 
@@ -396,17 +415,20 @@ EH3D-PHOENIX-PNP/
 │   ├── asmimport.rs                             os ficheiros de posições de montadores lidos como peças: Mid X, mil, TopLayer
 │   ├── boardstats.rs                            as contagens de uma tabela de peças e os pares de peças demasiado próximos
 │   ├── bom.rs                                   a lista de materiais: leitura, verificação com a placa, encomenda
+│   ├── bomcost.rs                               o custo de uma série a partir da lista de materiais e de uma tabela de preços por escalões
 │   ├── bommerge.rs                              as listas de materiais de várias placas somadas numa lista de compra
 │   ├── calibrate.rs                             as calibrações da câmara e da ponta do bico, e o ensino dos alimentadores
 │   ├── calibsim.rs                              uma calibração de câmara experimentada numa câmara inventada: avistamentos, ajuste, erro
 │   ├── camera.rs                                o modelo de uma câmara: tamanho do pixel, deslocamentos, rotação, espelho e lente
 │   ├── catalog.rs                               as tabelas de peças e de encapsulamentos e a herança das suas propriedades
 │   ├── changeover.rs                            o que mudar nos alimentadores entre os trabalhos de uma fila: bobinas a trocar, pôr, deixar
+│   ├── clearance.rs                             o espaço entre os corpos das peças de uma placa: pares demasiado juntos ou sobrepostos
 │   ├── cli_args.rs                              os argumentos da linha de comandos, estritos: uma opção desconhecida é um erro
 │   ├── cmd_flow.rs                              comandos do fluxo sem máquina: lotes, repartição, risco, alturas, marcas, importação, listas
 │   ├── cmd_more.rs                              os comandos parts-diff, config-diff, board-stats, queue-stock, feeder-deplete, feeder-refill e job-diff
 │   ├── cmd_queue.rs                             os comandos da fila de trabalhos: adicionar, estado, confirmar, editar, executar
 │   ├── cmd_server.rs                            os comandos que falam com o servidor EH3D: enviar, pedido, estado, trabalho, alimentadores
+│   ├── cmd_shop.rs                              os comandos da oficina: registos, turnos, cabeças, encapsulamentos, rejeições, custos, lotes
 │   ├── cmd_tools.rs                             os comandos que verificam, calibram e criam ficheiros: lista de materiais, calibração, painel
 │   ├── cmd_vis.rs                               os comandos part-inspect, fiducial-check e feeder-check
 │   ├── combined.rs                              a calibração da câmara com um padrão fixo enquanto a cabeça se move
@@ -425,6 +447,7 @@ EH3D-PHOENIX-PNP/
 │   ├── feedrep.rs                               as recolhas de cada alimentador num trabalho
 │   ├── fidcheck.rs                              o que diz o ajuste de fiduciais: rotação, escala, cisalhamento, deslocamento, a marca discordante
 │   ├── fiducial.rs                              fiduciais de um painel: o ajuste das marcas medidas e a correção das peças
+│   ├── footcheck.rs                             os encapsulamentos de uma placa face à tabela de encapsulamentos: conhecido, alias, gerado, parecido
 │   ├── gui.rs                                   a janela: módulos que não precisam de ecrã e o desenho em window.rs
 │   ├── gui/app.rs                               o estado da janela: carregar, planear, iniciar, pausar, avançar, corrigir, guardar
 │   ├── gui/browse.rs                            o seletor de ficheiros: pastas e ficheiros, subir, caminhos escritos
@@ -433,6 +456,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui/problems.rs                          os problemas de um trabalho e as correções que os resolvem
 │   ├── gui/queuetab.rs                          a ferramenta Fila sem a janela: a lista de trabalhos, o formulário e os botões
 │   ├── gui/samples.rs                           exemplos, da placa pequena à grande
+│   ├── gui/serverui.rs                          o painel do servidor da janela: definições, ligação, início de sessão; guardadas sem o token
 │   ├── gui/session.rs                           o trabalho simulado que se inicia, pausa, retoma e avança passo a passo
 │   ├── gui/settings.rs                          o que a janela memoriza: idioma, tema, camadas, pastas e a largura das colunas
 │   ├── gui/shot.rs                              o modo de captura da janela (--shot): os seus argumentos
@@ -447,6 +471,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui/workspace.rs                         os ficheiros carregados, o plano e as edições, sem janela
 │   ├── gui_main.rs                              a janela como programa à parte, sem consola no Windows
 │   ├── heads.rs                                 várias cabeças: alcance, distribuição das peças, esperas por um alimentador
+│   ├── headsplit.rs                             várias cabeças numa placa e numa fila de alimentadores: faixas ou alimentadores inteiros, esperas
 │   ├── hooks.rs                                 programas executados em eventos de um trabalho, desligados por omissão, com lista e tempo limitados
 │   ├── hotspots.rs                              que alimentadores dão problemas em muitas execuções simuladas: falhas, desligados, de parte
 │   ├── import.rs                                a importação de posições: CSV de centroides com mapa das colunas, texto do EAGLE, .pos do KiCad
@@ -458,6 +483,7 @@ EH3D-PHOENIX-PNP/
 │   ├── learn.rs                                 o desvio de colocação de cada encapsulamento, aprendido de leituras
 │   ├── lib.rs                                   a biblioteca: o que cada comando usa
 │   ├── loadsheet.rs                             a folha de carga: a ranhura de cada tipo de fita
+│   ├── lotage.rs                                a idade do lote de cada bobina, pelo código de data, face a uma semana e a um limite
 │   ├── lottrace.rs                              o lote e a bobina de onde veio cada peça colocada, e o que falta
 │   ├── main.rs                                  a linha de comandos e a entrada da janela quando corre sem comando
 │   ├── marks.rs                                 marcas de dois níveis: as peças que são marcas e o ajuste do painel e de cada placa
@@ -481,14 +507,19 @@ EH3D-PHOENIX-PNP/
 │   ├── queuestock.rs                            se os alimentadores chegam para os trabalhos de uma fila, e onde acaba uma bobina
 │   ├── recipe.rs                                a receita de um trabalho: o seu ficheiro, os seus passos e os parâmetros por encapsulamento, alimentador e ponta
 │   ├── refill.rs                                a tabela de alimentadores depois de trocar bobinas: a nova contagem e o primeiro lugar de uma tira
+│   ├── rejects.rs                               as peças rejeitadas de uma série por motivo, encapsulamento, alimentador e referência, em ordem de Pareto
 │   ├── reorient.rs                              uma tabela de peças rodada, virada ou movida no conjunto, mantendo as distâncias
 │   ├── report.rs                                o relatório de trabalho: fases, recolhas, grupos, erros; texto, HTML, CSV, JSON
+│   ├── retrypolicy.rs                           as repetições de cada peça segundo regras sobre referência, valor, encapsulamento ou alimentador
 │   ├── rotation.rs                              correções da rotação por encapsulamento, e como roda um bico limitado
 │   ├── runs.rs                                  o mesmo trabalho executado muitas vezes na máquina simulada, cada vez a partir de outra semente
 │   ├── runway.rs                                quantas placas inteiras dura cada bobina, a que acaba primeiro, as peças que sobram
+│   ├── serialsig.rs                             o registo de uma placa pelo seu número de série, assinado com um hash e encadeado à anterior
 │   ├── server.rs                                o caminho para o servidor EH3D: pedidos, trabalhos, o cliente comum e um servidor em memória
 │   ├── setup.rs                                 a folha de preparação: alimentadores, peças, pontas, calibrações
+│   ├── sha256.rs                                SHA-256 e HMAC-SHA-256, verificados com os vetores de teste publicados
 │   ├── shiftoee.rs                              a eficácia de um turno: disponibilidade, desempenho, qualidade, placas possíveis, simulada
+│   ├── shiftplan.rs                             um turno placa a placa: onde se trocam as bobinas e quantas placas cabem
 │   ├── sim.rs                                   a máquina simulada: relógio virtual e falhas que se podem injetar
 │   ├── slots.rs                                 onde colocar os alimentadores para o plano ser o mais rápido: trocas de lugares entre alimentadores do mesmo tipo
 │   ├── splitjob.rs                              uma placa repartida entre máquinas: alimentadores inteiros a cada uma, trabalho equilibrado
@@ -527,6 +558,7 @@ EH3D-PHOENIX-PNP/
 │   ├── feedrep.rs                               testes das recolhas de cada alimentador
 │   ├── fidcheck.rs                              testes da verificação do ajuste de fiduciais
 │   ├── flow2.rs                                 testes de alturas de bocais, marcas de painel, fitas, turno, ficheiros de montadores e listas
+│   ├── flow3.rs                                 acaso com semente fixa para os novos leitores, registos, turnos, corpos, custos e rejeições
 │   ├── fuzz.rs                                  testes com acaso de semente fixa: ficheiros danificados não dão pânico, o que se escreve volta a ler-se
 │   ├── gui.rs                                   testes da janela sem ecrã: estado, plano, trabalho, mapa, tabelas e assistente
 │   ├── heads.rs                                 testes das cabeças: linhas da configuração, alcance, distribuição, o relógio e schedule
@@ -572,7 +604,9 @@ EH3D-PHOENIX-PNP/
 │   ├── runway.rs                                testes das placas que dura uma bobina: a conta, a ordem, alimentadores desligados e sem uso, o comando
 │   ├── samples.rs                               testes dos exemplos das calibrações e do ficheiro de medidas dos alimentadores
 │   ├── server.rs                                testes do caminho para o servidor: definições, repetições, rotas, servidor em memória, comandos
+│   ├── serverui.rs                              o painel do servidor da janela num servidor em memória: definições, sessão, ficheiro, sem token
 │   ├── setup.rs                                 testes da folha de preparação: listas, idiomas, comando e ferramenta
+│   ├── shop.rs                                  os comandos da oficina executados como os executa uma pessoa, com os ficheiros de exemplo
 │   ├── shot.rs                                  testes do modo de imagem da janela: os seus argumentos, lidos e verificados sem ecrã
 │   ├── sim.rs                                   testes da máquina simulada
 │   ├── slots.rs                                 testes dos lugares dos alimentadores: as trocas, o que poupam, o que nunca se move, os nomes das ranhuras, o limite, o comando
@@ -587,6 +621,7 @@ EH3D-PHOENIX-PNP/
 │   ├── toolflow.rs                              testes dos painéis de bobinas, bocais, pontos problemáticos e trocas, e da gravação dos valores
 │   ├── toolmore.rs                              testes dos painéis de comparar e contar do separador de ferramentas: cada um face ao seu comando, as recusas, os ficheiros
 │   ├── toolpanels.rs                            testes dos painéis de bobinas, peças à mão, diferenças de trabalhos, lugares dos alimentadores e muitas execuções, e das palavras do separador
+│   ├── toolshop.rs                              os seis novos painéis do separador Ferramentas: o que diz o comando, as palavras, as tabelas
 │   ├── toolvalues.rs                            testes dos valores dos formulários como definições: intervalos, predefinições, comandos, gravação no ficheiro
 │   ├── vacuum.rs                                testes do vácuo, dos atuadores e da janela de falhas de um alimentador
 │   ├── vis_cli.rs                               testes dos comandos part-inspect, fiducial-check, feeder-check e --report-feeders
@@ -631,6 +666,9 @@ EH3D-PHOENIX-PNP/
 │   ├── packages_common.csv                      uma tabela de encapsulamentos comuns, das resistências 0201 aos QFN, para ajustar às suas peças
 │   ├── panel.json                               um painel de duas placas
 │   ├── panel_marks.json                         um painel de placas com marcas, uma rodada e uma má, para panel-fids
+│   ├── prices.csv                               uma tabela de preços por escalões, para bom-cost
+│   ├── rejects.csv                              as peças rejeitadas numa série, com motivo e placa, para reject-report
+│   ├── retry_rules.csv                          regras de repetições de uma peça por referência, valor, encapsulamento ou alimentador, para retry-policy
 │   ├── slots.csv                                as ranhuras da máquina
 │   ├── vision.cfg                               as definições da cadeia de visão, cada chave explicada
 │   └── z_probe.csv                              apalpações de dois bocais, para nozzle-zcal

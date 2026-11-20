@@ -93,6 +93,19 @@
           }
         },
         {
+          "name": "bomcost.rs",
+          "desc": {
+            "en": "the cost of a run from the bill of materials and a table of prices with price breaks",
+            "es": "el coste de una tirada a partir de la lista de materiales y una tabla de precios con tramos",
+            "de": "die Kosten eines Laufs aus Stückliste und Preistabelle mit Staffelpreisen",
+            "fr": "le coût d'une série à partir de la nomenclature et d'un tableau de prix par paliers",
+            "it": "il costo di un lotto dalla distinta base e da una tabella di prezzi a scaglioni",
+            "ja": "部品表と数量別価格表から生産ロットの費用を計算",
+            "zh": "根据物料清单和阶梯价格表计算一批的成本",
+            "pt": "o custo de uma série a partir da lista de materiais e de uma tabela de preços por escalões"
+          }
+        },
+        {
           "name": "bommerge.rs",
           "desc": {
             "en": "the bills of materials of several boards added up into one list to buy",
@@ -171,6 +184,19 @@
           }
         },
         {
+          "name": "clearance.rs",
+          "desc": {
+            "en": "the space between the bodies of the parts of a board: pairs too near or overlapping",
+            "es": "el espacio entre los cuerpos de las piezas de una placa: pares demasiado cerca o solapados",
+            "de": "der Abstand zwischen den Körpern der Teile einer Platine: zu nahe oder überlappende Paare",
+            "fr": "l'espace entre les corps des pièces d'une carte : paires trop proches ou qui se chevauchent",
+            "it": "lo spazio tra i corpi delle parti di una scheda: coppie troppo vicine o sovrapposte",
+            "ja": "基板上の部品本体の間隔：近すぎる、または重なっている組",
+            "zh": "板上元件本体之间的间距：过近或重叠的元件对",
+            "pt": "o espaço entre os corpos das peças de uma placa: pares demasiado juntos ou sobrepostos"
+          }
+        },
+        {
           "name": "cli_args.rs",
           "desc": {
             "en": "the arguments of the command line, strict: an unknown option is an error",
@@ -233,6 +259,19 @@
             "ja": "EH3Dサーバーと通信するコマンド：送信、リクエスト、状態、ジョブ、フィーダー、校正",
             "zh": "与EH3D服务器通信的命令：发送、请求、状态、作业、供料器、校准",
             "pt": "os comandos que falam com o servidor EH3D: enviar, pedido, estado, trabalho, alimentadores"
+          }
+        },
+        {
+          "name": "cmd_shop.rs",
+          "desc": {
+            "en": "the commands of the shop floor: records, shifts, heads, footprints, rejects, costs, lots",
+            "es": "los comandos del taller: registros, turnos, cabezales, huellas, rechazos, costes, lotes",
+            "de": "die Befehle der Werkstatt: Protokolle, Schichten, Köpfe, Footprints, Ausschuss, Kosten, Lose",
+            "fr": "les commandes de l'atelier : fiches, postes, têtes, empreintes, rebuts, coûts, lots",
+            "it": "i comandi del reparto: registri, turni, teste, impronte, scarti, costi, lotti",
+            "ja": "現場向けコマンド：記録、シフト、ヘッド、フットプリント、不良、費用、ロット",
+            "zh": "现场命令：记录、班次、贴装头、封装、不良、成本、批次",
+            "pt": "os comandos da oficina: registos, turnos, cabeças, encapsulamentos, rejeições, custos, lotes"
           }
         },
         {
@@ -470,6 +509,19 @@
           }
         },
         {
+          "name": "footcheck.rs",
+          "desc": {
+            "en": "the packages of a board against the table of packages: known, alias, generated, similar",
+            "es": "los encapsulados de una placa frente a la tabla de encapsulados: conocido, alias, generado, parecido",
+            "de": "die Gehäuse einer Platine gegen die Gehäusetabelle: bekannt, Alias, erzeugt, ähnlich",
+            "fr": "les boîtiers d'une carte face à la table des boîtiers : connu, alias, généré, proche",
+            "it": "i package di una scheda rispetto alla tabella dei package: noto, alias, generato, simile",
+            "ja": "基板のパッケージをパッケージ表と照合：既知、別名、生成可、類似",
+            "zh": "将板上封装与封装表对照：已知、别名、可生成、相似",
+            "pt": "os encapsulamentos de uma placa face à tabela de encapsulamentos: conhecido, alias, gerado, parecido"
+          }
+        },
+        {
           "name": "gui.rs",
           "desc": {
             "en": "the window: modules that need no screen, and the drawing in window.rs",
@@ -571,6 +623,19 @@
             "ja": "小さな基板から大きな基板までのサンプル",
             "zh": "示例，从小型电路板到大型电路板",
             "pt": "exemplos, da placa pequena à grande"
+          }
+        },
+        {
+          "name": "gui/serverui.rs",
+          "desc": {
+            "en": "the server panel of the window: settings, link, login, kept in the file without the token",
+            "es": "el panel del servidor de la ventana: ajustes, enlace, acceso; se guardan sin el token",
+            "de": "das Serverpanel des Fensters: Einstellungen, Verbindung, Anmeldung; gespeichert ohne Token",
+            "fr": "le panneau du serveur de la fenêtre : réglages, lien, connexion ; gardés sans le jeton",
+            "it": "il pannello del server della finestra: impostazioni, collegamento, accesso; salvati senza token",
+            "ja": "ウィンドウのサーバーパネル：設定、接続、ログイン（トークンは保存しない）",
+            "zh": "窗口的服务器面板：设置、连接、登录；保存时不含令牌",
+            "pt": "o painel do servidor da janela: definições, ligação, início de sessão; guardadas sem o token"
           }
         },
         {
@@ -756,6 +821,19 @@
           }
         },
         {
+          "name": "headsplit.rs",
+          "desc": {
+            "en": "several heads on one board and one row of feeders: bands against whole feeders, waits",
+            "es": "varios cabezales en una placa y una fila de alimentadores: franjas o alimentadores enteros, esperas",
+            "de": "mehrere Köpfe an einer Platine mit einer Feederreihe: Bänder oder ganze Feeder, Wartezeiten",
+            "fr": "plusieurs têtes sur une carte et une rangée de chargeurs : bandes ou chargeurs entiers, attentes",
+            "it": "più teste su una scheda e una fila di alimentatori: fasce o alimentatori interi, attese",
+            "ja": "1枚の基板と1列のフィーダーに複数ヘッド：帯分割かフィーダー単位か、待ち時間",
+            "zh": "多个贴装头共用一排供料器：按带分区或按整个供料器，含等待时间",
+            "pt": "várias cabeças numa placa e numa fila de alimentadores: faixas ou alimentadores inteiros, esperas"
+          }
+        },
+        {
           "name": "hooks.rs",
           "desc": {
             "en": "programs run for the events of a job, off by default, with a limited list and time",
@@ -896,6 +974,19 @@
             "ja": "搭載シート：各テープのスロット",
             "zh": "上料表：每种料带的槽位",
             "pt": "a folha de carga: a ranhura de cada tipo de fita"
+          }
+        },
+        {
+          "name": "lotage.rs",
+          "desc": {
+            "en": "how old the lot of each reel is, from its date code, against a week and a limit",
+            "es": "la antigüedad del lote de cada carrete, por su código de fecha, frente a una semana y un límite",
+            "de": "das Alter des Loses jeder Rolle aus dem Datumscode, gegen eine Woche und eine Grenze",
+            "fr": "l'âge du lot de chaque bobine, d'après son code de date, face à une semaine et une limite",
+            "it": "l'età del lotto di ogni bobina, dal codice data, rispetto a una settimana e a un limite",
+            "ja": "日付コードから各リールのロットの経過週数を、指定週と上限に照らして判定",
+            "zh": "根据日期码判断每个料盘批次的存放周数，对照指定周和上限",
+            "pt": "a idade do lote de cada bobina, pelo código de data, face a uma semana e a um limite"
           }
         },
         {
@@ -1198,6 +1289,19 @@
           }
         },
         {
+          "name": "rejects.rs",
+          "desc": {
+            "en": "the rejected parts of a run by reason, package, feeder and reference, in Pareto order",
+            "es": "las piezas rechazadas de una tirada por motivo, encapsulado, alimentador y referencia, en orden de Pareto",
+            "de": "die ausgesonderten Teile eines Laufs nach Grund, Gehäuse, Feeder und Bezeichner, in Pareto-Reihenfolge",
+            "fr": "les pièces rejetées d'une série par motif, boîtier, chargeur et référence, en ordre de Pareto",
+            "it": "i pezzi scartati di un lotto per motivo, package, alimentatore e riferimento, in ordine di Pareto",
+            "ja": "ロットの不良部品を理由・パッケージ・フィーダー・リファレンス別にパレート順で集計",
+            "zh": "按原因、封装、供料器和位号统计一批的不良元件，按帕累托顺序",
+            "pt": "as peças rejeitadas de uma série por motivo, encapsulamento, alimentador e referência, em ordem de Pareto"
+          }
+        },
+        {
           "name": "reorient.rs",
           "desc": {
             "en": "a table of parts turned, flipped or moved as a whole, keeping the distances",
@@ -1221,6 +1325,19 @@
             "ja": "ジョブのレポート：工程、ピック、グループ、エラー（テキスト・HTML・CSV・JSON）",
             "zh": "作业报告：阶段、拾取、分组、错误（文本、HTML、CSV、JSON）",
             "pt": "o relatório de trabalho: fases, recolhas, grupos, erros; texto, HTML, CSV, JSON"
+          }
+        },
+        {
+          "name": "retrypolicy.rs",
+          "desc": {
+            "en": "the retries of each part from rules on reference, value, package or feeder",
+            "es": "los reintentos de cada pieza según reglas sobre referencia, valor, encapsulado o alimentador",
+            "de": "die Wiederholungen jedes Teils nach Regeln für Bezeichner, Wert, Gehäuse oder Feeder",
+            "fr": "les nouvelles tentatives de chaque pièce selon des règles sur référence, valeur, boîtier ou chargeur",
+            "it": "i tentativi di ogni parte secondo regole su riferimento, valore, package o alimentatore",
+            "ja": "リファレンス・値・パッケージ・フィーダーの規則で決まる部品ごとのリトライ",
+            "zh": "按位号、数值、封装或供料器的规则确定每个元件的重试次数",
+            "pt": "as repetições de cada peça segundo regras sobre referência, valor, encapsulamento ou alimentador"
           }
         },
         {
@@ -1263,6 +1380,19 @@
           }
         },
         {
+          "name": "serialsig.rs",
+          "desc": {
+            "en": "the record of a board by its serial, signed with a hash and chained to the board before",
+            "es": "el registro de una placa por su número de serie, firmado con un hash y encadenado a la anterior",
+            "de": "das Protokoll einer Platine nach Seriennummer, mit Hash signiert und an die vorige gekettet",
+            "fr": "la fiche d'une carte par son numéro de série, signée par un hachage et chaînée à la précédente",
+            "it": "il registro di una scheda per numero di serie, firmato con un hash e concatenato alla precedente",
+            "ja": "基板のシリアル別記録：ハッシュで署名し、前の基板と連鎖させる",
+            "zh": "按序列号生成的电路板记录，用哈希签名并与上一块板链接",
+            "pt": "o registo de uma placa pelo seu número de série, assinado com um hash e encadeado à anterior"
+          }
+        },
+        {
           "name": "server.rs",
           "desc": {
             "en": "the way to the EH3D server: requests, jobs, the common client and a server in memory",
@@ -1289,6 +1419,19 @@
           }
         },
         {
+          "name": "sha256.rs",
+          "desc": {
+            "en": "SHA-256 and HMAC-SHA-256, checked against the published test vectors",
+            "es": "SHA-256 y HMAC-SHA-256, comprobados con los vectores de prueba publicados",
+            "de": "SHA-256 und HMAC-SHA-256, geprüft mit den veröffentlichten Testvektoren",
+            "fr": "SHA-256 et HMAC-SHA-256, vérifiés avec les vecteurs de test publiés",
+            "it": "SHA-256 e HMAC-SHA-256, verificati con i vettori di prova pubblicati",
+            "ja": "SHA-256とHMAC-SHA-256（公開テストベクトルで検証）",
+            "zh": "SHA-256 和 HMAC-SHA-256，已用公布的测试向量验证",
+            "pt": "SHA-256 e HMAC-SHA-256, verificados com os vetores de teste publicados"
+          }
+        },
+        {
           "name": "shiftoee.rs",
           "desc": {
             "en": "the effectiveness of a shift: availability, performance, quality, boards that fit, simulated",
@@ -1299,6 +1442,19 @@
             "ja": "シフトの総合設備効率：稼働率、性能、品質、生産できる基板数（模擬）",
             "zh": "班次的综合效率：可用率、性能、质量、可完成的板数，可模拟",
             "pt": "a eficácia de um turno: disponibilidade, desempenho, qualidade, placas possíveis, simulada"
+          }
+        },
+        {
+          "name": "shiftplan.rs",
+          "desc": {
+            "en": "a shift board by board: where the reels are changed and how many boards fit",
+            "es": "un turno placa a placa: dónde se cambian los carretes y cuántas placas caben",
+            "de": "eine Schicht Platine für Platine: wo die Rollen gewechselt werden und wie viele passen",
+            "fr": "un poste carte par carte : où changer les bobines et combien de cartes tiennent",
+            "it": "un turno scheda per scheda: dove si cambiano le bobine e quante schede ci stanno",
+            "ja": "シフトを基板ごとに追う：リール交換の位置と収まる枚数",
+            "zh": "逐块板推演一个班次：何时换料盘、能做多少块板",
+            "pt": "um turno placa a placa: onde se trocam as bobinas e quantas placas cabem"
           }
         },
         {
@@ -1787,6 +1943,19 @@
             "ja": "ノズル高さ、パネルのマーク、テープ、シフト、アセンブラのファイル、部品表合算のテスト",
             "zh": "吸嘴高度、拼板标记、料带、班次、贴片厂文件和合并清单的测试",
             "pt": "testes de alturas de bocais, marcas de painel, fitas, turno, ficheiros de montadores e listas"
+          }
+        },
+        {
+          "name": "flow3.rs",
+          "desc": {
+            "en": "chance on a fixed seed for the new readers, records, shifts, bodies, costs and rejects",
+            "es": "azar con semilla fija para los lectores nuevos, registros, turnos, cuerpos, costes y rechazos",
+            "de": "Zufall mit festem Startwert für die neuen Leser, Protokolle, Schichten, Körper, Kosten und Ausschuss",
+            "fr": "du hasard à graine fixe pour les nouveaux lecteurs, fiches, postes, corps, coûts et rebuts",
+            "it": "casualità con seme fisso per i nuovi lettori, registri, turni, corpi, costi e scarti",
+            "ja": "固定シードの乱数：新しい読み取り・記録・シフト・本体・費用・不良のテスト",
+            "zh": "固定种子的随机测试：新读取器、记录、班次、本体、成本和不良",
+            "pt": "acaso com semente fixa para os novos leitores, registos, turnos, corpos, custos e rejeições"
           }
         },
         {
@@ -2375,6 +2544,19 @@
           }
         },
         {
+          "name": "serverui.rs",
+          "desc": {
+            "en": "the server panel of the window on a server in memory: settings, login, file, no token",
+            "es": "el panel del servidor de la ventana sobre un servidor en memoria: ajustes, acceso, fichero, sin token",
+            "de": "das Serverpanel des Fensters an einem Server im Speicher: Einstellungen, Anmeldung, Datei, kein Token",
+            "fr": "le panneau du serveur de la fenêtre sur un serveur en mémoire : réglages, connexion, fichier, sans jeton",
+            "it": "il pannello del server della finestra su un server in memoria: impostazioni, accesso, file, senza token",
+            "ja": "メモリ上のサーバーでウィンドウのサーバーパネルを試験：設定、ログイン、ファイル、トークンなし",
+            "zh": "在内存服务器上测试窗口的服务器面板：设置、登录、文件、无令牌",
+            "pt": "o painel do servidor da janela num servidor em memória: definições, sessão, ficheiro, sem token"
+          }
+        },
+        {
           "name": "setup.rs",
           "desc": {
             "en": "tests of the setup sheet: lists, languages, command and tool",
@@ -2385,6 +2567,19 @@
             "ja": "段取りシートのテスト：一覧、言語、コマンド、ツール",
             "zh": "准备清单的测试：列表、语言、命令和工具",
             "pt": "testes da folha de preparação: listas, idiomas, comando e ferramenta"
+          }
+        },
+        {
+          "name": "shop.rs",
+          "desc": {
+            "en": "the commands of the shop floor run as a person runs them, on the example files",
+            "es": "los comandos del taller ejecutados como los ejecuta una persona, con los ficheros de ejemplo",
+            "de": "die Befehle der Werkstatt, so ausgeführt wie von einer Person, mit den Beispieldateien",
+            "fr": "les commandes de l'atelier lancées comme le fait une personne, sur les fichiers d'exemple",
+            "it": "i comandi del reparto eseguiti come li esegue una persona, con i file di esempio",
+            "ja": "現場向けコマンドを人が実行するのと同じようにサンプルファイルで実行",
+            "zh": "像人一样用示例文件运行现场命令",
+            "pt": "os comandos da oficina executados como os executa uma pessoa, com os ficheiros de exemplo"
           }
         },
         {
@@ -2567,6 +2762,19 @@
             "ja": "リール、手作業の部品、ジョブの差分、フィーダー配置、複数回実行のパネルとタブの語句のテスト",
             "zh": "料盘、手工贴装零件、作业差异、供料器位置和多次运行面板及选项卡文字的测试",
             "pt": "testes dos painéis de bobinas, peças à mão, diferenças de trabalhos, lugares dos alimentadores e muitas execuções, e das palavras do separador"
+          }
+        },
+        {
+          "name": "toolshop.rs",
+          "desc": {
+            "en": "the six new panels of the Tools tab: what the command says, the words, the saved tables",
+            "es": "los seis paneles nuevos de la pestaña Herramientas: lo que dice el comando, las palabras, las tablas",
+            "de": "die sechs neuen Panels des Werkzeug-Tabs: was der Befehl sagt, die Wörter, die Tabellen",
+            "fr": "les six nouveaux panneaux de l'onglet Outils : ce que dit la commande, les mots, les tables",
+            "it": "i sei nuovi pannelli della scheda Strumenti: ciò che dice il comando, le parole, le tabelle",
+            "ja": "ツールタブの新しい6つのパネル：コマンドの出力、文言、保存される表",
+            "zh": "工具页的六个新面板：命令的输出、文字、保存的表",
+            "pt": "os seis novos painéis do separador Ferramentas: o que diz o comando, as palavras, as tabelas"
           }
         },
         {
@@ -3133,6 +3341,45 @@
             "ja": "マーク付き基板のパネル（1枚は回転、1枚は不良）、panel-fids 用",
             "zh": "带标记的拼板，一块旋转、一块标记为坏，供 panel-fids 使用",
             "pt": "um painel de placas com marcas, uma rodada e uma má, para panel-fids"
+          }
+        },
+        {
+          "name": "prices.csv",
+          "desc": {
+            "en": "a table of prices with price breaks, for bom-cost",
+            "es": "una tabla de precios con tramos, para bom-cost",
+            "de": "eine Preistabelle mit Staffelpreisen, für bom-cost",
+            "fr": "un tableau de prix par paliers, pour bom-cost",
+            "it": "una tabella di prezzi a scaglioni, per bom-cost",
+            "ja": "bom-cost 用の数量別価格表",
+            "zh": "供 bom-cost 使用的阶梯价格表",
+            "pt": "uma tabela de preços por escalões, para bom-cost"
+          }
+        },
+        {
+          "name": "rejects.csv",
+          "desc": {
+            "en": "the parts rejected in a run, with reason and board, for reject-report",
+            "es": "las piezas rechazadas en una tirada, con motivo y placa, para reject-report",
+            "de": "die in einem Lauf ausgesonderten Teile mit Grund und Platine, für reject-report",
+            "fr": "les pièces rejetées dans une série, avec motif et carte, pour reject-report",
+            "it": "i pezzi scartati in un lotto, con motivo e scheda, per reject-report",
+            "ja": "reject-report 用の、理由と基板付きの不良部品一覧",
+            "zh": "供 reject-report 使用的不良元件表，含原因和板号",
+            "pt": "as peças rejeitadas numa série, com motivo e placa, para reject-report"
+          }
+        },
+        {
+          "name": "retry_rules.csv",
+          "desc": {
+            "en": "rules for the retries of a part by reference, value, package or feeder, for retry-policy",
+            "es": "reglas de reintentos de una pieza por referencia, valor, encapsulado o alimentador, para retry-policy",
+            "de": "Regeln für die Wiederholungen eines Teils nach Bezeichner, Wert, Gehäuse oder Feeder, für retry-policy",
+            "fr": "règles de nouvelles tentatives d'une pièce par référence, valeur, boîtier ou chargeur, pour retry-policy",
+            "it": "regole per i tentativi di una parte per riferimento, valore, package o alimentatore, per retry-policy",
+            "ja": "retry-policy 用の、リファレンス・値・パッケージ・フィーダー別のリトライ規則",
+            "zh": "供 retry-policy 使用的按位号、数值、封装或供料器设定重试的规则",
+            "pt": "regras de repetições de uma peça por referência, valor, encapsulamento ou alimentador, para retry-policy"
           }
         },
         {
