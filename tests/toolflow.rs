@@ -104,7 +104,8 @@ fn the_new_words_are_in_the_eight_languages_and_in_the_language_of_portugal() {
         Text::ServerSimulated,
     ];
     assert_eq!(Text::COUNT, table().len());
-    assert_eq!(Text::BomBoardsSecond as usize + 1, Text::COUNT);
+    // words were added after the last of these: the rows that come after are checked by their own tests
+    assert!(Text::BomBoardsSecond as usize + 1 < Text::COUNT);
     assert_eq!(new[0] as usize, Text::RunsSeed as usize + 1);
     for (i, word) in new.iter().enumerate() {
         assert_eq!(*word as usize, new[0] as usize + i, "{word:?} is in order");

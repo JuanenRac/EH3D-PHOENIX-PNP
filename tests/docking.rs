@@ -503,3 +503,42 @@ fn the_word_of_a_panel_follows_the_language_of_the_window() {
         assert_eq!(c.title("parts"), want, "{lang:?}");
     }
 }
+
+#[test]
+fn the_files_that_are_loaded_are_listed_as_recent_files_in_the_file_menu() {
+    use eh3d_phoenix_pnp::gui::app::AppState;
+    let examples = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples");
+    let mut app = AppState::new(UiSettings::default());
+    let files = [examples.join("board.pos"), examples.join("feeders.csv")];
+    assert_eq!(app.load_paths(&files), 2);
+    assert_eq!(app.recent_opened.len(), 2);
+    // the window hands them to the frame, newest first, and the File menu lists them
+    let mut c = core();
+    for path in std::mem::take(&mut app.recent_opened) {
+        assert!(c.recent_mut().push(&path.display().to_string()));
+    }
+    let menus = menu_bar().resolve(&c.menu_context());
+    let recent = items(&menus, "file")
+        .iter()
+        .find_map(|i| match &i.kind {
+            Kind::Submenu(sub) if i.id == "recent" => Some(sub),
+            _ => None,
+        })
+        .expect("the submenu of recent files");
+    assert!(
+        recent.iter().any(|i| i.label.contains("feeders.csv")),
+        "{:?}",
+        recent.iter().map(|i| &i.label).collect::<Vec<_>>()
+    );
+    // a recent file that is chosen comes back as a path for the program to open
+    let entry = recent
+        .iter()
+        .find(|i| i.label.contains("board.pos"))
+        .expect("the position file");
+    assert!(matches!(entry.activate(), Some(Chosen::Recent(p)) if p.ends_with("board.pos")));
+    // the list is kept in the settings of the frame and survives a restart
+    let lines = c.config_text("");
+    let mut again = core();
+    again.load_config(&lines);
+    assert_eq!(again.recent().items().len(), 2);
+}
