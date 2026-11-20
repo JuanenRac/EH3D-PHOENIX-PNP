@@ -386,6 +386,7 @@ Per fare un'immagine della finestra senza aprirla a mano, eseguila con `--shot F
 
 <p align="center">
   <img src="images/screens/job_it.png" alt="La scheda Lavoro con il lavoro simulato in corso" width="100%">
+  <img src="images/screens/machine_it.png" alt="La scheda Macchina con le impostazioni della macchina e la sezione del server" width="100%">
 </p>
 
 L'ultima riga apre la finestra; lo fa anche `phoenix-pnp` senza comando se è stato compilato con `--features gui` (su Linux la finestra richiede i file di sviluppo di X11 o Wayland e di OpenGL). Con un comando il programma resta una riga di comando. Su Windows, `phoenix-pnp-gui` (compilato con la stessa feature) apre la finestra senza console; vedi `docs/windows-console.md`.

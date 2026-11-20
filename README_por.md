@@ -386,6 +386,7 @@ Para tirar uma captura da janela sem a abrir à mão, execute-o com `--shot FICH
 
 <p align="center">
   <img src="images/screens/job_pt.png" alt="O separador Trabalho com o trabalho simulado em curso" width="100%">
+  <img src="images/screens/machine_pt.png" alt="O separador Máquina com as definições da máquina e a secção do servidor" width="100%">
 </p>
 
 A última linha abre a janela; `phoenix-pnp` sem comando também a abre se foi compilado com `--features gui` (em Linux a janela precisa dos ficheiros de desenvolvimento de X11 ou Wayland e de OpenGL). Com um comando, o programa continua a ser uma linha de comandos. No Windows, `phoenix-pnp-gui` (compilado com a mesma funcionalidade) abre a janela sem consola; veja `docs/windows-console.md`.

@@ -386,6 +386,7 @@ Pour prendre une capture de la fenêtre sans l'ouvrir à la main, lancez-la avec
 
 <p align="center">
   <img src="images/screens/job_fr.png" alt="L'onglet Travail avec le travail simulé en cours" width="100%">
+  <img src="images/screens/machine_fr.png" alt="L'onglet Machine avec les réglages de la machine et la section du serveur" width="100%">
 </p>
 
 La dernière ligne ouvre la fenêtre ; `phoenix-pnp` sans commande le fait aussi s'il a été construit avec `--features gui` (sous Linux la fenêtre demande les fichiers de développement de X11 ou Wayland et d'OpenGL). Avec une commande, le programme reste une ligne de commande. Sous Windows, `phoenix-pnp-gui` (construit avec la même fonctionnalité) ouvre la fenêtre sans console ; voir `docs/windows-console.md`.

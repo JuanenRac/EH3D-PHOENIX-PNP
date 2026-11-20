@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The pictures of the window are taken again with the newest build:** every picture of `images/screens/` comes from the Windows 64 bits program of the latest release, in the eight languages, and the README files show a new picture of the Machine tab with the server section.
+
 ## [0.1.2] - Server panel in the window, signed serial traceability, shift plans, several heads, footprint and clearance checks and rejection reports
 
 - **The link to the EH3D server is the common client of the suite:** the commands of the server talk through `eh3d-serverclient` of EH3D-COMMON instead of an HTTP stack of their own, so a sibling folder `EH3D-COMMON` is needed to build (the CI and the release build take it at its tag, and the manifest says `depends_on`). A request that fails on the network is tried again with growing pauses (never a `POST` that may have been sent), the answers are read up to 1 MiB, the token is never printed, and a refusal of the server is told by its code in the language of the command (`--lang`) when the table of the client has the code, with the code and the detail of the server beside it. The keys that were there are the same; `server_retries` (0 to 5, 2 by default) is how many more times the link tries a request and `server_mdns` (`off` by default) is the only way the link may look for the server on the local network. `server_attempts` stays for the server in memory, and `server_timeout_s` is rounded up to whole seconds for the link. `HttpTransport` is gone; `server::ScLink` is the link and `server::connect` and `server::target_for` make it from the settings.

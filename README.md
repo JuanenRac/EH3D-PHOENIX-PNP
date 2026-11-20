@@ -386,6 +386,7 @@ To take a picture of the window without opening it by hand, run it with `--shot 
 
 <p align="center">
   <img src="images/screens/job_en.png" alt="The Job tab with the simulated job on its way" width="100%">
+  <img src="images/screens/machine_en.png" alt="The Machine tab with the settings of the machine and the server section" width="100%">
 </p>
 
 The last line opens the window; so does `phoenix-pnp` with no command when it was built with `--features gui` (on Linux the window needs the development files of X11 or Wayland and OpenGL). With a command, the program stays a command line. On Windows `phoenix-pnp-gui` (built with the same feature) opens the window without a console; see `docs/windows-console.md`.

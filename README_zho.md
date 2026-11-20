@@ -386,6 +386,7 @@ cargo run --release --features gui
 
 <p align="center">
   <img src="images/screens/job_zh.png" alt="显示模拟作业进行中的“作业”标签页" width="100%">
+  <img src="images/screens/machine_zh.png" alt="显示机器设置和服务器部分的“机器”标签页" width="100%">
 </p>
 
 最后一行会打开窗口；用 `--features gui` 构建时，不带命令运行 `phoenix-pnp` 也会打开（在 Linux 上，窗口需要 X11 或 Wayland 以及 OpenGL 的开发文件）。带上命令时，程序仍是命令行。在 Windows 上，`phoenix-pnp-gui`（用同一特性构建）会在没有控制台的情况下打开窗口；见 `docs/windows-console.md`。

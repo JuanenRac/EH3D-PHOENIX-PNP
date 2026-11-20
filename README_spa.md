@@ -386,6 +386,7 @@ Para sacar una captura de la ventana sin abrirla a mano, ejecútelo con `--shot 
 
 <p align="center">
   <img src="images/screens/job_es.png" alt="La pestaña Trabajo con el trabajo simulado en marcha" width="100%">
+  <img src="images/screens/machine_es.png" alt="La pestaña Máquina con los ajustes de la máquina y la sección del servidor" width="100%">
 </p>
 
 La última línea abre la ventana; también lo hace `phoenix-pnp` sin orden cuando se compiló con `--features gui` (en Linux la ventana necesita los ficheros de desarrollo de X11 o Wayland y de OpenGL). Con una orden, el programa sigue siendo una línea de comandos. En Windows, `phoenix-pnp-gui` (que se compila con la misma característica) abre la ventana sin consola; véase `docs/windows-console.md`.

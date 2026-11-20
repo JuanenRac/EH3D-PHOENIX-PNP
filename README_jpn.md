@@ -386,6 +386,7 @@ cargo run --release --features gui
 
 <p align="center">
   <img src="images/screens/job_ja.png" alt="進行中の模擬ジョブを表示したジョブタブ" width="100%">
+  <img src="images/screens/machine_ja.png" alt="マシンの設定とサーバーのセクションを表示したマシンタブ" width="100%">
 </p>
 
 最後の行はウィンドウを開きます。`--features gui` でビルドした場合は、コマンドなしの `phoenix-pnp` でも開きます（Linux では X11 または Wayland と OpenGL の開発ファイルが必要です）。コマンドを付けると、プログラムはコマンドラインのままです。Windows では `phoenix-pnp-gui`（同じフィーチャーでビルド）がコンソールなしでウィンドウを開きます。`docs/windows-console.md` を参照してください。

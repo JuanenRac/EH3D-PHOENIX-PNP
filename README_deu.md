@@ -386,6 +386,7 @@ Um ein Bild des Fensters aufzunehmen, ohne es von Hand zu öffnen, starten Sie e
 
 <p align="center">
   <img src="images/screens/job_de.png" alt="Der Reiter Auftrag mit laufendem simuliertem Auftrag" width="100%">
+  <img src="images/screens/machine_de.png" alt="Der Reiter Maschine mit den Einstellungen der Maschine und dem Abschnitt Server" width="100%">
 </p>
 
 Die letzte Zeile öffnet das Fenster; das tut auch `phoenix-pnp` ohne Befehl, wenn es mit `--features gui` gebaut wurde (unter Linux braucht das Fenster die Entwicklungsdateien von X11 oder Wayland und OpenGL). Mit einem Befehl bleibt das Programm eine Kommandozeile. Unter Windows öffnet `phoenix-pnp-gui` (mit demselben Feature gebaut) das Fenster ohne Konsole; siehe `docs/windows-console.md`.
