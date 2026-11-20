@@ -46,7 +46,7 @@ const TEMPLATES: [Template; 7] = [
     Template {
         name: "server",
         about: "a machine that works through the EH3D server (give the token of this program there)",
-        lines: "mode = server\nserver_address = 192.168.0.180:18200\nserver_machine = pnp-1\n# server_token = the token of this program on the server (keep it out of files that are shared)\nserver_timeout_s = 5\nserver_poll_ms = 500\nserver_attempts = 3\n",
+        lines: "mode = server\nserver_address = 192.168.0.180:18200\nserver_machine = pnp-1\n# server_token = the token of this program on the server (keep it out of files that are shared)\nserver_timeout_s = 5\nserver_poll_ms = 500\nserver_attempts = 3\nserver_retries = 2\nserver_mdns = off\n",
     },
     Template {
         name: "full",

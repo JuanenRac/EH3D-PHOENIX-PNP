@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "ecosystem": "EH3D",
   "name": "EH3D-PHOENIX-PNP",
   "version": "0.1.1",
@@ -18,6 +18,9 @@
   "hardware_bound": false,
   "family": "CNC Workflow Tools",
   "parent": null,
+  "depends_on": [
+    "EH3D-COMMON"
+  ],
   "build": "cargo build --release; cargo test",
   "notes": "EH3D-PHOENIX-PNP is the pick and place program of the PHOENIX family (green phoenix), formerly EH3D-PNP-MANAGER. A library, a command line and a window (feature gui) for pick and place assembly: they read the position file of a board (KiCad .pos or a CSV from another CAD program, in mm, mil or inches), give every part the feeder that holds its value and package, plan the order of the placements for a head with one to six nozzles (ranks, nozzle tips, angle limits, the time of the moves, panels with fiducials of two levels and boards marked as bad), write a load sheet and carry the job out on a simulated machine with a simulated camera and vision, with a work report as text, HTML, CSV and JSON. The window has tabs, a map of the work table, problems with fixes and a Job tab with decisions when an error stops the job; its logic is tested without a screen. No real camera and no machine control; nothing has placed a part.",
   "native_version": {

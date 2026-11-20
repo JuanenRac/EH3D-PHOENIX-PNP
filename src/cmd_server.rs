@@ -1,4 +1,4 @@
-// EH3D-PHOENIX-PNP - the commands that talk to the EH3D server: server-send, server-status and server-job.
+// EH3D-PHOENIX-PNP - the commands that talk to the EH3D server: server-send, server-status, server-job, server-feeders and server-calibrate.
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 //
 // They work only with `mode = server` in the settings (or, for server-send, with --sim, which talks to a server in memory), and never move anything here: the machine is the server's.
@@ -8,56 +8,37 @@ use crate::cli_args::{finish, flag, num, switch};
 use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
 use eh3d_phoenix_pnp::config::MachineConfig;
-use eh3d_phoenix_pnp::error::{Code, PnpError};
+use eh3d_phoenix_pnp::error::{Code, Lang, PnpError};
 use eh3d_phoenix_pnp::feeding;
 use eh3d_phoenix_pnp::parts::parse_all;
 use eh3d_phoenix_pnp::report;
 use eh3d_phoenix_pnp::server::{
-    feeder_rows, feeders_request, placements, HttpTransport, JobInfo, Mode, Order, Remote,
-    SimServer, Target, Transport,
+    self, calibrate_request, dry_run, feeder_rows, feeders_request, placements, Calibrate, JobInfo,
+    Order, Remote, Target, Transport,
 };
 use std::thread;
 use std::time::Duration;
 
-/// The way to the server of the settings, or why there is none (the program works locally, or the address or the machine is missing).
+/// The way to the server of the settings (see `server::target_for`).
 fn target(cfg: &MachineConfig, sim: bool) -> Result<Target, String> {
-    if sim {
-        let machine = if cfg.server_machine.is_empty() {
-            "sim-1"
-        } else {
-            cfg.server_machine.as_str()
-        };
-        return Target::new(
-            "sim",
-            "",
-            machine,
-            cfg.server_timeout_s,
-            cfg.server_poll_ms.into(),
-            cfg.server_attempts,
-        );
-    }
-    if cfg.mode != Mode::Server {
-        return Err("mode is local in the settings: set mode = server (with server_address and server_machine) to talk to the server".into());
-    }
-    Target::new(
-        &cfg.server_address,
-        &cfg.server_token,
-        &cfg.server_machine,
-        cfg.server_timeout_s,
-        cfg.server_poll_ms.into(),
-        cfg.server_attempts,
-    )
+    server::target_for(cfg, sim)
 }
 
-fn remote(t: &Target, sim: bool) -> Remote<Box<dyn Transport>> {
-    let transport: Box<dyn Transport> = if sim {
-        let mut s = SimServer::new(&[t.machine.as_str()]);
-        s.steps_per_read = 50;
-        Box::new(s)
-    } else {
-        Box::new(HttpTransport::new(t))
-    };
-    Remote::new(transport, t)
+/// The machine of the target, in the language of the command.
+fn remote(t: &Target, sim: bool, lang: Lang) -> Result<Remote<Box<dyn Transport>>, String> {
+    server::connect(t, sim, lang.code())
+}
+
+/// Writes `text` to `out` when it is given (never over a file that exists), else prints it.
+fn deliver(text: &str, out: Option<&str>, lang: Lang) -> Result<(), String> {
+    match out {
+        Some(o) => {
+            report::write_new(o, text).map_err(|e| e.localized(lang))?;
+            println!("written to {o}");
+        }
+        None => print!("{text}"),
+    }
+    Ok(())
 }
 
 fn pause(t: &Target, sim: bool) -> impl FnMut() {
@@ -78,12 +59,14 @@ fn print_progress(last: &mut Option<(String, u64)>, info: &JobInfo) {
     }
 }
 
-/// `server-send PARTS FEEDERS [--offset X,Y] [--keep-feeders] [--start] [--follow] [--timeout S] [--sim] [--partial]`: puts the table of feeders on the machine of the server (unless
+/// `server-send PARTS FEEDERS [--offset X,Y] [--keep-feeders] [--start] [--follow] [--timeout S] [--sim] [--partial] [--dry-run]`: puts the table of feeders on the machine of the server (unless
 /// `--keep-feeders`), prepares the placements as a job and, with `--start` or `--follow`, starts it; `--follow` reads the job until it is over. The parts that no feeder holds are told, and
-/// with no `--partial` they stop the command. `--sim` does it all against a server in memory, to see what would be sent. The exit code is 1 when the job did not end `done`.
+/// with no `--partial` they stop the command. `--dry-run` asks the server to go through the job without taking a part off a feeder. `--sim` does it all against a server in memory, to see what
+/// would be sent. The exit code is 1 when the job did not end `done`.
 pub fn server_send(mut args: Vec<String>) -> Result<(), String> {
-    let (_lang, cfg) = language_and_config(&mut args)?;
+    let (lang, cfg) = language_and_config(&mut args)?;
     let sim = switch(&mut args, "--sim");
+    let dry = switch(&mut args, "--dry-run");
     let keep = switch(&mut args, "--keep-feeders");
     let follow = switch(&mut args, "--follow");
     let start = switch(&mut args, "--start") || follow;
@@ -120,7 +103,10 @@ pub fn server_send(mut args: Vec<String>) -> Result<(), String> {
     )
     .map_err(|e| e.localized(cfg.language))?;
     let rows = feeder_rows(&feeders)?;
-    let made = placements(&parsed.parts, &rows, offset)?;
+    let mut made = placements(&parsed.parts, &rows, offset)?;
+    if dry {
+        made.request = dry_run(made.request);
+    }
     if !made.unmatched.is_empty() {
         let list = made.unmatched.join(", ");
         if !partial {
@@ -135,7 +121,7 @@ pub fn server_send(mut args: Vec<String>) -> Result<(), String> {
         return Err("no part is left to send".into());
     }
     let max_polls = ((timeout * 1000.0 / t.poll_ms.max(1) as f64) as u32).max(2);
-    let mut r = remote(&t, sim);
+    let mut r = remote(&t, sim, lang)?;
     let mut wait = pause(&t, sim);
     if !keep {
         let load = r.create("feeders", &feeders_request(&rows, true))?;
@@ -154,8 +140,15 @@ pub fn server_send(mut args: Vec<String>) -> Result<(), String> {
         .map_or_else(|| "board".to_string(), |s| s.to_string_lossy().into_owned());
     let job = r.create(&name, &made.request)?;
     println!(
-        "job {} prepared: {} placements on {}",
-        job.id, made.count, t.machine
+        "job {} prepared: {} placements on {}{}",
+        job.id,
+        made.count,
+        t.machine,
+        if dry {
+            " (dry run: no part is taken off a feeder)"
+        } else {
+            ""
+        }
     );
     if !start {
         println!(
@@ -251,10 +244,10 @@ pub fn server_request(mut args: Vec<String>) -> Result<(), String> {
 
 /// `server-status [JOB]`: the machine of the settings (its state and the feeders the server holds) or, with a job id, how that job goes.
 pub fn server_status(mut args: Vec<String>) -> Result<(), String> {
-    let (_lang, cfg) = language_and_config(&mut args)?;
+    let (lang, cfg) = language_and_config(&mut args)?;
     finish(&args, 1)?;
     let t = target(&cfg, false)?;
-    let mut r = remote(&t, false);
+    let mut r = remote(&t, false, lang)?;
     if let Some(id) = args.first() {
         println!("{}", r.job(id)?.line());
         return Ok(());
@@ -275,7 +268,7 @@ pub fn server_status(mut args: Vec<String>) -> Result<(), String> {
 
 /// `server-job ID --start | --pause | --resume | --cancel`: tells a job of the server what to do and prints how it stands.
 pub fn server_job(mut args: Vec<String>) -> Result<(), String> {
-    let (_lang, cfg) = language_and_config(&mut args)?;
+    let (lang, cfg) = language_and_config(&mut args)?;
     let mut orders = Vec::new();
     for (word, order) in [
         ("--start", Order::Start),
@@ -293,7 +286,108 @@ pub fn server_job(mut args: Vec<String>) -> Result<(), String> {
         return Err("say one of --start, --pause, --resume or --cancel".into());
     };
     let t = target(&cfg, false)?;
-    let mut r = remote(&t, false);
+    let mut r = remote(&t, false, lang)?;
     println!("{}", r.order(id, *order)?.line());
     Ok(())
+}
+
+/// A whole number from the text of a word of a command.
+fn whole(text: &str, what: &str, hi: u64) -> Result<u64, String> {
+    text.trim()
+        .parse::<u64>()
+        .ok()
+        .filter(|n| *n <= hi)
+        .ok_or_else(|| format!("{what} '{text}' is not a whole number from 0 to {hi}"))
+}
+
+/// `server-feeders [list | set SLOT PART COUNT | clear SLOT] [--sim] [--out F]`: the feeders that the machine of the server holds, with where each is picked from and its calibration (`list`, the
+/// default), a slot declared or refilled at once with no job (`set`) or a slot emptied (`clear`); `set` and `clear` print the table after the change. `--out` writes the table as a CSV, never over
+/// a file that exists. A machine that is running a job refuses a change. The exit code is 1 when a feeder holds no parts.
+pub fn server_feeders(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let sim = switch(&mut args, "--sim");
+    let out = flag(&mut args, "--out")?;
+    finish(&args, 4)?;
+    let t = target(&cfg, sim)?;
+    let mut r = remote(&t, sim, lang)?;
+    let word = args.first().cloned().unwrap_or_else(|| "list".to_string());
+    let table = match (word.as_str(), args.len()) {
+        ("list", 0 | 1) => r.feeders_table()?,
+        ("set", 4) => {
+            let slot = whole(&args[1], "the slot", u64::from(u32::MAX))? as u32;
+            let count = whole(&args[3], "the count", u64::MAX)?;
+            r.set_feeder(slot, &args[2], count)?
+        }
+        ("clear", 2) => {
+            let slot = whole(&args[1], "the slot", u64::from(u32::MAX))? as u32;
+            r.clear_feeder(slot)?
+        }
+        ("list" | "set" | "clear", _) => {
+            return Err("server-feeders: list, set SLOT PART COUNT or clear SLOT".into())
+        }
+        (other, _) => return Err(format!("{other}: say list, set or clear")),
+    };
+    match out.as_deref() {
+        Some(_) => deliver(&table.csv(), out.as_deref(), lang)?,
+        None => print!("{}", table.text()),
+    }
+    match table.empty_count() {
+        0 => Ok(()),
+        n => Err(format!("{n} feeders hold no parts")),
+    }
+}
+
+/// `server-calibrate feeder|nozzle|camera TARGET [--offset X,Y] [--timeout S] [--sim]`: makes a calibration job on the machine of the server, starts it and follows it to its end. The target of a
+/// feeder is its slot; the one of a nozzle or a camera is a name. The offset (up to 5 mm on each axis, 0 when it is not given) is the one the command brings: the machine of the server measures
+/// nothing today. For a feeder the table is printed after the job, so that the calibration can be read. The exit code is 1 when the job did not end `done`.
+pub fn server_calibrate(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let sim = switch(&mut args, "--sim");
+    let offset = match flag(&mut args, "--offset")? {
+        Some(v) => {
+            let (x, y) = v
+                .split_once(',')
+                .ok_or_else(|| format!("--offset {v} is not X,Y"))?;
+            (num(x, "--offset X")?, num(y, "--offset Y")?)
+        }
+        None => (0.0, 0.0),
+    };
+    let timeout = match flag(&mut args, "--timeout")? {
+        Some(v) => {
+            let s = num(&v, "--timeout")?;
+            if !(1.0..=86_400.0).contains(&s) {
+                return Err(format!("--timeout {v} is not from 1 to 86400 seconds"));
+            }
+            s
+        }
+        None => 60.0,
+    };
+    finish(&args, 2)?;
+    let [what, target_word] = args.as_slice() else {
+        return Err("server-calibrate needs feeder, nozzle or camera and a target".into());
+    };
+    let what =
+        Calibrate::parse(what).ok_or_else(|| format!("{what} is not feeder, nozzle or camera"))?;
+    let request = calibrate_request(what, target_word, offset)?;
+    let t = target(&cfg, sim)?;
+    let max_polls = ((timeout * 1000.0 / t.poll_ms.max(1) as f64) as u32).max(2);
+    let mut r = remote(&t, sim, lang)?;
+    let mut wait = pause(&t, sim);
+    let job = r.create(&format!("calibrate-{}", what.word()), &request)?;
+    r.order(&job.id, Order::Start)?;
+    let mut last = None;
+    let end = r.follow(
+        &job.id,
+        max_polls,
+        &mut |i| print_progress(&mut last, i),
+        &mut wait,
+    )?;
+    if what == Calibrate::Feeder && end.state == "done" {
+        print!("{}", r.feeders_table()?.text());
+    }
+    if end.state == "done" {
+        Ok(())
+    } else {
+        Err(format!("the calibration did not end done: {}", end.line()))
+    }
 }

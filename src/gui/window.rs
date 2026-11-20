@@ -2392,6 +2392,13 @@ impl PnpApp {
                 self.tool_stock_queue_file(ui);
                 self.tool_io(ui, Some(Text::HintQueueChangeover));
             }
+            Tool::ServerMachine => {
+                ui.checkbox(
+                    &mut self.s.tools.server_sim,
+                    tr(Text::ServerSimulated, lang),
+                );
+                self.tool_io(ui, Some(Text::HintServerMachine));
+            }
         }
     }
 

@@ -9,6 +9,7 @@ use crate::config::MAX_CONFIG_BYTES;
 use crate::error::{Code, Lang, PnpError};
 use crate::parts::{parse_all, Part};
 use crate::preflight::has_errors;
+use crate::server::{self, calibrate_request, dry_run, feeder_rows, placements, Calibrate};
 use crate::{
     asidesheet, boardstats, changeover, configdiff, deplete, exchange, feeding, hotspots, job,
     jobdiff, journal, nozzles, partsdiff, queuestock, refill, runs, runway, slots,
@@ -383,4 +384,143 @@ pub fn changeover_text(ws: &Workspace, path: &str, lang: Lang) -> Result<(String
     let reader = |p: &str, max: u64| read_file(Path::new(p), max).map(|(text, _)| text);
     let found = changeover::from_queue(path, &ws.cfg, lang, &reader)?;
     Ok((shown(&found.text), found.csv))
+}
+
+/// A whole number from a word of the script of the server panel.
+fn script_number(text: &str, what: &str, hi: u64) -> Result<u64, String> {
+    text.parse::<u64>()
+        .ok()
+        .filter(|n| *n <= hi)
+        .ok_or_else(|| format!("{what} '{text}' is not a whole number from 0 to {hi}"))
+}
+
+/// The offset `X,Y` of a calibration, in millimetres.
+fn script_offset(text: &str) -> Result<(f64, f64), String> {
+    let (x, y) = text
+        .split_once(',')
+        .ok_or_else(|| format!("the offset '{text}' is not X,Y"))?;
+    let number = |t: &str| {
+        t.trim()
+            .parse::<f64>()
+            .ok()
+            .filter(|v| v.is_finite())
+            .ok_or_else(|| format!("the offset '{text}' is not X,Y"))
+    };
+    Ok((number(x)?, number(y)?))
+}
+
+/// What the Server machine panel does with the machine of the EH3D server (or a server in memory when `sim`): one line of `script` for each thing, in order, as `server-feeders`,
+/// `server-calibrate` and `server-send --dry-run` do them. The words are `list`, `set SLOT PART COUNT`, `clear SLOT`, `calibrate feeder|nozzle|camera TARGET [X,Y]`, `load` (the loaded table
+/// of feeders goes on the machine) and `dry-run` (the loaded board is placed as a dry run). A blank script lists the feeders. Gives what was done and the table of feeders after the last line,
+/// and the table as a CSV. A line that is not one of these, or that the server refuses, stops the script and says which line.
+pub fn server_machine_text(
+    ws: &Workspace,
+    script: &str,
+    sim: bool,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    let t = server::target_for(&ws.cfg, sim)?;
+    let mut r = server::connect(&t, sim, lang.code())?;
+    let max_polls = ((60_000 / t.poll_ms.max(1)) as u32).max(2);
+    let mut wait = || {
+        if !sim {
+            std::thread::sleep(std::time::Duration::from_millis(t.poll_ms));
+        }
+    };
+    let mut said = String::new();
+    let mut table = None;
+    for (n, raw) in script.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let at = |why: String| format!("line {}: {why}", n + 1);
+        let words: Vec<&str> = line.split_whitespace().collect();
+        match words.as_slice() {
+            ["list"] => table = Some(r.feeders_table().map_err(at)?),
+            ["set", slot, part, count] => {
+                let slot = script_number(slot, "the slot", u64::from(u32::MAX)).map_err(at)? as u32;
+                let count = script_number(count, "the count", u64::MAX).map_err(at)?;
+                table = Some(r.set_feeder(slot, part, count).map_err(at)?);
+            }
+            ["clear", slot] => {
+                let slot = script_number(slot, "the slot", u64::from(u32::MAX)).map_err(at)? as u32;
+                table = Some(r.clear_feeder(slot).map_err(at)?);
+            }
+            ["calibrate", what, target] | ["calibrate", what, target, _] => {
+                let what = Calibrate::parse(what)
+                    .ok_or_else(|| at(format!("{what} is not feeder, nozzle or camera")))?;
+                let offset = match words.get(3) {
+                    Some(o) => script_offset(o).map_err(at)?,
+                    None => (0.0, 0.0),
+                };
+                let request = calibrate_request(what, target, offset).map_err(at)?;
+                let end = r
+                    .run_job(
+                        &format!("calibrate-{}", what.word()),
+                        &request,
+                        max_polls,
+                        &mut wait,
+                    )
+                    .map_err(at)?;
+                said.push_str(&format!("{}\n", end.line()));
+                if end.state != "done" {
+                    return Err(at(format!("the calibration did not end done: {}", end.line())));
+                }
+                table = None;
+            }
+            ["load"] => {
+                if ws.feeders.is_empty() {
+                    return Err(at("(load a table of feeders)".to_string()));
+                }
+                let rows = feeder_rows(&ws.feeders).map_err(at)?;
+                let end = r
+                    .run_job(
+                        "feeders",
+                        &server::feeders_request(&rows, true),
+                        max_polls,
+                        &mut wait,
+                    )
+                    .map_err(at)?;
+                said.push_str(&format!("{}\n", end.line()));
+                if end.state != "done" {
+                    return Err(at(format!("the table of feeders was not taken: {}", end.line())));
+                }
+                table = None;
+            }
+            ["dry-run"] => {
+                if !ws.can_plan() {
+                    return Err(at("(load a table of parts and a table of feeders)".to_string()));
+                }
+                let rows = feeder_rows(&ws.feeders).map_err(at)?;
+                let made = placements(&ws.parts, &rows, (0.0, 0.0)).map_err(at)?;
+                if !made.unmatched.is_empty() {
+                    return Err(at(format!(
+                        "{} parts have no feeder that holds their value and package ({})",
+                        made.unmatched.len(),
+                        made.unmatched.join(", ")
+                    )));
+                }
+                let end = r
+                    .run_job("dry-run", &dry_run(made.request), max_polls, &mut wait)
+                    .map_err(at)?;
+                said.push_str(&format!("{} (dry run)\n", end.line()));
+                if end.state != "done" {
+                    return Err(at(format!("the dry run did not end done: {}", end.line())));
+                }
+                table = None;
+            }
+            _ => {
+                return Err(at(
+                    "say list, set SLOT PART COUNT, clear SLOT, calibrate feeder|nozzle|camera TARGET [X,Y], load or dry-run"
+                        .to_string(),
+                ))
+            }
+        }
+    }
+    let table = match table {
+        Some(t) => t,
+        None => r.feeders_table()?,
+    };
+    Ok((shown(&format!("{said}{}", table.text())), table.csv()))
 }

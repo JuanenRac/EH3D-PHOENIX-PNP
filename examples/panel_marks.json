@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "boards": {
+    "main": "board_marks.pos"
+  },
+  "panels": {
+    "panel": {
+      "children": [
+        {
+          "id": "A",
+          "board": "main",
+          "x": 0,
+          "y": 0,
+          "rotation": 0
+        },
+        {
+          "id": "B",
+          "board": "main",
+          "x": 120,
+          "y": 0,
+          "rotation": 90
+        },
+        {
+          "id": "C",
+          "board": "main",
+          "x": 0,
+          "y": 80,
+          "rotation": 0,
+          "x_out": true
+        }
+      ]
+    }
+  },
+  "root": "panel"
+}

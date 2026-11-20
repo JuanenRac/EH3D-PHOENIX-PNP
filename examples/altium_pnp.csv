@@ -1,0 +1,8 @@
+Designator,Comment,Layer,Footprint,Center-X(mil),Center-Y(mil),Rotation,Description
+R1,10k,TopLayer,R_0603,393.7008,787.4016,0,10k part
+R2,10k,TopLayer,R_0603,590.5512,787.4016,90,10k part
+R3,10k,TopLayer,R_0603,787.4016,787.4016,180,10k part
+C1,100n,TopLayer,C_0603,393.7008,1181.1024,0,100n part
+C2,100n,TopLayer,C_0603,590.5512,1181.1024,270,100n part
+U1,MCU,TopLayer,QFN-32,1574.8031,984.2520,0,MCU part
+D1,LED,BottomLayer,LED_0603,1181.1024,393.7008,0,LED part

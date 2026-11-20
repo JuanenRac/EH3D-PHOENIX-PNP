@@ -21,7 +21,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 185] = [
+pub const KEYS: [&str; 192] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -207,6 +207,13 @@ pub const KEYS: [&str; 185] = [
     "server_timeout_s",
     "server_poll_ms",
     "server_attempts",
+    "server_retries",
+    "server_mdns",
+    "nozzle_z_tol_mm",
+    "tape_pitch_tol_mm",
+    "shift_minutes",
+    "reel_change_s",
+    "panel_fid_min_sep_mm",
 ];
 
 /// The order in which the places are visited.
@@ -634,6 +641,18 @@ pub struct MachineConfig {
     pub server_timeout_s: f64,
     pub server_poll_ms: u32,
     pub server_attempts: u32,
+    /// How many more times the link to the EH3D server tries a request that failed on the network (0 to 5), and whether it may look for the server on the local network (off by default).
+    pub server_retries: u32,
+    pub server_mdns: bool,
+    /// The most that the height of a nozzle may differ from the mean of the nozzles before `nozzle-zcal` calls it out of line (0.001 to 1 mm).
+    pub nozzle_z_tol_mm: f64,
+    /// The most that the pitch of a tape feeder may differ from the pitch its package asks for before `tape-check` refuses it (0 to 2 mm).
+    pub tape_pitch_tol_mm: f64,
+    /// The length of a shift for `shift-oee` and `queue-eta` (30 to 1440 minutes) and the seconds a person takes to change one reel (0 to 3600).
+    pub shift_minutes: u32,
+    pub reel_change_s: f64,
+    /// The least distance (mm) between the two marks of a board that are farthest apart for `panel-fids` to call the board aligned by its own marks (0 to 1000).
+    pub panel_fid_min_sep_mm: f64,
 }
 
 /// The most rules of failure by package or by feeder.
@@ -813,6 +832,13 @@ impl Default for MachineConfig {
             server_timeout_s: 5.0,
             server_poll_ms: 500,
             server_attempts: 3,
+            server_retries: 2,
+            server_mdns: false,
+            nozzle_z_tol_mm: 0.02,
+            tape_pitch_tol_mm: 0.05,
+            shift_minutes: 480,
+            reel_change_s: 60.0,
+            panel_fid_min_sep_mm: 10.0,
         }
     }
 }
@@ -1433,6 +1459,13 @@ impl MachineConfig {
             "server_timeout_s" => self.server_timeout_s = n(0.5, 120.0)?,
             "server_poll_ms" => self.server_poll_ms = int(line, key, v, 50, 60_000)? as u32,
             "server_attempts" => self.server_attempts = int(line, key, v, 1, 10)? as u32,
+            "server_retries" => self.server_retries = int(line, key, v, 0, 5)? as u32,
+            "server_mdns" => self.server_mdns = flag(line, key, v)?,
+            "nozzle_z_tol_mm" => self.nozzle_z_tol_mm = n(0.001, 1.0)?,
+            "tape_pitch_tol_mm" => self.tape_pitch_tol_mm = n(0.0, 2.0)?,
+            "shift_minutes" => self.shift_minutes = int(line, key, v, 30, 1440)? as u32,
+            "reel_change_s" => self.reel_change_s = n(0.0, 3600.0)?,
+            "panel_fid_min_sep_mm" => self.panel_fid_min_sep_mm = n(0.0, 1000.0)?,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

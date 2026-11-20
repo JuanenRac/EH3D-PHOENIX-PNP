@@ -74,10 +74,11 @@ pub enum Tool {
     NozzleCompare,
     Hotspots,
     QueueChangeover,
+    ServerMachine,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 33] = [
+    pub const ALL: [Tool; 34] = [
         Tool::Backlash,
         Tool::Runout,
         Tool::Camera,
@@ -111,6 +112,7 @@ impl Tool {
         Tool::NozzleCompare,
         Tool::Hotspots,
         Tool::QueueChangeover,
+        Tool::ServerMachine,
     ];
 
     /// The name of the tool on the command line of the window (`--tool`) and in the log.
@@ -149,6 +151,7 @@ impl Tool {
             Tool::NozzleCompare => "nozzles",
             Tool::Hotspots => "hotspots",
             Tool::QueueChangeover => "changeover",
+            Tool::ServerMachine => "server",
         }
     }
 
@@ -193,6 +196,7 @@ impl Tool {
             Tool::NozzleCompare => Text::ToolNozzleCompare,
             Tool::Hotspots => Text::ToolHotspots,
             Tool::QueueChangeover => Text::ToolQueueChangeover,
+            Tool::ServerMachine => Text::ToolServerMachine,
         }
     }
 
@@ -217,6 +221,7 @@ impl Tool {
                 | Tool::FeederRefill
                 | Tool::AsideSheet
                 | Tool::JobDiff
+                | Tool::ServerMachine
         )
     }
 
@@ -264,6 +269,7 @@ impl Tool {
             Tool::NozzleCompare => Some("nozzle_compare.csv"),
             Tool::Hotspots => Some("hotspots.csv"),
             Tool::QueueChangeover => Some("queue_changeover.csv"),
+            Tool::ServerMachine => Some("server_feeders.csv"),
             _ => None,
         }
     }
@@ -361,6 +367,9 @@ pub struct Toolbox {
     /// The boards that the reels are wanted to last (the reels that last fewer are marked) and the most nozzles that are compared.
     pub runway_boards: usize,
     pub nozzles_most: usize,
+    /// The lines of the Server machine panel (what to do on the machine of the EH3D server, one thing for each line) and whether it talks to a server in memory.
+    pub server_script: String,
+    pub server_sim: bool,
     /// The saved state of the job that is under way in the Job tab, for the depletion when no state is given (the window fills it before a run).
     pub job_state: String,
     /// The side the sheet of polarity and the stock are limited to (both when none).
@@ -428,6 +437,8 @@ impl Toolbox {
             runs_seed: cfg.sim_seed,
             runway_boards: 1,
             nozzles_most: 6,
+            server_script: String::new(),
+            server_sim: false,
             job_state: String::new(),
             polarity_side: None,
             boards: cfg.order_boards,
@@ -498,6 +509,7 @@ impl Toolbox {
             Tool::FeederRefill => Some(&mut self.refill_feeders),
             Tool::AsideSheet => Some(&mut self.aside_state),
             Tool::JobDiff => Some(&mut self.jobdiff_first),
+            Tool::ServerMachine => Some(&mut self.server_script),
             _ => None,
         }
     }
@@ -656,6 +668,9 @@ impl Toolbox {
             Tool::NozzleCompare => toolmore::nozzle_compare_text(ws, self.nozzles_most, lang),
             Tool::Hotspots => toolmore::hotspots_text(ws, self.runs_count, self.runs_seed, lang),
             Tool::QueueChangeover => toolmore::changeover_text(ws, &self.queue.file, lang),
+            Tool::ServerMachine => {
+                toolmore::server_machine_text(ws, &self.server_script, self.server_sim, lang)
+            }
         };
         match result {
             Ok((info, output)) => {

@@ -5,9 +5,11 @@ use eh3d_phoenix_pnp::config::{MachineConfig, KEYS};
 use eh3d_phoenix_pnp::feeding::from_csv as feeders_from_csv;
 use eh3d_phoenix_pnp::parts::{parse, Part};
 use eh3d_phoenix_pnp::server::{
-    error_text, feeder_rows, feeders_request, label, parse_response, part_name, placements,
-    safe_segment, HttpTransport, JobInfo, Mode, Order, Remote, SimServer, Target, Transport,
+    calibrate_request, dry_run, error_text, feeder_rows, feeders_request, label, link_settings,
+    parse_response, part_name, placements, safe_segment, Calibrate, JobInfo, Mode, Order, Remote,
+    ScLink, SimServer, Target, Transport,
 };
+use eh3d_serverclient as sc;
 use serde_json::{json, Value};
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -579,8 +581,10 @@ fn serve(n: usize) -> (String, Arc<Mutex<Vec<String>>>, thread::JoinHandle<()>) 
 #[test]
 fn the_http_transport_sends_the_token_and_reads_the_answer() {
     let (address, seen, handle) = serve(2);
-    let t = Target::new(&address, "the-token", "m1", 5.0, 50, 1).unwrap();
-    let mut http = HttpTransport::new(&t);
+    let t = Target::new(&address, "the-token", "m1", 5.0, 50, 1)
+        .unwrap()
+        .with_link(0, false);
+    let mut http = ScLink::new(&t).unwrap();
     let (status, v) = http.call("GET", "/api/v1/work/machines", None).unwrap();
     assert_eq!((status, v["machines"][0]["id"].as_str()), (200, Some("m1")));
     let (status, v) = http
@@ -603,8 +607,13 @@ fn a_server_that_is_not_there_is_an_error_that_names_it() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap().to_string();
     drop(listener);
-    let t = Target::new(&address, "", "m1", 1.0, 50, 1).unwrap();
-    let why = HttpTransport::new(&t).call("GET", "/x", None).unwrap_err();
+    let t = Target::new(&address, "tok", "m1", 1.0, 50, 1)
+        .unwrap()
+        .with_link(0, false);
+    let why = ScLink::new(&t)
+        .unwrap()
+        .call("GET", "/api/v1/x", None)
+        .unwrap_err();
     assert!(why.contains(&address), "{why}");
 }
 
@@ -932,6 +941,604 @@ fn server_request_wants_a_folder_and_leaves_out_parts_without_a_feeder_only_when
         ],
     ] {
         assert_eq!(run(&args).status.code(), Some(1), "{args:?}");
+    }
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+// ---- the common client, the routes of the plugin and the commands that use them
+
+/// A transport of the common client that answers the first requests with a failure of the network and then gives every request to a server in memory.
+struct Flaky {
+    fail: Mutex<u32>,
+    inner: Mutex<SimServer>,
+    seen: Arc<Mutex<Vec<String>>>,
+}
+
+impl sc::Transport for Flaky {
+    fn send(&self, request: &sc::Request) -> Result<sc::Reply, sc::TransportError> {
+        self.seen
+            .lock()
+            .unwrap()
+            .push(format!("{} {}", request.method, request.path));
+        {
+            let mut left = self.fail.lock().unwrap();
+            if *left > 0 {
+                *left -= 1;
+                return Err(sc::TransportError::Connect("down".into()));
+            }
+        }
+        let body: Option<Value> = request
+            .body
+            .as_deref()
+            .and_then(|b| serde_json::from_str(b).ok());
+        let (status, answer) = self
+            .inner
+            .lock()
+            .unwrap()
+            .call(&request.method, &request.path, body.as_ref())
+            .unwrap();
+        Ok(sc::Reply {
+            status,
+            body: answer.to_string(),
+        })
+    }
+}
+
+struct NoSleep;
+
+impl sc::client::Sleeper for NoSleep {
+    fn sleep(&self, _how_long: std::time::Duration) {}
+}
+
+/// A link of the common client over a server in memory that fails `fail` times first, with `retries` more tries allowed and no pauses; the second value lists the requests that were sent.
+fn flaky(fail: u32, retries: u32) -> (Remote<ScLink>, Arc<Mutex<Vec<String>>>) {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let double = Flaky {
+        fail: Mutex::new(fail),
+        inner: Mutex::new(SimServer::new(&["m1"])),
+        seen: seen.clone(),
+    };
+    let t = Target::new("127.0.0.1:18200", "tok", "m1", 5.0, 50, 1)
+        .unwrap()
+        .with_link(retries, false);
+    let client = sc::Client::new(link_settings(&t).unwrap(), Box::new(double))
+        .with_sleeper(Box::new(NoSleep));
+    (Remote::new(ScLink::with_client(client), &t), seen)
+}
+
+#[test]
+fn the_link_to_the_server_has_the_keys_of_the_common_client_with_their_ranges() {
+    let d = MachineConfig::default();
+    assert_eq!((d.server_retries, d.server_mdns), (2, false));
+    for key in ["server_retries", "server_mdns"] {
+        assert!(KEYS.contains(&key), "{key}");
+        assert!(
+            MACHINE.contains(&format!("\n{key} =")),
+            "the example lacks {key}"
+        );
+    }
+    for (v, ok) in [
+        ("0", true),
+        ("5", true),
+        ("6", false),
+        ("-1", false),
+        ("1.5", false),
+        ("x", false),
+    ] {
+        assert_eq!(
+            MachineConfig::parse(&format!("server_retries = {v}")).is_ok(),
+            ok,
+            "server_retries {v}"
+        );
+    }
+    for (v, want) in [
+        ("on", Some(true)),
+        ("off", Some(false)),
+        ("yes", Some(true)),
+        ("maybe", None),
+    ] {
+        let got = MachineConfig::parse(&format!("server_mdns = {v}"))
+            .ok()
+            .map(|c| c.server_mdns);
+        assert_eq!(got, want, "server_mdns {v}");
+    }
+    let c = MachineConfig::parse("server_retries = 4\nserver_mdns = on\n").unwrap();
+    assert_eq!((c.server_retries, c.server_mdns), (4, true));
+}
+
+#[test]
+fn the_settings_of_the_link_follow_the_target_and_hide_the_token() {
+    let t = Target::new("127.0.0.1:18200", "hidden-token-text", "m1", 0.5, 50, 3)
+        .unwrap()
+        .with_link(9, true);
+    assert_eq!((t.retries, t.mdns), (5, true));
+    let s = link_settings(&t).unwrap();
+    assert_eq!(s.server_address, "127.0.0.1:18200");
+    assert_eq!(s.server_machine, "m1");
+    // half a second is one whole second for the common client
+    assert_eq!(s.server_timeout_s, 1);
+    assert_eq!(
+        (s.server_retries, s.server_mdns, s.server_max_answer_mib),
+        (5, true, 1)
+    );
+    assert!(!format!("{s:?}").contains("hidden-token-text"));
+    let t = Target::new("h:1", "", "m1", 500.0, 50, 1).unwrap();
+    assert_eq!(link_settings(&t).unwrap().server_timeout_s, 120);
+    assert_eq!(link_settings(&t).unwrap().server_retries, 2);
+    let t = Target::new("h:1", "a b", "m1", 5.0, 50, 1).unwrap();
+    assert!(link_settings(&t).unwrap_err().contains("server_token"));
+}
+
+#[test]
+fn a_request_that_got_no_answer_is_tried_again_as_often_as_server_retries_says() {
+    let (mut r, seen) = flaky(2, 2);
+    assert_eq!(r.machines().unwrap().len(), 1);
+    assert_eq!(seen.lock().unwrap().len(), 3);
+    let (mut r, seen) = flaky(3, 2);
+    let why = r.machines().unwrap_err();
+    assert!(why.contains("cannot be reached"), "{why}");
+    assert_eq!(seen.lock().unwrap().len(), 3);
+    let (mut r, seen) = flaky(1, 0);
+    assert!(r.machines().is_err());
+    assert_eq!(seen.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn a_job_is_made_with_a_single_post_over_the_link() {
+    let (mut r, seen) = flaky(0, 2);
+    let request =
+        json!({"kind": "load_feeders", "feeders": [{"slot": 1, "part": "R_0603_10k", "count": 5}]});
+    let made = r.create("feeders", &request).unwrap();
+    assert_eq!(made.state, "queued");
+    assert_eq!(seen.lock().unwrap().as_slice(), ["POST /api/v1/work/jobs"]);
+}
+
+#[test]
+fn a_refusal_comes_back_as_an_answer_and_is_told_in_the_language_asked() {
+    let (mut r, _) = flaky(0, 0);
+    r.set_feeder(1, "R_0603_10k", 3).unwrap();
+    let load = r
+        .create(
+            "place",
+            &json!({"kind": "place", "placements": [{"ref": "R1", "part": "R_0603_10k", "x": 1, "y": 2}]}),
+        )
+        .unwrap();
+    r.order(&load.id, Order::Start).unwrap();
+    // the machine is running a job: changing a feeder is refused
+    let english = r.set_feeder(2, "C_0603_100n", 3).unwrap_err();
+    assert_eq!(english, "machine_busy: m1");
+    r.speak("es");
+    let spanish = r.set_feeder(2, "C_0603_100n", 3).unwrap_err();
+    assert!(
+        spanish.starts_with("Hay un trabajo en marcha en esta máquina.")
+            && spanish.ends_with("[machine_busy: m1]"),
+        "{spanish}"
+    );
+    r.speak("pt");
+    assert!(r
+        .set_feeder(2, "C_0603_100n", 3)
+        .unwrap_err()
+        .starts_with("Há um trabalho em curso"));
+    // a language the suite does not have leaves English
+    r.speak("xx");
+    assert_eq!(r.set_feeder(2, "C_0603_100n", 3).unwrap_err(), english);
+}
+
+#[test]
+fn a_link_without_a_token_says_there_is_no_token_to_send() {
+    let t = Target::new("127.0.0.1:18200", "", "m1", 5.0, 50, 1).unwrap();
+    let mut empty = Remote::new(ScLink::new(&t).unwrap(), &t);
+    let why = empty.machines().unwrap_err();
+    assert!(why.contains("no token to send"), "{why}");
+    assert!(!why.contains("never-print"), "{why}");
+    let (mut r, seen) = flaky(0, 0);
+    let _ = r.machines().unwrap();
+    assert_eq!(seen.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn the_feeders_of_the_machine_are_read_declared_refilled_and_emptied_with_no_job() {
+    let mut r = sim();
+    let t = r.feeders_table().unwrap();
+    assert_eq!((t.slots, t.feeders.len(), t.free.len()), (200, 0, 200));
+    let t = r.set_feeder(3, "R_0603_10k", 150).unwrap();
+    assert_eq!(t.feeders.len(), 1);
+    let f = &t.feeders[0];
+    assert_eq!(
+        (f.slot, f.part.as_str(), f.count, f.empty),
+        (3, "R_0603_10k", 150, false)
+    );
+    assert!(!t.free.contains(&3) && t.free.len() == 199);
+    // a refill replaces the count
+    let t = r.set_feeder(3, "R_0603_10k", 20).unwrap();
+    assert_eq!(t.feeders[0].count, 20);
+    // an empty feeder is one that holds a part and no count
+    let t = r.set_feeder(4, "C_0603_100n", 0).unwrap();
+    assert_eq!(t.empty_count(), 1);
+    assert!(
+        t.text().contains("slot 4: C_0603_100n, 0 left (empty)"),
+        "{}",
+        t.text()
+    );
+    let t = r.clear_feeder(4).unwrap();
+    assert_eq!((t.feeders.len(), t.empty_count()), (1, 0));
+    assert_eq!(
+        t.csv(),
+        "slot,part,count,x_mm,y_mm,offset_x_mm,offset_y_mm\n3,R_0603_10k,20,40.000,-30.000,0.000,0.000\n"
+    );
+    // what the plugin would refuse is refused before the request is made
+    for (slot, part, count) in [
+        (0, "a", 1),
+        (201, "a", 1),
+        (1, "has space", 1),
+        (1, "", 1),
+        (1, "a", 100_001),
+    ] {
+        assert!(
+            r.set_feeder(slot, part, count).is_err(),
+            "{slot} {part} {count}"
+        );
+    }
+    assert!(r.clear_feeder(0).is_err() && r.clear_feeder(201).is_err());
+    // and a machine that is running a job refuses the change
+    let rows = feeder_rows(&feeders()).unwrap();
+    let load = r.create("feeders", &feeders_request(&rows, true)).unwrap();
+    r.order(&load.id, Order::Start).unwrap();
+    let place = r
+        .create(
+            "place",
+            &placements(&board(), &rows, (0.0, 0.0)).unwrap().request,
+        )
+        .unwrap();
+    r.order(&place.id, Order::Start).unwrap();
+    assert_eq!(
+        r.set_feeder(9, "R_0603_10k", 1).unwrap_err(),
+        "machine_busy: m1"
+    );
+}
+
+#[test]
+fn the_server_in_memory_answers_the_routes_of_the_feeders_as_the_plugin_does() {
+    let mut s = SimServer::new(&["m1"]);
+    assert_eq!(
+        s.call("GET", "/api/v1/work/machines/zz/feeders", None)
+            .unwrap()
+            .0,
+        404
+    );
+    assert_eq!(
+        s.call(
+            "PUT",
+            "/api/v1/work/machines/zz/feeders",
+            Some(&json!({"slot": 1, "clear": true}))
+        )
+        .unwrap()
+        .0,
+        404
+    );
+    for bad in [
+        json!({"slot": 0, "part": "a", "count": 1}),
+        json!({"slot": 201, "part": "a", "count": 1}),
+        json!({"slot": "1", "part": "a", "count": 1}),
+        json!({"slot": 1, "part": "a"}),
+        json!({"slot": 1, "part": "a", "count": -1}),
+        json!({"slot": 1, "clear": "yes"}),
+        json!({}),
+    ] {
+        let (status, v) = s
+            .call("PUT", "/api/v1/work/machines/m1/feeders", Some(&bad))
+            .unwrap();
+        assert_eq!(
+            (status, v["error"].as_str()),
+            (422, Some("bad_plugin_request")),
+            "{bad}"
+        );
+    }
+    assert_eq!(
+        s.call("PUT", "/api/v1/work/machines/m1/feeders", None)
+            .unwrap()
+            .0,
+        422
+    );
+    let (status, v) = s
+        .call(
+            "PUT",
+            "/api/v1/work/machines/m1/feeders",
+            Some(&json!({"slot": 2, "part": "R", "count": 7})),
+        )
+        .unwrap();
+    assert_eq!(
+        (
+            status,
+            v["feeders"][0]["slot"].as_u64(),
+            v["feeders"][0]["count"].as_u64()
+        ),
+        (200, Some(2), Some(7))
+    );
+    assert_eq!(s.feeder("m1", 2), Some(("R".to_string(), 7)));
+    let (_, v) = s
+        .call(
+            "PUT",
+            "/api/v1/work/machines/m1/feeders",
+            Some(&json!({"slot": 2, "clear": true})),
+        )
+        .unwrap();
+    assert_eq!(v["feeders"].as_array().unwrap().len(), 0);
+    assert_eq!(s.feeder("m1", 2), None);
+}
+
+#[test]
+fn a_dry_run_goes_through_the_job_and_takes_no_part_off_a_feeder() {
+    let mut r = sim();
+    let place = loaded(&mut r);
+    let before: Vec<_> = (1..=4).map(|s| r.transport.feeder("m1", s)).collect();
+    assert!(before.iter().all(Option::is_some));
+    let dry = r.create("dry", &dry_run(place.clone())).unwrap();
+    assert_eq!(dry.total, 7);
+    r.order(&dry.id, Order::Start).unwrap();
+    let end = r.follow(&dry.id, 20, &mut |_| {}, &mut || {}).unwrap();
+    assert_eq!((end.state.as_str(), end.done), ("done", 7));
+    let after: Vec<_> = (1..=4).map(|s| r.transport.feeder("m1", s)).collect();
+    assert_eq!(before, after);
+    // the same request without the dry run takes the parts
+    let real = r.create("real", &place).unwrap();
+    r.order(&real.id, Order::Start).unwrap();
+    r.follow(&real.id, 20, &mut |_| {}, &mut || {}).unwrap();
+    let taken: Vec<_> = (1..=4).map(|s| r.transport.feeder("m1", s)).collect();
+    assert_ne!(before, taken);
+    // a dry run still needs the parts to be there, and a value that is not true or false is refused
+    let mut r = sim();
+    let lonely = json!({"kind": "place", "placements": [{"ref": "R1", "part": "R_0603_10k", "x": 1, "y": 2}], "dry_run": true});
+    assert!(r
+        .create("x", &lonely)
+        .unwrap_err()
+        .starts_with("pnp_feeder_short"));
+    let mut s = SimServer::new(&["m1"]);
+    let body = json!({"machine": "m1", "request": {"kind": "place", "placements": [{"ref": "R1", "part": "a", "x": 1, "y": 2}], "dry_run": "yes"}});
+    assert_eq!(
+        s.call("POST", "/api/v1/work/jobs", Some(&body)).unwrap().0,
+        400
+    );
+    assert_eq!(dry_run(json!(5)), json!(5));
+}
+
+#[test]
+fn a_calibration_job_keeps_the_offset_of_a_feeder_and_the_server_lists_it() {
+    let mut r = sim();
+    r.set_feeder(3, "R_0603_10k", 10).unwrap();
+    let request = calibrate_request(Calibrate::Feeder, "3", (0.5, -0.25)).unwrap();
+    assert_eq!(request["what"], "feeder");
+    let job = r.create("cal", &request).unwrap();
+    assert_eq!((job.state.as_str(), job.total), ("queued", 1));
+    r.order(&job.id, Order::Start).unwrap();
+    assert_eq!(r.job(&job.id).unwrap().state, "done");
+    assert_eq!(r.transport.feeder_offset("m1", 3), Some((0.5, -0.25)));
+    assert_eq!(r.transport.calibrations("m1"), ["feeder:3"]);
+    let f = &r.feeders_table().unwrap().feeders[0];
+    assert_eq!(f.offset, (0.5, -0.25));
+    assert!(
+        (f.x_mm - 40.5).abs() < 1e-9 && (f.y_mm + 30.25).abs() < 1e-9,
+        "{f:?}"
+    );
+    // 0 and 0 puts it back; a nozzle and a camera are kept by name
+    for (what, target, offset) in [
+        (Calibrate::Feeder, "3", (0.0, 0.0)),
+        (Calibrate::Nozzle, "N1", (0.1, 0.0)),
+        (Calibrate::Camera, "up", (0.0, 0.0)),
+    ] {
+        let job = r
+            .create("cal", &calibrate_request(what, target, offset).unwrap())
+            .unwrap();
+        r.order(&job.id, Order::Start).unwrap();
+    }
+    assert_eq!(r.feeders_table().unwrap().feeders[0].offset, (0.0, 0.0));
+    assert_eq!(
+        r.transport.calibrations("m1"),
+        ["feeder:3", "feeder:3", "nozzle:N1", "camera:up"]
+    );
+}
+
+#[test]
+fn a_calibration_the_plugin_would_refuse_is_refused_here_with_the_reason() {
+    for (what, target, offset, why) in [
+        (Calibrate::Feeder, "0", (0.0, 0.0), "slot, 1 to 200"),
+        (Calibrate::Feeder, "201", (0.0, 0.0), "slot, 1 to 200"),
+        (Calibrate::Feeder, "left", (0.0, 0.0), "slot, 1 to 200"),
+        (Calibrate::Nozzle, "", (0.0, 0.0), "a name"),
+        (Calibrate::Camera, "has space", (0.0, 0.0), "a name"),
+        (Calibrate::Nozzle, "N1", (5.01, 0.0), "offset on x"),
+        (Calibrate::Nozzle, "N1", (0.0, -5.01), "offset on y"),
+        (Calibrate::Nozzle, "N1", (f64::NAN, 0.0), "offset on x"),
+    ] {
+        let e = calibrate_request(what, target, offset).unwrap_err();
+        assert!(e.contains(why), "{e}");
+    }
+    assert!(calibrate_request(Calibrate::Nozzle, "N1", (5.0, -5.0)).is_ok());
+    assert_eq!(Calibrate::parse(" Camera "), Some(Calibrate::Camera));
+    assert_eq!(Calibrate::parse("laser"), None);
+    // the server in memory refuses the same requests with a 400
+    let mut s = SimServer::new(&["m1"]);
+    for request in [
+        json!({"kind": "calibrate"}),
+        json!({"kind": "calibrate", "what": "laser", "target": "x"}),
+        json!({"kind": "calibrate", "what": "feeder", "target": 0}),
+        json!({"kind": "calibrate", "what": "nozzle"}),
+        json!({"kind": "calibrate", "what": "nozzle", "target": "N1", "offset_mm": {"x": 6}}),
+        json!({"kind": "calibrate", "what": "nozzle", "target": "N1", "offset_mm": 1}),
+    ] {
+        let body = json!({"machine": "m1", "request": request});
+        assert_eq!(
+            s.call("POST", "/api/v1/work/jobs", Some(&body)).unwrap().0,
+            400,
+            "{request}"
+        );
+    }
+}
+
+#[test]
+fn the_commands_of_the_feeders_and_of_the_calibration_work_against_the_server_in_memory() {
+    let o = run(&["server-feeders", "--sim"]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(
+        out(&o).starts_with("0 of 200 slots hold a part, 200 are free, 0 are empty"),
+        "{}",
+        out(&o)
+    );
+    let o = run(&["server-feeders", "set", "3", "R_0603_10k", "150", "--sim"]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(
+        out(&o).contains("slot 3: R_0603_10k, 150 left, picked at 40.00,-30.00 mm"),
+        "{}",
+        out(&o)
+    );
+    let o = run(&["server-feeders", "set", "3", "R_0603_10k", "0", "--sim"]);
+    assert_eq!(o.status.code(), Some(1));
+    assert!(err(&o).contains("1 feeders hold no parts"), "{}", err(&o));
+    assert!(out(&o).contains("(empty)"));
+    let o = run(&["server-feeders", "clear", "3", "--sim"]);
+    assert!(o.status.success(), "{}", err(&o));
+    for bad in [
+        vec!["server-feeders", "set", "3", "--sim"],
+        vec!["server-feeders", "set", "x", "R", "1", "--sim"],
+        vec!["server-feeders", "set", "3", "R", "-1", "--sim"],
+        vec!["server-feeders", "clear", "--sim"],
+        vec!["server-feeders", "list", "now", "--sim"],
+        vec!["server-feeders", "empty", "--sim"],
+        vec!["server-feeders", "set", "0", "R", "1", "--sim"],
+    ] {
+        let o = run(&bad);
+        assert_eq!(o.status.code(), Some(1), "{bad:?}");
+        assert!(err(&o).starts_with("error: "), "{bad:?} {}", err(&o));
+    }
+    let o = run(&[
+        "server-calibrate",
+        "feeder",
+        "3",
+        "--offset",
+        "0.5,-0.25",
+        "--sim",
+    ]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(out(&o).contains("done, 1 of 1 (100%)"), "{}", out(&o));
+    let o = run(&["server-calibrate", "nozzle", "N1", "--sim"]);
+    assert!(o.status.success(), "{}", err(&o));
+    for bad in [
+        vec!["server-calibrate", "--sim"],
+        vec!["server-calibrate", "feeder", "--sim"],
+        vec!["server-calibrate", "laser", "1", "--sim"],
+        vec!["server-calibrate", "feeder", "999", "--sim"],
+        vec![
+            "server-calibrate",
+            "nozzle",
+            "N1",
+            "--offset",
+            "9,0",
+            "--sim",
+        ],
+        vec!["server-calibrate", "nozzle", "N1", "--offset", "1", "--sim"],
+        vec![
+            "server-calibrate",
+            "nozzle",
+            "N1",
+            "--timeout",
+            "0",
+            "--sim",
+        ],
+    ] {
+        let o = run(&bad);
+        assert_eq!(o.status.code(), Some(1), "{bad:?}");
+    }
+    // a dry run says so, and the job still places every part
+    let o = run(&[
+        "server-send",
+        "examples/board.pos",
+        "examples/feeders.csv",
+        "--sim",
+        "--follow",
+        "--dry-run",
+    ]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(
+        out(&o).contains("(dry run: no part is taken off a feeder)"),
+        "{}",
+        out(&o)
+    );
+    assert!(out(&o).contains("done, 7 of 7 (100%)"), "{}", out(&o));
+}
+
+#[test]
+fn the_commands_of_the_feeders_write_a_table_and_never_over_a_file() {
+    let dir = temp("feedersout");
+    let file = dir
+        .join("feeders_server.csv")
+        .to_string_lossy()
+        .into_owned();
+    let o = run(&[
+        "server-feeders",
+        "set",
+        "2",
+        "C_0603_100n",
+        "40",
+        "--sim",
+        "--out",
+        &file,
+    ]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert_eq!(
+        std::fs::read_to_string(&file).unwrap(),
+        "slot,part,count,x_mm,y_mm,offset_x_mm,offset_y_mm\n2,C_0603_100n,40,30.000,-30.000,0.000,0.000\n"
+    );
+    let o = run(&["server-feeders", "list", "--sim", "--out", &file]);
+    assert_eq!(o.status.code(), Some(1));
+    assert!(err(&o).contains("PHOENIX-PNP-"), "{}", err(&o));
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn the_commands_of_the_feeders_talk_to_a_server_with_the_token_and_do_not_print_it() {
+    let (address, seen, handle) = serve(3);
+    let dir = temp("feedersnet");
+    let cfg = config(&dir, &address, "server");
+    let o = run(&[
+        "server-feeders",
+        "set",
+        "5",
+        "R_0603_10k",
+        "12",
+        "--config",
+        &cfg,
+    ]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(
+        out(&o).contains("slot 5: R_0603_10k, 12 left"),
+        "{}",
+        out(&o)
+    );
+    let o = run(&["server-feeders", "--config", &cfg]);
+    assert!(o.status.success(), "{}", err(&o));
+    let o = run(&["server-feeders", "clear", "5", "--config", &cfg]);
+    assert!(o.status.success(), "{}", err(&o));
+    handle.join().unwrap();
+    // each command is a new process with a new server in memory behind the socket... but the socket server is one: the table it holds is the same
+    assert_eq!(seen.lock().unwrap().len(), 3);
+    for text in [out(&o), err(&o)] {
+        assert!(!text.contains("never-print-this"), "{text}");
+    }
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn the_new_commands_do_nothing_in_the_local_mode_either() {
+    let dir = temp("local2");
+    let cfg = config(&dir, "127.0.0.1:1", "local");
+    for args in [
+        vec!["server-feeders", "--config", &cfg],
+        vec!["server-feeders", "set", "1", "R", "1", "--config", &cfg],
+        vec!["server-calibrate", "feeder", "1", "--config", &cfg],
+    ] {
+        let o = run(&args);
+        assert_eq!(o.status.code(), Some(1), "{args:?}");
+        assert!(err(&o).contains("mode is local"), "{}", err(&o));
     }
     let _ = std::fs::remove_dir_all(dir);
 }

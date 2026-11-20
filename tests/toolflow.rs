@@ -8,7 +8,7 @@ use eh3d_phoenix_pnp::gui::settings::UiSettings;
 use eh3d_phoenix_pnp::gui::texts::{table, tr, Text};
 use eh3d_phoenix_pnp::gui::toolbox::{Tool, Toolbox};
 use eh3d_phoenix_pnp::gui::toolmore::{
-    changeover_text, hotspots_text, nozzle_compare_text, runway_text,
+    changeover_text, hotspots_text, nozzle_compare_text, runway_text, server_machine_text,
 };
 use eh3d_phoenix_pnp::gui::workspace::Workspace;
 use std::path::{Path, PathBuf};
@@ -58,7 +58,7 @@ fn p(path: &Path) -> &str {
 
 #[test]
 fn the_four_tools_have_a_key_a_word_a_file_and_read_no_text() {
-    assert_eq!(Tool::ALL.len(), 33);
+    assert_eq!(Tool::ALL.len(), 34);
     for (tool, key, name) in [
         (Tool::ReelRunway, "runway", "reel_runway.csv"),
         (Tool::NozzleCompare, "nozzles", "nozzle_compare.csv"),
@@ -75,7 +75,7 @@ fn the_four_tools_have_a_key_a_word_a_file_and_read_no_text() {
     let mut keys: Vec<&str> = Tool::ALL.iter().map(|t| t.key()).collect();
     keys.sort_unstable();
     keys.dedup();
-    assert_eq!(keys.len(), 33);
+    assert_eq!(keys.len(), 34);
     let mut files: Vec<&str> = Tool::ALL.iter().filter_map(|t| t.output_name()).collect();
     files.sort_unstable();
     let before = files.len();
@@ -99,9 +99,12 @@ fn the_new_words_are_in_the_eight_languages_and_in_the_language_of_portugal() {
         Text::KeepValues,
         Text::ValuesKept,
         Text::NoConfigToKeep,
+        Text::ToolServerMachine,
+        Text::HintServerMachine,
+        Text::ServerSimulated,
     ];
     assert_eq!(Text::COUNT, table().len());
-    assert_eq!(Text::NoConfigToKeep as usize + 1, Text::COUNT);
+    assert_eq!(Text::ServerSimulated as usize + 1, Text::COUNT);
     assert_eq!(new[0] as usize, Text::RunsSeed as usize + 1);
     for (i, word) in new.iter().enumerate() {
         assert_eq!(*word as usize, new[0] as usize + i, "{word:?} is in order");
@@ -117,6 +120,9 @@ fn the_new_words_are_in_the_eight_languages_and_in_the_language_of_portugal() {
     assert!(tr(Text::HintQueueChangeover, Lang::Pt).contains("ficheiro"));
     assert!(tr(Text::HintNozzleCompare, Lang::Pt).contains("definições"));
     assert!(!tr(Text::HintReelRunway, Lang::Pt).contains("arquivo"));
+    assert!(tr(Text::HintServerMachine, Lang::Pt).contains("definições"));
+    assert!(!tr(Text::HintServerMachine, Lang::Pt).contains("configurações"));
+    assert!(tr(Text::ServerSimulated, Lang::Pt).contains("Usar um servidor"));
     // the words a person types the number for end in a clear label in each language
     assert_eq!(tr(Text::RunwayBoards, Lang::En), "Boards wanted");
     assert_eq!(tr(Text::NozzlesMost, Lang::En), "Most nozzles");
@@ -439,5 +445,140 @@ fn the_window_keeps_the_values_in_the_file_that_was_loaded_and_nowhere_else() {
     other.load_sample(&eh3d_phoenix_pnp::gui::samples::mini());
     other.keep_tool_values();
     assert_eq!(other.tools.error, tr(Text::NoConfigToKeep, Lang::En));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---- the machine of the server
+
+#[test]
+fn the_server_machine_tool_has_a_key_a_word_a_file_and_reads_a_text() {
+    let tool = Tool::ServerMachine;
+    assert_eq!(tool.key(), "server");
+    assert_eq!(Tool::from_key(" Server "), Some(tool));
+    assert_eq!(tool.output_name(), Some("server_feeders.csv"));
+    assert!(tool.reads_text() && !tool.reads_second());
+    assert_eq!(tr(tool.text(), Lang::En), "Server machine");
+    let mut tb = Toolbox::new(&MachineConfig::default());
+    assert!(!tb.server_sim && tb.server_script.is_empty());
+    tb.tool = tool;
+    tb.text_mut().unwrap().push_str("list");
+    assert_eq!(tb.server_script, "list");
+}
+
+#[test]
+fn the_server_machine_panel_does_its_lines_in_order_on_the_server_in_memory() {
+    let ws = ready();
+    // a blank script lists the feeders
+    let (info, csv) = server_machine_text(&ws, "  \n# nothing\n", true, Lang::En).unwrap();
+    assert!(
+        info.starts_with("0 of 200 slots hold a part, 200 are free"),
+        "{info}"
+    );
+    assert_eq!(csv.lines().count(), 1);
+    let (info, csv) = server_machine_text(
+        &ws,
+        "set 3 R_0603_10k 150\nset 4 C_0603_100n 0\n",
+        true,
+        Lang::En,
+    )
+    .unwrap();
+    assert!(info.contains("slot 3: R_0603_10k, 150 left"), "{info}");
+    assert!(
+        info.contains("slot 4: C_0603_100n, 0 left (empty)"),
+        "{info}"
+    );
+    assert_eq!(csv.lines().count(), 3);
+    let (info, _) =
+        server_machine_text(&ws, "set 3 R_0603_10k 150\nclear 3\n", true, Lang::En).unwrap();
+    assert!(info.starts_with("0 of 200 slots"), "{info}");
+    // a calibration, the loaded table of feeders and the loaded board as a dry run
+    let script = "set 3 R_0603_10k 150\ncalibrate feeder 3 0.5,-0.25\nload\ndry-run\n";
+    let (info, csv) = server_machine_text(&ws, script, true, Lang::En).unwrap();
+    let lines: Vec<&str> = info.lines().collect();
+    assert!(lines[0].ends_with("done, 1 of 1 (100%)"), "{info}");
+    assert!(lines[1].ends_with("done, 4 of 4 (100%)"), "{info}");
+    assert!(
+        lines[2].ends_with("done, 7 of 7 (100%) (dry run)"),
+        "{info}"
+    );
+    // the dry run took no part off a feeder, so the table is the one that was loaded
+    assert_eq!(csv.lines().count(), 5, "{csv}");
+    assert!(
+        csv.lines()
+            .skip(1)
+            .all(|l| l.split(',').nth(2) != Some("0")),
+        "{csv}"
+    );
+    // a new server with only the table loaded holds the same counts
+    // (the calibration of a slot stays with the slot, so only the counts are compared)
+    let (_, loaded) = server_machine_text(&ws, "load\nlist\n", true, Lang::En).unwrap();
+    let counts = |t: &str| -> Vec<String> {
+        t.lines()
+            .map(|l| l.split(',').take(3).collect::<Vec<_>>().join(","))
+            .collect()
+    };
+    assert_eq!(counts(&loaded), counts(&csv));
+    assert!(csv.contains("0.500,-0.250"), "{csv}");
+}
+
+#[test]
+fn the_server_machine_panel_says_which_line_it_stopped_at() {
+    let ws = ready();
+    for (script, why) in [
+        ("list\nbogus\n", "line 2: say list, set SLOT PART COUNT"),
+        ("set x R 1", "line 1: the slot 'x' is not a whole number"),
+        ("set 3 R", "line 1: say list"),
+        (
+            "clear 0",
+            "line 1: the slot is a whole number from 1 to 200",
+        ),
+        (
+            "\n\ncalibrate laser 1",
+            "line 3: laser is not feeder, nozzle or camera",
+        ),
+        ("calibrate nozzle N1 5", "line 1: the offset '5' is not X,Y"),
+        ("calibrate nozzle N1 9,0", "line 1: the offset on x"),
+        (
+            "calibrate feeder 999",
+            "line 1: the target of a feeder is its slot",
+        ),
+    ] {
+        let e = server_machine_text(&ws, script, true, Lang::En).unwrap_err();
+        assert!(e.contains(why), "{script:?}: {e}");
+    }
+    // without a loaded board and feeders, load and dry-run say so
+    let empty = Workspace::new(Lang::En);
+    for script in ["load", "dry-run"] {
+        let e = server_machine_text(&empty, script, true, Lang::En).unwrap_err();
+        assert!(e.starts_with("line 1: (load a table of"), "{e}");
+    }
+    // the local mode is not touched
+    let e = server_machine_text(&ws, "list", false, Lang::En).unwrap_err();
+    assert!(e.contains("mode is local"), "{e}");
+}
+
+#[test]
+fn the_server_machine_tool_runs_in_the_tab_and_writes_its_table_under_its_name() {
+    let ws = ready();
+    let dir = scratch("servertool");
+    let mut tb = Toolbox::new(&MachineConfig::default());
+    tb.tool = Tool::ServerMachine;
+    tb.server_sim = true;
+    tb.server_script = "set 2 C_0603_100n 40".to_string();
+    tb.run(&ws, Lang::En);
+    assert!(tb.error.is_empty(), "{}", tb.error);
+    assert!(
+        tb.info.contains("slot 2: C_0603_100n, 40 left"),
+        "{}",
+        tb.info
+    );
+    assert_eq!(tb.made_by, Some(Tool::ServerMachine));
+    let saved = tb.save(p(&dir), Lang::En).unwrap();
+    assert!(saved.ends_with("server_feeders.csv"), "{saved}");
+    assert!(tb.save(p(&dir), Lang::En).is_none());
+    // not simulated and in the local mode, it says so and keeps nothing
+    tb.server_sim = false;
+    tb.run(&ws, Lang::En);
+    assert!(tb.error.contains("mode is local"), "{}", tb.error);
     let _ = std::fs::remove_dir_all(&dir);
 }

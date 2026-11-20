@@ -39,8 +39,10 @@ use eh3d_phoenix_pnp::report::{self, ReportCheck, ReportInput};
 use eh3d_phoenix_pnp::runs;
 use eh3d_phoenix_pnp::runway;
 use eh3d_phoenix_pnp::setup;
+use eh3d_phoenix_pnp::shiftoee;
 use eh3d_phoenix_pnp::sim::Rng;
 use eh3d_phoenix_pnp::slots;
+use eh3d_phoenix_pnp::tapesteps;
 use eh3d_phoenix_pnp::vision::{measure_image, render, wrap, VisionConfig, MAX_VISION_BYTES};
 use std::cell::RefCell;
 use std::fs;
@@ -1742,4 +1744,176 @@ pub fn check_bottom(mut args: Vec<String>) -> Result<(), String> {
     let parts = parse_with(&read_text(path, cfg.max_file_bytes)?, &profile)?;
     print!("{}", bottom_table(&parts, cfg.profile.bottom_rotation));
     Ok(())
+}
+
+/// `tape-steps PARTS FEEDERS [--out F] [OPTIONS] [--partial]`: the tapes of the feeders checked at every step of the plan: for each pick, which part of the reel it is, the parts left after it,
+/// the pick place, how far it is from the place of the pick before on the same feeder (a strip must advance by its pitch, within `tape_pitch_tol_mm`) and what the step comes to: `ok`, `low`
+/// (the first step under the warning of the feeder), `last`, `empty` (the reel had no part left), `pitch`, `reach` (outside the area the machine reaches) or `nofeeder`. The report goes to the
+/// screen, or the table of all the steps to `--out` (never over a file that exists, and never over a file that was read). The exit code is 1 when a step is a fault.
+pub fn tape_steps(mut args: Vec<String>) -> Result<(), String> {
+    let out = flag(&mut args, "--out")?;
+    let partial = switch(&mut args, "--partial");
+    let p = prepare(args, 0)?;
+    let lang = p.c.lang;
+    if let Some(o) = &out {
+        refuse_same_file(&p.inputs, o)?;
+        if Path::new(o).exists() {
+            return Err(PnpError::new(Code::ReportExists, o.as_str()).localized(lang));
+        }
+    }
+    let planned = make_plan(&p)?;
+    if has_errors(&planned.checks) && !partial {
+        return Err(PnpError::new(
+            Code::PreflightFailed,
+            "use --partial to go on with only what can be placed",
+        )
+        .localized(lang));
+    }
+    let cfg = &p.c.cfg;
+    let limits = tapesteps::Limits {
+        x_min: cfg.limit_x_min_mm,
+        x_max: cfg.limit_x_max_mm,
+        y_min: cfg.limit_y_min_mm,
+        y_max: cfg.limit_y_max_mm,
+        pitch_tol_mm: cfg.tape_pitch_tol_mm,
+    };
+    let placed: Vec<(&str, &str, (f64, f64))> = planned
+        .plan
+        .plan
+        .placements
+        .iter()
+        .map(|x| (x.reference.as_str(), x.feeder.as_str(), x.pick))
+        .collect();
+    let steps = tapesteps::walk(&placed, &p.feeders, &limits);
+    print!("{}", tapesteps::text(&steps));
+    if let Some(o) = &out {
+        report::write_new(o, &tapesteps::csv(&steps)).map_err(|e| e.localized(lang))?;
+        println!("written to {o}");
+    }
+    match tapesteps::faults(&steps) {
+        0 => Ok(()),
+        n => Err(format!("{n} steps are a fault of the tapes")),
+    }
+}
+
+/// `shift-oee PARTS FEEDERS [--runs N] [--seed S] [--shift MINUTES] [--reel-change SECONDS] [--min-oee PERCENT] [--out F] [OPTIONS] [--partial]`: the overall equipment effectiveness of a
+/// shift on the simulated machine: availability (the shift less the changes of reels that the boards need), performance (the ideal time of the plan against the mean time of the runs that went to
+/// the end) and quality (the share of the runs that placed every part), the boards that fit in the shift and how many are expected to be good. The runs are the ones of `simulate-runs` (the
+/// `simulate_runs_count` of the settings and the `sim_seed` when not given), the shift is `shift_minutes` and a change of reel `reel_change_s`. `--out` writes the figures as a table, never
+/// over a file that exists or over a file that was read. The exit code is 1 when the effectiveness is under `--min-oee` (0 by default: never).
+pub fn shift_oee(mut args: Vec<String>) -> Result<(), String> {
+    let count = match flag(&mut args, "--runs")? {
+        Some(v) => {
+            let n = num(&v, "--runs")?;
+            if n.fract() != 0.0 || !(1.0..=runs::MAX_RUNS as f64).contains(&n) {
+                return Err(format!(
+                    "--runs {v} is not a whole number from 1 to {}",
+                    runs::MAX_RUNS
+                ));
+            }
+            Some(n as usize)
+        }
+        None => None,
+    };
+    let seed = match flag(&mut args, "--seed")? {
+        Some(v) => Some(
+            v.trim()
+                .parse::<u64>()
+                .map_err(|_| format!("--seed {v} is not a whole number"))?,
+        ),
+        None => None,
+    };
+    let shift = match flag(&mut args, "--shift")? {
+        Some(v) => {
+            let n = num(&v, "--shift")?;
+            if n.fract() != 0.0 || !(30.0..=1440.0).contains(&n) {
+                return Err(format!(
+                    "--shift {v} is not a whole number of minutes from 30 to 1440"
+                ));
+            }
+            Some(n as u32)
+        }
+        None => None,
+    };
+    let reel_change = match flag(&mut args, "--reel-change")? {
+        Some(v) => {
+            let n = num(&v, "--reel-change")?;
+            if !(0.0..=3600.0).contains(&n) {
+                return Err(format!("--reel-change {v} is not from 0 to 3600 seconds"));
+            }
+            Some(n)
+        }
+        None => None,
+    };
+    let min_oee = match flag(&mut args, "--min-oee")? {
+        Some(v) => {
+            let n = num(&v, "--min-oee")?;
+            if !(0.0..=100.0).contains(&n) {
+                return Err(format!("--min-oee {v} is not from 0 to 100 per cent"));
+            }
+            n
+        }
+        None => 0.0,
+    };
+    let out = flag(&mut args, "--out")?;
+    let partial = switch(&mut args, "--partial");
+    let p = prepare(args, 0)?;
+    let lang = p.c.lang;
+    if let Some(o) = &out {
+        refuse_same_file(&p.inputs, o)?;
+        if Path::new(o).exists() {
+            return Err(PnpError::new(Code::ReportExists, o.as_str()).localized(lang));
+        }
+    }
+    let planned = make_plan(&p)?;
+    if has_errors(&planned.checks) && !partial {
+        return Err(PnpError::new(
+            Code::PreflightFailed,
+            "use --partial to go on with only what can be placed",
+        )
+        .localized(lang));
+    }
+    let l = move |e: PnpError| e.localized(lang);
+    let found = runs::run_many(
+        &planned.plan,
+        &p.feeders,
+        &p.c.cfg,
+        count.unwrap_or(p.c.cfg.simulate_runs_count as usize),
+        seed.unwrap_or(p.c.cfg.sim_seed),
+    )
+    .map_err(l)?;
+    let used: Vec<&str> = planned
+        .plan
+        .plan
+        .placements
+        .iter()
+        .map(|x| x.feeder.as_str())
+        .collect();
+    let reels: Vec<(u32, u32)> = runway::runway(&used, &p.feeders)
+        .iter()
+        .filter(|r| r.per_board > 0)
+        .map(|r| (r.per_board, r.count))
+        .collect();
+    let shift_minutes = shift.unwrap_or(p.c.cfg.shift_minutes);
+    let oee = shiftoee::compute(&shiftoee::Inputs {
+        ideal_s: planned.plan.plan.seconds,
+        runs: found,
+        reels,
+        shift_s: f64::from(shift_minutes) * 60.0,
+        reel_change_s: reel_change.unwrap_or(p.c.cfg.reel_change_s),
+    })
+    .map_err(l)?;
+    print!("{}", oee.text(shift_minutes));
+    if let Some(o) = &out {
+        report::write_new(o, &oee.csv()).map_err(l)?;
+        println!("written to {o}");
+    }
+    if oee.oee * 100.0 + 1e-9 < min_oee {
+        Err(format!(
+            "the effectiveness is {:.1}%, under the {min_oee}% that was asked",
+            oee.oee * 100.0
+        ))
+    } else {
+        Ok(())
+    }
 }
