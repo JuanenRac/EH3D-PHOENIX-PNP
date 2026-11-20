@@ -242,6 +242,22 @@ pub fn server_request(mut args: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
+/// `server-discover [--sim]`: looks for servers on the local network and prints the `host:port` of each that answers. It asks nothing of the network unless `server_mdns = on` is in the
+/// settings, and it needs a build with the feature `mdns`; `--sim` answers with a server in memory so that the rest can be tried without a network.
+pub fn server_discover(mut args: Vec<String>) -> Result<(), String> {
+    let (_, cfg) = language_and_config(&mut args)?;
+    let sim = switch(&mut args, "--sim");
+    finish(&args, 0)?;
+    let found = server::discover(&cfg, sim)?;
+    if found.is_empty() {
+        println!("no server answered");
+    }
+    for address in &found {
+        println!("{address}");
+    }
+    Ok(())
+}
+
 /// `server-status [JOB]`: the machine of the settings (its state and the feeders the server holds) or, with a job id, how that job goes.
 pub fn server_status(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;

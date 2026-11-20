@@ -9,6 +9,7 @@ use super::queuetab::QueueTab;
 use super::texts::Text;
 use super::toolmore;
 use super::workspace::{FileKind, Workspace};
+use crate::asmexport;
 use crate::bom::{compare, order, order_csv, Bom};
 use crate::calibrate::{
     calibrate_camera, fit_runout, parse_camera_points, parse_runout_samples, taught_csv,
@@ -75,10 +76,16 @@ pub enum Tool {
     Hotspots,
     QueueChangeover,
     ServerMachine,
+    NozzleZ,
+    PanelFids,
+    TapeSteps,
+    ShiftOee,
+    ImportAssembler,
+    BomMerge,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 34] = [
+    pub const ALL: [Tool; 40] = [
         Tool::Backlash,
         Tool::Runout,
         Tool::Camera,
@@ -113,6 +120,12 @@ impl Tool {
         Tool::Hotspots,
         Tool::QueueChangeover,
         Tool::ServerMachine,
+        Tool::NozzleZ,
+        Tool::PanelFids,
+        Tool::TapeSteps,
+        Tool::ShiftOee,
+        Tool::ImportAssembler,
+        Tool::BomMerge,
     ];
 
     /// The name of the tool on the command line of the window (`--tool`) and in the log.
@@ -152,6 +165,12 @@ impl Tool {
             Tool::Hotspots => "hotspots",
             Tool::QueueChangeover => "changeover",
             Tool::ServerMachine => "server",
+            Tool::NozzleZ => "zcal",
+            Tool::PanelFids => "panelfids",
+            Tool::TapeSteps => "tapesteps",
+            Tool::ShiftOee => "shiftoee",
+            Tool::ImportAssembler => "assembler",
+            Tool::BomMerge => "bommerge",
         }
     }
 
@@ -197,6 +216,12 @@ impl Tool {
             Tool::Hotspots => Text::ToolHotspots,
             Tool::QueueChangeover => Text::ToolQueueChangeover,
             Tool::ServerMachine => Text::ToolServerMachine,
+            Tool::NozzleZ => Text::ToolNozzleZ,
+            Tool::PanelFids => Text::ToolPanelFids,
+            Tool::TapeSteps => Text::ToolTapeSteps,
+            Tool::ShiftOee => Text::ToolShiftOee,
+            Tool::ImportAssembler => Text::ToolImportAssembler,
+            Tool::BomMerge => Text::ToolBomMerge,
         }
     }
 
@@ -222,6 +247,9 @@ impl Tool {
                 | Tool::AsideSheet
                 | Tool::JobDiff
                 | Tool::ServerMachine
+                | Tool::NozzleZ
+                | Tool::ImportAssembler
+                | Tool::BomMerge
         )
     }
 
@@ -234,6 +262,7 @@ impl Tool {
                 | Tool::FeederDeplete
                 | Tool::FeederRefill
                 | Tool::JobDiff
+                | Tool::BomMerge
         )
     }
 
@@ -270,6 +299,12 @@ impl Tool {
             Tool::Hotspots => Some("hotspots.csv"),
             Tool::QueueChangeover => Some("queue_changeover.csv"),
             Tool::ServerMachine => Some("server_feeders.csv"),
+            Tool::NozzleZ => Some("nozzle_z.csv"),
+            Tool::PanelFids => Some("panel_marks.csv"),
+            Tool::TapeSteps => Some("tape_steps.csv"),
+            Tool::ShiftOee => Some("shift_oee.csv"),
+            Tool::ImportAssembler => Some("parts_imported.csv"),
+            Tool::BomMerge => Some("bom_merged.csv"),
             _ => None,
         }
     }
@@ -370,6 +405,23 @@ pub struct Toolbox {
     /// The lines of the Server machine panel (what to do on the machine of the EH3D server, one thing for each line) and whether it talks to a server in memory.
     pub server_script: String,
     pub server_sim: bool,
+    /// The probings of the bed for the heights of the nozzles (empty: made up on the simulated machine) and the tolerance of a height (mm).
+    pub zcal_text: String,
+    pub zcal_tol_mm: f64,
+    /// The least distance (mm) between the two farthest marks of a board of the panel.
+    pub panelfids_sep_mm: f64,
+    /// The minutes of a shift and the seconds to change a reel, for the effectiveness of a shift.
+    pub shift_minutes: u32,
+    pub reel_change_s: f64,
+    /// The position file of an assembler and the shape and the unit it is given back in.
+    pub asm_text: String,
+    pub asm_format: asmexport::Format,
+    pub asm_unit: asmexport::Unit,
+    /// The two bills of materials that are added up and the boards of each.
+    pub merge_first: String,
+    pub merge_second: String,
+    pub merge_boards_first: u64,
+    pub merge_boards_second: u64,
     /// The saved state of the job that is under way in the Job tab, for the depletion when no state is given (the window fills it before a run).
     pub job_state: String,
     /// The side the sheet of polarity and the stock are limited to (both when none).
@@ -439,6 +491,18 @@ impl Toolbox {
             nozzles_most: 6,
             server_script: String::new(),
             server_sim: false,
+            zcal_text: String::new(),
+            zcal_tol_mm: cfg.nozzle_z_tol_mm,
+            panelfids_sep_mm: cfg.panel_fid_min_sep_mm,
+            shift_minutes: cfg.shift_minutes,
+            reel_change_s: cfg.reel_change_s,
+            asm_text: String::new(),
+            asm_format: asmexport::Format::Generic,
+            asm_unit: asmexport::Unit::Mm,
+            merge_first: String::new(),
+            merge_second: String::new(),
+            merge_boards_first: 1,
+            merge_boards_second: 1,
             job_state: String::new(),
             polarity_side: None,
             boards: cfg.order_boards,
@@ -455,6 +519,10 @@ impl Toolbox {
     pub fn take_defaults(&mut self, cfg: &MachineConfig) {
         self.boards = cfg.order_boards;
         self.runs_seed = cfg.sim_seed;
+        self.zcal_tol_mm = cfg.nozzle_z_tol_mm;
+        self.panelfids_sep_mm = cfg.panel_fid_min_sep_mm;
+        self.shift_minutes = cfg.shift_minutes;
+        self.reel_change_s = cfg.reel_change_s;
         self.load_values(&ToolValues::from_config(cfg));
         let (file, x_out) = (
             std::mem::take(&mut self.panel.board_file),
@@ -510,6 +578,9 @@ impl Toolbox {
             Tool::AsideSheet => Some(&mut self.aside_state),
             Tool::JobDiff => Some(&mut self.jobdiff_first),
             Tool::ServerMachine => Some(&mut self.server_script),
+            Tool::NozzleZ => Some(&mut self.zcal_text),
+            Tool::ImportAssembler => Some(&mut self.asm_text),
+            Tool::BomMerge => Some(&mut self.merge_first),
             _ => None,
         }
     }
@@ -522,6 +593,7 @@ impl Toolbox {
             Tool::FeederDeplete => Some(&mut self.deplete_state),
             Tool::FeederRefill => Some(&mut self.refill_rows),
             Tool::JobDiff => Some(&mut self.jobdiff_second),
+            Tool::BomMerge => Some(&mut self.merge_second),
             _ => None,
         }
     }
@@ -671,6 +743,31 @@ impl Toolbox {
             Tool::ServerMachine => {
                 toolmore::server_machine_text(ws, &self.server_script, self.server_sim, lang)
             }
+            Tool::NozzleZ => toolmore::nozzle_z_text(ws, &self.zcal_text, self.zcal_tol_mm, lang),
+            Tool::PanelFids => toolmore::panel_fids_text(ws, self.panelfids_sep_mm, lang),
+            Tool::TapeSteps => toolmore::tape_steps_text(ws, lang),
+            Tool::ShiftOee => toolmore::shift_oee_text(
+                ws,
+                self.runs_count,
+                self.runs_seed,
+                self.shift_minutes,
+                self.reel_change_s,
+                lang,
+            ),
+            Tool::ImportAssembler => toolmore::import_assembler_text(
+                &self.asm_text,
+                self.asm_format,
+                self.asm_unit,
+                ws.cfg.max_file_bytes,
+                lang,
+            ),
+            Tool::BomMerge => toolmore::bom_merge_text(
+                &self.merge_first,
+                &self.merge_second,
+                (self.merge_boards_first, self.merge_boards_second),
+                ws.cfg.max_file_bytes,
+                lang,
+            ),
         };
         match result {
             Ok((info, output)) => {

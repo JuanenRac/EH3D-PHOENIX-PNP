@@ -84,6 +84,9 @@ jobs:
       - name: Lints of the window
         run: cargo clippy --all-targets --features gui -- -D warnings
         working-directory: EH3D-PHOENIX-PNP
+      - name: Lints with the search for servers on the network
+        run: cargo clippy --all-targets --features mdns -- -D warnings
+        working-directory: EH3D-PHOENIX-PNP
       - name: Tests
         run: cargo test --all-targets
         working-directory: EH3D-PHOENIX-PNP

@@ -60,7 +60,7 @@ fn out_of(o: &Output) -> String {
 
 #[test]
 fn the_six_tools_have_a_key_a_word_a_file_and_the_texts_they_read() {
-    assert_eq!(Tool::ALL.len(), 34);
+    assert_eq!(Tool::ALL.len(), 40);
     for (tool, key, name, first, second) in [
         (Tool::PartsDiff, "partsdiff", "parts_diff.csv", true, true),
         (

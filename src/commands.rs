@@ -40,6 +40,7 @@ use eh3d_phoenix_pnp::runs;
 use eh3d_phoenix_pnp::runway;
 use eh3d_phoenix_pnp::setup;
 use eh3d_phoenix_pnp::shiftoee;
+use eh3d_phoenix_pnp::shiftplan;
 use eh3d_phoenix_pnp::sim::Rng;
 use eh3d_phoenix_pnp::slots;
 use eh3d_phoenix_pnp::tapesteps;
@@ -123,7 +124,11 @@ pub fn common(args: &mut Vec<String>) -> Result<Common, String> {
         Some(p) => {
             let text = read_text(&p, MAX_CONFIG_BYTES as u64)?;
             inputs.push(p);
-            MachineConfig::parse(&text).map_err(|e| e.localized(early))?
+            let parsed = MachineConfig::parse(&text).map_err(|e| e.localized(early))?;
+            for note in MachineConfig::deprecation_notes(&text) {
+                eprintln!("note: {note}");
+            }
+            parsed
         }
         None => MachineConfig::default(),
     };
@@ -1916,4 +1921,101 @@ pub fn shift_oee(mut args: Vec<String>) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+/// `shift-plan PARTS FEEDERS [--boards N] [--shift MINUTES] [--reel-change SECONDS] [--out F] [OPTIONS] [--partial]`: the shift board by board on the plan: a board takes the time of the
+/// plan and the parts that the plan takes from each feeder, and when a feeder cannot supply the next board its reel is changed for a full one of the same size. It says at which board and
+/// at which minute each change falls, how many boards the shift holds (or `--boards`, if fewer are wanted), how much of the shift the changes take and the boards an hour. The shift is
+/// `shift_minutes` and a change `reel_change_s` of the settings when not given. `--out` writes the changes as a table, never over a file that exists or over a file that was read.
+pub fn shift_plan(mut args: Vec<String>) -> Result<(), String> {
+    let boards = match flag(&mut args, "--boards")? {
+        Some(v) => {
+            let n = num(&v, "--boards")?;
+            if n.fract() != 0.0 || !(1.0..=shiftplan::MAX_BOARDS as f64).contains(&n) {
+                return Err(format!(
+                    "--boards {v} is not a whole number from 1 to {}",
+                    shiftplan::MAX_BOARDS
+                ));
+            }
+            Some(n as u64)
+        }
+        None => None,
+    };
+    let shift = match flag(&mut args, "--shift")? {
+        Some(v) => {
+            let n = num(&v, "--shift")?;
+            if n.fract() != 0.0 || !(30.0..=1440.0).contains(&n) {
+                return Err(format!(
+                    "--shift {v} is not a whole number of minutes from 30 to 1440"
+                ));
+            }
+            Some(n as u32)
+        }
+        None => None,
+    };
+    let reel_change = match flag(&mut args, "--reel-change")? {
+        Some(v) => {
+            let n = num(&v, "--reel-change")?;
+            if !(0.0..=3600.0).contains(&n) {
+                return Err(format!("--reel-change {v} is not from 0 to 3600 seconds"));
+            }
+            Some(n)
+        }
+        None => None,
+    };
+    let out = flag(&mut args, "--out")?;
+    let partial = switch(&mut args, "--partial");
+    let p = prepare(args, 0)?;
+    let lang = p.c.lang;
+    if let Some(o) = &out {
+        refuse_same_file(&p.inputs, o)?;
+        if Path::new(o).exists() {
+            return Err(PnpError::new(Code::ReportExists, o.as_str()).localized(lang));
+        }
+    }
+    let planned = make_plan(&p)?;
+    if has_errors(&planned.checks) && !partial {
+        return Err(PnpError::new(
+            Code::PreflightFailed,
+            "use --partial to go on with only what can be placed",
+        )
+        .localized(lang));
+    }
+    let used: Vec<&str> = planned
+        .plan
+        .plan
+        .placements
+        .iter()
+        .map(|x| x.feeder.as_str())
+        .collect();
+    let reels: Vec<shiftplan::Reel> = runway::runway(&used, &p.feeders)
+        .iter()
+        .filter(|r| r.per_board > 0)
+        .map(|r| shiftplan::Reel {
+            id: r.id.clone(),
+            per_board: r.per_board,
+            left: r.count,
+            size: p
+                .feeders
+                .iter()
+                .find(|f| f.base.id == r.id)
+                .map_or(r.count, |f| f.capacity()),
+        })
+        .collect();
+    let shift_minutes = shift.unwrap_or(p.c.cfg.shift_minutes);
+    let shift_s = f64::from(shift_minutes) * 60.0;
+    let done = shiftplan::plan(&shiftplan::Inputs {
+        board_s: planned.plan.plan.seconds,
+        shift_s,
+        reel_change_s: reel_change.unwrap_or(p.c.cfg.reel_change_s),
+        boards,
+        reels,
+    })
+    .map_err(|e| e.localized(lang))?;
+    print!("{}", done.text(shift_s));
+    if let Some(o) = &out {
+        report::write_new(o, &done.csv()).map_err(|e| e.localized(lang))?;
+        println!("written to {o}");
+    }
+    Ok(())
 }

@@ -106,6 +106,44 @@ fn any_of(chances: &[f64]) -> f64 {
         .fold(1.0, |acc, c| acc * (1.0 - c.clamp(0.0, 1.0)))
 }
 
+/// For one part of the package `package` picked from the feeder `feeder_id`, with `allowed` feed, pick and placement retries: the chance that it ends in error, the retries it is expected
+/// to use and the seconds they take, from the chances of failure of the settings.
+pub fn part_odds(
+    package: &str,
+    feeder_id: &str,
+    allowed: (u32, u32, u32),
+    cfg: &MachineConfig,
+) -> (f64, f64, f64) {
+    let (part_pick, part_place) = cfg
+        .sim_part_fail
+        .iter()
+        .find(|(pattern, _, _)| glob_match(pattern, package))
+        .map_or((0.0, 0.0), |(_, a, b)| (*a, *b));
+    let feeder_pick = cfg
+        .sim_feeder_fail
+        .iter()
+        .find(|(id, _)| id == feeder_id)
+        .map_or(0.0, |(_, c)| *c);
+    let p_feed = cfg.sim_feed_fail_rate;
+    let p_pick = any_of(&[cfg.sim_pick_fail_rate, part_pick, feeder_pick]);
+    let p_place = any_of(&[cfg.sim_place_fail_rate, part_place]);
+    let fail = any_of(&[
+        stage_fail(p_feed, allowed.0),
+        stage_fail(p_pick, allowed.1),
+        stage_fail(p_place, allowed.2),
+    ]);
+    let (rf, rp, rl) = (
+        stage_retries(p_feed, allowed.0),
+        stage_retries(p_pick, allowed.1),
+        stage_retries(p_place, allowed.2),
+    );
+    (
+        fail,
+        rf + rp + rl,
+        rf * cfg.feed_s + rp * cfg.pick_s + rl * cfg.place_s,
+    )
+}
+
 /// One package of the board.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Row {
@@ -160,30 +198,7 @@ pub fn analyse(
             rule.and_then(|r| r.pick).unwrap_or(cfg.pick_retries),
             rule.and_then(|r| r.place).unwrap_or(cfg.place_retries),
         );
-        let (part_pick, part_place) = cfg
-            .sim_part_fail
-            .iter()
-            .find(|(pattern, _, _)| glob_match(pattern, package))
-            .map_or((0.0, 0.0), |(_, a, b)| (*a, *b));
-        let feeder_pick = cfg
-            .sim_feeder_fail
-            .iter()
-            .find(|(id, _)| *id == feeder.base.id)
-            .map_or(0.0, |(_, c)| *c);
-        let p_feed = cfg.sim_feed_fail_rate;
-        let p_pick = any_of(&[cfg.sim_pick_fail_rate, part_pick, feeder_pick]);
-        let p_place = any_of(&[cfg.sim_place_fail_rate, part_place]);
-        let fail = any_of(&[
-            stage_fail(p_feed, allowed.0),
-            stage_fail(p_pick, allowed.1),
-            stage_fail(p_place, allowed.2),
-        ]);
-        let (rf, rp, rl) = (
-            stage_retries(p_feed, allowed.0),
-            stage_retries(p_pick, allowed.1),
-            stage_retries(p_place, allowed.2),
-        );
-        let used = rf + rp + rl;
+        let (fail, used, seconds) = part_odds(package, &feeder.base.id, allowed, cfg);
         if fail >= 1.0 {
             zero = true;
         } else {
@@ -191,7 +206,7 @@ pub fn analyse(
         }
         failed += fail;
         retries += used;
-        retry_s += rf * cfg.feed_s + rp * cfg.pick_s + rl * cfg.place_s;
+        retry_s += seconds;
         let row = by_package
             .entry(package.to_ascii_lowercase())
             .or_insert_with(|| Row {

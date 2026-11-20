@@ -7,6 +7,7 @@ mod cmd_flow;
 mod cmd_more;
 mod cmd_queue;
 mod cmd_server;
+mod cmd_shop;
 mod cmd_tools;
 mod cmd_vis;
 mod commands;
@@ -66,6 +67,18 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp shift-oee PARTS FEEDERS [--runs N] [--seed S] [--shift MINUTES] [--reel-change SECONDS] [--min-oee PERCENT] [--out F] [OPTIONS] [--partial]   the effectiveness of a shift on the simulated machine: availability (less the changes of reels), performance (ideal time against the runs) and quality (runs that placed every part), and the boards that fit; exits with 1 when under PERCENT
   phoenix-pnp import-assembler FILE [--format cpl|kicad-pos|generic] [--unit mm|inch] [--out F] [--config F] [--lang CODE]   reads a position file of an assembler or of another program (Mid X, Center-X(mm), Top, TopLayer, 12.5mm, 490mil) and gives the parts in millimetres in a shape every command reads
   phoenix-pnp bom-merge FILE[:BOARDS]... [--max-rows N] [--out F] [--config F] [--lang CODE]   the bills of materials of several boards added up into one list to buy, each for the number of boards wanted, with the parts that are the same joined and the bill each is for
+  phoenix-pnp job-fingerprint FILE... [--config F] [--lang CODE]   the SHA-256 of each table, read with the line endings and the spaces at the end of a line made alike (the same table saved on Windows and on Linux has the same fingerprint), and one for the set
+  phoenix-pnp serial-sign PARTS FEEDERS --serial S [--lots F] [--prev SIG] [--key-file F] [--out F] [--partial] [--config F] [--lang CODE]   the record of one board by its serial: the fingerprints of its tables, each placed reference with its feeder and lot, and a signature (SHA-256, or HMAC-SHA-256 with the key of a file); --prev chains the records of a run
+  phoenix-pnp serial-verify FILE [--key-file F] [--prev SIG] [--config F] [--lang CODE]   reads a record that serial-sign wrote and says whether it is whole (the shape, the counts and the signature); exits with 1 when it is not
+  phoenix-pnp shift-plan PARTS FEEDERS [--boards N] [--shift MINUTES] [--reel-change SECONDS] [--out F] [OPTIONS] [--partial]   the shift board by board: at which board and which minute a reel has to be changed, how many boards the shift holds, the time the changes take and the boards an hour
+  phoenix-pnp head-split PARTS FEEDERS [--heads N] [--out F] [--config F] [--lang CODE]   a machine with N heads (up to 8) on the same feeders: the board cut into bands against whole feeders to a head, how long each head works and waits, and when the board is done
+  phoenix-pnp footprint-check PARTS [--packages F] [--catalog F] [--out F] [--config F] [--lang CODE]   how each package of the board stands against the table of packages: known, an alias of a row, made from its name, a mistake away from a row, or unknown; exits with 1 when one needs a look
+  phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT] [--out F] [--config F] [--lang CODE]   the rejected parts of a run (reference,reason[,board]) by reason in the order of a Pareto chart, by package, by feeder and by reference; exits with 1 when a reference is rejected on --max-rate per cent of the boards or more
+  phoenix-pnp retry-policy PARTS FEEDERS RULES [--out F] [--config F] [--lang CODE]   the retries that rules on a reference, a value, a package or a feeder give each part (the first that fits wins) and the chance of a good board; exits with 1 when a rule fits no part or never acts
+  phoenix-pnp clearance PARTS --packages F [--catalog F] [--min MM] [--out F] [--config F] [--lang CODE]   the pairs of parts on one side whose bodies are nearer than --min (clearance_min_mm) or overlap; exits with 1 when there is one
+  phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT] [--currency TEXT] [--max-rows N] [--out F] [--config F] [--lang CODE]   what the run costs from a table of prices with price breaks (part_number|value[,package],price[,qty_from]); exits with 1 when a part has no price
+  phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N] [--out F] [--config F] [--lang CODE]   how old the lot in each feeder is, from its date code, against the week given and lot_max_weeks; exits with 1 when a lot is old or has no readable code
+  phoenix-pnp server-discover [--sim] [--config F] [--lang CODE]   looks for servers on the local network (needs server_mdns = on and a build with --features mdns)
   phoenix-pnp server-request PARTS FEEDERS --out DIR [--offset X,Y] [--partial] [--config F] [--lang CODE]   writes the requests that server-send would make, feeders.json and place.json, for other programs
   phoenix-pnp server-send PARTS FEEDERS [--offset X,Y] [--keep-feeders] [--start] [--follow] [--timeout S] [--sim] [--partial] [--dry-run] [--config F] [--lang CODE]   with mode = server, puts the table of feeders on the machine of the EH3D server (unless --keep-feeders), prepares the placements as a job and, with --start or --follow, starts it; --follow reads the job until it is over; --dry-run asks the server to go through the job without taking a part off a feeder; --sim does it all against a server in memory; the parts no feeder holds are told; exits with 1 when the job did not end done
   phoenix-pnp server-status [JOB] [--config F] [--lang CODE]   the machine of the server (its state and the feeders it holds) or, with a job id, how that job goes
@@ -294,6 +307,18 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "panel-fids" => cmd_flow::panel_fids(args),
         "import-assembler" => cmd_flow::import_assembler(args),
         "bom-merge" => cmd_flow::bom_merge(args),
+        "job-fingerprint" => cmd_shop::job_fingerprint(args),
+        "serial-sign" => cmd_shop::serial_sign(args),
+        "serial-verify" => cmd_shop::serial_verify(args),
+        "shift-plan" => commands::shift_plan(args),
+        "head-split" => cmd_shop::head_split(args),
+        "footprint-check" => cmd_shop::footprint_check(args),
+        "reject-report" => cmd_shop::reject_report(args),
+        "retry-policy" => cmd_shop::retry_policy(args),
+        "clearance" => cmd_shop::clearance_check(args),
+        "bom-cost" => cmd_shop::bom_cost(args),
+        "lot-age" => cmd_shop::lot_age(args),
+        "server-discover" => cmd_server::server_discover(args),
         "tape-steps" => commands::tape_steps(args),
         "shift-oee" => commands::shift_oee(args),
         "server-calibrate" => cmd_server::server_calibrate(args),

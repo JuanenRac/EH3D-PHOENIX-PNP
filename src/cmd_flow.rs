@@ -27,7 +27,7 @@ use eh3d_phoenix_pnp::splitjob;
 use eh3d_phoenix_pnp::template;
 
 /// A whole number in a range, from the text of an option.
-fn whole(text: &str, what: &str, lo: f64, hi: f64) -> Result<u64, String> {
+pub(crate) fn whole(text: &str, what: &str, lo: f64, hi: f64) -> Result<u64, String> {
     let n = num(text, what)?;
     if n.fract() != 0.0 || !(lo..=hi).contains(&n) {
         return Err(format!(
@@ -46,7 +46,12 @@ fn pair(text: &str, what: &str) -> Result<(f64, f64), String> {
 }
 
 /// Writes `text` to `out` when it is given, else prints it. A file that exists is never written over, and never one of the inputs.
-fn deliver(text: &str, out: Option<&str>, inputs: &[String], lang: Lang) -> Result<(), String> {
+pub(crate) fn deliver(
+    text: &str,
+    out: Option<&str>,
+    inputs: &[String],
+    lang: Lang,
+) -> Result<(), String> {
     match out {
         Some(o) => {
             refuse_same_file(inputs, o)?;

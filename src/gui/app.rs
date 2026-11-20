@@ -8,6 +8,7 @@ use super::jobtab::JobFilter;
 use super::log::{Level, Log};
 use super::problems::{self, Fix, Problem};
 use super::samples::SampleFile;
+use super::serverui::ServerUi;
 use super::session::Session;
 use super::settings::UiSettings;
 use super::tables::{CellEdit, FeederColumn, PartColumn, PlanColumn, Selection, SortState};
@@ -26,6 +27,7 @@ use crate::job::{Action, Phase};
 use crate::preflight::Severity;
 use crate::report::{self, ReportCheck, ReportInput};
 use crate::toolvalues;
+use eh3d_view::server_panel::Action as ServerAction;
 use std::path::{Path, PathBuf};
 
 /// The tabs of the window.
@@ -167,6 +169,8 @@ pub struct AppState {
     pub new_package: String,
     /// The Tools tab: the forms, the text of each tool and the last result.
     pub tools: Toolbox,
+    /// The server panel of the Machine tab: the settings of the server, the state of the link and the login.
+    pub server: ServerUi,
     /// The paths of the files that were loaded, to keep an output from landing on an input.
     paths: Vec<PathBuf>,
     /// The configuration file that was loaded last, where the values of the forms of the tools are kept.
@@ -204,6 +208,7 @@ impl AppState {
             browser: None,
             new_package: String::new(),
             tools: Toolbox::new(&crate::config::MachineConfig::default()),
+            server: ServerUi::new(&crate::config::MachineConfig::default()),
             paths: Vec::new(),
             config_path: None,
             reported: None,
@@ -252,6 +257,7 @@ impl AppState {
                     self.paths.push(path.clone());
                     if kind == FileKind::Config {
                         self.config_path = Some(path.clone());
+                        self.server.reload(&self.ws.cfg);
                     }
                     self.after_load(kind, &name);
                 }
@@ -1066,6 +1072,25 @@ impl AppState {
                 self.tools.notice = line;
             }
             Err(e) => self.tools.error = e.localized(lang),
+        }
+    }
+
+    /// Does what the server panel asked. When the settings were applied they are in the configuration, and they are kept in the file of settings that was loaded (never the token); with no
+    /// file loaded they are only in the configuration of this session.
+    pub fn server_action(&mut self, action: ServerAction) {
+        let lang = self.ui.lang;
+        let Some(applied) = self.server.handle(action, &mut self.ws.cfg) else {
+            return;
+        };
+        let Some(path) = self.config_path.clone() else {
+            self.log.info(tr(Text::NoConfigToKeep, lang));
+            return;
+        };
+        match toolvalues::keep_lines(&path, &applied.lines) {
+            Ok(()) => self
+                .log
+                .info(format!("{} {}", tr(Text::ValuesKept, lang), path.display())),
+            Err(e) => self.log.error(e),
         }
     }
 

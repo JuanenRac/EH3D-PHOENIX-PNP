@@ -226,6 +226,53 @@ pub fn link_settings(target: &Target) -> Result<sc::Settings, String> {
     Ok(s)
 }
 
+/// A resolver that answers with the servers it was given, for trying the discovery without a network.
+struct Fixed(Vec<String>);
+
+impl sc::Discover for Fixed {
+    fn find(&self, _within: std::time::Duration) -> Vec<String> {
+        self.0.clone()
+    }
+}
+
+#[cfg(feature = "mdns")]
+fn with_resolver(client: sc::Client) -> sc::Client {
+    client.with_mdns()
+}
+
+#[cfg(not(feature = "mdns"))]
+fn with_resolver(client: sc::Client) -> sc::Client {
+    client
+}
+
+/// Whether this build can look for servers on the network (the feature `mdns`).
+pub const HAS_MDNS: bool = cfg!(feature = "mdns");
+
+/// The servers that answer on the local network, as `host:port`. It asks nothing of the network unless `server_mdns` is on in the settings, and a build without the feature `mdns` has no
+/// resolver. With `sim` a resolver in memory answers with one server, so that the rest can be tried without a network.
+pub fn discover(cfg: &MachineConfig, sim: bool) -> Result<Vec<String>, String> {
+    let mut s = sc::Settings::default();
+    let mut set = |key: &str, value: &str| s.set(key, value).map(|_| ()).map_err(|e| e.to_string());
+    set("server_mdns", if cfg.server_mdns { "on" } else { "off" })?;
+    set(
+        "server_timeout_s",
+        &cfg.server_timeout_s.ceil().clamp(1.0, 10.0).to_string(),
+    )?;
+    let client = sc::Client::connect(s);
+    let client = if sim {
+        client.with_discovery(Box::new(Fixed(vec!["192.168.0.180:18200".to_string()])))
+    } else {
+        if cfg.server_mdns && !HAS_MDNS {
+            return Err(
+                "this build has no resolver for the local network: build it with --features mdns"
+                    .into(),
+            );
+        }
+        with_resolver(client)
+    };
+    client.discover().map_err(|e| e.to_string())
+}
+
 /// The link to the server: the common client of the suite behind the [`Transport`] of this program. The token of a program in `server_token` goes with every request; a refusal of the
 /// server comes back as an answer (its status and its code), so the commands say it as they always did, and a failure of the network, after the tries of the client, is an error.
 pub struct ScLink {

@@ -119,13 +119,18 @@ pub fn set_lines(text: &str, lines: &[(&str, String)]) -> String {
 /// The text of a configuration file with the values kept in it. The result is read again as a whole, so a value out of its range, or a file that was not valid, is refused with the
 /// code and the line and nothing is changed.
 pub fn merge(text: &str, values: &ToolValues) -> Result<String, PnpError> {
+    merge_lines(text, &values.lines())
+}
+
+/// The same for any `key = value` lines (the keys of the server that the window keeps): the result is read again as a whole before it is given.
+pub fn merge_lines(text: &str, lines: &[(&str, String)]) -> Result<String, PnpError> {
     if text.len() > MAX_CONFIG_BYTES {
         return Err(PnpError::new(
             Code::FileTooBig,
             format!("the configuration is larger than {MAX_CONFIG_BYTES} bytes"),
         ));
     }
-    let out = set_lines(text, &values.lines());
+    let out = set_lines(text, lines);
     MachineConfig::parse(&out)?;
     Ok(out)
 }
@@ -133,6 +138,11 @@ pub fn merge(text: &str, values: &ToolValues) -> Result<String, PnpError> {
 /// Keeps the values in the configuration file `path`: the file is read, the values merged, and the result written to `PATH.tmp` and moved into place. A file that is not there is not
 /// created (the values go to a file the person loaded).
 pub fn keep(path: &Path, values: &ToolValues) -> Result<(), PnpError> {
+    keep_lines(path, &values.lines())
+}
+
+/// Keeps `key = value` lines in the configuration file `path`, as `keep` does.
+pub fn keep_lines(path: &Path, lines: &[(&str, String)]) -> Result<(), PnpError> {
     let shown = path.display();
     let bytes = std::fs::read(path)
         .map_err(|e| PnpError::new(Code::DriverError, format!("{shown}: {e}")))?;
@@ -145,7 +155,7 @@ pub fn keep(path: &Path, values: &ToolValues) -> Result<(), PnpError> {
     let text = String::from_utf8(bytes)
         .map_err(|_| PnpError::new(Code::DriverError, format!("{shown} is not text in UTF-8")))?;
     let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
-    let merged = merge(text, values)?;
+    let merged = merge_lines(text, lines)?;
     let mut tmp = path.as_os_str().to_os_string();
     tmp.push(".tmp");
     let tmp = std::path::PathBuf::from(tmp);

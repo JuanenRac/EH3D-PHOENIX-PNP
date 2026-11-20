@@ -58,7 +58,7 @@ fn p(path: &Path) -> &str {
 
 #[test]
 fn the_four_tools_have_a_key_a_word_a_file_and_read_no_text() {
-    assert_eq!(Tool::ALL.len(), 34);
+    assert_eq!(Tool::ALL.len(), 40);
     for (tool, key, name) in [
         (Tool::ReelRunway, "runway", "reel_runway.csv"),
         (Tool::NozzleCompare, "nozzles", "nozzle_compare.csv"),
@@ -75,7 +75,7 @@ fn the_four_tools_have_a_key_a_word_a_file_and_read_no_text() {
     let mut keys: Vec<&str> = Tool::ALL.iter().map(|t| t.key()).collect();
     keys.sort_unstable();
     keys.dedup();
-    assert_eq!(keys.len(), 34);
+    assert_eq!(keys.len(), 40);
     let mut files: Vec<&str> = Tool::ALL.iter().filter_map(|t| t.output_name()).collect();
     files.sort_unstable();
     let before = files.len();
@@ -104,7 +104,7 @@ fn the_new_words_are_in_the_eight_languages_and_in_the_language_of_portugal() {
         Text::ServerSimulated,
     ];
     assert_eq!(Text::COUNT, table().len());
-    assert_eq!(Text::ServerSimulated as usize + 1, Text::COUNT);
+    assert_eq!(Text::BomBoardsSecond as usize + 1, Text::COUNT);
     assert_eq!(new[0] as usize, Text::RunsSeed as usize + 1);
     for (i, word) in new.iter().enumerate() {
         assert_eq!(*word as usize, new[0] as usize + i, "{word:?} is in order");

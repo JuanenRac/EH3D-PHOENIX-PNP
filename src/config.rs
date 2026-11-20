@@ -21,7 +21,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 192] = [
+pub const KEYS: [&str; 194] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -214,6 +214,8 @@ pub const KEYS: [&str; 192] = [
     "shift_minutes",
     "reel_change_s",
     "panel_fid_min_sep_mm",
+    "clearance_min_mm",
+    "lot_max_weeks",
 ];
 
 /// The order in which the places are visited.
@@ -653,7 +655,14 @@ pub struct MachineConfig {
     pub reel_change_s: f64,
     /// The least distance (mm) between the two marks of a board that are farthest apart for `panel-fids` to call the board aligned by its own marks (0 to 1000).
     pub panel_fid_min_sep_mm: f64,
+    /// The least space (mm) between the bodies of two parts on the same side for `clearance` to call them apart (0 to 5).
+    pub clearance_min_mm: f64,
+    /// The age (weeks) over which `lot-age` calls the lot of a reel old (1 to 1040).
+    pub lot_max_weeks: u32,
 }
+
+/// The most retries of the link to the server.
+pub const SERVER_RETRIES_MAX: u32 = 5;
 
 /// The most rules of failure by package or by feeder.
 pub const MAX_FAIL_RULES: usize = 1000;
@@ -839,6 +848,8 @@ impl Default for MachineConfig {
             shift_minutes: 480,
             reel_change_s: 60.0,
             panel_fid_min_sep_mm: 10.0,
+            clearance_min_mm: 0.2,
+            lot_max_weeks: 104,
         }
     }
 }
@@ -1019,8 +1030,39 @@ impl MachineConfig {
             }
             cfg.set(&key, value, line)?;
         }
+        // server_attempts is the old name of server_retries (one try more than the retries): it still works, and the retries it asks for win only when server_retries is not written
+        if seen.contains("server_attempts") && !seen.contains("server_retries") {
+            cfg.server_retries = cfg
+                .server_attempts
+                .saturating_sub(1)
+                .min(SERVER_RETRIES_MAX);
+        }
         cfg.validate()?;
         Ok(cfg)
+    }
+
+    /// The notes about keys of a text of settings that still work but have a new name: one line each, to be shown to the person (the settings are read the same).
+    pub fn deprecation_notes(text: &str) -> Vec<String> {
+        let mut notes = Vec::new();
+        let (mut attempts, mut retries) = (false, false);
+        for raw in text.trim_start_matches('\u{feff}').lines() {
+            let t = raw.trim();
+            if t.starts_with('#') {
+                continue;
+            }
+            match t
+                .split_once('=')
+                .map(|(k, _)| k.trim().to_ascii_lowercase())
+            {
+                Some(k) if k == "server_attempts" => attempts = true,
+                Some(k) if k == "server_retries" => retries = true,
+                _ => {}
+            }
+        }
+        if attempts && !retries {
+            notes.push("server_attempts is the old name of server_retries (the retries are one fewer than the attempts); write server_retries instead".to_string());
+        }
+        notes
     }
 
     fn set(&mut self, key: &str, v: &str, line: usize) -> Result<(), PnpError> {
@@ -1459,13 +1501,17 @@ impl MachineConfig {
             "server_timeout_s" => self.server_timeout_s = n(0.5, 120.0)?,
             "server_poll_ms" => self.server_poll_ms = int(line, key, v, 50, 60_000)? as u32,
             "server_attempts" => self.server_attempts = int(line, key, v, 1, 10)? as u32,
-            "server_retries" => self.server_retries = int(line, key, v, 0, 5)? as u32,
+            "server_retries" => {
+                self.server_retries = int(line, key, v, 0, i64::from(SERVER_RETRIES_MAX))? as u32
+            }
             "server_mdns" => self.server_mdns = flag(line, key, v)?,
             "nozzle_z_tol_mm" => self.nozzle_z_tol_mm = n(0.001, 1.0)?,
             "tape_pitch_tol_mm" => self.tape_pitch_tol_mm = n(0.0, 2.0)?,
             "shift_minutes" => self.shift_minutes = int(line, key, v, 30, 1440)? as u32,
             "reel_change_s" => self.reel_change_s = n(0.0, 3600.0)?,
             "panel_fid_min_sep_mm" => self.panel_fid_min_sep_mm = n(0.0, 1000.0)?,
+            "clearance_min_mm" => self.clearance_min_mm = n(0.0, 5.0)?,
+            "lot_max_weeks" => self.lot_max_weeks = int(line, key, v, 1, 1040)? as u32,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

@@ -2274,6 +2274,17 @@ impl PnpApp {
                     ui.end_row();
                 }
             });
+        ui.separator();
+        self.server_panel(ui);
+    }
+
+    /// The settings of the EH3D server, the state of the link and the login: the panel of `eh3d-view`, with its own words.
+    fn server_panel(&mut self, ui: &mut egui::Ui) {
+        let lang = super::serverui::view_lang(self.s.lang());
+        self.s.server.refresh();
+        if let Some(action) = eh3d_view::server_gui::show(ui, &mut self.s.server.panel, lang) {
+            self.s.server_action(action);
+        }
     }
 
     fn tools_tab(&mut self, ui: &mut egui::Ui) {
@@ -2399,6 +2410,28 @@ impl PnpApp {
                 );
                 self.tool_io(ui, Some(Text::HintServerMachine));
             }
+            Tool::NozzleZ => {
+                self.tool_zcal_form(ui);
+                self.tool_io(ui, Some(Text::HintNozzleZ));
+            }
+            Tool::PanelFids => {
+                self.tool_panelfids_form(ui);
+                self.tool_io(ui, Some(Text::HintPanelFids));
+            }
+            Tool::TapeSteps => self.tool_io(ui, Some(Text::HintTapeSteps)),
+            Tool::ShiftOee => {
+                self.tool_runs_form(ui);
+                self.tool_shift_form(ui);
+                self.tool_io(ui, Some(Text::HintShiftOee));
+            }
+            Tool::ImportAssembler => {
+                self.tool_assembler_form(ui);
+                self.tool_io(ui, Some(Text::HintImportAssembler));
+            }
+            Tool::BomMerge => {
+                self.tool_merge_form(ui);
+                self.tool_io(ui, Some(Text::HintBomMerge));
+            }
         }
     }
 
@@ -2415,6 +2448,102 @@ impl PnpApp {
             ui.label(tr(Text::RunwayBoards, lang));
             ui.add(egui::DragValue::new(&mut self.s.tools.runway_boards).range(1..=1_000_000_000));
         });
+        ui.separator();
+    }
+
+    fn tool_zcal_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        ui.horizontal(|ui| {
+            ui.label(tr(Text::NozzleZTolerance, lang));
+            ui.add(
+                egui::DragValue::new(&mut self.s.tools.zcal_tol_mm)
+                    .range(0.001..=1.0)
+                    .speed(0.001),
+            );
+        });
+        ui.separator();
+    }
+
+    fn tool_panelfids_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        ui.horizontal(|ui| {
+            ui.label(tr(Text::PanelFidsMinSep, lang));
+            ui.add(
+                egui::DragValue::new(&mut self.s.tools.panelfids_sep_mm)
+                    .range(0.0..=1000.0)
+                    .speed(0.5),
+            );
+        });
+        ui.separator();
+    }
+
+    fn tool_shift_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        let t = &mut self.s.tools;
+        egui::Grid::new("tool_shift_form")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                ui.label(tr(Text::ShiftMinutes, lang));
+                ui.add(egui::DragValue::new(&mut t.shift_minutes).range(30..=1440));
+                ui.end_row();
+                ui.label(tr(Text::ReelChangeSeconds, lang));
+                ui.add(
+                    egui::DragValue::new(&mut t.reel_change_s)
+                        .range(0.0..=3600.0)
+                        .speed(1.0),
+                );
+                ui.end_row();
+            });
+        ui.separator();
+    }
+
+    fn tool_assembler_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        let t = &mut self.s.tools;
+        egui::Grid::new("tool_assembler_form")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                ui.label(tr(Text::AsmShape, lang));
+                egui::ComboBox::from_id_salt("asm_format")
+                    .selected_text(t.asm_format.name())
+                    .show_ui(ui, |ui| {
+                        for f in crate::asmexport::Format::ALL {
+                            ui.selectable_value(&mut t.asm_format, f, f.name());
+                        }
+                    });
+                ui.end_row();
+                ui.label(tr(Text::AsmUnit, lang));
+                egui::ComboBox::from_id_salt("asm_unit")
+                    .selected_text(if t.asm_unit == crate::asmexport::Unit::Mm {
+                        "mm"
+                    } else {
+                        "inch"
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut t.asm_unit, crate::asmexport::Unit::Mm, "mm");
+                        ui.selectable_value(&mut t.asm_unit, crate::asmexport::Unit::Inch, "inch");
+                    });
+                ui.end_row();
+            });
+        ui.separator();
+    }
+
+    fn tool_merge_form(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        let t = &mut self.s.tools;
+        egui::Grid::new("tool_merge_form")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                ui.label(tr(Text::BomBoardsFirst, lang));
+                ui.add(egui::DragValue::new(&mut t.merge_boards_first).range(1..=1_000_000));
+                ui.end_row();
+                ui.label(tr(Text::BomBoardsSecond, lang));
+                ui.add(egui::DragValue::new(&mut t.merge_boards_second).range(1..=1_000_000));
+                ui.end_row();
+            });
         ui.separator();
     }
 

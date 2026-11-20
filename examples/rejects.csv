@@ -1,0 +1,6 @@
+reference,reason,board
+R1,tombstone,0001
+R2,tombstone,0002
+C1,skewed,0002
+R1,tombstone,0003
+U1,not picked,0003

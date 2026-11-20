@@ -42,8 +42,14 @@ pub fn language_and_config(args: &mut Vec<String>) -> Result<(Lang, MachineConfi
     };
     let early = lang_option.unwrap_or(Lang::En);
     let cfg = match flag(args, "--config")? {
-        Some(p) => MachineConfig::parse(&read_text(&p, MAX_CONFIG_BYTES as u64)?)
-            .map_err(|e| e.localized(early))?,
+        Some(p) => {
+            let text = read_text(&p, MAX_CONFIG_BYTES as u64)?;
+            let parsed = MachineConfig::parse(&text).map_err(|e| e.localized(early))?;
+            for note in MachineConfig::deprecation_notes(&text) {
+                eprintln!("note: {note}");
+            }
+            parsed
+        }
         None => MachineConfig::default(),
     };
     Ok((lang_option.unwrap_or(cfg.language), cfg))

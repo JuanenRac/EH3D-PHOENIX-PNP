@@ -5,14 +5,16 @@
 //! same refusals and the same codes of error. Nothing here moves a machine and nothing is written: the tab writes the result to the output folder, never over a file that exists.
 
 use super::workspace::{read_file, Workspace};
+use crate::bom::Bom;
 use crate::config::MAX_CONFIG_BYTES;
 use crate::error::{Code, Lang, PnpError};
 use crate::parts::{parse_all, Part};
 use crate::preflight::has_errors;
 use crate::server::{self, calibrate_request, dry_run, feeder_rows, placements, Calibrate};
 use crate::{
-    asidesheet, boardstats, changeover, configdiff, deplete, exchange, feeding, hotspots, job,
-    jobdiff, journal, nozzles, partsdiff, queuestock, refill, runs, runway, slots,
+    asidesheet, asmexport, asmimport, boardstats, bommerge, changeover, configdiff, deplete,
+    exchange, feeding, hotspots, job, jobdiff, journal, nozzles, nozzlez, panelfids, partsdiff,
+    queuestock, refill, runs, runway, shiftoee, slots, tapesteps,
 };
 use std::path::Path;
 
@@ -523,4 +525,193 @@ pub fn server_machine_text(
         None => r.feeders_table()?,
     };
     Ok((shown(&format!("{said}{}", table.text())), table.csv()))
+}
+
+/// The heights of the nozzle tips from the probings of the bed that were typed (`nozzle,z_mm`, one per line) as `nozzle-zcal` says them: the first lines of the report and the table as a CSV.
+/// When nothing was typed the probings are made up on the simulated machine (the nozzles and the seed of the settings), and the line that says so closes the report.
+pub fn nozzle_z_text(
+    ws: &Workspace,
+    text: &str,
+    tol_mm: f64,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    sized("the probings", text, ws.cfg.max_file_bytes)?;
+    let (readings, truth) = if text.trim().is_empty() {
+        let plan = nozzlez::Plan {
+            nozzles: ws.cfg.nozzles.max(1),
+            seed: ws.cfg.sim_seed,
+            ..nozzlez::Plan::default()
+        };
+        let made = nozzlez::simulate(&plan).map_err(|e| e.localized(lang))?;
+        (made.readings, Some((made.truth, plan)))
+    } else {
+        (
+            nozzlez::parse_readings(text).map_err(|e| e.localized(lang))?,
+            None,
+        )
+    };
+    let report = nozzlez::analyse(&readings, tol_mm).map_err(|e| e.localized(lang))?;
+    let mut info = report.text();
+    if let Some((truth, plan)) = &truth {
+        info.push_str(&format!(
+            "simulated probings of {} nozzles, {} each (seed {}): the offsets are {:.4} mm from the heights that were made up; no machine was touched\n",
+            plan.nozzles,
+            plan.probes,
+            plan.seed,
+            nozzlez::error_against(&report, truth)
+        ));
+    }
+    Ok((shown(&info), report.csv()))
+}
+
+/// The marks of every board of the loaded panel, as `panel-fids` says them: the parts of the panel are the ones of its boards put in their places (the boards marked as bad are left out), and
+/// the marks are the parts of them that are fiducials. The first lines of the report and the table as a CSV.
+pub fn panel_fids_text(
+    ws: &Workspace,
+    min_sep_mm: f64,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    let panel = ws.panel.as_ref().ok_or("(load a panel)")?;
+    if ws.parts.is_empty() {
+        return Err("(load a panel)".to_string());
+    }
+    if !(0.0..=1000.0).contains(&min_sep_mm) {
+        return Err(format!("{min_sep_mm} is not from 0 to 1000 mm"));
+    }
+    // the boards marked as bad are in the panel itself: walking it without the parts of its boards finds them
+    let left_out = panel
+        .expand_with(&|_: &str| Ok(Vec::new()), &[])
+        .map(|e| e.x_out)
+        .map_err(|e| e.localized(lang))?;
+    let report = panelfids::analyse(
+        &ws.parts,
+        &left_out,
+        &ws.cfg.fiducial_words,
+        &ws.cfg.fiducial_refs,
+        min_sep_mm,
+    );
+    Ok((shown(&report.text()), report.csv()))
+}
+
+/// The tapes of the loaded feeders at every step of the plan, as `tape-steps` says it: the first lines of the report and the table of all the steps as a CSV. A plan with errors is not read.
+pub fn tape_steps_text(ws: &Workspace, lang: Lang) -> Result<(String, String), String> {
+    if !ws.can_plan() {
+        return Err("(load a table of parts and a table of feeders)".to_string());
+    }
+    let planned = ws.make_plan().map_err(|e| e.localized(lang))?;
+    if has_errors(&planned.checks) {
+        return Err(PnpError::new(Code::PreflightFailed, "see the Problems tab").localized(lang));
+    }
+    let cfg = &ws.cfg;
+    let limits = tapesteps::Limits {
+        x_min: cfg.limit_x_min_mm,
+        x_max: cfg.limit_x_max_mm,
+        y_min: cfg.limit_y_min_mm,
+        y_max: cfg.limit_y_max_mm,
+        pitch_tol_mm: cfg.tape_pitch_tol_mm,
+    };
+    let placed: Vec<(&str, &str, (f64, f64))> = planned
+        .plan
+        .plan
+        .placements
+        .iter()
+        .map(|x| (x.reference.as_str(), x.feeder.as_str(), x.pick))
+        .collect();
+    let steps = tapesteps::walk(&placed, &ws.feeders, &limits);
+    Ok((shown(&tapesteps::text(&steps)), tapesteps::csv(&steps)))
+}
+
+/// The effectiveness of a shift of the loaded plan on the simulated machine, as `shift-oee` says it: the report and the figures as a CSV. A plan with errors is not read.
+pub fn shift_oee_text(
+    ws: &Workspace,
+    runs_count: usize,
+    seed: u64,
+    shift_minutes: u32,
+    reel_change_s: f64,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    if !ws.can_plan() {
+        return Err("(load a table of parts and a table of feeders)".to_string());
+    }
+    let planned = ws.make_plan().map_err(|e| e.localized(lang))?;
+    if has_errors(&planned.checks) {
+        return Err(PnpError::new(Code::PreflightFailed, "see the Problems tab").localized(lang));
+    }
+    let l = move |e: PnpError| e.localized(lang);
+    let found = runs::run_many(&planned.plan, &ws.feeders, &ws.cfg, runs_count, seed).map_err(l)?;
+    let used: Vec<&str> = planned
+        .plan
+        .plan
+        .placements
+        .iter()
+        .map(|x| x.feeder.as_str())
+        .collect();
+    let reels: Vec<(u32, u32)> = runway::runway(&used, &ws.feeders)
+        .iter()
+        .filter(|r| r.per_board > 0)
+        .map(|r| (r.per_board, r.count))
+        .collect();
+    let oee = shiftoee::compute(&shiftoee::Inputs {
+        ideal_s: planned.plan.plan.seconds,
+        runs: found,
+        reels,
+        shift_s: f64::from(shift_minutes) * 60.0,
+        reel_change_s,
+    })
+    .map_err(l)?;
+    Ok((shown(&oee.text(shift_minutes)), oee.csv()))
+}
+
+/// A position file of an assembler (or of another program) read into parts in millimetres and written in the shape and the unit asked for, as `import-assembler` does. The line that says how
+/// many parts were read and the shape that was found, and the table.
+pub fn import_assembler_text(
+    text: &str,
+    format: asmexport::Format,
+    unit: asmexport::Unit,
+    max_bytes: u64,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    sized("the position file", text, max_bytes)?;
+    let found = asmimport::parse(text).map_err(|e| e.localized(lang))?;
+    let out = asmexport::write(&found.parts, format, unit, asmexport::Sides::All);
+    Ok((
+        format!(
+            "{} parts read (shape of the file: {})",
+            found.parts.len(),
+            found.dialect
+        ),
+        out,
+    ))
+}
+
+/// Two bills of materials added up into one list to buy, each for its number of boards, as `bom-merge` does; a bill that was left empty is not part of it. The first lines of the report and
+/// the list as a CSV.
+pub fn bom_merge_text(
+    first: &str,
+    second: &str,
+    boards: (u64, u64),
+    max_bytes: u64,
+    lang: Lang,
+) -> Result<(String, String), String> {
+    let mut inputs = Vec::new();
+    for (name, text, n) in [("first", first, boards.0), ("second", second, boards.1)] {
+        if text.trim().is_empty() {
+            continue;
+        }
+        sized("the bill of materials", text, max_bytes)?;
+        let bom = Bom::parse(text, 100_000).map_err(|e| e.localized(lang))?;
+        inputs.push(bommerge::Input {
+            name: name.to_string(),
+            boards: n,
+            bom,
+        });
+    }
+    if inputs.is_empty() {
+        return Err("(type or open at least one bill of materials)".to_string());
+    }
+    let lines = bommerge::merge(&inputs).map_err(|e| e.localized(lang))?;
+    Ok((
+        shown(&bommerge::text(&lines, &inputs)),
+        bommerge::csv(&lines),
+    ))
 }

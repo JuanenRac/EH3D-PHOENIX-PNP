@@ -11,6 +11,7 @@ pub mod log;
 pub mod problems;
 pub mod queuetab;
 pub mod samples;
+pub mod serverui;
 pub mod session;
 pub mod settings;
 pub mod shot;

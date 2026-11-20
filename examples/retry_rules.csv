@@ -1,0 +1,4 @@
+field,pattern,feed_retries,pick_retries,place_retries
+reference,U*,,5,3
+package,LED_*,0,,0
+value,10k,,3,
