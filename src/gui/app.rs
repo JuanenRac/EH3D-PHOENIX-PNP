@@ -4,6 +4,7 @@
 //! outputs. The window calls these and shows the result, so all of it can be tested without a screen.
 
 use super::browse::{self, Browser, Purpose};
+use super::cmdpanel::CommandBox;
 use super::jobtab::JobFilter;
 use super::log::{Level, Log};
 use super::problems::{self, Fix, Problem};
@@ -171,6 +172,10 @@ pub struct AppState {
     pub tools: Toolbox,
     /// The server panel of the Machine tab: the settings of the server, the state of the link and the login.
     pub server: ServerUi,
+    /// The panels of the driver and the assistants: the arguments typed and what each command printed.
+    pub commands: CommandBox,
+    /// The files loaded since the window last took them, for the list of recent files of the File menu.
+    pub recent_opened: Vec<PathBuf>,
     /// The paths of the files that were loaded, to keep an output from landing on an input.
     paths: Vec<PathBuf>,
     /// The configuration file that was loaded last, where the values of the forms of the tools are kept.
@@ -209,6 +214,8 @@ impl AppState {
             new_package: String::new(),
             tools: Toolbox::new(&crate::config::MachineConfig::default()),
             server: ServerUi::new(&crate::config::MachineConfig::default()),
+            commands: CommandBox::default(),
+            recent_opened: Vec::new(),
             paths: Vec::new(),
             config_path: None,
             reported: None,
@@ -255,6 +262,9 @@ impl AppState {
                 Ok(kind) => {
                     loaded += 1;
                     self.paths.push(path.clone());
+                    if self.recent_opened.len() < 64 {
+                        self.recent_opened.push(path.clone());
+                    }
                     if kind == FileKind::Config {
                         self.config_path = Some(path.clone());
                         self.server.reload(&self.ws.cfg);

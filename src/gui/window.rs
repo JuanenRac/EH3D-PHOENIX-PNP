@@ -5,10 +5,13 @@
 
 use super::app::{fid_buffer, AppState, Tab};
 use super::browse::{self, Purpose};
+use super::cmdpanel::{self, Command};
+use super::docking::{self, Cmd, MenuFacts, SampleKind};
 use super::jobtab::{self, PlaceState};
 use super::log::diagnostics;
 use super::problems::Fix;
 use super::samples;
+use super::serverui::view_lang;
 use super::session::Next;
 use super::settings::{self, UiSettings};
 use super::shot::{self, ShotRequest, PATIENCE_FRAMES};
@@ -34,8 +37,13 @@ use eframe::egui::{
     self, Align2, Color32, FontData, FontDefinitions, FontFamily, FontId, Pos2, Rect, RichText,
     Sense, Stroke, StrokeKind, Vec2,
 };
+use eh3d_dock::gui::Dock;
+use eh3d_dock::menu::{Chosen, DockAction, MenuBar, StdAction};
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 const ORDERS: [OrderStrategy; 6] = [
     OrderStrategy::Nearest,
@@ -267,12 +275,39 @@ fn tab_for(step: Step) -> Tab {
     }
 }
 
+/// The tools of the camera panel (the Tools panel lists the others).
+const CAMERA_TOOLS: [Tool; 3] = [Tool::Camera, Tool::CameraPattern, Tool::CameraCombined];
+
+/// The tool that is open in a panel and what it made, kept apart for the panel that does not own `tools.tool`.
+struct ToolSlot {
+    tool: Tool,
+    info: String,
+    output: String,
+    error: String,
+    notice: String,
+    made_by: Option<Tool>,
+}
+
+impl ToolSlot {
+    fn swap_with(&mut self, tools: &mut toolbox::Toolbox) {
+        std::mem::swap(&mut self.tool, &mut tools.tool);
+        std::mem::swap(&mut self.info, &mut tools.info);
+        std::mem::swap(&mut self.output, &mut tools.output);
+        std::mem::swap(&mut self.error, &mut tools.error);
+        std::mem::swap(&mut self.notice, &mut tools.notice);
+        std::mem::swap(&mut self.made_by, &mut tools.made_by);
+    }
+}
+
+/// What the panels draw from: the state of the window and the few things only the drawing keeps.
 pub struct PnpApp {
     s: AppState,
     visuals_for: Option<ThemeId>,
     saved: UiSettings,
     /// The picture mode, while the window is there only to be photographed.
     shot: Option<ShotState>,
+    /// The tool and the result of the camera panel.
+    camera_slot: ToolSlot,
 }
 
 impl PnpApp {
@@ -287,6 +322,14 @@ impl PnpApp {
             visuals_for: None,
             saved,
             shot: None,
+            camera_slot: ToolSlot {
+                tool: Tool::Camera,
+                info: String::new(),
+                output: String::new(),
+                error: String::new(),
+                notice: String::new(),
+                made_by: None,
+            },
         }
     }
 
@@ -301,20 +344,6 @@ impl PnpApp {
                         .color(col(pal.accent)),
                 );
                 ui.separator();
-                ui.menu_button(tr(Text::Sample, lang), |ui| {
-                    if ui.button(tr(Text::SampleMini, lang)).clicked() {
-                        self.s.load_sample(&samples::mini());
-                        ui.close();
-                    }
-                    if ui.button(tr(Text::SampleFiles, lang)).clicked() {
-                        self.s.load_sample(&samples::examples());
-                        ui.close();
-                    }
-                    if ui.button(tr(Text::SampleLarge, lang)).clicked() {
-                        self.s.load_sample(&samples::large(400));
-                        ui.close();
-                    }
-                });
                 let can_plan = self.s.ws.can_plan();
                 if ui
                     .add_enabled(can_plan, egui::Button::new(tr(Text::Plan, lang)))
@@ -483,16 +512,26 @@ impl PnpApp {
                 if let Some(e) = self.s.session.last_error() {
                     ui.label(RichText::new(e.localized(lang)).color(col(pal.danger)));
                 }
+                if !self.s.problems.is_empty() {
+                    ui.label(
+                        RichText::new(format!(
+                            "{}: {}",
+                            tr(Text::TabProblems, lang),
+                            self.s.problems.len()
+                        ))
+                        .color(col(pal.warn)),
+                    );
+                }
             });
         });
     }
 
-    fn side_panel(&mut self, ui: &mut egui::Ui) {
+    fn guide_panel(&mut self, ui: &mut egui::Ui) {
         let pal = self.s.ui.theme.palette();
         let lang = self.s.lang();
-        egui::Panel::left("side")
-            .default_size(270.0)
-            .resizable(true)
+        egui::ScrollArea::vertical()
+            .id_salt("guide_scroll")
+            .auto_shrink([false, false])
             .show(ui, |ui| {
                 ui.add_space(4.0);
                 if self.s.wizard.open {
@@ -551,35 +590,164 @@ impl PnpApp {
             });
     }
 
-    fn center(&mut self, ui: &mut egui::Ui) {
-        let lang = self.s.lang();
-        egui::CentralPanel::default().show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                for tab in Tab::ALL {
-                    let mut label = tr(tab.text(), lang).to_string();
-                    if tab == Tab::Problems && !self.s.problems.is_empty() {
-                        label = format!("{label} ({})", self.s.problems.len());
-                    }
-                    if ui.selectable_label(self.s.tab == tab, label).clicked() {
-                        self.s.tab = tab;
-                    }
+    /// Draws the inside of the panel `id` of the frame.
+    fn panel(&mut self, id: &str, ui: &mut egui::Ui) {
+        match id {
+            docking::BOARD_VIEW => self.board_view_panel(ui),
+            docking::JOB => self.job_tab(ui),
+            docking::PARTS => self.parts_tab(ui),
+            docking::FEEDERS => self.feeders_tab(ui),
+            docking::PACKAGES => self.packages_tab(ui),
+            docking::PANELS => self.panels_tab(ui),
+            docking::BOARDS => self.boards_tab(ui),
+            docking::LOAD_SHEET => self.load_sheet_tab(ui),
+            docking::TOOLS => self.tools_tab(ui),
+            docking::PROBLEMS => self.problems_tab(ui),
+            docking::CONSOLE => self.log_tab(ui),
+            docking::GUIDE => self.guide_panel(ui),
+            docking::CAMERA => self.camera_panel(ui),
+            docking::MACHINE => {
+                egui::ScrollArea::vertical()
+                    .id_salt("machine_scroll")
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| self.machine_tab(ui));
+            }
+            other => {
+                if let Some(command) = Command::from_panel(other) {
+                    self.command_panel(command, ui);
                 }
-            });
-            ui.separator();
-            match self.s.tab {
-                Tab::Job => self.job_tab(ui),
-                Tab::Parts => self.parts_tab(ui),
-                Tab::Packages => self.packages_tab(ui),
-                Tab::Feeders => self.feeders_tab(ui),
-                Tab::Panels => self.panels_tab(ui),
-                Tab::Boards => self.boards_tab(ui),
-                Tab::LoadSheet => self.load_sheet_tab(ui),
-                Tab::Machine => self.machine_tab(ui),
-                Tab::Tools => self.tools_tab(ui),
-                Tab::Problems => self.problems_tab(ui),
-                Tab::Log => self.log_tab(ui),
+            }
+        }
+    }
+
+    /// The map of the work table with its layers.
+    fn board_view_panel(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        ui.horizontal_wrapped(|ui| {
+            ui.checkbox(&mut self.s.ui.layers.parts, tr(Text::LayerParts, lang));
+            ui.checkbox(&mut self.s.ui.layers.feeders, tr(Text::LayerFeeders, lang));
+            ui.checkbox(&mut self.s.ui.layers.path, tr(Text::LayerPath, lang));
+            ui.checkbox(
+                &mut self.s.ui.layers.polarity,
+                tr(Text::LayerPolarity, lang),
+            );
+            let moved = !self.s.view.is_default();
+            if ui
+                .add_enabled(moved, egui::Button::new(tr(Text::FitView, lang)))
+                .clicked()
+            {
+                self.s.view.reset();
             }
         });
+        let map_h = ui.available_height().max(120.0);
+        self.paint_map(ui, map_h);
+    }
+
+    /// The calibrations of the camera, with the tool and the result of their own.
+    fn camera_panel(&mut self, ui: &mut egui::Ui) {
+        let lang = self.s.lang();
+        self.camera_slot.swap_with(&mut self.s.tools);
+        ui.horizontal_wrapped(|ui| {
+            for tool in CAMERA_TOOLS {
+                if ui
+                    .selectable_label(self.s.tools.tool == tool, tr(tool.text(), lang))
+                    .clicked()
+                    && self.s.tools.tool != tool
+                {
+                    self.s.tools.tool = tool;
+                    self.s.tools.clear_result();
+                }
+            }
+        });
+        ui.separator();
+        let hint = match self.s.tools.tool {
+            Tool::CameraPattern => Text::HintCameraPattern,
+            Tool::CameraCombined => Text::HintCameraCombined,
+            _ => Text::HintCamera,
+        };
+        self.tool_io(ui, Some(hint));
+        self.camera_slot.swap_with(&mut self.s.tools);
+    }
+
+    /// The panel of one command: the arguments, a button that runs the command-line program and what it printed.
+    fn command_panel(&mut self, command: Command, ui: &mut egui::Ui) {
+        let pal = self.s.ui.theme.palette();
+        let lang = self.s.lang();
+        let limit = Duration::from_secs(u64::from(self.s.ui.command_timeout_s));
+        let program = cmdpanel::program_beside(std::env::current_exe().ok().as_deref());
+        ui.label(RichText::new(tr(command.hint(), lang)).color(col(pal.dim)));
+        if matches!(
+            command,
+            Command::DriverCheck
+                | Command::DriverTest
+                | Command::DriverRun
+                | Command::SafetyReplay
+                | Command::HomingRepeat
+                | Command::Bringup
+        ) {
+            ui.label(RichText::new(tr(Text::CmdSimulatedOnly, lang)).color(col(pal.dim)));
+        }
+        ui.horizontal_wrapped(|ui| {
+            ui.label(RichText::new(tr(Text::CmdArguments, lang)).strong());
+            ui.label(RichText::new(command.usage()).monospace());
+        });
+        let Some(panel) = self.s.commands.panel_mut(command) else {
+            return;
+        };
+        ui.add(
+            egui::TextEdit::singleline(&mut panel.args)
+                .font(egui::TextStyle::Monospace)
+                .desired_width(f32::INFINITY),
+        );
+        ui.horizontal(|ui| {
+            let running = panel.is_running();
+            if ui
+                .add_enabled(!running, egui::Button::new(tr(Text::CmdRun, lang)))
+                .clicked()
+            {
+                panel.start(program.clone(), lang, limit);
+            }
+            if running {
+                ui.spinner();
+                ui.label(tr(Text::CmdRunning, lang));
+            }
+        });
+        if let Some(e) = &panel.refused {
+            ui.label(
+                RichText::new(format!(
+                    "{} {}",
+                    tr(Text::CmdBadArguments, lang),
+                    e.describe()
+                ))
+                .color(col(pal.danger)),
+            );
+        }
+        if let Some(out) = &panel.last {
+            if let Some(why) = &out.failed_to_start {
+                ui.label(RichText::new(tr(Text::CmdNoProgram, lang)).color(col(pal.danger)));
+                ui.label(RichText::new(why).monospace().color(col(pal.dim)));
+            } else if out.timed_out {
+                ui.label(RichText::new(tr(Text::CmdTimedOut, lang)).color(col(pal.warn)));
+            } else if let Some(code) = out.code {
+                let colour = if code == 0 {
+                    col(pal.ok)
+                } else {
+                    col(pal.danger)
+                };
+                ui.label(
+                    RichText::new(format!("{} {code}", tr(Text::CmdFinished, lang)))
+                        .strong()
+                        .color(colour),
+                );
+            }
+            ui.label(RichText::new(tr(Text::CmdOutput, lang)).strong());
+            egui::ScrollArea::vertical()
+                .id_salt(("command_output", command.panel_id()))
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    ui.label(RichText::new(&out.text).monospace());
+                });
+        }
     }
 
     fn job_tab(&mut self, ui: &mut egui::Ui) {
@@ -605,24 +773,6 @@ impl PnpApp {
                 ui.label(RichText::new(tr(Text::NoPlan, lang)).color(col(pal.dim)));
             }
         }
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.s.ui.layers.parts, tr(Text::LayerParts, lang));
-            ui.checkbox(&mut self.s.ui.layers.feeders, tr(Text::LayerFeeders, lang));
-            ui.checkbox(&mut self.s.ui.layers.path, tr(Text::LayerPath, lang));
-            ui.checkbox(
-                &mut self.s.ui.layers.polarity,
-                tr(Text::LayerPolarity, lang),
-            );
-            let moved = !self.s.view.is_default();
-            if ui
-                .add_enabled(moved, egui::Button::new(tr(Text::FitView, lang)))
-                .clicked()
-            {
-                self.s.view.reset();
-            }
-        });
-        let map_h = (ui.available_height() * 0.55).max(180.0);
-        self.paint_map(ui, map_h);
         ui.separator();
         let side = self.s.ws.options.side;
         let mut rows = match self.s.planned.as_ref() {
@@ -2290,7 +2440,7 @@ impl PnpApp {
     fn tools_tab(&mut self, ui: &mut egui::Ui) {
         let lang = self.s.lang();
         ui.horizontal_wrapped(|ui| {
-            for tool in Tool::ALL {
+            for tool in Tool::ALL.into_iter().filter(|t| !CAMERA_TOOLS.contains(t)) {
                 if ui
                     .selectable_label(self.s.tools.tool == tool, tr(tool.text(), lang))
                     .clicked()
@@ -3147,12 +3297,12 @@ impl PnpApp {
     }
 }
 
-impl eframe::App for PnpApp {
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        let ctx = ui.ctx().clone();
+impl PnpApp {
+    /// What happens at the start of every frame: the colours, the files dropped on the window, the simulated job going on, the queue and the commands that finish.
+    fn begin_frame(&mut self, ctx: &egui::Context) {
         let theme = self.s.ui.theme;
         if self.visuals_for != Some(theme) {
-            apply_visuals(&ctx, &theme.palette());
+            apply_visuals(ctx, &theme.palette());
             self.visuals_for = Some(theme);
         }
         let dropped: Vec<PathBuf> = ctx.input(|i| {
@@ -3174,24 +3324,202 @@ impl eframe::App for PnpApp {
         if self.s.queue_poll() {
             ctx.request_repaint_after(std::time::Duration::from_millis(250));
         }
-        self.top_bar(ui);
-        self.path_bar(ui);
-        self.status_bar(ui);
-        self.side_panel(ui);
-        self.center(ui);
-        self.browser_window(&ctx);
-        self.error_window(&ctx);
+        if self.s.commands.any_running() {
+            self.s.commands.poll();
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        }
+    }
+
+    /// What decides which entries of the menus are off.
+    fn menu_facts(&self) -> MenuFacts {
+        let phase = self.s.session.phase();
+        MenuFacts {
+            can_plan: self.s.ws.can_plan(),
+            can_start: self.s.can_start() && phase != Some(Phase::Finished),
+            running: self.s.session.is_running(),
+            can_step: (self.s.can_start() || self.s.session.has_job())
+                && phase != Some(Phase::Finished),
+            has_job: self.s.session.has_job(),
+            can_export: self.s.planned.is_some(),
+        }
+    }
+
+    /// Does what an entry of the menus of the program asks.
+    fn do_command(&mut self, cmd: Cmd, ctx: &egui::Context) -> Option<&'static str> {
+        match cmd {
+            Cmd::Std(action) => match action {
+                StdAction::Open => self.s.open_browser(Purpose::Files),
+                StdAction::SaveAs => self.s.open_browser(Purpose::Folder),
+                StdAction::Export => {
+                    if let Err(e) = self.s.save_outputs() {
+                        self.s.log.error(e);
+                    }
+                }
+                StdAction::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                StdAction::Undo => {
+                    self.s.undo();
+                }
+                StdAction::Preferences => return Some(docking::MACHINE),
+                StdAction::OnlineHelp => {
+                    self.s.wizard.open = true;
+                    self.s.ui.guide_seen = true;
+                    return Some(docking::GUIDE);
+                }
+                StdAction::New
+                | StdAction::Save
+                | StdAction::Redo
+                | StdAction::Cut
+                | StdAction::Copy
+                | StdAction::Paste
+                | StdAction::CheckUpdates => {}
+            },
+            Cmd::Sample(kind) => {
+                match kind {
+                    SampleKind::Mini => self.s.load_sample(&samples::mini()),
+                    SampleKind::Files => self.s.load_sample(&samples::examples()),
+                    SampleKind::Large => self.s.load_sample(&samples::large(400)),
+                };
+            }
+            Cmd::Plan => {
+                if self.s.ws.can_plan() {
+                    self.s.replan();
+                }
+            }
+            Cmd::Start => {
+                if self.menu_facts().can_start {
+                    self.s.start();
+                }
+            }
+            Cmd::Pause => self.s.pause(),
+            Cmd::Step => {
+                if self.menu_facts().can_step {
+                    self.s.step();
+                }
+            }
+            Cmd::Reset => self.s.reset_job(),
+        }
+        None
+    }
+}
+
+/// The window: the state, the frame of panels that draws it and the menu bar.
+pub struct PnpWindow {
+    app: Rc<RefCell<PnpApp>>,
+    dock: Dock,
+    bar: MenuBar<Cmd>,
+    /// The tab the state was on when the panels were last told, to bring a panel forward when the guide or the command line moves it.
+    seen_tab: Tab,
+}
+
+impl PnpWindow {
+    fn new(ui: UiSettings, paths: &[PathBuf]) -> PnpWindow {
+        PnpWindow::from_app(PnpApp::new(ui, paths))
+    }
+
+    fn from_app(app: PnpApp) -> PnpWindow {
+        let seen_tab = app.s.tab;
+        let saved_layout = app.s.ui.dock.clone();
+        let shared = Rc::new(RefCell::new(app));
+        let mut dock = Dock::new(docking::panel_defs(), docking::workspaces());
+        dock.set_about(docking::about());
+        dock.load_config(&saved_layout);
+        let ids: Vec<String> = docking::panel_defs().into_iter().map(|d| d.id).collect();
+        for id in ids {
+            let app = shared.clone();
+            let name = id.clone();
+            dock.register(&id, move |ui| {
+                // a panel is drawn while nothing else holds the state; if something did, the frame is skipped, never a crash
+                if let Ok(mut app) = app.try_borrow_mut() {
+                    app.panel(&name, ui);
+                }
+            });
+        }
+        PnpWindow {
+            app: shared,
+            dock,
+            bar: docking::menu_bar(),
+            seen_tab,
+        }
+    }
+
+    fn handle(&mut self, chosen: Chosen<Cmd>, ctx: &egui::Context) {
+        match chosen {
+            Chosen::App(cmd) => {
+                let forward = self.app.borrow_mut().do_command(cmd, ctx);
+                if let Some(panel) = forward {
+                    let _ = self.dock.apply(DockAction::ShowPanel(panel.to_string()));
+                    docking::bring_forward(self.dock.core_mut().layout_mut(), panel);
+                }
+            }
+            Chosen::Dock(DockAction::ShowPanel(panel)) => {
+                docking::bring_forward(self.dock.core_mut().layout_mut(), &panel);
+            }
+            Chosen::Dock(_) => {}
+            Chosen::Recent(path) => {
+                self.app.borrow_mut().s.load_paths(&[PathBuf::from(path)]);
+            }
+        }
+    }
+}
+
+impl eframe::App for PnpWindow {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+        {
+            let mut app = self.app.borrow_mut();
+            app.begin_frame(&ctx);
+            self.dock.set_language(view_lang(app.s.lang()));
+            // the guide moves to the panel of a step, and a tab named on the command line comes forward
+            if app.s.tab != self.seen_tab {
+                self.seen_tab = app.s.tab;
+                let panel = docking::tab_panel(app.s.tab);
+                let _ = self.dock.apply(DockAction::ShowPanel(panel.to_string()));
+                docking::bring_forward(self.dock.core_mut().layout_mut(), panel);
+            }
+            for path in std::mem::take(&mut app.s.recent_opened) {
+                self.dock
+                    .core_mut()
+                    .recent_mut()
+                    .push(&path.display().to_string());
+            }
+            let (off, checks) = docking::menu_state(&app.menu_facts());
+            self.dock.set_menu_state(off, checks);
+        }
+        let chosen = egui::Panel::top("menu")
+            .show(ui, |ui| self.dock.menu_bar(ui, &self.bar))
+            .inner;
+        if let Some(chosen) = chosen {
+            self.handle(chosen, &ctx);
+        }
+        {
+            let mut app = self.app.borrow_mut();
+            app.top_bar(ui);
+            app.path_bar(ui);
+            app.status_bar(ui);
+        }
+        egui::CentralPanel::default().show(ui, |ui| self.dock.show(ui));
+        let mut app = self.app.borrow_mut();
+        app.browser_window(&ctx);
+        app.error_window(&ctx);
         // an edit of a table ends when nothing is being dragged or typed in
-        let busy = ctx.input(|i| i.pointer.any_down()) || ctx.memory(|m| m.focused().is_some());
+        let pointer_down = ctx.input(|i| i.pointer.any_down());
+        let busy = pointer_down || ctx.memory(|m| m.focused().is_some());
         if !busy {
-            self.s.end_edit();
+            app.s.end_edit();
+        }
+        // the lines of the frame go to the settings, not while a tab or a divider is being dragged
+        if !pointer_down {
+            let lines = self.dock.config_text("");
+            if lines != app.s.ui.dock {
+                app.s.ui.dock = lines;
+            }
         }
         // in the picture mode nothing of the person is written
-        if self.shot.is_none() && self.s.ui != self.saved {
-            settings::save(&self.s.ui);
-            self.saved = self.s.ui.clone();
+        if app.shot.is_none() && app.s.ui != app.saved {
+            settings::save(&app.s.ui);
+            app.saved = app.s.ui.clone();
         }
-        self.shot_tick(&ctx);
+        app.shot_tick(&ctx);
     }
 }
 
@@ -3215,7 +3543,7 @@ pub fn run(paths: &[PathBuf]) -> eframe::Result {
         options,
         Box::new(move |cc| {
             install_fonts(&cc.egui_ctx);
-            Ok(Box::new(PnpApp::new(ui_settings, &paths)))
+            Ok(Box::new(PnpWindow::new(ui_settings, &paths)))
         }),
     )
 }
@@ -3362,7 +3690,7 @@ pub fn run_shot(
                 frame: 0,
                 outcome: outcome_for_app,
             });
-            Ok(Box::new(app))
+            Ok(Box::new(PnpWindow::from_app(app)))
         }),
     )
     .map_err(|e| e.to_string())?;

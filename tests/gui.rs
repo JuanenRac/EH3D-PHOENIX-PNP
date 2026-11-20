@@ -755,6 +755,8 @@ fn the_settings_are_written_and_read_back() {
         col_widths: [("parts_0".to_string(), 99), ("plan_7".to_string(), 310)]
             .into_iter()
             .collect(),
+        dock: "dock.version = 1\ndock.current = 1\n".to_string(),
+        command_timeout_s: 90,
     };
     assert_eq!(UiSettings::parse(&s.to_text()), s);
 }

@@ -11,7 +11,7 @@ readme = "README.md"
 [features]
 default = []
 # the window (egui through eframe); without it the program is the command line only
-gui = ["dep:eframe", "dep:png", "eh3d-view/gui"]
+gui = ["dep:eframe", "dep:png", "eh3d-view/gui", "eh3d-dock/gui"]
 # the resolver of the common client for `_eh3d._tcp` on the local network (UDP, no more dependencies); with it off, `server-discover` says so and asks nothing of the network
 mdns = ["eh3d-serverclient/mdns"]
 
@@ -34,6 +34,8 @@ required-features = ["gui"]
 eh3d-serverclient = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/serverclient" }
 # the panel of the settings of the server, the state of the link and the login that the other programs of the suite show (its window needs the feature gui)
 eh3d-view = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/view", default-features = false }
+# the frame of professional windows: panels that dock, float and fold, named workspaces and the menu bar (its drawing needs the feature gui)
+eh3d-dock = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/dock", default-features = false }
 serde_json = "1"
 eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts", "clipboard"], optional = true }
 # only to read the icon of the window

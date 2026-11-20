@@ -730,6 +730,32 @@
           }
         },
         {
+          "name": "gui/cmdpanel.rs",
+          "desc": {
+            "en": "the panels of the eleven driver and assistant commands: run, limit, output",
+            "es": "los paneles de los once comandos de driver y asistentes: ejecutar, límite, salida",
+            "de": "die Bereiche der elf Treiber- und Assistentenbefehle: ausführen, Grenze, Ausgabe",
+            "fr": "les panneaux des onze commandes de pilote et d'assistants : lancer, limite, sortie",
+            "it": "i pannelli degli undici comandi di driver e assistenti: esegui, limite, output",
+            "ja": "ドライバとアシスタントの11コマンドのパネル：実行、制限、出力",
+            "zh": "十一个驱动与助手命令的面板：运行、限制、输出",
+            "pt": "os painéis dos onze comandos de controlador e assistentes: executar, limite, saída"
+          }
+        },
+        {
+          "name": "gui/docking.rs",
+          "desc": {
+            "en": "the panels, the three arrangements and the menu bar handed to the docking frame",
+            "es": "los paneles, las tres disposiciones y la barra de menús que se dan al marco de paneles",
+            "de": "die Bereiche, die drei Anordnungen und die Menüleiste für den Andock-Rahmen",
+            "fr": "les panneaux, les trois dispositions et la barre de menus donnés au cadre d'ancrage",
+            "it": "i pannelli, le tre disposizioni e la barra dei menu date al telaio dei pannelli",
+            "ja": "ドッキングフレームに渡すパネル、3つの配置、メニューバー",
+            "zh": "交给停靠框架的面板、三种布局和菜单栏",
+            "pt": "os painéis, as três disposições e a barra de menus dados ao quadro de painéis"
+          }
+        },
+        {
           "name": "gui/jobtab.rs",
           "desc": {
             "en": "the Job tab without the window: states, filters, progress, error dialog",
@@ -2115,6 +2141,19 @@
           }
         },
         {
+          "name": "cmdpanel.rs",
+          "desc": {
+            "en": "tests of the command panels: the arguments, the run, the time limit and the cut output",
+            "es": "pruebas de los paneles de comandos: argumentos, ejecución, límite de tiempo y salida cortada",
+            "de": "Tests der Befehlsbereiche: Argumente, Lauf, Zeitgrenze und gekürzte Ausgabe",
+            "fr": "tests des panneaux de commandes : arguments, exécution, limite de temps et sortie coupée",
+            "it": "test dei pannelli dei comandi: argomenti, esecuzione, limite di tempo e output tagliato",
+            "ja": "コマンドパネルのテスト：引数、実行、時間制限、切り詰めた出力",
+            "zh": "命令面板的测试：参数、运行、时间限制和截断的输出",
+            "pt": "testes dos painéis de comandos: argumentos, execução, limite de tempo e saída cortada"
+          }
+        },
+        {
           "name": "combined.rs",
           "desc": {
             "en": "tests of the combined calibration: the file, the fit, the mode, the command, the tool",
@@ -2190,6 +2229,19 @@
             "ja": "組立チェックとステンシルのテスト：各ルール、8言語",
             "zh": "装配检查和钢网的测试：每条规则、八种语言",
             "pt": "testes das verificações de montagem e da máscara de pasta: cada regra, oito idiomas"
+          }
+        },
+        {
+          "name": "docking.rs",
+          "desc": {
+            "en": "tests of the docking frame: panels, arrangements, menus, saved layout and shortcuts",
+            "es": "pruebas del marco de paneles: paneles, disposiciones, menús, disposición guardada y atajos",
+            "de": "Tests des Andock-Rahmens: Bereiche, Anordnungen, Menüs, gespeicherte Anordnung, Kürzel",
+            "fr": "tests du cadre d'ancrage : panneaux, dispositions, menus, disposition enregistrée, raccourcis",
+            "it": "test del telaio dei pannelli: pannelli, disposizioni, menu, disposizione salvata, scorciatoie",
+            "ja": "ドッキングフレームのテスト：パネル、配置、メニュー、保存した配置、ショートカット",
+            "zh": "停靠框架的测试：面板、布局、菜单、已保存的布局和快捷键",
+            "pt": "testes do quadro de painéis: painéis, disposições, menus, disposição guardada e atalhos"
           }
         },
         {

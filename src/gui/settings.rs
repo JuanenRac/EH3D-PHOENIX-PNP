@@ -41,7 +41,20 @@ pub struct UiSettings {
     pub browse_dir: String,
     /// The widths of the columns the person has changed, in pixels, by `table_column` (`parts_2`).
     pub col_widths: BTreeMap<String, u16>,
+    /// The lines of the frame of panels (`dock.` keys: the workspaces, where each panel is, the shortcuts and the recent files), kept as the frame wrote them.
+    pub dock: String,
+    /// The seconds a command of the panels of the driver and the assistants may run before it is stopped.
+    pub command_timeout_s: u16,
 }
+
+/// The most lines of the settings file that are read.
+pub const MAX_LINES: usize = 2000;
+/// The most bytes of the lines of the frame of panels that are kept.
+pub const MAX_DOCK_BYTES: usize = 262_144;
+/// The shortest and the longest time a command may be given, and the one it starts with.
+pub const MIN_COMMAND_SECONDS: u16 = 5;
+pub const MAX_COMMAND_SECONDS: u16 = 600;
+pub const DEFAULT_COMMAND_SECONDS: u16 = 60;
 
 /// The narrowest and the widest a column can be made.
 pub const MIN_COLUMN: u16 = 30;
@@ -59,6 +72,8 @@ impl Default for UiSettings {
             guide_seen: false,
             browse_dir: String::new(),
             col_widths: BTreeMap::new(),
+            dock: String::new(),
+            command_timeout_s: DEFAULT_COMMAND_SECONDS,
         }
     }
 }
@@ -98,9 +113,16 @@ impl UiSettings {
     /// Reads the settings from text. A line that is not understood is skipped: a file from another version must never keep the window from opening.
     pub fn parse(text: &str) -> UiSettings {
         let mut s = UiSettings::default();
-        for line in text.lines().take(200) {
+        for line in text.lines().take(MAX_LINES) {
             let t = line.trim();
             if t.is_empty() || t.starts_with('#') {
+                continue;
+            }
+            if t.starts_with("dock.") {
+                if s.dock.len() + t.len() < MAX_DOCK_BYTES && !t.chars().any(char::is_control) {
+                    s.dock.push_str(t);
+                    s.dock.push('\n');
+                }
                 continue;
             }
             let Some((k, v)) = t.split_once('=') else {
@@ -128,6 +150,14 @@ impl UiSettings {
                     }
                 }
                 "guide_seen" => s.guide_seen = flag(v).unwrap_or(s.guide_seen),
+                "command_timeout_s" => {
+                    if let Ok(n) = v.parse::<u64>() {
+                        s.command_timeout_s = n.clamp(
+                            u64::from(MIN_COMMAND_SECONDS),
+                            u64::from(MAX_COMMAND_SECONDS),
+                        ) as u16;
+                    }
+                }
                 "browse_dir" => {
                     if v.chars().count() <= 1024 && !v.chars().any(char::is_control) {
                         s.browse_dir = v.to_string();
@@ -181,7 +211,7 @@ impl UiSettings {
             widths.push_str(&format!("col_{k} = {w}\n"));
         }
         format!(
-            "# EH3D-PHOENIX-PNP window settings\nlanguage = {}\ntheme = {}\nlayer_parts = {}\nlayer_feeders = {}\nlayer_path = {}\nlayer_polarity = {}\nout_dir = {}\nguide_seen = {}\nbrowse_dir = {}\n{widths}",
+            "# EH3D-PHOENIX-PNP window settings\nlanguage = {}\ntheme = {}\nlayer_parts = {}\nlayer_feeders = {}\nlayer_path = {}\nlayer_polarity = {}\nout_dir = {}\nguide_seen = {}\nbrowse_dir = {}\ncommand_timeout_s = {}\n{widths}{}",
             self.lang.code(),
             self.theme.key(),
             word(self.layers.parts),
@@ -191,6 +221,8 @@ impl UiSettings {
             self.out_dir,
             word(self.guide_seen),
             self.browse_dir,
+            self.command_timeout_s,
+            self.dock,
         )
     }
 }
