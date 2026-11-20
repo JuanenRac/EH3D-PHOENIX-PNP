@@ -243,9 +243,9 @@ fn a_move_is_a_line_and_the_line_that_waits_for_it() {
 
 #[test]
 fn a_machine_without_a_turning_axis_refuses_a_turn_and_the_placement_leaves_it_out() {
-    let p =
-        DriverProfile::parse(&format!("{MARLIN}\naxis_rot = none\n").replace("axis_rot = E\n", ""))
-            .unwrap();
+    let lf = MARLIN.replace("\r\n", "\n");
+    let p = DriverProfile::parse(&format!("{lf}\naxis_rot = none\n").replace("axis_rot = E\n", ""))
+        .unwrap();
     let t = Target {
         rot: Some(10.0),
         ..Target::default()
