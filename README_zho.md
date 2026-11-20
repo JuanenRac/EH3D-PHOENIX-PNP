@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 1429 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 1532 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.1.2` |
 | 成熟度 | 脚手架 |
-| 测试 | 1429 |
+| 测试 | 1532 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
 | 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 1429 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 测试 | 🟡 | 1532 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -146,6 +146,12 @@
 * **按序列号生成的电路板记录** (`src/serialsig.rs`, `src/sha256.rs`, `src/cmd_shop.rs`, `examples/lots.csv`)：`phoenix-pnp serial-sign PARTS FEEDERS --serial S [--lots F] [--prev SIG] [--key-file F] [--out F]` 写出序列号、各表的指纹（由 `job-fingerprint` 打印）、每个已贴装位号及其供料器和料盘批次，以及签名（SHA-256，或使用文件中密钥的 HMAC-SHA-256，密钥从不打印）；`--prev` 将记录与上一块板链接。`phoenix-pnp serial-verify FILE [--key-file F] [--prev SIG]` 判断记录是否完好：改动一个字节、删去一行、密钥错误或链条断裂都会被发现。
 * **班次与多个贴装头** (`src/shiftplan.rs`, `src/headsplit.rs`, `src/cmd_shop.rs`)：`phoenix-pnp shift-plan PARTS FEEDERS [--boards N] [--shift MINUTES] [--reel-change SECONDS]` 逐块板推演班次，说明在第几块板、第几分钟需要更换哪个料盘，能做多少块板以及每小时的板数；`phoenix-pnp head-split PARTS FEEDERS [--heads N]` 在最多 8 个贴装头共用同一排供料器（一个料盘一次只由一个头取料）的机器上推演电路板，比较把板切成条带与把整个供料器分给各头两种方式：每个头的用时、等待和更快的方式。
 * **封装与间距** (`src/footcheck.rs`, `src/clearance.rs`, `src/cmd_shop.rs`)：`phoenix-pnp footprint-check PARTS [--packages F]` 说明板上每个封装与封装表的关系（已知、别名如用 `R_0603_1608Metric` 表示 `R_0603`、可由名称生成、相差一两个字符或未知）；`phoenix-pnp clearance PARTS --packages F [--min MM]` 找出同一面上本体（随元件旋转后）间距小于最小值（`clearance_min_mm`）或重叠的元件对。
+* **面向板卡装配厂的文件** (`src/jlcpcb.rs`, `src/designators.rs`, `src/cmd_fab.rs`)：`phoenix-pnp export-fab PARTS [--bom BOM] [--side all|top|bottom] [--mount] [--dnp-mode column|omit] [--cpl-out F] [--bom-out F]` 写出装配厂要求的贴装位置列表（`Designator`、`Mid X`、`Mid Y`、`Layer`、`Rotation`：每行一个元件，位置分两列，包含表面贴装和通孔元件，不装配的元件在名为 `fab_dnp_column`（默认 `Customer Supply`）的列中标记，或用 `fab_dnp_mode = omit` 排除）和物料清单（`MPN`、`Designator`、`Quantity`、`Description`、`Footprint`，料号取自 CAD 的物料清单，位号按自然顺序，`R2` 在 `R10` 之前）。判断通孔元件的词由设置 `fab_tht_words` 给出。`phoenix-pnp fab-check FILE` 读取贴装列表并指出装配厂会拒收的每一行（位号单元格里有列表或范围、位号重复、层不是 `Top` 或 `Bottom`、位置不是数字）。格式是这类列表的公开格式，尚未发给任何装配厂。
+* **KiCad、Altium、EAGLE 和装配厂的位置文件** (`src/cplconv.rs`, `src/cmd_fab.rs`)：`phoenix-pnp convert-cpl FILE [--from kicad|altium|eagle|jlcpcb|generic] [--to jlcpcb|cpl|kicad-pos|generic] [--origin X,Y] [--flip-y] [--cw] [--rot-offset DEG] [--bottom keep|mirror|half_turn] [--out F]` 根据表头判断文件方言（或使用 `--from`），以毫米和度读取，并依次移动原点、翻转 Y 轴（同时反转旋转方向）、改变旋转的计数方向、加上一个旋转角、应用底面规则；默认值来自设置 `cpl_*`，转换可以撤销（`cplconv::undo`）。尚未与这些程序真实安装写出的文件比较过。
+* **按 IPC-7351B 的封装名与按名称搜索** (`src/ipcname.rs`, `src/fpsearch.rs`, `src/cmd_fab.rs`)：`phoenix-pnp ipc-name NAME... [--density L|N|M]` 拆解公开命名规则的名称（`RESC1608X55N`：系列、以十分之一毫米计的本体、以百分之一毫米计的高度和密度；带引脚元件如 `SOIC127P600X175-8N`、`QFP50P1000X1000X160-48N`），用唯一的方式重新写出，或按该规则命名表中的片式封装（`R_0603`）；`ipc-name --make FAMILY --pitch ... --height ...` 根据尺寸生成名称。`phoenix-pnp footprint-find QUERY... [--packages F]` 在封装表中查找名称：相同文本、同一封装的其他名称（`R_0603`、`Resistor_SMD:R_0603_1608Metric` 和 `RESC1608X55N` 是同一个）、包含这些词的名称以及相差几个字母的名称（`ipc_density`、`ipc_search_limit` 和 `ipc_search_distance` 是设置）。只用命名规则：不保存焊盘图形表，也不计算焊盘尺寸。
+* **装配检查与锡膏钢网** (`src/dfm.rs`, `src/stencil.rs`, `src/cmd_fab.rs`, `examples/features.csv`)：`phoenix-pnp dfm-check PARTS FEATURES [--packages F] [--out F]` 以 `--lang` 的语言（套件的八种语言）从装配角度评判电路板：细间距、两个元件焊盘之间的间隙、表面元件本体之间的间距、要焊接的焊盘内的孔、在焊盘中心结束的走线、基准点的大小、到边缘的距离和净空环、工艺孔及靠近其边缘的元件，以及连接片的宽度。`FEATURES` 是 `kind,id,x_mm,y_mm,w_mm,h_mm,side` 的表。每个限值都是设置（`dfm_*`，默认取装配厂指南的公开数字），在 `dfm_verified` 关闭期间报告会说明它们未经验证。`phoenix-pnp stencil-apertures FEATURES [--out F]` 由焊盘生成锡膏钢网开孔（每边缩小 `stencil_reduction_percent`，细间距缩小更多，散热焊盘分成覆盖其 `stencil_thermal_percent` 的窗口），当厚度、缩减、覆盖率、窗口之间的间隔或开孔的面积比（`L*W / (2*(L+W)*T)`，不小于 `stencil_area_ratio_min`）超出范围时发出警告。有警告或错误时退出码为 1。
+* **模拟作业的两种视图** (`src/busy.rs`, `src/tower.rs`, `src/cmd_fab.rs`, `examples/journal.csv`)：根据 `simulate --journal` 写出的日志，`phoenix-pnp sim-busy JOURNAL` 给出每个吸嘴和供料器的忙碌程度（秒数、步数和占作业的比例）以及机器在何处等待（最长的 `busy_gaps_listed` 次等待），`phoenix-pnp sim-tower JOURNAL` 给出信号灯塔每秒会显示的灯色：失败的步骤为红，比同类步骤中位数慢 `tower_slow_factor` 倍以上的步骤和超过 `tower_idle_gap_s` 的等待为黄，其余为绿。不驱动任何设备，只读取文件。
+* **装配文件的测试** (`tests/fab.rs`, `tests/ipc.rs`, `tests/dfm.rs`, `tests/simviews.rs`, `tests/fabcli.rs`, `tests/fabfuzz.rs`)：对每个新读取器用固定种子损坏示例文件，随机生成电路板和名称（写出的可以读回、转换可以撤销、名称读取后写出不变、位号顺序是全序），八种语言下检查的每条规则，按人的方式运行的命令，以及带范围的新设置。
 * **按元件统计不良与重试** (`src/rejects.rs`, `src/retrypolicy.rs`, `src/cmd_shop.rs`, `examples/rejects.csv`, `examples/retry_rules.csv`)：`phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT]` 按原因（帕累托图顺序）、封装、供料器和位号给出一批的不良元件；`phoenix-pnp retry-policy PARTS FEEDERS RULES` 为每个元件取第一条匹配其位号、数值、封装或供料器的规则中的重试次数，计算得到良品板的概率，并指出不匹配任何元件或从不起作用的规则。
 * **一批的成本与料盘的存放时间** (`src/bomcost.rs`, `src/lotage.rs`, `src/cmd_shop.rs`, `examples/prices.csv`)：`phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT]` 根据阶梯价格表计算一批的成本（需求少于最低销售量时按最低量购买）；`phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N]` 根据日期码说明每个供料器中批次的存放时间，对照指定的周和 `lot_max_weeks`。
 * **随机测试，以及对每个键和每个命令的测试** (`tests/fuzz.rs`, `tests/keys.rs`, `tests/cli_all.rs`)：把以多种方式损坏的示例文件和随机字节（固定种子，因此可重复）交给每个文件读取器，没有一个可以崩溃；随机生成的板子保持工具承诺的性质（写出的内容可读回、变换保持距离且可还原、拆分让每个元件恰好出现一次、概率保持在 0 到 1 之间、提出的请求被内存服务器接受）；设置中的每个键都对照示例、其校验和重复情况检查；帮助里的每个命令都在无参数、错误选项和不存在文件的情况下运行，必须以错误行回应，绝不崩溃。
@@ -277,6 +283,15 @@ phoenix-pnp retry-policy PARTS FEEDERS RULES [--out F]  按规则确定每个元
 phoenix-pnp clearance PARTS --packages F [--min MM] [--out F]  本体过近或重叠的元件（有则退出码为 1）
 phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT] [--out F]  按阶梯价格计算一批的成本（有元件没有价格则退出码为 1）
 phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N] [--out F]  每个供料器中批次的存放时间（有过旧的则退出码为 1）
+phoenix-pnp export-fab PARTS [--bom BOM] [--cpl-out F] [--bom-out F]  装配厂要求格式的贴装列表和物料清单
+phoenix-pnp fab-check FILE  贴装列表中装配厂会拒收的内容（有问题行则退出码为 1）
+phoenix-pnp convert-cpl FILE [--from D] [--to F] [--origin X,Y] [--flip-y] [--cw] [--rot-offset DEG] [--out F]  把 KiCad、Altium、EAGLE 或装配厂的位置文件转换到另一原点和旋转
+phoenix-pnp ipc-name NAME... [--density L|N|M] | --make FAMILY ...  按 IPC-7351B 规则的封装名
+phoenix-pnp footprint-find QUERY... [--packages F]  封装表中等于查询词或其别名的名称（有查询无结果则退出码为 1）
+phoenix-pnp dfm-check PARTS FEATURES [--packages F] [--out F]  以八种语言给出板子的装配检查（有警告或错误则退出码为 1）
+phoenix-pnp stencil-apertures FEATURES [--out F]  锡膏钢网的开孔与警告（有警告则退出码为 1）
+phoenix-pnp sim-busy JOURNAL [--out F]  模拟作业中各吸嘴和供料器的忙碌程度及等待（有失败步骤则退出码为 1）
+phoenix-pnp sim-tower JOURNAL [--out F]  模拟作业每秒的信号灯塔灯色（出现红灯则退出码为 1）
 phoenix-pnp server-discover [--sim]  本地网络上的服务器（需要 server_mdns = on 和 --features mdns）
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       测量在内存中生成的零件图像
 ```
@@ -393,7 +408,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 1429 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 1532 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -418,6 +433,7 @@ EH3D-PHOENIX-PNP/
 │   ├── bom.rs                                   物料清单：读取、与电路板核对、订购
 │   ├── bomcost.rs                               根据物料清单和阶梯价格表计算一批的成本
 │   ├── bommerge.rs                              把多块板的物料清单合并成一份采购清单
+│   ├── busy.rs                                  模拟作业中吸嘴和供料器的忙碌程度与等待
 │   ├── calibrate.rs                             相机和吸嘴头的校准，以及供料器的示教
 │   ├── calibsim.rs                              在虚构相机上试验的相机标定：观测、拟合、误差
 │   ├── camera.rs                                相机模型：像素尺寸、偏移、旋转、镜像和镜头
@@ -425,6 +441,7 @@ EH3D-PHOENIX-PNP/
 │   ├── changeover.rs                            队列中作业之间供料器需要的更换：换料盘、装料盘、保留
 │   ├── clearance.rs                             板上元件本体之间的间距：过近或重叠的元件对
 │   ├── cli_args.rs                              命令行参数，严格：未知选项即错误
+│   ├── cmd_fab.rs                               装配文件、检查、钢网和日志视图的命令
 │   ├── cmd_flow.rs                              无需机器的流程命令：批次、拆分、概率、吸嘴高度、标记、导入、清单
 │   ├── cmd_more.rs                              命令 parts-diff、config-diff、board-stats、queue-stock、feeder-deplete、feeder-refill 和 job-diff
 │   ├── cmd_queue.rs                             作业队列的命令：添加、状态、确认、编辑、运行
@@ -437,7 +454,10 @@ EH3D-PHOENIX-PNP/
 │   ├── compare.rs                               用每种顺序和吸嘴头策略并排规划同一块板
 │   ├── config.rs                                机器的配置文件：键、范围和安全限制
 │   ├── configdiff.rs                            两个配置文件在含义上的差异
+│   ├── cplconv.rs                               统一各 CAD 与装配厂位置文件的原点和旋转
 │   ├── deplete.rs                               作业之后的供料器表：剩余零件数和料条的下一个位置
+│   ├── designators.rs                           位号的自然顺序（R2 在 R10 前）与范围写法
+│   ├── dfm.rs                                   电路板装配检查（限值在设置中），八种语言
 │   ├── error.rs                                 错误代码 PHOENIX-PNP-NNN 及其八种语言的含义
 │   ├── exchange.rs                              供其他程序使用的作业 JSON 文件：计划和每个零件的状态
 │   ├── export.rs                                报告、缺料清单和移动的 G 代码
@@ -449,6 +469,7 @@ EH3D-PHOENIX-PNP/
 │   ├── fidcheck.rs                              基准点拟合的判断：旋转、缩放、剪切、位移、不一致的标记
 │   ├── fiducial.rs                              拼板的基准点：测量基准点的拟合与零件的校正
 │   ├── footcheck.rs                             将板上封装与封装表对照：已知、别名、可生成、相似
+│   ├── fpsearch.rs                              封装名的统一与封装库搜索
 │   ├── gui.rs                                   窗口：无需屏幕的模块，以及 window.rs 中的绘制
 │   ├── gui/app.rs                               窗口的状态：载入、规划、开始、暂停、单步、修复、保存
 │   ├── gui/browse.rs                            文件选择器：文件夹和文件、上一级、输入的路径
@@ -477,6 +498,8 @@ EH3D-PHOENIX-PNP/
 │   ├── hotspots.rs                              多次模拟运行中出问题的供料器：取料失败、被关闭、被搁置
 │   ├── import.rs                                位置文件的导入：带列映射的质心 CSV、EAGLE 文本、KiCad 的 .pos
 │   ├── inspect.rs                               对吸嘴上元件的检查：尺寸、旋转和位置
+│   ├── ipcname.rs                               按 IPC-7351B 命名规则生成和解析封装名
+│   ├── jlcpcb.rs                                装配厂要求格式的贴装列表和物料清单
 │   ├── job.rs                                   作业：步骤、暂停、重试、策略、统计和已保存状态
 │   ├── jobdiff.rs                               两个作业文件之间的差异：逐个零件以及整个计划
 │   ├── journal.rs                               模拟作业的日志：每一步一行，并记录结果
@@ -524,11 +547,13 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   模拟机器：虚拟时钟和可注入的故障
 │   ├── slots.rs                                 让计划最快的供料器位置：同类供料器之间的位置交换
 │   ├── splitjob.rs                              一块板分给多台机器：整个供料器分配，工作量均衡
+│   ├── stencil.rs                               由焊盘生成钢网开孔：缩减、窗口、面积比
 │   ├── stock.rs                                 供料器中的零件与一批板所需零件的对比
 │   ├── tapesteps.rs                             逐步检查料带：剩余数量、间距、可达范围、偏少、最后一个、已空
 │   ├── template.rs                              机器设置的起点，每个都由设置读取器读取
 │   ├── tips.rs                                  封装可接受的吸嘴，以及为每类零件选择其一
 │   ├── toolvalues.rs                            工具表单的值作为设置文件的项目，以及将它们保存回文件
+│   ├── tower.rs                                 模拟作业信号灯塔每秒的灯色
 │   ├── units.rs                                 带单位的长度和位置
 │   ├── vision.rs                                视觉处理：滤波、阈值、斑块、最小旋转矩形
 │   └── visionsim.rs                             供 part-inspect 和 fiducial-check 使用的模拟相机读数
@@ -551,8 +576,12 @@ EH3D-PHOENIX-PNP/
 │   ├── compare.rs                               顺序比较的测试：最快者、文本、建议和命令
 │   ├── configdiff.rs                            配置差异的测试：相同含义、默认值、列表
 │   ├── deplete.rs                               作业后供料器表的测试：数量、料条、托盘、命令
+│   ├── dfm.rs                                   装配检查和钢网的测试：每条规则、八种语言
 │   ├── encoding.rs                              文件编码的测试：UTF-8、UTF-16 和 Latin-1
 │   ├── exchange.rs                              作业交换文件测试：写入、读取、各种拒绝、命令
+│   ├── fab.rs                                   装配厂文件及位置文件转换的测试
+│   ├── fabcli.rs                                用示例文件运行装配命令的测试
+│   ├── fabfuzz.rs                               装配文件读写的固定种子随机测试
 │   ├── failodds.rs                              良品板概率的测试：重试、规则、规则文件、命令
 │   ├── feeding.rs                               供料器测试：优先级、托盘和料带
 │   ├── feedlib.rs                               供料器库检查的测试
@@ -567,6 +596,7 @@ EH3D-PHOENIX-PNP/
 │   ├── hotspots.rs                              运行故障热点的测试：取料、失败、被关闭、被搁置、顺序、命令
 │   ├── import.rs                                导入的测试：格式、单位、底面、DNP、范围、带行号的错误
 │   ├── inspect.rs                               吸嘴上元件检查的测试
+│   ├── ipc.rs                                   IPC-7351B 封装名和库搜索的测试
 │   ├── job.rs                                   作业测试：步骤、重试和已保存状态
 │   ├── jobdiff.rs                               两个作业差异的测试：各类变化、容差、顺序、命令
 │   ├── jobreport.rs                             作业报告的测试：按供料器统计的损失、吸嘴头寿命、文件
@@ -610,6 +640,7 @@ EH3D-PHOENIX-PNP/
 │   ├── shop.rs                                  像人一样用示例文件运行现场命令
 │   ├── shot.rs                                  窗口图片模式的测试：在没有屏幕的情况下读取并检查其参数
 │   ├── sim.rs                                   模拟机器的测试
+│   ├── simviews.rs                              由日志得出的使用、等待和信号灯塔的测试
 │   ├── slots.rs                                 供料器位置的测试：交换、节省量、从不移动的部分、槽位名称、上限、命令
 │   ├── splitjob.rs                              多机分板的测试：整个供料器、均衡、命令
 │   ├── stock.rs                                 批量库存与待购零件的测试
@@ -646,6 +677,7 @@ EH3D-PHOENIX-PNP/
 │   ├── centroid_custom.csv                      使用其他列名、表头带密耳单位、并用词语表示面的质心 CSV
 │   ├── chip_0603.kicad_mod                      用于 package-kicad 的 0603 贴片 KiCad 封装
 │   ├── failure_rules.csv                        failure-odds 按封装的重试次数
+│   ├── features.csv                             dfm-check 用的外形、焊盘、孔、基准点、连接片
 │   ├── feeder_measures.csv                      feeder-teach 用的料带与料盘测量位置
 │   ├── feeders.csv                              试用的示例
 │   ├── feeders_kinds.csv                        各种供料器：料带、料条、托盘和一个已关闭的
@@ -655,6 +687,7 @@ EH3D-PHOENIX-PNP/
 │   ├── fid_measured.csv                         在机器上测得的同样四个基准点
 │   ├── job.recipe                               含全部步骤以及按封装、供料器和吸嘴规则的配方
 │   ├── job_basic.recipe                         最短的配方：准备、拾取和贴装
+│   ├── journal.csv                              sim-busy 用的日志：慢步骤、等待、故障
 │   ├── lots.csv                                 lot-trace 用的各供料器批次与料盘
 │   ├── machine.cfg                              机器设置，每个键均有说明
 │   ├── marks.csv                                拼板基准点的实测位置
@@ -696,7 +729,7 @@ EH3D-PHOENIX-PNP/
 
 * 没有人在屏幕上检查过窗口的绘制（`images/screens/` 中的图片由程序用 `--shot` 自己拍摄）；窗口没有点动和真实相机，也还不使用属于电路板零件的标记。
 * 没有在机器上试过，也没有用真实文件集合测试过，也没有经过独立审查；它对机器所做的一切都是模拟。
-* 它不读取其他贴片程序的文件；CSV 底面角度的规则（`bottom_rotation`）没有与任何 CAD 程序的真实文件比对过。
+* KiCad、Altium、EAGLE 和装配厂位置文件的读取器、为装配厂写出的文件、按 IPC-7351B 的名称以及装配检查和钢网的数值，都没有与真实文件、标准或某家装配厂的规则比较过；CSV 底面角度的规则（`bottom_rotation`、`cpl_bottom_rotation`）也没有与任何 CAD 程序的真实文件比较过。
 * 相机和视觉是模拟的：没有真实相机、没有基于真实图像的取料修正，也没有真实机器的驱动；计划是一个 JSON 文件，供其他程序执行。
 
 **下一步**

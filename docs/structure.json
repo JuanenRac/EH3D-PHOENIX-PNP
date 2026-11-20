@@ -119,6 +119,19 @@
           }
         },
         {
+          "name": "busy.rs",
+          "desc": {
+            "en": "how busy each nozzle and feeder was in a simulated job, and the waits, from its journal",
+            "es": "cuánto trabajó cada pipeta y alimentador en un trabajo simulado, y las esperas, desde su diario",
+            "de": "Auslastung jeder Düse und jedes Zuführers im simulierten Auftrag und Wartezeiten, aus dem Journal",
+            "fr": "occupation de chaque buse et alimentateur dans un travail simulé, et les attentes, depuis le journal",
+            "it": "occupazione di ogni ugello e alimentatore in un lavoro simulato, e le attese, dal diario",
+            "ja": "シミュレーションでのノズルとフィーダーの稼働と待ち時間",
+            "zh": "模拟作业中吸嘴和供料器的忙碌程度与等待",
+            "pt": "ocupação de cada bico e alimentador num trabalho simulado, e as esperas, a partir do diário"
+          }
+        },
+        {
           "name": "calibrate.rs",
           "desc": {
             "en": "the calibrations of the camera and of the nozzle tip, and the teaching of feeders",
@@ -207,6 +220,19 @@
             "ja": "コマンドライン引数（厳格：未知のオプションはエラー）",
             "zh": "命令行参数，严格：未知选项即错误",
             "pt": "os argumentos da linha de comandos, estritos: uma opção desconhecida é um erro"
+          }
+        },
+        {
+          "name": "cmd_fab.rs",
+          "desc": {
+            "en": "the commands of the files for assembly, the checks, the stencil and the views of a journal",
+            "es": "los comandos de los ficheros de montaje, las comprobaciones, la plantilla y las vistas del diario",
+            "de": "die Befehle der Montagedateien, der Prüfungen, der Schablone und der Journalansichten",
+            "fr": "les commandes des fichiers d'assemblage, des contrôles, du pochoir et des vues du journal",
+            "it": "i comandi dei file di assemblaggio, dei controlli, dello stencil e delle viste del diario",
+            "ja": "組立ファイル、チェック、ステンシル、ジャーナル表示のコマンド",
+            "zh": "装配文件、检查、钢网和日志视图的命令",
+            "pt": "os comandos dos ficheiros de montagem, das verificações, da máscara e das vistas do diário"
           }
         },
         {
@@ -366,6 +392,19 @@
           }
         },
         {
+          "name": "cplconv.rs",
+          "desc": {
+            "en": "position files of KiCad, Altium, EAGLE and houses: one origin and one rotation",
+            "es": "ficheros de posiciones de KiCad, Altium, EAGLE y casas de montaje: origen y giro unificados",
+            "de": "Positionsdateien von KiCad, Altium, EAGLE und Bestückern: Ursprung und Drehung vereinheitlicht",
+            "fr": "fichiers de positions de KiCad, Altium, EAGLE et assembleurs : origine et rotation unifiées",
+            "it": "file di posizioni di KiCad, Altium, EAGLE e fornitori: origine e rotazione unificate",
+            "ja": "各CADと実装業者の位置ファイルの原点と回転を統一",
+            "zh": "统一各 CAD 与装配厂位置文件的原点和旋转",
+            "pt": "ficheiros de posições de KiCad, Altium, EAGLE e casas de montagem: origem e rotação unificadas"
+          }
+        },
+        {
           "name": "deplete.rs",
           "desc": {
             "en": "the table of feeders after a job: the parts left and the next place of the strips",
@@ -376,6 +415,32 @@
             "ja": "ジョブ後のフィーダー表：残りの部品とストリップの次の位置",
             "zh": "作业之后的供料器表：剩余零件数和料条的下一个位置",
             "pt": "a tabela de alimentadores depois de um trabalho: as peças que restam e o lugar seguinte das tiras"
+          }
+        },
+        {
+          "name": "designators.rs",
+          "desc": {
+            "en": "the natural order of designators (R2 before R10) and their writing as lists and ranges",
+            "es": "el orden natural de los designadores (R2 antes de R10) y su escritura como listas y rangos",
+            "de": "die natürliche Reihenfolge der Bezeichner (R2 vor R10) und ihre Schreibweise als Listen",
+            "fr": "l'ordre naturel des désignations (R2 avant R10) et leur écriture en listes et plages",
+            "it": "l'ordine naturale dei designatori (R2 prima di R10) e la loro scrittura in elenchi",
+            "ja": "リファレンスの自然順（R2がR10より前）と範囲表記",
+            "zh": "位号的自然顺序（R2 在 R10 前）与范围写法",
+            "pt": "a ordem natural dos designadores (R2 antes de R10) e a sua escrita em listas e intervalos"
+          }
+        },
+        {
+          "name": "dfm.rs",
+          "desc": {
+            "en": "the checks of a board for assembly, with the limits in the settings, in eight languages",
+            "es": "las comprobaciones de una placa para el montaje, con los límites en los ajustes, en ocho idiomas",
+            "de": "die Montageprüfungen einer Platine mit den Grenzen in den Einstellungen, in acht Sprachen",
+            "fr": "les contrôles d'une carte pour l'assemblage, limites dans les réglages, en huit langues",
+            "it": "i controlli di una scheda per l'assemblaggio, limiti nelle impostazioni, in otto lingue",
+            "ja": "基板の組立チェック（上限は設定）、8言語で報告",
+            "zh": "电路板装配检查（限值在设置中），八种语言",
+            "pt": "as verificações de uma placa para montagem, com os limites nas definições, em oito idiomas"
           }
         },
         {
@@ -519,6 +584,19 @@
             "ja": "基板のパッケージをパッケージ表と照合：既知、別名、生成可、類似",
             "zh": "将板上封装与封装表对照：已知、别名、可生成、相似",
             "pt": "os encapsulamentos de uma placa face à tabela de encapsulamentos: conhecido, alias, gerado, parecido"
+          }
+        },
+        {
+          "name": "fpsearch.rs",
+          "desc": {
+            "en": "the names of footprints brought to one form, and a search in a library of them",
+            "es": "los nombres de huellas llevados a una forma y una búsqueda en una biblioteca",
+            "de": "die Namen von Footprints in eine Form gebracht und eine Suche in einer Bibliothek",
+            "fr": "les noms d'empreintes ramenés à une forme et une recherche dans une bibliothèque",
+            "it": "i nomi delle impronte portati a una forma e una ricerca in una libreria",
+            "ja": "フットプリント名の正規化とライブラリ検索",
+            "zh": "封装名的统一与封装库搜索",
+            "pt": "os nomes das pegadas levados a uma forma e uma pesquisa numa biblioteca"
           }
         },
         {
@@ -883,6 +961,32 @@
             "ja": "ノズル上の部品の確認：大きさ・回転・位置",
             "zh": "对吸嘴上元件的检查：尺寸、旋转和位置",
             "pt": "a verificação da peça no bico: tamanho, rotação e posição"
+          }
+        },
+        {
+          "name": "ipcname.rs",
+          "desc": {
+            "en": "the names of footprints by the public convention of IPC-7351B, written and read",
+            "es": "los nombres de huellas por la convención pública de IPC-7351B, escritos y leídos",
+            "de": "die Namen von Footprints nach der öffentlichen Konvention IPC-7351B, geschrieben und gelesen",
+            "fr": "les noms d'empreintes selon la convention publique IPC-7351B, écrits et lus",
+            "it": "i nomi delle impronte secondo la convenzione pubblica IPC-7351B, scritti e letti",
+            "ja": "IPC-7351Bの命名規則によるフットプリント名の生成と解析",
+            "zh": "按 IPC-7351B 命名规则生成和解析封装名",
+            "pt": "os nomes das pegadas pela convenção pública IPC-7351B, escritos e lidos"
+          }
+        },
+        {
+          "name": "jlcpcb.rs",
+          "desc": {
+            "en": "the placement list and the bill of materials in the shape that assembly houses ask for",
+            "es": "la lista de colocación y la lista de materiales como las piden las casas de montaje",
+            "de": "die Bestückungsliste und die Stückliste in der Form, die Bestücker verlangen",
+            "fr": "la liste de placement et la nomenclature sous la forme demandée par les assembleurs",
+            "it": "la lista di piazzamento e la distinta base nella forma richiesta dai fornitori",
+            "ja": "実装業者が求める形式の配置リストと部品表",
+            "zh": "装配厂要求格式的贴装列表和物料清单",
+            "pt": "a lista de colocação e a lista de materiais na forma que as casas de montagem pedem"
           }
         },
         {
@@ -1497,6 +1601,19 @@
           }
         },
         {
+          "name": "stencil.rs",
+          "desc": {
+            "en": "the openings of the paste stencil from the pads: reduction, thermal windows, area ratio",
+            "es": "las aperturas de la plantilla de pasta desde los pads: reducción, ventanas térmicas, relación de área",
+            "de": "die Öffnungen der Pastenschablone aus den Pads: Verkleinerung, Wärmefenster, Flächenverhältnis",
+            "fr": "les ouvertures du pochoir depuis les pastilles : réduction, fenêtres thermiques, rapport de surface",
+            "it": "le aperture dello stencil dai pad: riduzione, finestre termiche, rapporto d'area",
+            "ja": "パッドから作るステンシル開口：縮小、ウィンドウ、面積比",
+            "zh": "由焊盘生成钢网开孔：缩减、窗口、面积比",
+            "pt": "as aberturas da máscara de pasta a partir dos pads: redução, janelas térmicas, razão de área"
+          }
+        },
+        {
           "name": "stock.rs",
           "desc": {
             "en": "the parts the feeders hold against the parts a run of boards needs",
@@ -1559,6 +1676,19 @@
             "ja": "ツールのフォーム値を設定ファイルの項目として扱い、そこへ保存する",
             "zh": "工具表单的值作为设置文件的项目，以及将它们保存回文件",
             "pt": "os valores dos formulários das ferramentas como definições do ficheiro e a sua gravação"
+          }
+        },
+        {
+          "name": "tower.rs",
+          "desc": {
+            "en": "the signal tower of a simulated job: the light at each second, read from the journal",
+            "es": "la torre de señales de un trabajo simulado: la luz en cada segundo, leída del diario",
+            "de": "die Signalleuchte eines simulierten Auftrags: das Licht je Sekunde, aus dem Journal",
+            "fr": "la colonne lumineuse d'un travail simulé : la lumière à chaque seconde, depuis le journal",
+            "it": "la torretta di segnalazione di un lavoro simulato: la luce a ogni secondo, dal diario",
+            "ja": "シミュレーションジョブの表示灯の色を秒ごとに再現",
+            "zh": "模拟作业信号灯塔每秒的灯色",
+            "pt": "a torre de sinalização de um trabalho simulado: a luz a cada segundo, lida do diário"
           }
         },
         {
@@ -1842,6 +1972,19 @@
           }
         },
         {
+          "name": "dfm.rs",
+          "desc": {
+            "en": "tests of the checks for assembly and of the paste stencil: every rule, eight languages",
+            "es": "pruebas de las comprobaciones de montaje y de la plantilla de pasta: cada regla, ocho idiomas",
+            "de": "Tests der Montageprüfungen und der Pastenschablone: jede Regel, acht Sprachen",
+            "fr": "tests des contrôles d'assemblage et du pochoir de pâte : chaque règle, huit langues",
+            "it": "test dei controlli di assemblaggio e dello stencil per pasta: ogni regola, otto lingue",
+            "ja": "組立チェックとステンシルのテスト：各ルール、8言語",
+            "zh": "装配检查和钢网的测试：每条规则、八种语言",
+            "pt": "testes das verificações de montagem e da máscara de pasta: cada regra, oito idiomas"
+          }
+        },
+        {
           "name": "encoding.rs",
           "desc": {
             "en": "tests of the encoding of the files: UTF-8, UTF-16 and Latin-1",
@@ -1865,6 +2008,45 @@
             "ja": "ジョブ交換ファイルのテスト：書き出し、読み込み、各拒否、コマンド",
             "zh": "作业交换文件测试：写入、读取、各种拒绝、命令",
             "pt": "testes do ficheiro de troca de um trabalho: escrita, leitura, cada recusa, os comandos"
+          }
+        },
+        {
+          "name": "fab.rs",
+          "desc": {
+            "en": "tests of the files for assembly houses and of the conversion of position files",
+            "es": "pruebas de los ficheros para casas de montaje y de la conversión de ficheros de posiciones",
+            "de": "Tests der Dateien für Bestücker und der Umwandlung von Positionsdateien",
+            "fr": "tests des fichiers pour assembleurs et de la conversion des fichiers de positions",
+            "it": "test dei file per i fornitori di assemblaggio e della conversione dei file di posizioni",
+            "ja": "実装業者向けファイルと位置ファイル変換のテスト",
+            "zh": "装配厂文件及位置文件转换的测试",
+            "pt": "testes dos ficheiros para casas de montagem e da conversão de ficheiros de posições"
+          }
+        },
+        {
+          "name": "fabcli.rs",
+          "desc": {
+            "en": "tests of the commands of the files for assembly, run with the example files",
+            "es": "pruebas de los comandos de los ficheros de montaje, con los ficheros de ejemplo",
+            "de": "Tests der Befehle der Montagedateien mit den Beispieldateien",
+            "fr": "tests des commandes des fichiers d'assemblage, avec les fichiers d'exemple",
+            "it": "test dei comandi dei file di assemblaggio, con i file di esempio",
+            "ja": "組立ファイル用コマンドをサンプルで動かすテスト",
+            "zh": "用示例文件运行装配命令的测试",
+            "pt": "testes dos comandos dos ficheiros de montagem, com os ficheiros de exemplo"
+          }
+        },
+        {
+          "name": "fabfuzz.rs",
+          "desc": {
+            "en": "tests by chance on a fixed seed of the readers and writers of the files for assembly",
+            "es": "pruebas al azar con semilla fija de los lectores y escritores de ficheros de montaje",
+            "de": "Zufallstests mit festem Startwert der Leser und Schreiber der Montagedateien",
+            "fr": "tests au hasard sur graine fixe des lecteurs et écrivains des fichiers d'assemblage",
+            "it": "test casuali con seme fisso dei lettori e scrittori dei file di assemblaggio",
+            "ja": "組立ファイルの読み書きの固定シード乱数テスト",
+            "zh": "装配文件读写的固定种子随机测试",
+            "pt": "testes ao acaso com semente fixa dos leitores e escritores dos ficheiros de montagem"
           }
         },
         {
@@ -2047,6 +2229,19 @@
             "ja": "ノズル上の部品の確認のテスト",
             "zh": "吸嘴上元件检查的测试",
             "pt": "testes da verificação da peça no bico"
+          }
+        },
+        {
+          "name": "ipc.rs",
+          "desc": {
+            "en": "tests of the names of footprints by IPC-7351B and of the search in a library",
+            "es": "pruebas de los nombres de huellas por IPC-7351B y de la búsqueda en una biblioteca",
+            "de": "Tests der Footprint-Namen nach IPC-7351B und der Suche in einer Bibliothek",
+            "fr": "tests des noms d'empreintes IPC-7351B et de la recherche dans une bibliothèque",
+            "it": "test dei nomi delle impronte IPC-7351B e della ricerca in una libreria",
+            "ja": "IPC-7351B名とライブラリ検索のテスト",
+            "zh": "IPC-7351B 封装名和库搜索的测试",
+            "pt": "testes dos nomes de pegadas IPC-7351B e da pesquisa numa biblioteca"
           }
         },
         {
@@ -2609,6 +2804,19 @@
           }
         },
         {
+          "name": "simviews.rs",
+          "desc": {
+            "en": "tests of the use of nozzles and feeders, the waits and the signal tower, read from a journal",
+            "es": "pruebas del uso de pipetas y alimentadores, las esperas y la torre de señales, desde un diario",
+            "de": "Tests der Auslastung, der Wartezeiten und der Signalleuchte aus einem Journal",
+            "fr": "tests de l'usage des buses, des attentes et de la colonne lumineuse, depuis un journal",
+            "it": "test dell'uso di ugelli e alimentatori, delle attese e della torretta, da un diario",
+            "ja": "ジャーナルから見る稼働・待ち・表示灯のテスト",
+            "zh": "由日志得出的使用、等待和信号灯塔的测试",
+            "pt": "testes do uso de bicos e alimentadores, das esperas e da torre, a partir de um diário"
+          }
+        },
+        {
           "name": "slots.rs",
           "desc": {
             "en": "tests of the places of the feeders: the swaps, what they save, the slots, the command",
@@ -3071,6 +3279,19 @@
           }
         },
         {
+          "name": "features.csv",
+          "desc": {
+            "en": "outline, pads, hole, fiducials, tab: for dfm-check and stencil-apertures",
+            "es": "el contorno, pads, un agujero, fiduciales, un agujero de herramienta y una pestaña, para dfm-check",
+            "de": "Umriss, Pads, Loch, Passmarken, Werkzeugloch und Steg, für dfm-check und stencil-apertures",
+            "fr": "contour, pastilles, trou, repères, trou d'outillage et languette, pour dfm-check et stencil-apertures",
+            "it": "contorno, pad, foro, fiduciali, foro di riferimento e linguetta, per dfm-check e stencil-apertures",
+            "ja": "dfm-check用の外形・パッド・穴・フィデューシャル・タブ",
+            "zh": "dfm-check 用的外形、焊盘、孔、基准点、连接片",
+            "pt": "contorno, pads, furo, fiduciais, furo de ferramenta e patilha, para dfm-check e stencil-apertures"
+          }
+        },
+        {
           "name": "feeder_measures.csv",
           "desc": {
             "en": "places measured for a strip and a tray, for feeder-teach",
@@ -3185,6 +3406,19 @@
             "ja": "最短のレシピ：準備、ピック、配置",
             "zh": "最短的配方：准备、拾取和贴装",
             "pt": "a receita mais curta: preparar, recolher e colocar"
+          }
+        },
+        {
+          "name": "journal.csv",
+          "desc": {
+            "en": "a simulated job with a slow step, a wait and a failure, for sim-busy",
+            "es": "el diario de un trabajo simulado con un paso lento, una espera y un fallo, para sim-busy y sim-tower",
+            "de": "das Journal eines simulierten Auftrags mit langsamem Schritt, Wartezeit und Fehler, für sim-busy",
+            "fr": "le journal d'un travail simulé avec une étape lente, une attente et une panne, pour sim-busy",
+            "it": "il diario di un lavoro simulato con un passo lento, un'attesa e un guasto, per sim-busy",
+            "ja": "sim-busy用のジャーナル：遅いステップ・待ち・故障",
+            "zh": "sim-busy 用的日志：慢步骤、等待、故障",
+            "pt": "o diário de um trabalho simulado com um passo lento, uma espera e uma falha, para sim-busy"
           }
         },
         {

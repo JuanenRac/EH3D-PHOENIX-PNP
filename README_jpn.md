@@ -18,7 +18,7 @@
 
 ---
 
-**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 1429 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、プログラム自身が自分のウィンドウの画像（`--shot`）を撮りますが、人が画面で描画を確認してはいません。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
+**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 1532 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、プログラム自身が自分のウィンドウの画像（`--shot`）を撮りますが、人が画面で描画を確認してはいません。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | バージョン | `0.1.2` |
 | 成熟度 | 足場 |
-| テスト | 1429 |
+| テスト | 1532 |
 | 技術スタック | Rust |
 | 実機での動作 | 未試験：ここにあるものは機械で動かしたことがありません |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | コア | 🟡 | 基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップ）、最大6本のノズルを持つヘッドの配置順をランク、ノズルチップ、角度の制限、移動時間とともに計画し、パネルを計画し、搭載シートを書き出します。通常の入力と壊れた入力でコンピューター上でテスト済みですが、実際のファイル群ではありません。 |
 | コマンドライン | 🟡 | `phoenix-pnp` はライブラリと同じ関数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）を実行して結果を表示します。エラーはすべて `PHOENIX-PNP-NNN` のコード付きメッセージと0以外の終了コードで返ります。 |
-| テスト | 🟡 | 1429 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
+| テスト | 🟡 | 1532 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
 | 機械の設定 | 🟡 | バージョン付きの `キー = 値` ファイル、行を示す検証、安全限界（Z の行程、X と Y の限界、再試行、ノズルの角度）。値は実機とは比較していません。 |
 | シミュレーターとジョブ | 🟡 | 仮想時計、確率（シード付き）または指定した場所で注入する故障、再試行、警告と保留の方針、故障が続くと止まるフィーダー、一時停止、一手ずつの実行、再開用に保存する状態。模擬のみで、実機は動かしていません。 |
 | セキュリティ | 🟡 | 安全な Rust のみ（`forbid(unsafe_code)`）。受け取ったファイルでパニックせず、不正な値は理由付きのエラーになります。独立したレビューはありません。 |
@@ -146,6 +146,12 @@
 * **シリアル番号ごとの基板記録** (`src/serialsig.rs`, `src/sha256.rs`, `src/cmd_shop.rs`, `examples/lots.csv`)：`phoenix-pnp serial-sign PARTS FEEDERS --serial S [--lots F] [--prev SIG] [--key-file F] [--out F]` は、シリアル番号、各テーブルのフィンガープリント（`job-fingerprint` で表示）、配置した各リファレンスとそのフィーダー・リールのロット、署名（SHA-256、またはファイルの鍵による HMAC-SHA-256。鍵は表示されません）を書きます。`--prev` で記録を前の基板に連鎖させます。`phoenix-pnp serial-verify FILE [--key-file F] [--prev SIG]` は記録が完全かどうかを判定し、1バイトの変更、行の削除、鍵の誤り、連鎖の断絶を検出します。
 * **シフトと複数ヘッド** (`src/shiftplan.rs`, `src/headsplit.rs`, `src/cmd_shop.rs`)：`phoenix-pnp shift-plan PARTS FEEDERS [--boards N] [--shift MINUTES] [--reel-change SECONDS]` はシフトを基板ごとに進め、どの基板の何分にどのリールを交換するか、何枚収まるか、1時間あたりの枚数を示します。`phoenix-pnp head-split PARTS FEEDERS [--heads N]` は、同じフィーダーから取る最大8ヘッドの機械で基板を再現します（リールは一度に1つのヘッドだけが使用）。基板を帯に分ける方法とヘッドごとにフィーダー全体を割り当てる方法を比べ、各ヘッドの時間、待ち、速い方法を示します。
 * **パッケージと間隔** (`src/footcheck.rs`, `src/clearance.rs`, `src/cmd_shop.rs`)：`phoenix-pnp footprint-check PARTS [--packages F]` は、基板の各パッケージがパッケージ表に対してどうなっているか（既知、`R_0603` に対する `R_0603_1608Metric` のような別名、名前から生成可、1〜2文字違い、不明）を示します。`phoenix-pnp clearance PARTS --packages F [--min MM]` は、同じ面で、部品とともに回転した本体が最小値 (`clearance_min_mm`) より近い、または重なる部品の組を見つけます。
+* **基板を実装する業者向けのファイル** (`src/jlcpcb.rs`, `src/designators.rs`, `src/cmd_fab.rs`)：`phoenix-pnp export-fab PARTS [--bom BOM] [--side all|top|bottom] [--mount] [--dnp-mode column|omit] [--cpl-out F] [--bom-out F]` は実装業者が求める配置リスト（`Designator`、`Mid X`、`Mid Y`、`Layer`、`Rotation`：1行に1部品、位置は2列、表面実装部品とスルーホール部品の両方、実装しない部品は列 `fab_dnp_column`（既定は `Customer Supply`）に印を付けるか `fab_dnp_mode = omit` で除外）と部品表（`MPN`、`Designator`、`Quantity`、`Description`、`Footprint`。CADの部品表の品番を使い、リファレンスは自然順で `R2` が `R10` より前）を書きます。スルーホール部品を見分ける語は設定 `fab_tht_words` です。`phoenix-pnp fab-check FILE` は配置リストを読み、業者が受け付けない行（リファレンスのセルにリストや範囲がある、リファレンスの重複、`Top` でも `Bottom` でもない層、数値でない位置）をすべて挙げます。形式はこれらのリストの公開されたもので、実際の業者には送っていません。
+* **KiCad、Altium、EAGLE、実装業者の位置ファイル** (`src/cplconv.rs`, `src/cmd_fab.rs`)：`phoenix-pnp convert-cpl FILE [--from kicad|altium|eagle|jlcpcb|generic] [--to jlcpcb|cpl|kicad-pos|generic] [--origin X,Y] [--flip-y] [--cw] [--rot-offset DEG] [--bottom keep|mirror|half_turn] [--out F]` はヘッダーからファイルの方言を判別し（または `--from`）、ミリメートルと度で読み、原点の移動、Y軸の反転（回転の向きも反転）、回転の数え方の変更、回転の加算、下面の規則の適用をこの順に行います。既定値は設定 `cpl_*` で、変換は元に戻せます（`cplconv::undo`）。これらのプログラムが実際に書いたファイルとは比較していません。
+* **IPC-7351B によるフットプリント名と名前検索** (`src/ipcname.rs`, `src/fpsearch.rs`, `src/cmd_fab.rs`)：`phoenix-pnp ipc-name NAME... [--density L|N|M]` は公開された命名規則の名前（`RESC1608X55N`：ファミリー、1/10 mm の本体、1/100 mm の高さ、密度。リード付き部品は `SOIC127P600X175-8N`、`QFP50P1000X1000X160-48N`）を分解し、一通りの書き方に直し、表のチップパッケージ（`R_0603`）をこの規則で命名します。`ipc-name --make FAMILY --pitch ... --height ...` は寸法から名前を作ります。`phoenix-pnp footprint-find QUERY... [--packages F]` はパッケージ表から名前を探します：同じ文字列、同じフットプリントの別名（`R_0603`、`Resistor_SMD:R_0603_1608Metric`、`RESC1608X55N` は同じもの）、語を含む名前、数文字違いの名前（`ipc_density`、`ipc_search_limit`、`ipc_search_distance` は設定）。使うのは名前の規則だけで、ランドパターンの表は持たず、ランドの寸法も計算しません。
+* **組立チェックとペーストステンシル** (`src/dfm.rs`, `src/stencil.rs`, `src/cmd_fab.rs`, `examples/features.csv`)：`phoenix-pnp dfm-check PARTS FEATURES [--packages F] [--out F]` は `--lang` の言語（スイートの8言語）で基板を組立の観点から判定します：ファインピッチ、2つの部品のパッド間の隙間、表面実装部品の本体間隔、はんだ付けするパッド内の穴、パッドの中心で終わる配線、フィデューシャルの大きさ・端からの距離・空けておく輪、ツーリング穴とその端に近い部品、タブの幅。`FEATURES` は `kind,id,x_mm,y_mm,w_mm,h_mm,side` の表です。各上限は設定（`dfm_*`、既定値は実装業者のガイドの公開値）で、`dfm_verified` がオフの間は未検証であることを報告に記します。`phoenix-pnp stencil-apertures FEATURES [--out F]` はパッドからペーストステンシルの開口を作り（各辺を `stencil_reduction_percent` だけ小さく、ファインピッチはさらに小さく、放熱パッドは `stencil_thermal_percent` を覆うウィンドウに分割）、厚さ、縮小率、被覆率、ウィンドウ間の桟、開口の面積比（`L*W / (2*(L+W)*T)`、`stencil_area_ratio_min` 以上）が範囲外のときに警告します。警告またはエラーがあると終了コードは 1 です。
+* **シミュレーションジョブの2つの表示** (`src/busy.rs`, `src/tower.rs`, `src/cmd_fab.rs`, `examples/journal.csv`)：`simulate --journal` が書くジャーナルから、`phoenix-pnp sim-busy JOURNAL` は各ノズルとフィーダーの稼働（秒、ステップ数、ジョブに占める割合）と機械が待った場所（長い順に `busy_gaps_listed` 件）を示し、`phoenix-pnp sim-tower JOURNAL` は表示灯が各秒に示す色を示します：失敗したステップは赤、同種ステップの中央値の `tower_slow_factor` 倍より遅いステップと `tower_idle_gap_s` を超える待ちは黄、それ以外は緑。何も駆動せず、ファイルを読むだけです。
+* **組立ファイルのテスト** (`tests/fab.rs`, `tests/ipc.rs`, `tests/dfm.rs`, `tests/simviews.rs`, `tests/fabcli.rs`, `tests/fabfuzz.rs`)：新しい各リーダーに固定シードで壊したサンプルファイルを与え、乱数で作った基板と名前（書いたものは読み戻せる、変換は元に戻せる、名前は読んだ後も同じに書ける、リファレンスの順序は全順序）、8言語でのチェックの全規則、人が実行するとおりのコマンド、範囲付きの新しい設定を確認します。
 * **部品ごとの不良とリトライ** (`src/rejects.rs`, `src/retrypolicy.rs`, `src/cmd_shop.rs`, `examples/rejects.csv`, `examples/retry_rules.csv`)：`phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT]` はロットの不良部品を、理由（パレート図の順）、パッケージ、フィーダー、リファレンス別に示します。`phoenix-pnp retry-policy PARTS FEEDERS RULES` は、リファレンス・値・パッケージ・フィーダーに最初に合う規則のリトライを各部品に与え、良品基板になる確率を計算し、何にも合わない規則や働かない規則を知らせます。
 * **ロットの費用とリールの経過期間** (`src/bomcost.rs`, `src/lotage.rs`, `src/cmd_shop.rs`, `examples/prices.csv`)：`phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT]` は数量別価格表からロットの費用を計算します（必要数が少ないときは販売最小数量を購入）。`phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N]` は、各フィーダーのロットの経過期間を日付コードから求め、指定した週と `lot_max_weeks` に照らして示します。
 * **無作為のテストと、全キー・全コマンドのテスト** (`tests/fuzz.rs`, `tests/keys.rs`, `tests/cli_all.rs`)：さまざまに壊した例ファイルと無作為のバイト列（固定シードなので再現できます）をすべてのファイルリーダーに与え、パニックしてはなりません。無作為の基板は、ツールが約束する性質を保ちます（書いた内容は読み戻せる、変換は距離を保ち元に戻せる、分担は各部品をちょうど1回割り当てる、確率は 0〜1 に収まる、作ったリクエストはメモリ上のサーバーが受け付ける）。設定の全キーは、例、検証、重複について確かめ、ヘルプにある全コマンドは、引数なし、誤ったオプション、存在しないファイルで実行され、パニックではなくエラー行で答えなければなりません。
@@ -277,6 +283,15 @@ phoenix-pnp retry-policy PARTS FEEDERS RULES [--out F]  規則から部品ごと
 phoenix-pnp clearance PARTS --packages F [--min MM] [--out F]  本体が近すぎる、または重なる部品（あれば終了コード 1）
 phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT] [--out F]  数量別価格でのロットの費用（価格のない部品があれば終了コード 1）
 phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N] [--out F]  各フィーダーのロットの経過期間（古いものがあれば終了コード 1）
+phoenix-pnp export-fab PARTS [--bom BOM] [--cpl-out F] [--bom-out F]  実装業者が求める形式の配置リストと部品表
+phoenix-pnp fab-check FILE  配置リストで業者が受け付けない行（あれば終了コード 1）
+phoenix-pnp convert-cpl FILE [--from D] [--to F] [--origin X,Y] [--flip-y] [--cw] [--rot-offset DEG] [--out F]  KiCad・Altium・EAGLE・業者の位置ファイルを別の原点と回転に変換
+phoenix-pnp ipc-name NAME... [--density L|N|M] | --make FAMILY ...  IPC-7351B の規則によるフットプリント名
+phoenix-pnp footprint-find QUERY... [--packages F]  パッケージ表の中で検索語そのものまたは別名にあたる名前（見つからない語があれば終了コード 1）
+phoenix-pnp dfm-check PARTS FEATURES [--packages F] [--out F]  基板の組立チェックを8言語で（警告またはエラーがあれば終了コード 1）
+phoenix-pnp stencil-apertures FEATURES [--out F]  ペーストステンシルの開口と警告（警告があれば終了コード 1）
+phoenix-pnp sim-busy JOURNAL [--out F]  シミュレーションでの各ノズル・フィーダーの稼働と待ち（失敗したステップがあれば終了コード 1）
+phoenix-pnp sim-tower JOURNAL [--out F]  シミュレーションジョブの各秒の表示灯の色（赤があれば終了コード 1）
 phoenix-pnp server-discover [--sim]  ローカルネットワーク上のサーバー（server_mdns = on と --features mdns が必要）
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       メモリ内に作った部品の画像を測定
 ```
@@ -393,7 +408,7 @@ cargo run --release --features gui
 
 ## 🧪 テスト
 
-テストは 1429 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
+テストは 1532 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
 
 ## 🏗️ ビルドとリリース
 
@@ -418,6 +433,7 @@ EH3D-PHOENIX-PNP/
 │   ├── bom.rs                                   部品表：読み込み、基板との照合、発注
 │   ├── bomcost.rs                               部品表と数量別価格表から生産ロットの費用を計算
 │   ├── bommerge.rs                              複数基板の部品表を合算して1つの購入リストにする
+│   ├── busy.rs                                  シミュレーションでのノズルとフィーダーの稼働と待ち時間
 │   ├── calibrate.rs                             カメラとノズル先端の校正、フィーダーの教示
 │   ├── calibsim.rs                              架空のカメラで試すカメラ校正：観測、フィット、誤差
 │   ├── camera.rs                                カメラのモデル：ピクセルサイズ、オフセット、回転、ミラー、レンズ
@@ -425,6 +441,7 @@ EH3D-PHOENIX-PNP/
 │   ├── changeover.rs                            キューのジョブ間でフィーダーに必要な変更：交換、装着、そのまま
 │   ├── clearance.rs                             基板上の部品本体の間隔：近すぎる、または重なっている組
 │   ├── cli_args.rs                              コマンドライン引数（厳格：未知のオプションはエラー）
+│   ├── cmd_fab.rs                               組立ファイル、チェック、ステンシル、ジャーナル表示のコマンド
 │   ├── cmd_flow.rs                              機械なしの流れのコマンド：ロット、分割、確率、ノズル高さ、マーク、取り込み、部品表
 │   ├── cmd_more.rs                              コマンド parts-diff、config-diff、board-stats、queue-stock、feeder-deplete、feeder-refill、job-diff
 │   ├── cmd_queue.rs                             ジョブキューのコマンド：追加、状態、確認、編集、実行
@@ -437,7 +454,10 @@ EH3D-PHOENIX-PNP/
 │   ├── compare.rs                               すべての順序とチップ戦略で計画した基板を並べて比較
 │   ├── config.rs                                機械の設定ファイル：キー、範囲、安全限界
 │   ├── configdiff.rs                            2つの設定ファイルで意味が異なる項目
+│   ├── cplconv.rs                               各CADと実装業者の位置ファイルの原点と回転を統一
 │   ├── deplete.rs                               ジョブ後のフィーダー表：残りの部品とストリップの次の位置
+│   ├── designators.rs                           リファレンスの自然順（R2がR10より前）と範囲表記
+│   ├── dfm.rs                                   基板の組立チェック（上限は設定）、8言語で報告
 │   ├── error.rs                                 エラーコード PHOENIX-PNP-NNN と8言語での意味
 │   ├── exchange.rs                              他のプログラム向けのジョブ JSON ファイル：計画と各部品の状態
 │   ├── export.rs                                レポート、不足の一覧、移動の G コード
@@ -449,6 +469,7 @@ EH3D-PHOENIX-PNP/
 │   ├── fidcheck.rs                              フィデューシャル適合の判定：回転・倍率・せん断・移動・外れた印
 │   ├── fiducial.rs                              パネルのフィデューシャル：実測マークの補正計算と部品の位置補正
 │   ├── footcheck.rs                             基板のパッケージをパッケージ表と照合：既知、別名、生成可、類似
+│   ├── fpsearch.rs                              フットプリント名の正規化とライブラリ検索
 │   ├── gui.rs                                   ウィンドウ：画面不要のモジュールと window.rs の描画
 │   ├── gui/app.rs                               ウィンドウの状態：読み込み、計画、開始、一時停止、ステップ、修正、保存
 │   ├── gui/browse.rs                            ファイル選択：フォルダーとファイル、上へ、入力したパス
@@ -477,6 +498,8 @@ EH3D-PHOENIX-PNP/
 │   ├── hotspots.rs                              多数回のシミュレーションで問題を起こすフィーダー：ピック失敗、停止、取り置き
 │   ├── import.rs                                位置ファイルの取り込み：列マップ付きセントロイド CSV、EAGLE のテキスト、KiCad の .pos
 │   ├── inspect.rs                               ノズル上の部品の確認：大きさ・回転・位置
+│   ├── ipcname.rs                               IPC-7351Bの命名規則によるフットプリント名の生成と解析
+│   ├── jlcpcb.rs                                実装業者が求める形式の配置リストと部品表
 │   ├── job.rs                                   ジョブ：ステップ、一時停止、再試行、方針、統計、保存状態
 │   ├── jobdiff.rs                               ファイルにした2つのジョブの違い：部品ごと、および計画全体
 │   ├── journal.rs                               模擬ジョブのジャーナル：各ステップの行と、その結果
@@ -524,11 +547,13 @@ EH3D-PHOENIX-PNP/
 │   ├── sim.rs                                   模擬機械：仮想時計と注入できる故障
 │   ├── slots.rs                                 計画が最も速くなるフィーダーの配置：同じ種類のフィーダー同士の位置の入れ替え
 │   ├── splitjob.rs                              基板を複数の機械で分担：フィーダー単位で割り当て、作業量を均等化
+│   ├── stencil.rs                               パッドから作るステンシル開口：縮小、ウィンドウ、面積比
 │   ├── stock.rs                                 フィーダーにある部品と基板ロットに必要な部品の比較
 │   ├── tapesteps.rs                             各ステップでテープを検査：残数、ピッチ、到達範囲、残少、最後、空
 │   ├── template.rs                              機械設定の出発点。どれも設定リーダーで読み込まれる
 │   ├── tips.rs                                  パッケージが受け付けるノズルチップと、部品の種類ごとの選択
 │   ├── toolvalues.rs                            ツールのフォーム値を設定ファイルの項目として扱い、そこへ保存する
+│   ├── tower.rs                                 シミュレーションジョブの表示灯の色を秒ごとに再現
 │   ├── units.rs                                 単位を持つ長さと位置
 │   ├── vision.rs                                画像処理：フィルタ、しきい値、領域、最小の回転矩形
 │   └── visionsim.rs                             part-inspect と fiducial-check 用のシミュレートカメラの読み取り値
@@ -551,8 +576,12 @@ EH3D-PHOENIX-PNP/
 │   ├── compare.rs                               順序比較のテスト：最速、テキスト、助言、コマンド
 │   ├── configdiff.rs                            設定の差分のテスト：同じ意味、既定値、リスト
 │   ├── deplete.rs                               ジョブ後のフィーダー表のテスト：個数、ストリップ、トレイ、コマンド
+│   ├── dfm.rs                                   組立チェックとステンシルのテスト：各ルール、8言語
 │   ├── encoding.rs                              ファイルの文字コードのテスト：UTF-8、UTF-16、Latin-1
 │   ├── exchange.rs                              ジョブ交換ファイルのテスト：書き出し、読み込み、各拒否、コマンド
+│   ├── fab.rs                                   実装業者向けファイルと位置ファイル変換のテスト
+│   ├── fabcli.rs                                組立ファイル用コマンドをサンプルで動かすテスト
+│   ├── fabfuzz.rs                               組立ファイルの読み書きの固定シード乱数テスト
 │   ├── failodds.rs                              良品基板の確率のテスト：再試行、ルール、ルールファイル、コマンド
 │   ├── feeding.rs                               フィーダーのテスト：優先度、トレイ、ストリップ
 │   ├── feedlib.rs                               フィーダーライブラリ確認のテスト
@@ -567,6 +596,7 @@ EH3D-PHOENIX-PNP/
 │   ├── hotspots.rs                              実行の問題箇所のテスト：ピック、失敗、停止、取り置き、順序、コマンド
 │   ├── import.rs                                取り込みのテスト：形式、単位、底面、DNP、範囲、行つきのエラー
 │   ├── inspect.rs                               ノズル上の部品の確認のテスト
+│   ├── ipc.rs                                   IPC-7351B名とライブラリ検索のテスト
 │   ├── job.rs                                   ジョブのテスト：ステップ、再試行、保存状態
 │   ├── jobdiff.rs                               2つのジョブの差分のテスト：変更の種類ごと、許容差、順序、コマンド
 │   ├── jobreport.rs                             作業レポートのテスト：フィーダー別の損失、チップの寿命、ファイル
@@ -610,6 +640,7 @@ EH3D-PHOENIX-PNP/
 │   ├── shop.rs                                  現場向けコマンドを人が実行するのと同じようにサンプルファイルで実行
 │   ├── shot.rs                                  ウィンドウの画像モードのテスト：画面なしで読み取り・確認される引数
 │   ├── sim.rs                                   模擬機械のテスト
+│   ├── simviews.rs                              ジャーナルから見る稼働・待ち・表示灯のテスト
 │   ├── slots.rs                                 フィーダー配置のテスト：入れ替え、節約量、動かないもの、スロット名、上限、コマンド
 │   ├── splitjob.rs                              機械間の分担テスト：フィーダー単位、均等化、コマンド
 │   ├── stock.rs                                 ロットの在庫と購入部品のテスト
@@ -646,6 +677,7 @@ EH3D-PHOENIX-PNP/
 │   ├── centroid_custom.csv                      別の列名、見出しにミル単位、面を表す語を持つセントロイド CSV
 │   ├── chip_0603.kicad_mod                      package-kicad 用の、0603 チップの KiCad フットプリント
 │   ├── failure_rules.csv                        failure-odds用のパッケージ別再試行
+│   ├── features.csv                             dfm-check用の外形・パッド・穴・フィデューシャル・タブ
 │   ├── feeder_measures.csv                      feeder-teach 用のテープとトレイの測定位置
 │   ├── feeders.csv                              試すためのサンプル
 │   ├── feeders_kinds.csv                        あらゆる種類のフィーダー：テープ、ストリップ、トレイ、オフのもの
@@ -655,6 +687,7 @@ EH3D-PHOENIX-PNP/
 │   ├── fid_measured.csv                         機械で測定した同じ4つのフィデューシャル
 │   ├── job.recipe                               全手順と、パッケージ・フィーダー・チップ別ルールを持つレシピ
 │   ├── job_basic.recipe                         最短のレシピ：準備、ピック、配置
+│   ├── journal.csv                              sim-busy用のジャーナル：遅いステップ・待ち・故障
 │   ├── lots.csv                                 lot-trace用の各フィーダーのロットとリール
 │   ├── machine.cfg                              機械の設定（すべてのキーを説明）
 │   ├── marks.csv                                パネルのフィデューシャルの実測位置
@@ -696,7 +729,7 @@ EH3D-PHOENIX-PNP/
 
 * ウィンドウの描画は人が画面で確認していません（`images/screens/` の画像は `--shot` でプログラム自身が撮ったものです）。ジョグも実際のカメラもなく、基板の部品であるマークはまだ使いません。
 * 実機でも実際のファイル群でも試しておらず、独立したレビューも受けていません。機械に関することはすべてシミュレーションです。
-* 他の実装プログラムのファイルは読みません。CSV の下面の角度の規則（`bottom_rotation`）は、どの CAD プログラムの実ファイルとも比較していません。
+* KiCad・Altium・EAGLE・実装業者の位置ファイルのリーダー、実装業者向けに書くファイル、IPC-7351B による名前、組立チェックとステンシルの数値は、実際のファイルとも規格とも業者の規則とも照合していません。CSV の下面の角度の規則（`bottom_rotation`、`cpl_bottom_rotation`）も、どのCADの実ファイルとも照合していません。
 * カメラと視覚はシミュレーションです。実際のカメラ、実画像によるピックの補正、実機のドライバーはありません。計画は別のプログラムが実行する JSON ファイルです。
 
 **次のステップ**

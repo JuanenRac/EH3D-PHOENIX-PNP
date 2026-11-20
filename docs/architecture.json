@@ -49,7 +49,9 @@
         "src/panel.rs::pub fn grid_panel",
         "src/inspect.rs::pub fn inspect",
         "src/feedlib.rs::pub fn check",
-        "src/feedrep.rs::pub fn build"
+        "src/feedrep.rs::pub fn build",
+        "src/cplconv.rs::pub fn read",
+        "src/jlcpcb.rs::pub fn cpl"
       ]
     },
     {
@@ -203,7 +205,7 @@
     }
   ],
   "legend": {
-    "tested": "covered by tests on a computer (1429 tests)",
+    "tested": "covered by tests on a computer (1532 tests)",
     "config": "planned, not used today",
     "external": "a person, a file or another repository"
   },
