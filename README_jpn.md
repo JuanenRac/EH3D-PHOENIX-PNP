@@ -18,7 +18,7 @@
 
 ---
 
-**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 1532 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、プログラム自身が自分のウィンドウの画像（`--shot`）を撮りますが、人が画面で描画を確認してはいません。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
+**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 1682 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、プログラム自身が自分のウィンドウの画像（`--shot`）を撮りますが、人が画面で描画を確認してはいません。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | バージョン | `0.1.2` |
 | 成熟度 | 足場 |
-| テスト | 1532 |
+| テスト | 1682 |
 | 技術スタック | Rust |
 | 実機での動作 | 未試験：ここにあるものは機械で動かしたことがありません |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | コア | 🟡 | 基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップ）、最大6本のノズルを持つヘッドの配置順をランク、ノズルチップ、角度の制限、移動時間とともに計画し、パネルを計画し、搭載シートを書き出します。通常の入力と壊れた入力でコンピューター上でテスト済みですが、実際のファイル群ではありません。 |
 | コマンドライン | 🟡 | `phoenix-pnp` はライブラリと同じ関数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）を実行して結果を表示します。エラーはすべて `PHOENIX-PNP-NNN` のコード付きメッセージと0以外の終了コードで返ります。 |
-| テスト | 🟡 | 1532 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
+| テスト | 🟡 | 1682 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
 | 機械の設定 | 🟡 | バージョン付きの `キー = 値` ファイル、行を示す検証、安全限界（Z の行程、X と Y の限界、再試行、ノズルの角度）。値は実機とは比較していません。 |
 | シミュレーターとジョブ | 🟡 | 仮想時計、確率（シード付き）または指定した場所で注入する故障、再試行、警告と保留の方針、故障が続くと止まるフィーダー、一時停止、一手ずつの実行、再開用に保存する状態。模擬のみで、実機は動かしていません。 |
 | セキュリティ | 🟡 | 安全な Rust のみ（`forbid(unsafe_code)`）。受け取ったファイルでパニックせず、不正な値は理由付きのエラーになります。独立したレビューはありません。 |
@@ -152,6 +152,12 @@
 * **組立チェックとペーストステンシル** (`src/dfm.rs`, `src/stencil.rs`, `src/cmd_fab.rs`, `examples/features.csv`)：`phoenix-pnp dfm-check PARTS FEATURES [--packages F] [--out F]` は `--lang` の言語（スイートの8言語）で基板を組立の観点から判定します：ファインピッチ、2つの部品のパッド間の隙間、表面実装部品の本体間隔、はんだ付けするパッド内の穴、パッドの中心で終わる配線、フィデューシャルの大きさ・端からの距離・空けておく輪、ツーリング穴とその端に近い部品、タブの幅。`FEATURES` は `kind,id,x_mm,y_mm,w_mm,h_mm,side` の表です。各上限は設定（`dfm_*`、既定値は実装業者のガイドの公開値）で、`dfm_verified` がオフの間は未検証であることを報告に記します。`phoenix-pnp stencil-apertures FEATURES [--out F]` はパッドからペーストステンシルの開口を作り（各辺を `stencil_reduction_percent` だけ小さく、ファインピッチはさらに小さく、放熱パッドは `stencil_thermal_percent` を覆うウィンドウに分割）、厚さ、縮小率、被覆率、ウィンドウ間の桟、開口の面積比（`L*W / (2*(L+W)*T)`、`stencil_area_ratio_min` 以上）が範囲外のときに警告します。警告またはエラーがあると終了コードは 1 です。
 * **シミュレーションジョブの2つの表示** (`src/busy.rs`, `src/tower.rs`, `src/cmd_fab.rs`, `examples/journal.csv`)：`simulate --journal` が書くジャーナルから、`phoenix-pnp sim-busy JOURNAL` は各ノズルとフィーダーの稼働（秒、ステップ数、ジョブに占める割合）と機械が待った場所（長い順に `busy_gaps_listed` 件）を示し、`phoenix-pnp sim-tower JOURNAL` は表示灯が各秒に示す色を示します：失敗したステップは赤、同種ステップの中央値の `tower_slow_factor` 倍より遅いステップと `tower_idle_gap_s` を超える待ちは黄、それ以外は緑。何も駆動せず、ファイルを読むだけです。
 * **組立ファイルのテスト** (`tests/fab.rs`, `tests/ipc.rs`, `tests/dfm.rs`, `tests/simviews.rs`, `tests/fabcli.rs`, `tests/fabfuzz.rs`)：新しい各リーダーに固定シードで壊したサンプルファイルを与え、乱数で作った基板と名前（書いたものは読み戻せる、変換は元に戻せる、名前は読んだ後も同じに書ける、リファレンスの順序は全順序）、8言語でのチェックの全規則、人が実行するとおりのコマンド、範囲付きの新しい設定を確認します。
+* **G-code ドライバ（シミュレータでのみ試験）** (`src/gcodedriver.rs`, `src/gcodesim.rs`, `src/driver.rs`, `src/drivertest.rs`, `src/textmatch.rs`, `src/cmd_drive.rs`, `examples/driver_marlin.cfg`, `examples/driver_klipper.cfg`): 最初のドライバはファイルに書いたプロファイルで、シリアル接続の Marlin と Moonraker 経由の Klipper に使えます。接続・原点復帰・安全な停止の行、移動のひな形（必ず待ちの行が続く）、切り替えるピンとポンプ、応答のパターン（`ok`、エラー、`busy`、`E` 軸付きの位置）、送り速度・高さ・範囲、時間、再試行を含みます。`phoenix-pnp driver-check PROFILE` が読み込んで検査し（各キーに範囲があり、最大を超える送り、範囲外の位置、コンパイルできないパターンは行番号付きのエラーで、8 言語で表示）、`driver-test PROFILE TRANSCRIPT` は記録した応答をパターンと照合し（`examples/marlin_answers.txt`、`examples/klipper_answers.txt`）、`driver-run PARTS FEEDERS PROFILE [--fault ...]` は基板を計画してプロファイルの行にして、故障を与えられる模擬の Marlin／Klipper に送ります（ある行でのエラー、応答なし、停止したコントローラ、`busy` 行、実際と違う位置）。問い合わせと切り替えは再度送られ、移動は二度送られず（待ちがタイムアウトしたらヘッドの位置を尋ねて決める）、エラー・足りない再試行・求めた位置と違う位置があると `safe_stop` の行の後で止まり、それ以上は何も送りません。`homing-repeat`（N 回の原点復帰後の位置のばらつき）と `bringup`（初回起動の手順を PASS／FAIL で表示）も同じシミュレータで動きます。ポートは開かず、機械も動かしていません。`evidence=simulator` と表示します。
+* **機械を安全な側にしか動かさない規則** (`src/safety.rs`, `examples/safety_events.txt`): 再試行、タイムアウト、拒否された移動の後は送り速度が下がり（`safety_careful_speed_pct`、次に `safety_slow_speed_pct`）、その後は機械が保持されます。求めた位置と違う位置や真空の喪失はすぐに保持し、コントローラのエラーは停止させます。良い応答では何も戻らず、保持された機械を戻せるのは人だけで、戻る先は低速までで通常には戻りません。`phoenix-pnp safety-replay EVENTS` はイベントのファイルを再生し、機械が保持または停止で終わると 1 で終了します。テストは 5 個までのすべてのイベント列と、乱数による 500 回の長い実行を試し、変更によって不具合後に加速するようになると失敗します。
+* **見て・動かし・また見る、真空、仮想基板** (`src/lookmove.rs`, `src/vacuumcal.rs`, `src/testboard.rs`, `src/cmd_import.rs`, `examples/vacuum_readings.csv`): `phoenix-pnp align-iterate` は仮想のカメラを相手に、小さな歩みでヘッドをマークへ運びます（`lml_max_step_mm` を超える歩みはなし。悪化した確認は歩みとゲインを恒久的に半分にし、2 回続くと停止、読めない確認は動かさずに停止）。`phoenix-pnp vacuum-calibrate READINGS` は部品あり・なしの測定値の差の内側に余裕を取って `vacuum_pick_min_kpa` と `vacuum_release_max_kpa` を提案し、重なる場合はそう伝えます。`phoenix-pnp test-board-gen grid|mixed|dense` はシードから作った基板とそのフィーダを書き出し、機械や設定の比較に使えます。
+* **他のプログラムのファイルの取り込み** (`src/xmlmini.rs`, `src/openpnp.rs`, `src/cmd_import.rs`, `examples/openpnp_machine.xml`, `examples/openpnp_package.xml`, `examples/openpnp_parts.xml`): `phoenix-pnp import-openpnp [--machine F] [--packages F] [--parts F] [--out-dir D]` は OpenPnP のパッケージ・部品・フィーダを、元ファイルには一切書き込まずに、単位をミリメートルにしてパッケージ表・部品表・フィーダ表へ読み込みます。XML リーダには上限があり（8 MiB、32 段、200000 要素。文書型は展開されないよう拒否）、パニックしません。対応できないもの（不明な単位、数値でない値、欠けた項目、重複した名前、ヘッド・カメラ・アクチュエータ）はファイル名と行番号付きで 8 言語で知らされ、使えない行は除外されます。例のファイルはテスト用に作ったものです。
+* **案内付きの手作業モード** (`src/assist.rs`, `src/cmd_import.rs`, `examples/assist_answers.txt`): `phoenix-pnp assist PARTS [--feeders F] [--order reel|reference] [--out F] [--resume F]` は機械なしで基板を案内します。リールごとに、上面の次に下面、各部品のリール・位置・回転・向きの有無を示し、置いたら部品番号を入力し、正しいときだけ次へ進みます（`skip`、`back`、`quit` はその名の通りで、チェックリストは保存して読み直せます）。
+* **ドライバと取り込みのテスト** (`tests/textmatch.rs`, `tests/driver.rs`, `tests/safety.rs`, `tests/drivercli.rs`, `tests/lookmove.rs`, `tests/vacuumcal.rs`, `tests/openpnp.rs`, `tests/assist.rs`, `tests/importcli.rs`, `tests/textvalues.rs`): プロファイルとそのエラー（8 言語）、書き出す行、読み取る応答、すべての故障を入れたセッション、あらゆる短いイベント列に対する安全規則、あらゆる位置で切って固定シードで壊した取り込み、人が実行する通りの各新コマンド、そして数値に見える値がどの表でも文字のままであること。
 * **部品ごとの不良とリトライ** (`src/rejects.rs`, `src/retrypolicy.rs`, `src/cmd_shop.rs`, `examples/rejects.csv`, `examples/retry_rules.csv`)：`phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT]` はロットの不良部品を、理由（パレート図の順）、パッケージ、フィーダー、リファレンス別に示します。`phoenix-pnp retry-policy PARTS FEEDERS RULES` は、リファレンス・値・パッケージ・フィーダーに最初に合う規則のリトライを各部品に与え、良品基板になる確率を計算し、何にも合わない規則や働かない規則を知らせます。
 * **ロットの費用とリールの経過期間** (`src/bomcost.rs`, `src/lotage.rs`, `src/cmd_shop.rs`, `examples/prices.csv`)：`phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT]` は数量別価格表からロットの費用を計算します（必要数が少ないときは販売最小数量を購入）。`phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N]` は、各フィーダーのロットの経過期間を日付コードから求め、指定した週と `lot_max_weeks` に照らして示します。
 * **無作為のテストと、全キー・全コマンドのテスト** (`tests/fuzz.rs`, `tests/keys.rs`, `tests/cli_all.rs`)：さまざまに壊した例ファイルと無作為のバイト列（固定シードなので再現できます）をすべてのファイルリーダーに与え、パニックしてはなりません。無作為の基板は、ツールが約束する性質を保ちます（書いた内容は読み戻せる、変換は距離を保ち元に戻せる、分担は各部品をちょうど1回割り当てる、確率は 0〜1 に収まる、作ったリクエストはメモリ上のサーバーが受け付ける）。設定の全キーは、例、検証、重複について確かめ、ヘルプにある全コマンドは、引数なし、誤ったオプション、存在しないファイルで実行され、パニックではなくエラー行で答えなければなりません。
@@ -292,6 +298,17 @@ phoenix-pnp dfm-check PARTS FEATURES [--packages F] [--out F]  基板の組立�
 phoenix-pnp stencil-apertures FEATURES [--out F]  ペーストステンシルの開口と警告（警告があれば終了コード 1）
 phoenix-pnp sim-busy JOURNAL [--out F]  シミュレーションでの各ノズル・フィーダーの稼働と待ち（失敗したステップがあれば終了コード 1）
 phoenix-pnp sim-tower JOURNAL [--out F]  シミュレーションジョブの各秒の表示灯の色（赤があれば終了コード 1）
+phoenix-pnp driver-check PROFILE  G-code ドライバのプロファイル（シリアルの Marlin、Moonraker 経由の Klipper）を読み込んで検査する
+phoenix-pnp driver-test PROFILE TRANSCRIPT  記録した応答をプロファイルのパターンと照合する（異なる読み方があれば 1 で終了）
+phoenix-pnp driver-run PARTS FEEDERS PROFILE [--fault ...] [--script-out F] [--log-out F]  基板を計画して模擬コントローラへ送る（ポートは開かない）
+phoenix-pnp safety-replay EVENTS [--profile F]  機械を減速させるだけの規則に対してイベントを再生する（保持または停止で終わると 1 で終了）
+phoenix-pnp homing-repeat PROFILE [--runs N] [--jitter MM] [--max-spread MM]  模擬機械が N 回の原点復帰で落ち着く位置のばらつき（上限超過で 1 で終了）
+phoenix-pnp bringup PROFILE [--fault ...]  模擬コントローラでの初回起動の手順を PASS／FAIL で表示（FAIL があれば 1 で終了）
+phoenix-pnp import-openpnp [--machine F] [--packages F] [--parts F] [--out-dir D]  OpenPnP のファイルを書き込まずにこのプログラムの表へ読み込む
+phoenix-pnp assist PARTS [--feeders F] [--answers F] [--resume F] [--out F]  案内付きの手作業モード：部品を順に、部品番号で確認
+phoenix-pnp align-iterate [--error X,Y] [--noise MM] [--scale K] [--seed S]  仮想カメラで、見て、見た分の一部を動かし、また見る（位置が合わなければ 1 で終了）
+phoenix-pnp vacuum-calibrate READINGS [--out F]  state,kpa の測定値から真空のしきい値を求める（測定値が重なれば 1 で終了）
+phoenix-pnp test-board-gen grid|mixed|dense PARTS_OUT FEEDERS_OUT [--seed S] [--count N]  シードから作る仮想基板とそのフィーダ
 phoenix-pnp server-discover [--sim]  ローカルネットワーク上のサーバー（server_mdns = on と --features mdns が必要）
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       メモリ内に作った部品の画像を測定
 ```
@@ -408,7 +425,7 @@ cargo run --release --features gui
 
 ## 🧪 テスト
 
-テストは 1532 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
+テストは 1682 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
 
 ## 🏗️ ビルドとリリース
 
@@ -429,6 +446,7 @@ EH3D-PHOENIX-PNP/
 │   ├── asidesheet.rs                            ジョブの後に人が手で置く部品のシート：取り置き、スキップ、未配置
 │   ├── asmexport.rs                             組立業者向けに部品を書き出す：実装リスト、KiCad .pos、単純なCSV、mmまたはインチ
 │   ├── asmimport.rs                             アセンブラの位置ファイルを部品として読む：Mid X、mil、TopLayer、単位付きの数値
+│   ├── assist.rs                                案内付き手作業モード：部品番号で確認しながら順に、スキップと戻る
 │   ├── boardstats.rs                            部品テーブルの集計と、近すぎる部品の組
 │   ├── bom.rs                                   部品表：読み込み、基板との照合、発注
 │   ├── bomcost.rs                               部品表と数量別価格表から生産ロットの費用を計算
@@ -441,8 +459,10 @@ EH3D-PHOENIX-PNP/
 │   ├── changeover.rs                            キューのジョブ間でフィーダーに必要な変更：交換、装着、そのまま
 │   ├── clearance.rs                             基板上の部品本体の間隔：近すぎる、または重なっている組
 │   ├── cli_args.rs                              コマンドライン引数（厳格：未知のオプションはエラー）
+│   ├── cmd_drive.rs                             G-code ドライバのコマンド：driver-check、driver-test、driver-run、bringup
 │   ├── cmd_fab.rs                               組立ファイル、チェック、ステンシル、ジャーナル表示のコマンド
 │   ├── cmd_flow.rs                              機械なしの流れのコマンド：ロット、分割、確率、ノズル高さ、マーク、取り込み、部品表
+│   ├── cmd_import.rs                            コマンド import-openpnp、assist、align-iterate、vacuum-calibrate、test-board-gen
 │   ├── cmd_more.rs                              コマンド parts-diff、config-diff、board-stats、queue-stock、feeder-deplete、feeder-refill、job-diff
 │   ├── cmd_queue.rs                             ジョブキューのコマンド：追加、状態、確認、編集、実行
 │   ├── cmd_server.rs                            EH3Dサーバーと通信するコマンド：送信、リクエスト、状態、ジョブ、フィーダー、校正
@@ -458,6 +478,8 @@ EH3D-PHOENIX-PNP/
 │   ├── deplete.rs                               ジョブ後のフィーダー表：残りの部品とストリップの次の位置
 │   ├── designators.rs                           リファレンスの自然順（R2がR10より前）と範囲表記
 │   ├── dfm.rs                                   基板の組立チェック（上限は設定）、8言語で報告
+│   ├── driver.rs                                ドライバのセッション：タイムアウト、再試行、安全側の停止、不具合後は低速
+│   ├── drivertest.rs                            コントローラの記録した応答をプロファイルのパターンで確認する
 │   ├── error.rs                                 エラーコード PHOENIX-PNP-NNN と8言語での意味
 │   ├── exchange.rs                              他のプログラム向けのジョブ JSON ファイル：計画と各部品の状態
 │   ├── export.rs                                レポート、不足の一覧、移動の G コード
@@ -470,6 +492,8 @@ EH3D-PHOENIX-PNP/
 │   ├── fiducial.rs                              パネルのフィデューシャル：実測マークの補正計算と部品の位置補正
 │   ├── footcheck.rs                             基板のパッケージをパッケージ表と照合：既知、別名、生成可、類似
 │   ├── fpsearch.rs                              フットプリント名の正規化とライブラリ検索
+│   ├── gcodedriver.rs                           G-code ドライバのプロファイル：行、パターン、時間、Moonraker 要求をファイルで
+│   ├── gcodesim.rs                              故障を入れられる模擬 Marlin／Klipper コントローラと、その接続
 │   ├── gui.rs                                   ウィンドウ：画面不要のモジュールと window.rs の描画
 │   ├── gui/app.rs                               ウィンドウの状態：読み込み、計画、開始、一時停止、ステップ、修正、保存
 │   ├── gui/browse.rs                            ファイル選択：フォルダーとファイル、上へ、入力したパス
@@ -507,15 +531,18 @@ EH3D-PHOENIX-PNP/
 │   ├── learn.rs                                 測定値から学習するパッケージごとの搭載ずれ
 │   ├── lib.rs                                   ライブラリ：各コマンドが使うもの
 │   ├── loadsheet.rs                             搭載シート：各テープのスロット
+│   ├── lookmove.rs                              見て、動かし、また見る：上限付きの小さな歩み。悪化したら小さくなるだけ
 │   ├── lotage.rs                                日付コードから各リールのロットの経過週数を、指定週と上限に照らして判定
 │   ├── lottrace.rs                              配置した各部品のロットとリール、不足しているもの
 │   ├── main.rs                                  コマンドラインと、コマンドなしで実行したときのウィンドウの入口
 │   ├── marks.rs                                 2階層のマーク：マークである部品と、パネルと各基板のフィット
 │   ├── model.rs                                 機械の部品をトレイトで表現：機械、ノズル、フィーダー、アクチュエーター、カメラ、ドライバー
 │   ├── motion.rs                                加速度とジャークを含む移動時間
+│   ├── msg8.rs                                  8 言語のテキスト：8 つの文字列の行と埋め込み位置
 │   ├── nozzlelife.rs                            ノズルチップの使用状況：搭載数、装着回数、交換回数、警告レベル
 │   ├── nozzles.rs                               ノズル1〜6本での計画：バッチ、チップ、移動、秒数、各本数の短縮時間
 │   ├── nozzlez.rs                               ノズルごとの高さをプロービングから求める：平均、ばらつき、オフセット、補正、模擬
+│   ├── openpnp.rs                               OpenPnP のパッケージ・部品・フィーダの読み取り専用インポート（単位換算付き）
 │   ├── panel.rs                                 パネル：パネルの中の基板とパネル、それぞれの位置
 │   ├── panelfids.rs                             パネル座標での各基板のマークと、位置合わせできない基板
 │   ├── parts.rs                                 位置ファイルと実装しない部品
@@ -538,6 +565,7 @@ EH3D-PHOENIX-PNP/
 │   ├── rotation.rs                              パッケージ別の回転補正と、制限付きノズルの回し方
 │   ├── runs.rs                                  同じジョブをシミュレーション機で、毎回別のシードで何度も実行
 │   ├── runway.rs                                各リールが基板何枚分もつか、最初に尽きるリール、残る部品
+│   ├── safety.rs                                不具合の後は減速するだけで速度を戻さない規則
 │   ├── serialsig.rs                             基板のシリアル別記録：ハッシュで署名し、前の基板と連鎖させる
 │   ├── server.rs                                EH3Dサーバーへの経路：リクエスト、ジョブ、共通クライアント、メモリ上のサーバー
 │   ├── setup.rs                                 段取りシート：フィーダー、不足部品、チップ、校正
@@ -551,17 +579,22 @@ EH3D-PHOENIX-PNP/
 │   ├── stock.rs                                 フィーダーにある部品と基板ロットに必要な部品の比較
 │   ├── tapesteps.rs                             各ステップでテープを検査：残数、ピッチ、到達範囲、残少、最後、空
 │   ├── template.rs                              機械設定の出発点。どれも設定リーダーで読み込まれる
+│   ├── testboard.rs                             シードから作る仮想基板：格子、両面の混在、高密度、フィーダ付き
+│   ├── textmatch.rs                             コントローラの応答行用の、処理時間に上限のある小さなパターン照合
 │   ├── tips.rs                                  パッケージが受け付けるノズルチップと、部品の種類ごとの選択
 │   ├── toolvalues.rs                            ツールのフォーム値を設定ファイルの項目として扱い、そこへ保存する
 │   ├── tower.rs                                 シミュレーションジョブの表示灯の色を秒ごとに再現
 │   ├── units.rs                                 単位を持つ長さと位置
+│   ├── vacuumcal.rs                             測定値から求める真空のしきい値（差の内側に余裕を取る）
 │   ├── vision.rs                                画像処理：フィルタ、しきい値、領域、最小の回転矩形
-│   └── visionsim.rs                             part-inspect と fiducial-check 用のシミュレートカメラの読み取り値
+│   ├── visionsim.rs                             part-inspect と fiducial-check 用のシミュレートカメラの読み取り値
+│   └── xmlmini.rs                               他プログラムのファイル用の、上限付き XML リーダ（エンティティなし）
 ├── tests/
 │   ├── align.rs                                 アライメント工程のテスト：カメラ、補正した位置、許容差、時間
 │   ├── approach.rs                              approach 時の計画時間のテスト：2 回目の動きとジョブの秒数
 │   ├── asidesheet.rs                            手作業の部品シートのテスト：取り置き、スキップ、未配置、順序、コマンド
 │   ├── asmexport.rs                             組立業者向けファイルのテスト：列、単位、面、読み戻し、コマンド
+│   ├── assist.rs                                案内モードのテスト：順序、確認、スキップ、戻る、チェックリスト、再開、文言
 │   ├── backlash.rs                              シミュレート機械の軸バックラッシュのテスト
 │   ├── boardstats.rs                            集計と近すぎる部品のテスト：グリッドと全組の比較
 │   ├── bom.rs                                   部品表のテスト：読み込み、照合、コード、bom-check
@@ -577,6 +610,8 @@ EH3D-PHOENIX-PNP/
 │   ├── configdiff.rs                            設定の差分のテスト：同じ意味、既定値、リスト
 │   ├── deplete.rs                               ジョブ後のフィーダー表のテスト：個数、ストリップ、トレイ、コマンド
 │   ├── dfm.rs                                   組立チェックとステンシルのテスト：各ルール、8言語
+│   ├── driver.rs                                ドライバのテスト：プロファイル、行、応答、Moonraker、模擬コントローラ、セッション
+│   ├── drivercli.rs                             driver-check、driver-test、driver-run、safety-replay、homing-repeat、bringup のテスト
 │   ├── encoding.rs                              ファイルの文字コードのテスト：UTF-8、UTF-16、Latin-1
 │   ├── exchange.rs                              ジョブ交換ファイルのテスト：書き出し、読み込み、各拒否、コマンド
 │   ├── fab.rs                                   実装業者向けファイルと位置ファイル変換のテスト
@@ -595,6 +630,7 @@ EH3D-PHOENIX-PNP/
 │   ├── hooks.rs                                 フックのテスト：既定オフ、規則、出来事、呼び出し、実行、simulate --hooks
 │   ├── hotspots.rs                              実行の問題箇所のテスト：ピック、失敗、停止、取り置き、順序、コマンド
 │   ├── import.rs                                取り込みのテスト：形式、単位、底面、DNP、範囲、行つきのエラー
+│   ├── importcli.rs                             import-openpnp、assist、align-iterate、vacuum-calibrate、test-board-gen のテスト
 │   ├── inspect.rs                               ノズル上の部品の確認のテスト
 │   ├── ipc.rs                                   IPC-7351B名とライブラリ検索のテスト
 │   ├── job.rs                                   ジョブのテスト：ステップ、再試行、保存状態
@@ -606,6 +642,7 @@ EH3D-PHOENIX-PNP/
 │   ├── kicadmod.rs                              KiCad フットプリントのテスト：本体、コートヤード、壊れたファイル、行、コマンド
 │   ├── learn.rs                                 学習したずれのテスト：測定値、外れ値、上限、ファイル、ジョブ、コマンド
 │   ├── loadsheet.rs                             搭載シートと出力のテスト
+│   ├── lookmove.rs                              見て動かしてまた見る処理のテスト：収束、上限、小さくなる歩み、設定
 │   ├── looks.rs                                 カメラの追加確認と、レポートでフィーダーごとに数える確認のテスト
 │   ├── lottrace.rs                              ロット追跡のテスト：各部品のロット、不足、ロット表、コマンド
 │   ├── marks.rs                                 不良としてマークされた基板、マークである部品、2階層のマークのテスト
@@ -614,6 +651,7 @@ EH3D-PHOENIX-PNP/
 │   ├── names.rs                                 ファイル名のテスト：大文字小文字だけが違う名前や Windows で使えない名前がない
 │   ├── nozzlelife.rs                            ノズルチップの使用状況のテスト：ファイル、ジョブが加えるもの、コマンド
 │   ├── nozzles.rs                               ノズル比較のテスト：行、最速、短縮時間、除外されるヘッド、コマンド
+│   ├── openpnp.rs                               XML リーダと OpenPnP インポートのテスト：上限、単位、指摘、壊れたファイル
 │   ├── panel.rs                                 パネルとそのフィデューシャルのテスト
 │   ├── panelize.rs                              基板の格子パネルと panelize のテスト
 │   ├── partsdiff.rs                             2つの部品テーブルの差分のテスト：各種類、許容値、コマンド
@@ -633,6 +671,7 @@ EH3D-PHOENIX-PNP/
 │   ├── report.rs                                レポートのテスト：工程、ピック、ヒストグラム、グループ、判断、形式
 │   ├── runs.rs                                  ジョブの複数回実行のテスト：シード、全部品を置けた回、エラー、時間、コマンド
 │   ├── runway.rs                                リールの持ち枚数のテスト：数え方、順序、無効・未使用のフィーダー、表、コマンド
+│   ├── safety.rs                                変更により不具合後に加速したり保持が解除されたりすると失敗するテスト
 │   ├── samples.rs                               校正の例とフィーダー測定ファイルのテスト
 │   ├── server.rs                                サーバーへの経路のテスト：設定、再試行、ルート、メモリ上のサーバー、コマンド
 │   ├── serverui.rs                              メモリ上のサーバーでウィンドウのサーバーパネルを試験：設定、ログイン、ファイル、トークンなし
@@ -648,6 +687,7 @@ EH3D-PHOENIX-PNP/
 │   ├── tables.rs                                実装しない部品、tables-check、ジョブのCSVレポートのテスト
 │   ├── teach.rs                                 テープとトレイの教示のテスト
 │   ├── template.rs                              設定の出発点のテスト：有効性、各テンプレートの変更点、コマンド
+│   ├── textmatch.rs                             パターン照合のテスト：構文、拒否、時間上限、ランダムな文字列
 │   ├── tips.rs                                  パッケージが受け付けるチップのテスト：ルール、選択、計画
 │   ├── toolbox.rs                               ツールタブのテスト：設定、例に対する各ツール、反映と書き出し
 │   ├── toolflow.rs                              リール、ノズル、問題箇所、段取り替えのパネルとフォーム値の保存のテスト
@@ -656,12 +696,14 @@ EH3D-PHOENIX-PNP/
 │   ├── toolshop.rs                              ツールタブの新しい6つのパネル：コマンドの出力、文言、保存される表
 │   ├── toolvalues.rs                            フォーム値の設定項目のテスト：範囲、既定値、コマンド、ファイルへの保存
 │   ├── vacuum.rs                                真空、アクチュエーター、フィーダーの故障ウィンドウのテスト
+│   ├── vacuumcal.rs                             真空しきい値とシードから作る仮想基板のテスト
 │   ├── vis_cli.rs                               コマンド part-inspect、fiducial-check、feeder-check、--report-feeders のテスト
 │   ├── vision.rs                                画像処理のテスト：手計算の画像、失敗、設定
 │   ├── vision_job.rs                            ジョブと vision-test の画像処理テスト：測定値、失敗、保存状態
 │   └── visionsim.rs                             劣化カメラと、2 つのチェックへの読み取り値のテスト
 ├── examples/
 │   ├── altium_pnp.csv                           Altium 形式の位置ファイル（mil 単位）、import-assembler 用
+│   ├── assist_answers.txt                       案内モードで例の基板を進める人の入力
 │   ├── board.mnt                                EAGLE のテキスト形式の基板の位置
 │   ├── board.pos                                試すためのサンプル
 │   ├── board_dnp.csv                            dnp 列を持つ基板：2つの部品は実装しない
@@ -676,6 +718,8 @@ EH3D-PHOENIX-PNP/
 │   ├── centroid.map                             centroid_custom.csv の列マップ
 │   ├── centroid_custom.csv                      別の列名、見出しにミル単位、面を表す語を持つセントロイド CSV
 │   ├── chip_0603.kicad_mod                      package-kicad 用の、0603 チップの KiCad フットプリント
+│   ├── driver_klipper.cfg                       Moonraker 経由で Klipper を使うドライバのプロファイル（各キーの説明付き）
+│   ├── driver_marlin.cfg                        シリアル接続の Marlin 用ドライバのプロファイル（各キーの説明付き）
 │   ├── failure_rules.csv                        failure-odds用のパッケージ別再試行
 │   ├── features.csv                             dfm-check用の外形・パッド・穴・フィデューシャル・タブ
 │   ├── feeder_measures.csv                      feeder-teach 用のテープとトレイの測定位置
@@ -688,12 +732,17 @@ EH3D-PHOENIX-PNP/
 │   ├── job.recipe                               全手順と、パッケージ・フィーダー・チップ別ルールを持つレシピ
 │   ├── job_basic.recipe                         最短のレシピ：準備、ピック、配置
 │   ├── journal.csv                              sim-busy用のジャーナル：遅いステップ・待ち・故障
+│   ├── klipper_answers.txt                      接続越しの Klipper の応答を手で書き留めたもの
 │   ├── lots.csv                                 lot-trace用の各フィーダーのロットとリール
 │   ├── machine.cfg                              機械の設定（すべてのキーを説明）
 │   ├── marks.csv                                パネルのフィデューシャルの実測位置
+│   ├── marlin_answers.txt                       Marlin の応答を手で書き留めたもの（プロファイルとの照合用）
 │   ├── nozzle_life.csv                          2 本のノズルチップの使用状況（1 本は警告レベル超え）
 │   ├── nozzle_readings.csv                      nozzle-calibrate 用の複数角度でのノズル先端の読み取り
 │   ├── nozzle_reads.csv                         part-inspect 用のノズル上の部品の測定値
+│   ├── openpnp_machine.xml                      OpenPnP 形式のフィーダ付きマシンファイル（テスト用に作成）
+│   ├── openpnp_package.xml                      OpenPnP 形式のパッケージファイル（テスト用に作成）
+│   ├── openpnp_parts.xml                        OpenPnP 形式の部品ファイル（テスト用に作成）
 │   ├── package_sizes.csv                        各パッケージ本体の大きさ
 │   ├── packages.csv                             パッケージの表：高さ、チップ、ランク、テープ
 │   ├── packages_bodies.csv                      各パッケージ本体の大きさを含むパッケージの表（part-inspect 用）
@@ -703,7 +752,9 @@ EH3D-PHOENIX-PNP/
 │   ├── prices.csv                               bom-cost 用の数量別価格表
 │   ├── rejects.csv                              reject-report 用の、理由と基板付きの不良部品一覧
 │   ├── retry_rules.csv                          retry-policy 用の、リファレンス・値・パッケージ・フィーダー別のリトライ規則
+│   ├── safety_events.txt                        safety-replay 用の実行イベント
 │   ├── slots.csv                                機械のスロット
+│   ├── vacuum_readings.csv                      部品を保持・解放・無負荷にした真空センサの測定値
 │   ├── vision.cfg                               画像処理の設定（すべてのキーを説明）
 │   └── z_probe.csv                              2本のノズルのプロービング、nozzle-zcal 用
 ├── docs/
@@ -730,6 +781,7 @@ EH3D-PHOENIX-PNP/
 * ウィンドウの描画は人が画面で確認していません（`images/screens/` の画像は `--shot` でプログラム自身が撮ったものです）。ジョグも実際のカメラもなく、基板の部品であるマークはまだ使いません。
 * 実機でも実際のファイル群でも試しておらず、独立したレビューも受けていません。機械に関することはすべてシミュレーションです。
 * KiCad・Altium・EAGLE・実装業者の位置ファイルのリーダー、実装業者向けに書くファイル、IPC-7351B による名前、組立チェックとステンシルの数値は、実際のファイルとも規格とも業者の規則とも照合していません。CSV の下面の角度の規則（`bottom_rotation`、`cpl_bottom_rotation`）も、どのCADの実ファイルとも照合していません。
+* ドライバは模擬の Marlin と Klipper に対してのみ試験しています。ポートは開かず、機械も動かしておらず、例の応答は実際のコントローラから取得したものではなく手書きです。OpenPnP のファイルの取り込みは実ファイルでは試していません。案内モードと仮想カメラは機械ではありません。
 * カメラと視覚はシミュレーションです。実際のカメラ、実画像によるピックの補正、実機のドライバーはありません。計画は別のプログラムが実行する JSON ファイルです。
 
 **次のステップ**

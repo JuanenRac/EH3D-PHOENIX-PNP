@@ -67,6 +67,19 @@
           }
         },
         {
+          "name": "assist.rs",
+          "desc": {
+            "en": "the guided manual mode: parts one after the other, checked by reference, skip, back",
+            "es": "el modo manual guiado: piezas una tras otra, comprobadas por referencia, saltar, volver",
+            "de": "der geführte Handbetrieb: Teile nacheinander, per Referenz geprüft, überspringen, zurück",
+            "fr": "le mode manuel guidé : pièces l'une après l'autre, vérifiées par référence, sauter, retour",
+            "it": "la modalità manuale guidata: componenti uno dopo l'altro, verificati per riferimento",
+            "ja": "案内付き手作業モード：部品番号で確認しながら順に、スキップと戻る",
+            "zh": "引导式手工模式：按位号逐个核对元件，可跳过和返回",
+            "pt": "o modo manual guiado: peças uma a uma, verificadas pela referência, saltar, voltar"
+          }
+        },
+        {
           "name": "boardstats.rs",
           "desc": {
             "en": "the counts of a table of parts and the pairs of parts that sit too near each other",
@@ -223,6 +236,19 @@
           }
         },
         {
+          "name": "cmd_drive.rs",
+          "desc": {
+            "en": "the commands of the G-code driver: driver-check, driver-test, driver-run, bringup",
+            "es": "los comandos del driver de G-code: driver-check, driver-test, driver-run, bringup",
+            "de": "die Befehle des G-Code-Treibers: driver-check, driver-test, driver-run, bringup",
+            "fr": "les commandes du pilote G-code : driver-check, driver-test, driver-run, bringup",
+            "it": "i comandi del driver G-code: driver-check, driver-test, driver-run, bringup",
+            "ja": "G-code ドライバのコマンド：driver-check、driver-test、driver-run、bringup",
+            "zh": "G-code 驱动命令：driver-check、driver-test、driver-run、bringup",
+            "pt": "os comandos do driver de G-code: driver-check, driver-test, driver-run, bringup"
+          }
+        },
+        {
           "name": "cmd_fab.rs",
           "desc": {
             "en": "the commands of the files for assembly, the checks, the stencil and the views of a journal",
@@ -246,6 +272,19 @@
             "ja": "機械なしの流れのコマンド：ロット、分割、確率、ノズル高さ、マーク、取り込み、部品表",
             "zh": "无需机器的流程命令：批次、拆分、概率、吸嘴高度、标记、导入、清单",
             "pt": "comandos do fluxo sem máquina: lotes, repartição, risco, alturas, marcas, importação, listas"
+          }
+        },
+        {
+          "name": "cmd_import.rs",
+          "desc": {
+            "en": "the commands import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen",
+            "es": "los comandos import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen",
+            "de": "die Befehle import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen",
+            "fr": "les commandes import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen",
+            "it": "i comandi import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen",
+            "ja": "コマンド import-openpnp、assist、align-iterate、vacuum-calibrate、test-board-gen",
+            "zh": "命令 import-openpnp、assist、align-iterate、vacuum-calibrate、test-board-gen",
+            "pt": "os comandos import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen"
           }
         },
         {
@@ -444,6 +483,32 @@
           }
         },
         {
+          "name": "driver.rs",
+          "desc": {
+            "en": "a driver session: timeouts, retries, a stop that fails closed, slower after trouble",
+            "es": "una sesión de driver: tiempos, reintentos, una parada que falla cerrada, más lento tras fallos",
+            "de": "eine Treibersitzung: Zeitgrenzen, Wiederholungen, ein sicherer Stopp, langsamer nach Störungen",
+            "fr": "une session de pilote : délais, essais, un arrêt qui échoue fermé, plus lent après incident",
+            "it": "una sessione del driver: tempi, tentativi, un arresto sicuro, più lento dopo i problemi",
+            "ja": "ドライバのセッション：タイムアウト、再試行、安全側の停止、不具合後は低速",
+            "zh": "驱动会话：超时、重试、失败即关闭的停止，故障后降速",
+            "pt": "uma sessão do driver: tempos, tentativas, uma paragem segura, mais lento após problemas"
+          }
+        },
+        {
+          "name": "drivertest.rs",
+          "desc": {
+            "en": "recorded answers of a controller played against the patterns of a profile",
+            "es": "respuestas grabadas de un controlador, probadas contra los patrones de un perfil",
+            "de": "aufgezeichnete Antworten einer Steuerung, gegen die Muster eines Profils gespielt",
+            "fr": "réponses enregistrées d'un contrôleur, jouées contre les motifs d'un profil",
+            "it": "risposte registrate di un controllore, provate contro i modelli di un profilo",
+            "ja": "コントローラの記録した応答をプロファイルのパターンで確認する",
+            "zh": "把控制器的记录应答与配置档的模式对照",
+            "pt": "respostas gravadas de um controlador, testadas contra os padrões de um perfil"
+          }
+        },
+        {
           "name": "error.rs",
           "desc": {
             "en": "the error codes PHOENIX-PNP-NNN and their meaning in eight languages",
@@ -597,6 +662,32 @@
             "ja": "フットプリント名の正規化とライブラリ検索",
             "zh": "封装名的统一与封装库搜索",
             "pt": "os nomes das pegadas levados a uma forma e uma pesquisa numa biblioteca"
+          }
+        },
+        {
+          "name": "gcodedriver.rs",
+          "desc": {
+            "en": "the profile of a G-code driver in a file: lines, patterns, times, Moonraker requests",
+            "es": "el perfil de un driver de G-code en un fichero: líneas, patrones, tiempos, Moonraker",
+            "de": "das Profil eines G-Code-Treibers in einer Datei: Zeilen, Muster, Zeiten, Moonraker",
+            "fr": "le profil d'un pilote G-code dans un fichier : lignes, motifs, délais, requêtes Moonraker",
+            "it": "il profilo di un driver G-code in un file: righe, modelli, tempi, richieste Moonraker",
+            "ja": "G-code ドライバのプロファイル：行、パターン、時間、Moonraker 要求をファイルで",
+            "zh": "文件中的 G-code 驱动配置档：行、模式、时间、Moonraker 请求",
+            "pt": "o perfil de um driver de G-code num ficheiro: linhas, padrões, tempos, pedidos Moonraker"
+          }
+        },
+        {
+          "name": "gcodesim.rs",
+          "desc": {
+            "en": "a simulated Marlin and Klipper controller with faults, and the links to it",
+            "es": "un controlador Marlin y Klipper simulado con fallos, y los enlaces con él",
+            "de": "eine simulierte Marlin- und Klipper-Steuerung mit Fehlern und die Verbindungen dazu",
+            "fr": "un contrôleur Marlin et Klipper simulé avec des pannes, et les liaisons vers lui",
+            "it": "un controllore Marlin e Klipper simulato con guasti, e i collegamenti ad esso",
+            "ja": "故障を入れられる模擬 Marlin／Klipper コントローラと、その接続",
+            "zh": "可注入故障的模拟 Marlin 和 Klipper 控制器及其连接",
+            "pt": "um controlador Marlin e Klipper simulado com falhas, e as ligações a ele"
           }
         },
         {
@@ -1081,6 +1172,19 @@
           }
         },
         {
+          "name": "lookmove.rs",
+          "desc": {
+            "en": "look, move, look again: capped steps toward a mark that only get smaller after a worse look",
+            "es": "mira, mueve, vuelve a mirar: pasos con tope hacia una marca, solo más pequeños tras empeorar",
+            "de": "schauen, bewegen, wieder schauen: begrenzte Schritte zu einer Marke, nur kleiner nach Verschlechterung",
+            "fr": "regarder, bouger, regarder encore : pas plafonnés vers un repère, plus petits seulement si pire",
+            "it": "guarda, muovi, guarda ancora: passi con tetto verso un segno, solo più piccoli se peggiora",
+            "ja": "見て、動かし、また見る：上限付きの小さな歩み。悪化したら小さくなるだけ",
+            "zh": "看、移动、再看：有上限的小步靠近标记，变差后只会更小",
+            "pt": "olhar, mover, olhar de novo: passos com limite para uma marca, só mais pequenos se piorar"
+          }
+        },
+        {
           "name": "lotage.rs",
           "desc": {
             "en": "how old the lot of each reel is, from its date code, against a week and a limit",
@@ -1159,6 +1263,19 @@
           }
         },
         {
+          "name": "msg8.rs",
+          "desc": {
+            "en": "texts in the eight languages: a row of eight strings with places to fill in",
+            "es": "textos en los ocho idiomas: una fila de ocho cadenas con huecos que rellenar",
+            "de": "Texte in den acht Sprachen: eine Zeile mit acht Zeichenketten und Platzhaltern",
+            "fr": "textes dans les huit langues : une ligne de huit chaînes avec des places à remplir",
+            "it": "testi nelle otto lingue: una riga di otto stringhe con segnaposto da riempire",
+            "ja": "8 言語のテキスト：8 つの文字列の行と埋め込み位置",
+            "zh": "八种语言的文本：由八个字符串组成的一行，带可填充位置",
+            "pt": "textos nas oito línguas: uma linha de oito cadeias com lugares a preencher"
+          }
+        },
+        {
           "name": "nozzlelife.rs",
           "desc": {
             "en": "the use of the nozzle tips: parts placed, mountings, replacements, the warning level",
@@ -1195,6 +1312,19 @@
             "ja": "ノズルごとの高さをプロービングから求める：平均、ばらつき、オフセット、補正、模擬",
             "zh": "由探测得到每个吸嘴的高度：均值、离散、偏差、修正，可模拟",
             "pt": "a altura de cada bocal por apalpações: média, dispersão, desvio, correção, simulada"
+          }
+        },
+        {
+          "name": "openpnp.rs",
+          "desc": {
+            "en": "the read-only import of OpenPnP packages, parts and feeders, with units and findings",
+            "es": "la importación de solo lectura de paquetes, piezas y alimentadores de OpenPnP, con unidades",
+            "de": "der Import (nur lesend) von OpenPnP-Gehäusen, Teilen und Zuführern, mit Einheiten",
+            "fr": "l'import en lecture seule des boîtiers, pièces et alimentateurs d'OpenPnP, avec unités",
+            "it": "l'importazione in sola lettura di package, componenti e alimentatori di OpenPnP, con unità",
+            "ja": "OpenPnP のパッケージ・部品・フィーダの読み取り専用インポート（単位換算付き）",
+            "zh": "只读导入 OpenPnP 的封装、元件和供料器，含单位换算",
+            "pt": "a importação só de leitura de encapsulamentos, peças e alimentadores do OpenPnP, com unidades"
           }
         },
         {
@@ -1484,6 +1614,19 @@
           }
         },
         {
+          "name": "safety.rs",
+          "desc": {
+            "en": "the rules that only slow the machine down after a trouble and never give speed back",
+            "es": "las reglas que solo frenan la máquina tras un fallo y nunca le devuelven velocidad",
+            "de": "die Regeln, die die Maschine nach einer Störung nur bremsen und nie Tempo zurückgeben",
+            "fr": "les règles qui ne font que ralentir la machine après un incident et ne rendent jamais la vitesse",
+            "it": "le regole che rallentano la macchina dopo un problema e non restituiscono mai velocità",
+            "ja": "不具合の後は減速するだけで速度を戻さない規則",
+            "zh": "故障后只会让机器降速、绝不恢复速度的规则",
+            "pt": "as regras que só abrandam a máquina após um problema e nunca devolvem velocidade"
+          }
+        },
+        {
           "name": "serialsig.rs",
           "desc": {
             "en": "the record of a board by its serial, signed with a hash and chained to the board before",
@@ -1653,6 +1796,32 @@
           }
         },
         {
+          "name": "testboard.rs",
+          "desc": {
+            "en": "boards made up from a seed: a grid, a mix on both sides, a dense one, with their feeders",
+            "es": "placas inventadas desde una semilla: rejilla, mezcla en dos caras, densa, con sus alimentadores",
+            "de": "aus einem Startwert erzeugte Platinen: Raster, Mischung beidseitig, dicht, mit Zuführern",
+            "fr": "cartes inventées depuis une graine : grille, mélange recto verso, dense, avec leurs alimentateurs",
+            "it": "schede inventate da un seme: griglia, mix su due lati, densa, con i loro alimentatori",
+            "ja": "シードから作る仮想基板：格子、両面の混在、高密度、フィーダ付き",
+            "zh": "由种子生成的虚拟板：网格、双面混合、密集，附带供料器",
+            "pt": "placas inventadas a partir de uma semente: grelha, mistura nas duas faces, densa, com alimentadores"
+          }
+        },
+        {
+          "name": "textmatch.rs",
+          "desc": {
+            "en": "a small pattern matcher with a bounded time for the lines a controller answers",
+            "es": "un pequeño buscador de patrones con tiempo acotado para las líneas que responde un controlador",
+            "de": "ein kleiner Mustervergleicher mit begrenzter Zeit für die Zeilen einer Steuerung",
+            "fr": "un petit moteur de motifs au temps borné pour les lignes qu'un contrôleur répond",
+            "it": "un piccolo motore di modelli con tempo limitato per le righe di un controllore",
+            "ja": "コントローラの応答行用の、処理時間に上限のある小さなパターン照合",
+            "zh": "用于控制器应答行、耗时有界的小型模式匹配器",
+            "pt": "um pequeno comparador de padrões com tempo limitado para as linhas de um controlador"
+          }
+        },
+        {
           "name": "tips.rs",
           "desc": {
             "en": "the nozzle tips that a package accepts and the choice of one for every kind of part",
@@ -1705,6 +1874,19 @@
           }
         },
         {
+          "name": "vacuumcal.rs",
+          "desc": {
+            "en": "the thresholds of the vacuum from readings, a margin inside the gap",
+            "es": "los umbrales del vacío a partir de lecturas, con un margen dentro del hueco",
+            "de": "die Schwellen des Vakuums aus Messwerten, mit Abstand innerhalb der Lücke",
+            "fr": "les seuils du vide à partir de mesures, avec une marge dans l'écart",
+            "it": "le soglie del vuoto da letture, con un margine dentro lo scarto",
+            "ja": "測定値から求める真空のしきい値（差の内側に余裕を取る）",
+            "zh": "根据读数得出真空阈值，在间隔内留出余量",
+            "pt": "os limiares do vácuo a partir de leituras, com margem dentro do intervalo"
+          }
+        },
+        {
           "name": "vision.rs",
           "desc": {
             "en": "the vision pipeline: filter, threshold, spots and the smallest turned rectangle",
@@ -1728,6 +1910,19 @@
             "ja": "part-inspect と fiducial-check 用のシミュレートカメラの読み取り値",
             "zh": "供 part-inspect 和 fiducial-check 使用的模拟相机读数",
             "pt": "as leituras da câmara simulada para part-inspect e fiducial-check"
+          }
+        },
+        {
+          "name": "xmlmini.rs",
+          "desc": {
+            "en": "a bounded reader of XML for the files of other programs: limits, no entities",
+            "es": "un lector de XML acotado para ficheros de otros programas: límites, sin entidades",
+            "de": "ein begrenzter XML-Leser für Dateien anderer Programme: Grenzen, keine Entitäten",
+            "fr": "un lecteur XML borné pour les fichiers d'autres programmes : limites, sans entités",
+            "it": "un lettore XML limitato per i file di altri programmi: limiti, senza entità",
+            "ja": "他プログラムのファイル用の、上限付き XML リーダ（エンティティなし）",
+            "zh": "读取其他程序文件的有界 XML 读取器：有上限，不处理实体",
+            "pt": "um leitor de XML limitado para ficheiros de outros programas: limites, sem entidades"
           }
         }
       ]
@@ -1787,6 +1982,19 @@
             "ja": "組立業者向けファイルのテスト：列、単位、面、読み戻し、コマンド",
             "zh": "贴装厂文件的测试：列、单位、面、读回、命令",
             "pt": "testes dos ficheiros para montadores: colunas, unidades, lados, releitura, comando"
+          }
+        },
+        {
+          "name": "assist.rs",
+          "desc": {
+            "en": "tests of the guided mode: order, check, skip, back, checklist, resume, words",
+            "es": "pruebas del modo guiado: orden, comprobación, saltar, volver, lista, reanudar, textos",
+            "de": "Tests des geführten Modus: Reihenfolge, Prüfung, überspringen, zurück, Liste, Fortsetzen",
+            "fr": "tests du mode guidé : ordre, vérification, sauter, retour, liste, reprise, textes",
+            "it": "test della modalità guidata: ordine, verifica, salta, indietro, elenco, ripresa, testi",
+            "ja": "案内モードのテスト：順序、確認、スキップ、戻る、チェックリスト、再開、文言",
+            "zh": "引导模式测试：顺序、核对、跳过、返回、清单、续做、文字",
+            "pt": "testes do modo guiado: ordem, verificação, saltar, voltar, lista, retomar, textos"
           }
         },
         {
@@ -1982,6 +2190,32 @@
             "ja": "組立チェックとステンシルのテスト：各ルール、8言語",
             "zh": "装配检查和钢网的测试：每条规则、八种语言",
             "pt": "testes das verificações de montagem e da máscara de pasta: cada regra, oito idiomas"
+          }
+        },
+        {
+          "name": "driver.rs",
+          "desc": {
+            "en": "tests of the driver: profile, lines, answers, Moonraker, simulated controller, session",
+            "es": "pruebas del driver: perfil, líneas, respuestas, Moonraker, controlador simulado, sesión",
+            "de": "Tests des Treibers: Profil, Zeilen, Antworten, Moonraker, simulierte Steuerung, Sitzung",
+            "fr": "tests du pilote : profil, lignes, réponses, Moonraker, contrôleur simulé, session",
+            "it": "test del driver: profilo, righe, risposte, Moonraker, controllore simulato, sessione",
+            "ja": "ドライバのテスト：プロファイル、行、応答、Moonraker、模擬コントローラ、セッション",
+            "zh": "驱动测试：配置档、行、应答、Moonraker、模拟控制器、会话",
+            "pt": "testes do driver: perfil, linhas, respostas, Moonraker, controlador simulado, sessão"
+          }
+        },
+        {
+          "name": "drivercli.rs",
+          "desc": {
+            "en": "tests of driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup",
+            "es": "pruebas de driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup",
+            "de": "Tests von driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup",
+            "fr": "tests de driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup",
+            "it": "test di driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup",
+            "ja": "driver-check、driver-test、driver-run、safety-replay、homing-repeat、bringup のテスト",
+            "zh": "driver-check、driver-test、driver-run、safety-replay、homing-repeat、bringup 的测试",
+            "pt": "testes de driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup"
           }
         },
         {
@@ -2219,6 +2453,19 @@
           }
         },
         {
+          "name": "importcli.rs",
+          "desc": {
+            "en": "tests of import-openpnp, assist, align-iterate, vacuum-calibrate and test-board-gen",
+            "es": "pruebas de import-openpnp, assist, align-iterate, vacuum-calibrate y test-board-gen",
+            "de": "Tests von import-openpnp, assist, align-iterate, vacuum-calibrate und test-board-gen",
+            "fr": "tests de import-openpnp, assist, align-iterate, vacuum-calibrate et test-board-gen",
+            "it": "test di import-openpnp, assist, align-iterate, vacuum-calibrate e test-board-gen",
+            "ja": "import-openpnp、assist、align-iterate、vacuum-calibrate、test-board-gen のテスト",
+            "zh": "import-openpnp、assist、align-iterate、vacuum-calibrate、test-board-gen 的测试",
+            "pt": "testes de import-openpnp, assist, align-iterate, vacuum-calibrate e test-board-gen"
+          }
+        },
+        {
           "name": "inspect.rs",
           "desc": {
             "en": "tests of the look at the part on the nozzle",
@@ -2362,6 +2609,19 @@
           }
         },
         {
+          "name": "lookmove.rs",
+          "desc": {
+            "en": "tests of look, move, look again: convergence, the cap, only smaller steps, settings",
+            "es": "pruebas de mira, mueve, vuelve a mirar: convergencia, tope, solo pasos menores, ajustes",
+            "de": "Tests von schauen, bewegen, wieder schauen: Konvergenz, Grenze, nur kleinere Schritte",
+            "fr": "tests de regarder, bouger, regarder encore : convergence, plafond, pas plus petits, réglages",
+            "it": "test di guarda, muovi, guarda ancora: convergenza, tetto, solo passi minori, impostazioni",
+            "ja": "見て動かしてまた見る処理のテスト：収束、上限、小さくなる歩み、設定",
+            "zh": "看、移动、再看的测试：收敛、上限、只会更小的步长、设置",
+            "pt": "testes de olhar, mover, olhar de novo: convergência, limite, só passos menores, definições"
+          }
+        },
+        {
           "name": "looks.rs",
           "desc": {
             "en": "tests of the extra looks of the camera and of the looks counted for each feeder in the report",
@@ -2463,6 +2723,19 @@
             "ja": "ノズル比較のテスト：行、最速、短縮時間、除外されるヘッド、コマンド",
             "zh": "吸嘴比较的测试：各行、最快者、节省时间、被排除的头部、命令",
             "pt": "testes da comparação de bocais: as linhas, o mais rápido, o ganho, as cabeças de fora, o comando"
+          }
+        },
+        {
+          "name": "openpnp.rs",
+          "desc": {
+            "en": "tests of the XML reader and of the OpenPnP import: limits, units, findings, damaged files",
+            "es": "pruebas del lector XML y de la importación de OpenPnP: límites, unidades, avisos, ficheros dañados",
+            "de": "Tests des XML-Lesers und des OpenPnP-Imports: Grenzen, Einheiten, Hinweise, beschädigte Dateien",
+            "fr": "tests du lecteur XML et de l'import OpenPnP : limites, unités, remarques, fichiers abîmés",
+            "it": "test del lettore XML e dell'importazione OpenPnP: limiti, unità, segnalazioni, file danneggiati",
+            "ja": "XML リーダと OpenPnP インポートのテスト：上限、単位、指摘、壊れたファイル",
+            "zh": "XML 读取器和 OpenPnP 导入的测试：上限、单位、提示、损坏文件",
+            "pt": "testes do leitor XML e da importação OpenPnP: limites, unidades, avisos, ficheiros danificados"
           }
         },
         {
@@ -2713,6 +2986,19 @@
           }
         },
         {
+          "name": "safety.rs",
+          "desc": {
+            "en": "tests that fail if a change lets a trouble speed the machine up or release a hold",
+            "es": "pruebas que fallan si un cambio deja que un fallo acelere la máquina o suelte una retención",
+            "de": "Tests, die scheitern, wenn eine Änderung nach einer Störung beschleunigt oder eine Sperre löst",
+            "fr": "tests qui échouent si un changement accélère la machine après incident ou lève un blocage",
+            "it": "test che falliscono se una modifica accelera la macchina dopo un problema o sblocca un fermo",
+            "ja": "変更により不具合後に加速したり保持が解除されたりすると失敗するテスト",
+            "zh": "若改动让故障后机器加速或解除保持，这些测试就会失败",
+            "pt": "testes que falham se uma alteração deixar um problema acelerar a máquina ou soltar uma retenção"
+          }
+        },
+        {
           "name": "samples.rs",
           "desc": {
             "en": "tests of the examples of the calibrations and of the file of measures of the feeders",
@@ -2908,6 +3194,19 @@
           }
         },
         {
+          "name": "textmatch.rs",
+          "desc": {
+            "en": "tests of the pattern matcher: syntax, refusals, bounded time, text made by chance",
+            "es": "pruebas del buscador de patrones: sintaxis, rechazos, tiempo acotado, texto al azar",
+            "de": "Tests des Mustervergleichers: Syntax, Ablehnungen, begrenzte Zeit, zufälliger Text",
+            "fr": "tests du moteur de motifs : syntaxe, refus, temps borné, texte aléatoire",
+            "it": "test del motore di modelli: sintassi, rifiuti, tempo limitato, testo casuale",
+            "ja": "パターン照合のテスト：構文、拒否、時間上限、ランダムな文字列",
+            "zh": "模式匹配器测试：语法、拒绝、耗时有界、随机文本",
+            "pt": "testes do comparador de padrões: sintaxe, recusas, tempo limitado, texto ao acaso"
+          }
+        },
+        {
           "name": "tips.rs",
           "desc": {
             "en": "tests of the tips that a package accepts: the rules, the choice and the plan",
@@ -3012,6 +3311,19 @@
           }
         },
         {
+          "name": "vacuumcal.rs",
+          "desc": {
+            "en": "tests of the vacuum thresholds and of the boards made up from a seed",
+            "es": "pruebas de los umbrales del vacío y de las placas inventadas desde una semilla",
+            "de": "Tests der Vakuumschwellen und der aus einem Startwert erzeugten Platinen",
+            "fr": "tests des seuils du vide et des cartes inventées depuis une graine",
+            "it": "test delle soglie del vuoto e delle schede inventate da un seme",
+            "ja": "真空しきい値とシードから作る仮想基板のテスト",
+            "zh": "真空阈值和种子生成虚拟板的测试",
+            "pt": "testes dos limiares do vácuo e das placas inventadas a partir de uma semente"
+          }
+        },
+        {
           "name": "vis_cli.rs",
           "desc": {
             "en": "tests of the commands part-inspect, fiducial-check, feeder-check and --report-feeders",
@@ -3081,6 +3393,19 @@
             "ja": "Altium 形式の位置ファイル（mil 単位）、import-assembler 用",
             "zh": "Altium 格式的位置文件（单位 mil），供 import-assembler 使用",
             "pt": "um ficheiro de posições no formato Altium, em mils, para import-assembler"
+          }
+        },
+        {
+          "name": "assist_answers.txt",
+          "desc": {
+            "en": "the answers of a person walking the example board in the guided mode",
+            "es": "las respuestas de una persona que recorre la placa de ejemplo en modo guiado",
+            "de": "die Antworten einer Person, die die Beispielplatine im geführten Modus durchgeht",
+            "fr": "les réponses d'une personne qui parcourt la carte d'exemple en mode guidé",
+            "it": "le risposte di una persona che percorre la scheda di esempio in modalità guidata",
+            "ja": "案内モードで例の基板を進める人の入力",
+            "zh": "有人以引导模式走完示例板时的输入",
+            "pt": "as respostas de uma pessoa que percorre a placa de exemplo no modo guiado"
           }
         },
         {
@@ -3266,6 +3591,32 @@
           }
         },
         {
+          "name": "driver_klipper.cfg",
+          "desc": {
+            "en": "a driver profile for Klipper through Moonraker, every key explained",
+            "es": "un perfil de driver para Klipper por Moonraker, con cada clave explicada",
+            "de": "ein Treiberprofil für Klipper über Moonraker, jeder Schlüssel erklärt",
+            "fr": "un profil de pilote pour Klipper via Moonraker, chaque clé expliquée",
+            "it": "un profilo del driver per Klipper tramite Moonraker, ogni chiave spiegata",
+            "ja": "Moonraker 経由で Klipper を使うドライバのプロファイル（各キーの説明付き）",
+            "zh": "通过 Moonraker 使用 Klipper 的驱动配置档，每个键都有说明",
+            "pt": "um perfil de driver para Klipper através do Moonraker, com cada chave explicada"
+          }
+        },
+        {
+          "name": "driver_marlin.cfg",
+          "desc": {
+            "en": "a driver profile for Marlin on a serial line, every key explained",
+            "es": "un perfil de driver para Marlin por línea serie, con cada clave explicada",
+            "de": "ein Treiberprofil für Marlin an einer seriellen Leitung, jeder Schlüssel erklärt",
+            "fr": "un profil de pilote pour Marlin sur liaison série, chaque clé expliquée",
+            "it": "un profilo del driver per Marlin su linea seriale, ogni chiave spiegata",
+            "ja": "シリアル接続の Marlin 用ドライバのプロファイル（各キーの説明付き）",
+            "zh": "串口 Marlin 的驱动配置档，每个键都有说明",
+            "pt": "um perfil de driver para Marlin em linha série, com cada chave explicada"
+          }
+        },
+        {
           "name": "failure_rules.csv",
           "desc": {
             "en": "retries by package for failure-odds",
@@ -3422,6 +3773,19 @@
           }
         },
         {
+          "name": "klipper_answers.txt",
+          "desc": {
+            "en": "answers of Klipper through the link, written down by hand",
+            "es": "respuestas de Klipper a través del enlace, escritas a mano",
+            "de": "Antworten von Klipper über die Verbindung, von Hand notiert",
+            "fr": "réponses de Klipper via la liaison, notées à la main",
+            "it": "risposte di Klipper tramite il collegamento, scritte a mano",
+            "ja": "接続越しの Klipper の応答を手で書き留めたもの",
+            "zh": "手工记录的 Klipper 经连接返回的应答",
+            "pt": "respostas do Klipper através da ligação, escritas à mão"
+          }
+        },
+        {
           "name": "lots.csv",
           "desc": {
             "en": "the lot and reel in each feeder, for lot-trace",
@@ -3461,6 +3825,19 @@
           }
         },
         {
+          "name": "marlin_answers.txt",
+          "desc": {
+            "en": "answers of Marlin written down by hand, to play against the profile",
+            "es": "respuestas de Marlin escritas a mano, para probar contra el perfil",
+            "de": "Antworten von Marlin von Hand notiert, gegen das Profil zu spielen",
+            "fr": "réponses de Marlin notées à la main, à jouer contre le profil",
+            "it": "risposte di Marlin scritte a mano, da provare contro il profilo",
+            "ja": "Marlin の応答を手で書き留めたもの（プロファイルとの照合用）",
+            "zh": "手工记录的 Marlin 应答，用来对照配置档",
+            "pt": "respostas do Marlin escritas à mão, para testar contra o perfil"
+          }
+        },
+        {
           "name": "nozzle_life.csv",
           "desc": {
             "en": "the use of two nozzle tips, one of them over the level of the warning",
@@ -3497,6 +3874,45 @@
             "ja": "part-inspect 用のノズル上の部品の測定値",
             "zh": "供 part-inspect 使用的吸嘴上元件读数",
             "pt": "leituras de peças no bico para o part-inspect"
+          }
+        },
+        {
+          "name": "openpnp_machine.xml",
+          "desc": {
+            "en": "a file of a machine with feeders in the shape of OpenPnP, written for the tests",
+            "es": "un archivo de máquina con alimentadores con la forma de OpenPnP, escrito para las pruebas",
+            "de": "eine Maschinendatei mit Zuführern in der Form von OpenPnP, für die Tests geschrieben",
+            "fr": "un fichier de machine avec alimentateurs à la forme d'OpenPnP, écrit pour les tests",
+            "it": "un file di macchina con alimentatori nella forma di OpenPnP, scritto per i test",
+            "ja": "OpenPnP 形式のフィーダ付きマシンファイル（テスト用に作成）",
+            "zh": "OpenPnP 形式的含供料器的机器文件，为测试编写",
+            "pt": "um ficheiro de máquina com alimentadores na forma do OpenPnP, escrito para os testes"
+          }
+        },
+        {
+          "name": "openpnp_package.xml",
+          "desc": {
+            "en": "a file of packages in the shape of OpenPnP, written for the tests",
+            "es": "un archivo de paquetes con la forma de OpenPnP, escrito para las pruebas",
+            "de": "eine Gehäusedatei in der Form von OpenPnP, für die Tests geschrieben",
+            "fr": "un fichier de boîtiers à la forme d'OpenPnP, écrit pour les tests",
+            "it": "un file di package nella forma di OpenPnP, scritto per i test",
+            "ja": "OpenPnP 形式のパッケージファイル（テスト用に作成）",
+            "zh": "OpenPnP 形式的封装文件，为测试编写",
+            "pt": "um ficheiro de encapsulamentos na forma do OpenPnP, escrito para os testes"
+          }
+        },
+        {
+          "name": "openpnp_parts.xml",
+          "desc": {
+            "en": "a file of parts in the shape of OpenPnP, written for the tests",
+            "es": "un archivo de piezas con la forma de OpenPnP, escrito para las pruebas",
+            "de": "eine Teiledatei in der Form von OpenPnP, für die Tests geschrieben",
+            "fr": "un fichier de pièces à la forme d'OpenPnP, écrit pour les tests",
+            "it": "un file di componenti nella forma di OpenPnP, scritto per i test",
+            "ja": "OpenPnP 形式の部品ファイル（テスト用に作成）",
+            "zh": "OpenPnP 形式的元件文件，为测试编写",
+            "pt": "um ficheiro de peças na forma do OpenPnP, escrito para os testes"
           }
         },
         {
@@ -3617,6 +4033,19 @@
           }
         },
         {
+          "name": "safety_events.txt",
+          "desc": {
+            "en": "events of a run for safety-replay",
+            "es": "eventos de una ejecución para safety-replay",
+            "de": "Ereignisse eines Laufs für safety-replay",
+            "fr": "événements d'une exécution pour safety-replay",
+            "it": "eventi di un'esecuzione per safety-replay",
+            "ja": "safety-replay 用の実行イベント",
+            "zh": "供 safety-replay 使用的运行事件",
+            "pt": "eventos de uma execução para safety-replay"
+          }
+        },
+        {
           "name": "slots.csv",
           "desc": {
             "en": "the slots of the machine",
@@ -3627,6 +4056,19 @@
             "ja": "機械のスロット",
             "zh": "机器的槽位",
             "pt": "as ranhuras da máquina"
+          }
+        },
+        {
+          "name": "vacuum_readings.csv",
+          "desc": {
+            "en": "readings of the vacuum sensor with a part held, free and released",
+            "es": "lecturas del sensor de vacío con pieza sujeta, libre y soltada",
+            "de": "Messwerte des Vakuumsensors mit gehaltenem, freiem und gelöstem Teil",
+            "fr": "mesures du capteur de vide avec pièce tenue, libre et relâchée",
+            "it": "letture del sensore del vuoto con componente trattenuto, libero e rilasciato",
+            "ja": "部品を保持・解放・無負荷にした真空センサの測定値",
+            "zh": "真空传感器在吸住、空载和释放元件时的读数",
+            "pt": "leituras do sensor de vácuo com peça presa, livre e solta"
           }
         },
         {

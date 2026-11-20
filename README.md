@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 1532 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 1682 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.1.2` |
 | Maturity | Scaffolding |
-| Tests | 1532 |
+| Tests | 1682 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder (priority, tray, strip), plans the order of the placements for a head with up to six nozzles with ranks, nozzle tips, angle limits and the time of the moves, plans panels and writes the load sheet; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
-| Tests | 🟡 | 1532 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
+| Tests | 🟡 | 1682 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
 | Machine configuration | 🟡 | a `key = value` file with a version, a validator that names the line, and the safety limits (travel of Z, limits of X and Y, retries, nozzle angles); the values have not been compared with a real machine. |
 | Simulator and job | 🟡 | a virtual clock, failures injected by chance (with a seed) or at a chosen place, retries, the policies alert and defer, feeders that switch off after repeated faults, pause, step by step, and a saved state to resume from; it only simulates, nothing has driven a machine. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
@@ -152,6 +152,12 @@ Each line is one part of this repository and the light says how far it is today.
 * **Checks for assembly and the paste stencil** (`src/dfm.rs`, `src/stencil.rs`, `src/cmd_fab.rs`, `examples/features.csv`): `phoenix-pnp dfm-check PARTS FEATURES [--packages F] [--out F]` judges a board for assembly in the language of `--lang` (the eight of the suite): fine pitch, the gap between the pads of two parts, the space between the bodies of the parts on the surface, a hole inside a pad that is soldered, a track that ends in the middle of a pad, the size, the edge and the free ring of the fiducials, the tooling holes and the parts near their edge, and the width of the tabs. `FEATURES` is a table `kind,id,x_mm,y_mm,w_mm,h_mm,side`. Every limit is a setting (`dfm_*`, with the public figures of the guides of assembly houses as the defaults) and the report says that they are not verified for as long as `dfm_verified` is off. `phoenix-pnp stencil-apertures FEATURES [--out F]` makes the openings of the paste stencil from the pads (each side smaller by `stencil_reduction_percent`, more for a fine pitch, the thermal pad split into windows that cover `stencil_thermal_percent` of it) and warns when the thickness, the reductions, the cover, the web between windows or the area ratio of an opening (`L*W / (2*(L+W)*T)`, at least `stencil_area_ratio_min`) are out of their ranges. The exit code is 1 when there is a warning or an error.
 * **Two views of a simulated job** (`src/busy.rs`, `src/tower.rs`, `src/cmd_fab.rs`, `examples/journal.csv`): from the journal that `simulate --journal` writes, `phoenix-pnp sim-busy JOURNAL` says how busy each nozzle and each feeder was (seconds, steps and share of the job) and where the machine waited (the `busy_gaps_listed` longest waits), and `phoenix-pnp sim-tower JOURNAL` says what light a signal tower would show at each second: red during a step that failed, yellow during a step slower than `tower_slow_factor` times the median of its kind and during a wait over `tower_idle_gap_s`, green the rest. Nothing is driven: they read a file.
 * **Tests of the files for assembly** (`tests/fab.rs`, `tests/ipc.rs`, `tests/dfm.rs`, `tests/simviews.rs`, `tests/fabcli.rs`, `tests/fabfuzz.rs`): the example files damaged on a fixed seed for every new reader, boards and names made by chance (what is written is read back, a conversion is undone, a name is written the same after being read, the order of designators is a total order), every rule of the checks in the eight languages, the commands as a person runs them, and the new settings with their ranges.
+* **The G-code driver, tried only on a simulator** (`src/gcodedriver.rs`, `src/gcodesim.rs`, `src/driver.rs`, `src/drivertest.rs`, `src/textmatch.rs`, `src/cmd_drive.rs`, `examples/driver_marlin.cfg`, `examples/driver_klipper.cfg`): the first driver is a profile in a file, for Marlin on a serial line and for Klipper through Moonraker: the lines that connect, home and leave the machine safe, the template of a move (always followed by the line that waits for it), the pins and pumps that switch, the patterns of an answer (`ok`, an error, `busy`, a position with the `E` axis), the feeds, heights and limits, the times and the retries. `phoenix-pnp driver-check PROFILE` reads and checks it (every key has its range; a feed over the greatest, a place outside the limits or a pattern that does not compile is an error with its line, in the eight languages); `driver-test PROFILE TRANSCRIPT` plays recorded answers against the patterns (`examples/marlin_answers.txt`, `examples/klipper_answers.txt`); `driver-run PARTS FEEDERS PROFILE [--fault ...]` plans the board and sends it, as the lines of the profile, to a simulated Marlin or Klipper that can be given faults (an error at a line, no answer, a halted controller, `busy` lines, a position that is not the real one): a query or a switch is asked again, a move is not sent twice (a wait that times out is settled by asking where the head is), and an error, a retry that is not enough or a position that is not the one asked for stop it after the lines of `safe_stop`, and nothing more is sent. `homing-repeat` (the spread of the places after N homings) and `bringup` (the steps of a first start with PASS or FAIL) run on the same simulator. No port is opened and no machine has been moved with it: it says `evidence=simulator`.
+* **Rules that only make the machine safer** (`src/safety.rs`, `examples/safety_events.txt`): after a retry, a timeout or a refused move the feed is cut (`safety_careful_speed_pct`, then `safety_slow_speed_pct`) and then the machine is held; a position that is not the one asked for or a lost vacuum hold it at once and an error of the controller stops it. A good answer gives nothing back, and only a person brings a held machine back, to slow and never to normal. `phoenix-pnp safety-replay EVENTS` replays a file of events and exits with 1 when the machine ends held or stopped. The tests try every sequence of up to five events and 500 long runs made by chance, and fail if a change lets a trouble speed the machine up.
+* **Look, move, look again, the vacuum and made-up boards** (`src/lookmove.rs`, `src/vacuumcal.rs`, `src/testboard.rs`, `src/cmd_import.rs`, `examples/vacuum_readings.csv`): `phoenix-pnp align-iterate` brings the head to a mark in small steps against a camera that is made up (no step over `lml_max_step_mm`; a look that gets worse halves the step and the gain for good, two in a row stop it, and a look that cannot be read stops it with no move); `phoenix-pnp vacuum-calibrate READINGS` proposes `vacuum_pick_min_kpa` and `vacuum_release_max_kpa` a margin inside the gap between the readings with and without a part and says when they overlap; `phoenix-pnp test-board-gen grid|mixed|dense` writes a board and its feeders made up from a seed, to compare machines and settings.
+* **Importing the files of another program** (`src/xmlmini.rs`, `src/openpnp.rs`, `src/cmd_import.rs`, `examples/openpnp_machine.xml`, `examples/openpnp_package.xml`, `examples/openpnp_parts.xml`): `phoenix-pnp import-openpnp [--machine F] [--packages F] [--parts F] [--out-dir D]` reads, and never writes to, the packages, the parts and the feeders of OpenPnP into a table of packages, a table of parts and a table of feeders, with the units brought to millimetres. The reader of XML is bounded (8 MiB, 32 levels, 200000 elements; a document type is refused so that nothing is expanded) and never panics; whatever cannot be mapped (an unknown unit, a value that is not a number, a missing field, a name that is there twice, the heads, cameras and actuators) is told with its file and line in the eight languages, and a row that cannot be used is left out. The example files are written for the tests.
+* **A guided manual mode** (`src/assist.rs`, `src/cmd_import.rs`, `examples/assist_answers.txt`): `phoenix-pnp assist PARTS [--feeders F] [--order reel|reference] [--out F] [--resume F]` walks a person through a board with no machine: one reel at a time, the top side before the bottom, each part with its reel, its place, its turn and whether it has a direction; the person types the reference when it is placed and the walk goes on only if it is the right one (`skip`, `back` and `quit` do what they say, and a checklist can be saved and read again).
+* **Tests of the driver and of the import** (`tests/textmatch.rs`, `tests/driver.rs`, `tests/safety.rs`, `tests/drivercli.rs`, `tests/lookmove.rs`, `tests/vacuumcal.rs`, `tests/openpnp.rs`, `tests/assist.rs`, `tests/importcli.rs`, `tests/textvalues.rs`): the profile and its errors in the eight languages, the lines it writes, the answers it reads, a session with every fault, the rules of safety over every short sequence of events, the import cut at every place and damaged on a fixed seed, every new command as a person runs it, and that a value that looks like a number stays text in every table.
 * **Rejects and retries by part** (`src/rejects.rs`, `src/retrypolicy.rs`, `src/cmd_shop.rs`, `examples/rejects.csv`, `examples/retry_rules.csv`): `phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT]` gives the rejected parts of a run by reason (in the order of a Pareto chart), package, feeder and reference; `phoenix-pnp retry-policy PARTS FEEDERS RULES` gives each part the retries of the first rule that fits its reference, value, package or feeder, works out the chance of a good board and tells the rules that fit nothing or never act.
 * **The cost of a run and the age of the reels** (`src/bomcost.rs`, `src/lotage.rs`, `src/cmd_shop.rs`, `examples/prices.csv`): `phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT]` costs a run from a table of prices with price breaks (the lowest quantity sold is bought when fewer are needed); `phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N]` says how old the lot in each feeder is from its date code, against the week given and `lot_max_weeks`.
 * **Tests by chance, of every key and of every command** (`tests/fuzz.rs`, `tests/keys.rs`, `tests/cli_all.rs`): the example files damaged in many ways and bytes made by chance (from a fixed seed, so they repeat) are given to every reader of a file and none may panic; boards made by chance keep the properties the tools promise (what is written is read back, a transform keeps the distances and is undone, a split gives every part once, the odds stay between 0 and 1, a request that is made is taken by the server in memory); every key of the settings is checked against the example, its check and its duplicates; and every command of the help is run with nothing, a wrong option and files that are not there, and must answer with an error line and never a panic.
@@ -292,6 +298,17 @@ phoenix-pnp dfm-check PARTS FEATURES [--packages F] [--out F]  the checks of the
 phoenix-pnp stencil-apertures FEATURES [--out F]  the openings of the paste stencil and the warnings (exits with 1 on a warning)
 phoenix-pnp sim-busy JOURNAL [--out F]  how busy each nozzle and feeder was in a simulated job and where it waited (exits with 1 if a step failed)
 phoenix-pnp sim-tower JOURNAL [--out F]  the light of a signal tower at each second of a simulated job (exits with 1 if it was red)
+phoenix-pnp driver-check PROFILE  reads and checks a profile of a G-code driver (Marlin by serial line, Klipper by Moonraker)
+phoenix-pnp driver-test PROFILE TRANSCRIPT  plays recorded answers against the patterns of a profile (exits with 1 if one reads differently)
+phoenix-pnp driver-run PARTS FEEDERS PROFILE [--fault ...] [--script-out F] [--log-out F]  plans the board and sends it to a SIMULATED controller (opens no port)
+phoenix-pnp safety-replay EVENTS [--profile F]  replays events against the rules that only slow the machine down (exits with 1 if it ends held or stopped)
+phoenix-pnp homing-repeat PROFILE [--runs N] [--jitter MM] [--max-spread MM]  how far apart a simulated machine lands after N homings (exits with 1 over the limit)
+phoenix-pnp bringup PROFILE [--fault ...]  the steps of a first start on a simulated controller, PASS or FAIL each (exits with 1 on a FAIL)
+phoenix-pnp import-openpnp [--machine F] [--packages F] [--parts F] [--out-dir D]  reads the files of OpenPnP into the tables of this program, never writing to them
+phoenix-pnp assist PARTS [--feeders F] [--answers F] [--resume F] [--out F]  the guided manual mode: the parts one after the other, checked by reference
+phoenix-pnp align-iterate [--error X,Y] [--noise MM] [--scale K] [--seed S]  looks, moves a part of what it saw and looks again against a made-up camera (exits with 1 if it does not align)
+phoenix-pnp vacuum-calibrate READINGS [--out F]  the thresholds of the vacuum from readings state,kpa (exits with 1 if the readings overlap)
+phoenix-pnp test-board-gen grid|mixed|dense PARTS_OUT FEEDERS_OUT [--seed S] [--count N]  a board made up from a seed, with its feeders
 phoenix-pnp server-discover [--sim]  the servers on the local network (needs server_mdns = on and --features mdns)
 phoenix-pnp vision-test [--turn DEG] [--dx MM] ...       measures the picture of a part made in memory
 ```
@@ -408,7 +425,7 @@ The last line opens the window; so does `phoenix-pnp` with no command when it wa
 
 ## 🧪 Testing
 
-The suite has 1532 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 1682 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -429,6 +446,7 @@ EH3D-PHOENIX-PNP/
 │   ├── asidesheet.rs                            the sheet of the parts a person places by hand: put aside, left out, not placed yet
 │   ├── asmexport.rs                             the parts written for assemblers: placement list, KiCad .pos, plain CSV, mm or inch
 │   ├── asmimport.rs                             the position files of assemblers read as parts: Mid X, mil, TopLayer, units in numbers
+│   ├── assist.rs                                the guided manual mode: parts one after the other, checked by reference, skip, back
 │   ├── boardstats.rs                            the counts of a table of parts and the pairs of parts that sit too near each other
 │   ├── bom.rs                                   the bill of materials: reading, the check against the board, the order
 │   ├── bomcost.rs                               the cost of a run from the bill of materials and a table of prices with price breaks
@@ -441,8 +459,10 @@ EH3D-PHOENIX-PNP/
 │   ├── changeover.rs                            what to change on the feeders between the jobs of a queue: reels to change, put in, keep
 │   ├── clearance.rs                             the space between the bodies of the parts of a board: pairs too near or overlapping
 │   ├── cli_args.rs                              the arguments of the command line, strict: an unknown option is an error
+│   ├── cmd_drive.rs                             the commands of the G-code driver: driver-check, driver-test, driver-run, bringup
 │   ├── cmd_fab.rs                               the commands of the files for assembly, the checks, the stencil and the views of a journal
 │   ├── cmd_flow.rs                              the flow commands without a machine: lots, split, odds, nozzle heights, marks, imports, bills
+│   ├── cmd_import.rs                            the commands import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen
 │   ├── cmd_more.rs                              the commands of the diffs, board-stats, queue-stock, feeder-deplete and feeder-refill
 │   ├── cmd_queue.rs                             the commands of the queue of jobs: add, status, confirm, edit, run
 │   ├── cmd_server.rs                            the commands that talk to the EH3D server: send, request, status, job, feeders, calibrate
@@ -458,6 +478,8 @@ EH3D-PHOENIX-PNP/
 │   ├── deplete.rs                               the table of feeders after a job: the parts left and the next place of the strips
 │   ├── designators.rs                           the natural order of designators (R2 before R10) and their writing as lists and ranges
 │   ├── dfm.rs                                   the checks of a board for assembly, with the limits in the settings, in eight languages
+│   ├── driver.rs                                a driver session: timeouts, retries, a stop that fails closed, slower after trouble
+│   ├── drivertest.rs                            recorded answers of a controller played against the patterns of a profile
 │   ├── error.rs                                 the error codes PHOENIX-PNP-NNN and their meaning in eight languages
 │   ├── exchange.rs                              a job in a JSON file for other programs: the plan and the state of each part
 │   ├── export.rs                                the report, the list of what is missing and the G-code of the movements
@@ -470,6 +492,8 @@ EH3D-PHOENIX-PNP/
 │   ├── fiducial.rs                              fiducials of a panel: the fit of the measured marks and the correction of the parts
 │   ├── footcheck.rs                             the packages of a board against the table of packages: known, alias, generated, similar
 │   ├── fpsearch.rs                              the names of footprints brought to one form, and a search in a library of them
+│   ├── gcodedriver.rs                           the profile of a G-code driver in a file: lines, patterns, times, Moonraker requests
+│   ├── gcodesim.rs                              a simulated Marlin and Klipper controller with faults, and the links to it
 │   ├── gui.rs                                   the window: modules that need no screen, and the drawing in window.rs
 │   ├── gui/app.rs                               the state of the window: load, plan, start, pause, step, fix, save
 │   ├── gui/browse.rs                            the file picker: folders and files, up, typed paths
@@ -507,15 +531,18 @@ EH3D-PHOENIX-PNP/
 │   ├── learn.rs                                 the offset of the placement of each package, learned from readings
 │   ├── lib.rs                                   the library: what every command uses
 │   ├── loadsheet.rs                             the load sheet: the slot of each kind of tape
+│   ├── lookmove.rs                              look, move, look again: capped steps toward a mark that only get smaller after a worse look
 │   ├── lotage.rs                                how old the lot of each reel is, from its date code, against a week and a limit
 │   ├── lottrace.rs                              the lot and the reel each placed part came from, and what is missing
 │   ├── main.rs                                  the command line, and the entry of the window when it runs with no command
 │   ├── marks.rs                                 marks of two levels: the parts that are marks, the fit of a panel and of each board
 │   ├── model.rs                                 the parts of a machine as traits: machine, nozzle, feeder, actuator, camera, driver
 │   ├── motion.rs                                the time a move takes, with acceleration and jerk
+│   ├── msg8.rs                                  texts in the eight languages: a row of eight strings with places to fill in
 │   ├── nozzlelife.rs                            the use of the nozzle tips: parts placed, mountings, replacements, the warning level
 │   ├── nozzles.rs                               the board planned with one to six nozzles: batches, tips, travel, seconds, the gain
 │   ├── nozzlez.rs                               the height of each nozzle tip from probings: mean, spread, offset, correction, simulated
+│   ├── openpnp.rs                               the read-only import of OpenPnP packages, parts and feeders, with units and findings
 │   ├── panel.rs                                 panels: boards and panels inside panels, each in its place
 │   ├── panelfids.rs                             the marks of each board of a panel, in panel coordinates, and which cannot be aligned
 │   ├── parts.rs                                 the position file and the parts that are not to be mounted
@@ -538,6 +565,7 @@ EH3D-PHOENIX-PNP/
 │   ├── rotation.rs                              corrections of the rotation by package, and how a limited nozzle turns
 │   ├── runs.rs                                  the same job run many times on the simulated machine, each time from another seed
 │   ├── runway.rs                                how many whole boards each reel lasts, the reel that runs out first, the parts left over
+│   ├── safety.rs                                the rules that only slow the machine down after a trouble and never give speed back
 │   ├── serialsig.rs                             the record of a board by its serial, signed with a hash and chained to the board before
 │   ├── server.rs                                the way to the EH3D server: requests, jobs, the common client and a server in memory
 │   ├── setup.rs                                 the setup sheet: feeders by slot, missing parts, tips, calibrations
@@ -551,17 +579,22 @@ EH3D-PHOENIX-PNP/
 │   ├── stock.rs                                 the parts the feeders hold against the parts a run of boards needs
 │   ├── tapesteps.rs                             the tapes checked at every step: parts left, pitch, reach, low, last, empty
 │   ├── template.rs                              starting points for the settings of a machine, each read by the settings reader
+│   ├── testboard.rs                             boards made up from a seed: a grid, a mix on both sides, a dense one, with their feeders
+│   ├── textmatch.rs                             a small pattern matcher with a bounded time for the lines a controller answers
 │   ├── tips.rs                                  the nozzle tips that a package accepts and the choice of one for every kind of part
 │   ├── toolvalues.rs                            the values of the tool forms as settings of the machine file, and keeping them there
 │   ├── tower.rs                                 the signal tower of a simulated job: the light at each second, read from the journal
 │   ├── units.rs                                 lengths and places that carry their unit
+│   ├── vacuumcal.rs                             the thresholds of the vacuum from readings, a margin inside the gap
 │   ├── vision.rs                                the vision pipeline: filter, threshold, spots and the smallest turned rectangle
-│   └── visionsim.rs                             the readings of the simulated camera for part-inspect and fiducial-check
+│   ├── visionsim.rs                             the readings of the simulated camera for part-inspect and fiducial-check
+│   └── xmlmini.rs                               a bounded reader of XML for the files of other programs: limits, no entities
 ├── tests/
 │   ├── align.rs                                 tests of the align step: camera, corrected place, tolerance and time
 │   ├── approach.rs                              tests of the time of the plan with the approach: the second passes and the job's seconds
 │   ├── asidesheet.rs                            tests of the sheet of parts by hand: put aside, left out, pending, the order, the command
 │   ├── asmexport.rs                             tests of the files for assemblers: columns, units, sides, read back, the command
+│   ├── assist.rs                                tests of the guided mode: order, check, skip, back, checklist, resume, words
 │   ├── backlash.rs                              tests of the slack of the axes of the simulated machine
 │   ├── boardstats.rs                            tests of the counts and of the parts that sit too near: the grid against every pair
 │   ├── bom.rs                                   tests of the bill of materials: reading, the check, the code, bom-check
@@ -577,6 +610,8 @@ EH3D-PHOENIX-PNP/
 │   ├── configdiff.rs                            tests of the difference of two configurations: same meaning, the default, lists
 │   ├── deplete.rs                               tests of the table of feeders after a job: the counts, the strip, the tray, the command
 │   ├── dfm.rs                                   tests of the checks for assembly and of the paste stencil: every rule, eight languages
+│   ├── driver.rs                                tests of the driver: profile, lines, answers, Moonraker, simulated controller, session
+│   ├── drivercli.rs                             tests of driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup
 │   ├── encoding.rs                              tests of the encoding of the files: UTF-8, UTF-16 and Latin-1
 │   ├── exchange.rs                              tests of the job exchange file: writing, reading, every refusal, the commands
 │   ├── fab.rs                                   tests of the files for assembly houses and of the conversion of position files
@@ -595,6 +630,7 @@ EH3D-PHOENIX-PNP/
 │   ├── hooks.rs                                 tests of the hooks: off by default, the rules, the events, the calls, running, simulate --hooks
 │   ├── hotspots.rs                              tests of the trouble spots of the runs: failed picks, switched off, the order, the command
 │   ├── import.rs                                tests of the import: formats, units, bottom side, DNP, ranges, errors with their line
+│   ├── importcli.rs                             tests of import-openpnp, assist, align-iterate, vacuum-calibrate and test-board-gen
 │   ├── inspect.rs                               tests of the look at the part on the nozzle
 │   ├── ipc.rs                                   tests of the names of footprints by IPC-7351B and of the search in a library
 │   ├── job.rs                                   tests of the job: steps, retries and saved state
@@ -606,6 +642,7 @@ EH3D-PHOENIX-PNP/
 │   ├── kicadmod.rs                              tests of the footprints of KiCad: the body, the courtyard, damaged files, the row, the command
 │   ├── learn.rs                                 tests of the learned offsets: the readings, the strays, the cap, the file, the job, the command
 │   ├── loadsheet.rs                             tests of the load sheet and the exports
+│   ├── lookmove.rs                              tests of look, move, look again: convergence, the cap, only smaller steps, settings
 │   ├── looks.rs                                 tests of the extra looks of the camera and of the looks counted for each feeder in the report
 │   ├── lottrace.rs                              tests of the lot trace: the lot of each part, what is missing, the table of lots, the command
 │   ├── marks.rs                                 tests of the boards marked as bad, the parts that are marks and the marks of two levels
@@ -614,6 +651,7 @@ EH3D-PHOENIX-PNP/
 │   ├── names.rs                                 tests of the names of the files: no two that differ only in case, none that Windows cannot hold
 │   ├── nozzlelife.rs                            tests of the use of the nozzle tips: the file, what a job adds, the commands
 │   ├── nozzles.rs                               tests of the nozzles compared: the rows, the fastest, the gain, the command
+│   ├── openpnp.rs                               tests of the XML reader and of the OpenPnP import: limits, units, findings, damaged files
 │   ├── panel.rs                                 tests of panels and of their fiducials
 │   ├── panelize.rs                              tests of the panel of a grid of boards and of panelize
 │   ├── partsdiff.rs                             tests of what changed between two tables of parts: each kind, the tolerances, the command
@@ -633,6 +671,7 @@ EH3D-PHOENIX-PNP/
 │   ├── report.rs                                tests of the job report: phases, picks, histograms, groups, decisions, formats
 │   ├── runs.rs                                  tests of the many runs of a job: seeds, errors, times, the command
 │   ├── runway.rs                                tests of the boards a reel lasts: the count, the order, unused feeders, the command
+│   ├── safety.rs                                tests that fail if a change lets a trouble speed the machine up or release a hold
 │   ├── samples.rs                               tests of the examples of the calibrations and of the file of measures of the feeders
 │   ├── server.rs                                tests of the server link: settings, retries, routes, server in memory, commands
 │   ├── serverui.rs                              the server panel of the window on a server in memory: settings, login, file, no token
@@ -648,6 +687,7 @@ EH3D-PHOENIX-PNP/
 │   ├── tables.rs                                tests of the parts not to be mounted, of tables-check and of the report of a job as a CSV
 │   ├── teach.rs                                 tests of the teaching of strips and trays
 │   ├── template.rs                              tests of the starting points for the settings: valid, what each changes, the command
+│   ├── textmatch.rs                             tests of the pattern matcher: syntax, refusals, bounded time, text made by chance
 │   ├── tips.rs                                  tests of the tips that a package accepts: the rules, the choice and the plan
 │   ├── toolbox.rs                               tests of the Tools tab: its settings, each tool on the examples, what it applies and writes
 │   ├── toolflow.rs                              tests of the panels for reels, nozzles, trouble spots, changeovers and kept values
@@ -656,12 +696,14 @@ EH3D-PHOENIX-PNP/
 │   ├── toolshop.rs                              the six new panels of the Tools tab: what the command says, the words, the saved tables
 │   ├── toolvalues.rs                            tests of the form values as settings: ranges, defaults, commands, keeping them
 │   ├── vacuum.rs                                tests of the vacuum, the actuators and the window of faults of a feeder
+│   ├── vacuumcal.rs                             tests of the vacuum thresholds and of the boards made up from a seed
 │   ├── vis_cli.rs                               tests of the commands part-inspect, fiducial-check, feeder-check and --report-feeders
 │   ├── vision.rs                                tests of the vision pipeline: pictures checked by hand, failures, settings
 │   ├── vision_job.rs                            tests of the vision in the job and vision-test: readings, failures, saved state
 │   └── visionsim.rs                             tests of the worse camera and of the readings it gives to the two checks
 ├── examples/
 │   ├── altium_pnp.csv                           a position file in the Altium shape, places in mils, for import-assembler
+│   ├── assist_answers.txt                       the answers of a person walking the example board in the guided mode
 │   ├── board.mnt                                the positions of a board as the text of EAGLE has them
 │   ├── board.pos                                a sample to try the program with
 │   ├── board_dnp.csv                            a board with a dnp column: two of its parts are not to be mounted
@@ -676,6 +718,8 @@ EH3D-PHOENIX-PNP/
 │   ├── centroid.map                             the map of the columns of centroid_custom.csv
 │   ├── centroid_custom.csv                      a centroid CSV with other column names, mils in the headers and words for the sides
 │   ├── chip_0603.kicad_mod                      a footprint of KiCad of a 0603 chip, for package-kicad
+│   ├── driver_klipper.cfg                       a driver profile for Klipper through Moonraker, every key explained
+│   ├── driver_marlin.cfg                        a driver profile for Marlin on a serial line, every key explained
 │   ├── failure_rules.csv                        retries by package for failure-odds
 │   ├── features.csv                             outline, pads, hole, fiducials, tab: for dfm-check and stencil-apertures
 │   ├── feeder_measures.csv                      places measured for a strip and a tray, for feeder-teach
@@ -688,12 +732,17 @@ EH3D-PHOENIX-PNP/
 │   ├── job.recipe                               a recipe with every step and rules by package, feeder and tip
 │   ├── job_basic.recipe                         the shortest recipe: prepare, pick and place
 │   ├── journal.csv                              a simulated job with a slow step, a wait and a failure, for sim-busy
+│   ├── klipper_answers.txt                      answers of Klipper through the link, written down by hand
 │   ├── lots.csv                                 the lot and reel in each feeder, for lot-trace
 │   ├── machine.cfg                              the settings of the machine, every key explained
 │   ├── marks.csv                                the measured places of the fiducials of the panel
+│   ├── marlin_answers.txt                       answers of Marlin written down by hand, to play against the profile
 │   ├── nozzle_life.csv                          the use of two nozzle tips, one of them over the level of the warning
 │   ├── nozzle_readings.csv                      readings of the nozzle tip at several angles for nozzle-calibrate
 │   ├── nozzle_reads.csv                         readings of parts on the nozzle for part-inspect
+│   ├── openpnp_machine.xml                      a file of a machine with feeders in the shape of OpenPnP, written for the tests
+│   ├── openpnp_package.xml                      a file of packages in the shape of OpenPnP, written for the tests
+│   ├── openpnp_parts.xml                        a file of parts in the shape of OpenPnP, written for the tests
 │   ├── package_sizes.csv                        the size of the body of each package
 │   ├── packages.csv                             a table of packages: height, nozzle tip, rank and tape
 │   ├── packages_bodies.csv                      a table of packages with the size of the body of each, for part-inspect
@@ -703,7 +752,9 @@ EH3D-PHOENIX-PNP/
 │   ├── prices.csv                               a table of prices with price breaks, for bom-cost
 │   ├── rejects.csv                              the parts rejected in a run, with reason and board, for reject-report
 │   ├── retry_rules.csv                          rules for the retries of a part by reference, value, package or feeder, for retry-policy
+│   ├── safety_events.txt                        events of a run for safety-replay
 │   ├── slots.csv                                the slots of the machine
+│   ├── vacuum_readings.csv                      readings of the vacuum sensor with a part held, free and released
 │   ├── vision.cfg                               the settings of the vision pipeline, every key explained
 │   └── z_probe.csv                              probings of two nozzle tips, for nozzle-zcal
 ├── docs/
@@ -730,6 +781,7 @@ EH3D-PHOENIX-PNP/
 * The drawing of the window has not been reviewed by a person on a screen (the pictures in `images/screens/` are taken by the program itself with `--shot`); the window has no jog and no real camera, and it does not yet use the marks that are parts of a board.
 * It has not been tried on a machine nor with a collection of real files, and it has had no independent review; everything it does with a machine is a simulation.
 * The readers of the position files of KiCad, Altium, EAGLE and assembly houses, the files written for assembly houses, the names by IPC-7351B and the figures of the checks for assembly and of the stencil have not been compared with real files, with the standard or with the rules of a house; the rule for the angle of the bottom side of a CSV (`bottom_rotation`, `cpl_bottom_rotation`) has not been compared with real files of any CAD program.
+* The driver has been tried only against a simulated Marlin and Klipper: no port is opened, no machine has been moved and the answers in the examples are written by hand, not captured from a real controller; the import of the files of OpenPnP has not been tried with real files; the guided mode and the made-up camera are not a machine.
 * The camera and the vision are simulated: there is no real camera, no correction of the pick from a real picture and no driver of a real machine; the plan is a JSON file for another program to run.
 
 **Next**
