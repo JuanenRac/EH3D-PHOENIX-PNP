@@ -21,7 +21,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 194] = [
+pub const KEYS: [&str; 239] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -216,6 +216,51 @@ pub const KEYS: [&str; 194] = [
     "panel_fid_min_sep_mm",
     "clearance_min_mm",
     "lot_max_weeks",
+    "fab_dnp_mode",
+    "fab_dnp_column",
+    "fab_tht_words",
+    "cpl_origin_x_mm",
+    "cpl_origin_y_mm",
+    "cpl_flip_y",
+    "cpl_rotation_cw",
+    "cpl_rotation_offset_deg",
+    "cpl_bottom_rotation",
+    "ipc_density",
+    "ipc_search_limit",
+    "ipc_search_distance",
+    "dfm_verified",
+    "dfm_pad_pitch_mm",
+    "dfm_pad_gap_min_mm",
+    "dfm_smt_gap_mm",
+    "dfm_track_center_frac",
+    "dfm_tooling_edge_mm",
+    "dfm_smt_tooling_edge_mm",
+    "dfm_tooling_hole_mm",
+    "dfm_hole_tol_mm",
+    "dfm_fid_diameter_mm",
+    "dfm_fid_edge_mm",
+    "dfm_fid_ring_mm",
+    "dfm_rail_min_mm",
+    "stencil_thickness_mm",
+    "stencil_thickness_min_mm",
+    "stencil_thickness_max_mm",
+    "stencil_reduction_percent",
+    "stencil_reduction_min_percent",
+    "stencil_reduction_max_percent",
+    "stencil_fine_reduction_percent",
+    "stencil_fine_reduction_min_percent",
+    "stencil_fine_reduction_max_percent",
+    "stencil_fine_pitch_mm",
+    "stencil_area_ratio_min",
+    "stencil_thermal_percent",
+    "stencil_thermal_min_percent",
+    "stencil_thermal_max_percent",
+    "stencil_thermal_side_mm",
+    "stencil_window_max_mm",
+    "stencil_web_mm",
+    "tower_idle_gap_s",
+    "tower_slow_factor",
+    "busy_gaps_listed",
 ];
 
 /// The order in which the places are visited.
@@ -659,6 +704,96 @@ pub struct MachineConfig {
     pub clearance_min_mm: f64,
     /// The age (weeks) over which `lot-age` calls the lot of a reel old (1 to 1040).
     pub lot_max_weeks: u32,
+    /// What the files for an assembly house do with a part that is not to be mounted: `column` keeps it and marks it, `omit` leaves it out.
+    pub fab_dnp_mode: crate::jlcpcb::DnpMode,
+    /// The name of the column that marks a part that is not to be mounted in the files for an assembly house.
+    pub fab_dnp_column: String,
+    /// The words of a package name that tell a part that goes through the board.
+    pub fab_tht_words: Vec<String>,
+    /// The point of the file (mm) that becomes the origin when a position file is converted (`convert-cpl`).
+    pub cpl_origin_x_mm: f64,
+    /// The same along Y.
+    pub cpl_origin_y_mm: f64,
+    /// Whether `convert-cpl` turns the Y axis the other way.
+    pub cpl_flip_y: bool,
+    /// Whether the rotation of the file that `convert-cpl` reads is counted clockwise.
+    pub cpl_rotation_cw: bool,
+    /// A turn (degrees) that `convert-cpl` adds to every part, after the direction is set right.
+    pub cpl_rotation_offset_deg: f64,
+    /// What `convert-cpl` does last with the rotation of the parts of the bottom side: keep, mirror or half_turn.
+    pub cpl_bottom_rotation: BottomRotation,
+    /// The density of the land that the names of the convention of IPC-7351B carry: L least, N nominal, M most.
+    pub ipc_density: crate::ipcname::Density,
+    /// The most names that `footprint-find` lists.
+    pub ipc_search_limit: u32,
+    /// How many letters a name of the library may differ by to be listed as near by `footprint-find` (0 turns it off).
+    pub ipc_search_distance: u32,
+    /// Whether the `dfm_*` limits have been compared with the rules of the house that assembles the board; the report of `dfm-check` says so while it is off.
+    pub dfm_verified: bool,
+    /// dfm-check: pads of one part at or under this pitch (mm) are told as fine pitch.
+    pub dfm_pad_pitch_mm: f64,
+    /// dfm-check: the least gap (mm) between the pads of two parts.
+    pub dfm_pad_gap_min_mm: f64,
+    /// dfm-check: the least space (mm) between the bodies of two parts on the surface.
+    pub dfm_smt_gap_mm: f64,
+    /// dfm-check: a track that ends within this share of the half side of a pad from its middle is called out (0 to 1).
+    pub dfm_track_center_frac: f64,
+    /// dfm-check: the least distance (mm) from a tooling hole to the edge of the outline.
+    pub dfm_tooling_edge_mm: f64,
+    /// dfm-check: the least distance (mm) from a part on the surface to the edge that has the tooling holes.
+    pub dfm_smt_tooling_edge_mm: f64,
+    /// dfm-check: the diameter (mm) of a tooling hole.
+    pub dfm_tooling_hole_mm: f64,
+    /// dfm-check: how far (mm) the diameter of a tooling hole or a fiducial may be from its figure.
+    pub dfm_hole_tol_mm: f64,
+    /// dfm-check: the diameter (mm) of a fiducial.
+    pub dfm_fid_diameter_mm: f64,
+    /// dfm-check: the least distance (mm) from a fiducial to the edge of the outline.
+    pub dfm_fid_edge_mm: f64,
+    /// dfm-check: the radius (mm) around a fiducial that is kept free of pads and holes.
+    pub dfm_fid_ring_mm: f64,
+    /// dfm-check: the least width (mm) of a tab or rail of the panel.
+    pub dfm_rail_min_mm: f64,
+    /// stencil-apertures: the thickness (mm) of the stencil.
+    pub stencil_thickness_mm: f64,
+    /// stencil-apertures: the least thickness (mm) the stencil should have.
+    pub stencil_thickness_min_mm: f64,
+    /// stencil-apertures: the greatest thickness (mm) the stencil should have.
+    pub stencil_thickness_max_mm: f64,
+    /// stencil-apertures: how much each side of an opening is smaller than its pad (per cent).
+    pub stencil_reduction_percent: f64,
+    /// stencil-apertures: the least reduction (per cent) that is in range.
+    pub stencil_reduction_min_percent: f64,
+    /// stencil-apertures: the greatest reduction (per cent) that is in range.
+    pub stencil_reduction_max_percent: f64,
+    /// stencil-apertures: the reduction (per cent) for the pads of a fine pitch.
+    pub stencil_fine_reduction_percent: f64,
+    /// stencil-apertures: the least reduction (per cent) for a fine pitch that is in range.
+    pub stencil_fine_reduction_min_percent: f64,
+    /// stencil-apertures: the greatest reduction (per cent) for a fine pitch that is in range.
+    pub stencil_fine_reduction_max_percent: f64,
+    /// stencil-apertures: pads at or under this pitch (mm) are of a fine pitch.
+    pub stencil_fine_pitch_mm: f64,
+    /// stencil-apertures: the least area ratio of an opening (its area over the area of its walls).
+    pub stencil_area_ratio_min: f64,
+    /// stencil-apertures: the share (per cent) of a thermal pad that its windows cover.
+    pub stencil_thermal_percent: f64,
+    /// stencil-apertures: the least cover (per cent) of a thermal pad that is in range.
+    pub stencil_thermal_min_percent: f64,
+    /// stencil-apertures: the greatest cover (per cent) of a thermal pad that is in range.
+    pub stencil_thermal_max_percent: f64,
+    /// stencil-apertures: a pad whose two sides are at least this long (mm) is a thermal pad.
+    pub stencil_thermal_side_mm: f64,
+    /// stencil-apertures: the longest side (mm) of a window of a thermal pad.
+    pub stencil_window_max_mm: f64,
+    /// stencil-apertures: the least web (mm) between the windows of a thermal pad.
+    pub stencil_web_mm: f64,
+    /// sim-tower: a wait between two steps over this many seconds turns the tower yellow.
+    pub tower_idle_gap_s: f64,
+    /// sim-tower: a step that takes more than this many times the median step of its kind turns the tower yellow.
+    pub tower_slow_factor: f64,
+    /// sim-busy: how many of the longest waits are listed.
+    pub busy_gaps_listed: u32,
 }
 
 /// The most retries of the link to the server.
@@ -850,6 +985,54 @@ impl Default for MachineConfig {
             panel_fid_min_sep_mm: 10.0,
             clearance_min_mm: 0.2,
             lot_max_weeks: 104,
+            fab_dnp_mode: crate::jlcpcb::DnpMode::Column,
+            fab_dnp_column: String::from("Customer Supply"),
+            fab_tht_words: crate::jlcpcb::DEFAULT_THT_WORDS
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            cpl_origin_x_mm: 0.0,
+            cpl_origin_y_mm: 0.0,
+            cpl_flip_y: false,
+            cpl_rotation_cw: false,
+            cpl_rotation_offset_deg: 0.0,
+            cpl_bottom_rotation: BottomRotation::Keep,
+            ipc_density: crate::ipcname::Density::Nominal,
+            ipc_search_limit: 20,
+            ipc_search_distance: 2,
+            dfm_verified: false,
+            dfm_pad_pitch_mm: 1.27,
+            dfm_pad_gap_min_mm: 0.2,
+            dfm_smt_gap_mm: 1.0,
+            dfm_track_center_frac: 0.25,
+            dfm_tooling_edge_mm: 3.0,
+            dfm_smt_tooling_edge_mm: 5.0,
+            dfm_tooling_hole_mm: 2.0,
+            dfm_hole_tol_mm: 0.1,
+            dfm_fid_diameter_mm: 1.0,
+            dfm_fid_edge_mm: 3.85,
+            dfm_fid_ring_mm: 2.0,
+            dfm_rail_min_mm: 4.0,
+            stencil_thickness_mm: 0.12,
+            stencil_thickness_min_mm: 0.10,
+            stencil_thickness_max_mm: 0.15,
+            stencil_reduction_percent: 6.0,
+            stencil_reduction_min_percent: 5.0,
+            stencil_reduction_max_percent: 7.0,
+            stencil_fine_reduction_percent: 15.0,
+            stencil_fine_reduction_min_percent: 10.0,
+            stencil_fine_reduction_max_percent: 20.0,
+            stencil_fine_pitch_mm: 0.5,
+            stencil_area_ratio_min: 0.66,
+            stencil_thermal_percent: 60.0,
+            stencil_thermal_min_percent: 50.0,
+            stencil_thermal_max_percent: 75.0,
+            stencil_thermal_side_mm: 2.0,
+            stencil_window_max_mm: 2.0,
+            stencil_web_mm: 0.3,
+            tower_idle_gap_s: 2.0,
+            tower_slow_factor: 3.0,
+            busy_gaps_listed: 5,
         }
     }
 }
@@ -1512,6 +1695,68 @@ impl MachineConfig {
             "panel_fid_min_sep_mm" => self.panel_fid_min_sep_mm = n(0.0, 1000.0)?,
             "clearance_min_mm" => self.clearance_min_mm = n(0.0, 5.0)?,
             "lot_max_weeks" => self.lot_max_weeks = int(line, key, v, 1, 1040)? as u32,
+            "fab_dnp_mode" => {
+                self.fab_dnp_mode = crate::jlcpcb::DnpMode::parse(v)
+                    .ok_or_else(|| bad(line, key, v, "column or omit"))?
+            }
+            "fab_dnp_column" => self.fab_dnp_column = server_text(line, key, v, 64)?,
+            "fab_tht_words" => self.fab_tht_words = names(line, key, v)?,
+            "cpl_origin_x_mm" => self.cpl_origin_x_mm = n(-10000.0, 10000.0)?,
+            "cpl_origin_y_mm" => self.cpl_origin_y_mm = n(-10000.0, 10000.0)?,
+            "cpl_flip_y" => self.cpl_flip_y = flag(line, key, v)?,
+            "cpl_rotation_cw" => self.cpl_rotation_cw = flag(line, key, v)?,
+            "cpl_rotation_offset_deg" => self.cpl_rotation_offset_deg = n(-360.0, 360.0)?,
+            "cpl_bottom_rotation" => {
+                self.cpl_bottom_rotation = match v.to_ascii_lowercase().as_str() {
+                    "keep" => BottomRotation::Keep,
+                    "mirror" => BottomRotation::Mirror,
+                    "half_turn" => BottomRotation::HalfTurn,
+                    _ => return Err(bad(line, key, v, "keep, mirror or half_turn")),
+                }
+            }
+            "ipc_density" => {
+                self.ipc_density = crate::ipcname::Density::parse(v)
+                    .ok_or_else(|| bad(line, key, v, "L, N or M"))?
+            }
+            "ipc_search_limit" => self.ipc_search_limit = int(line, key, v, 1, 1000)? as u32,
+            "ipc_search_distance" => self.ipc_search_distance = int(line, key, v, 0, 8)? as u32,
+            "dfm_verified" => self.dfm_verified = flag(line, key, v)?,
+            "dfm_pad_pitch_mm" => self.dfm_pad_pitch_mm = n(0.05, 20.0)?,
+            "dfm_pad_gap_min_mm" => self.dfm_pad_gap_min_mm = n(0.0, 5.0)?,
+            "dfm_smt_gap_mm" => self.dfm_smt_gap_mm = n(0.0, 20.0)?,
+            "dfm_track_center_frac" => self.dfm_track_center_frac = n(0.0, 1.0)?,
+            "dfm_tooling_edge_mm" => self.dfm_tooling_edge_mm = n(0.0, 50.0)?,
+            "dfm_smt_tooling_edge_mm" => self.dfm_smt_tooling_edge_mm = n(0.0, 50.0)?,
+            "dfm_tooling_hole_mm" => self.dfm_tooling_hole_mm = n(0.1, 10.0)?,
+            "dfm_hole_tol_mm" => self.dfm_hole_tol_mm = n(0.0, 2.0)?,
+            "dfm_fid_diameter_mm" => self.dfm_fid_diameter_mm = n(0.1, 5.0)?,
+            "dfm_fid_edge_mm" => self.dfm_fid_edge_mm = n(0.0, 50.0)?,
+            "dfm_fid_ring_mm" => self.dfm_fid_ring_mm = n(0.0, 20.0)?,
+            "dfm_rail_min_mm" => self.dfm_rail_min_mm = n(0.0, 50.0)?,
+            "stencil_thickness_mm" => self.stencil_thickness_mm = n(0.03, 0.5)?,
+            "stencil_thickness_min_mm" => self.stencil_thickness_min_mm = n(0.03, 0.5)?,
+            "stencil_thickness_max_mm" => self.stencil_thickness_max_mm = n(0.03, 0.5)?,
+            "stencil_reduction_percent" => self.stencil_reduction_percent = n(0.0, 50.0)?,
+            "stencil_reduction_min_percent" => self.stencil_reduction_min_percent = n(0.0, 50.0)?,
+            "stencil_reduction_max_percent" => self.stencil_reduction_max_percent = n(0.0, 50.0)?,
+            "stencil_fine_reduction_percent" => self.stencil_fine_reduction_percent = n(0.0, 50.0)?,
+            "stencil_fine_reduction_min_percent" => {
+                self.stencil_fine_reduction_min_percent = n(0.0, 50.0)?
+            }
+            "stencil_fine_reduction_max_percent" => {
+                self.stencil_fine_reduction_max_percent = n(0.0, 50.0)?
+            }
+            "stencil_fine_pitch_mm" => self.stencil_fine_pitch_mm = n(0.1, 5.0)?,
+            "stencil_area_ratio_min" => self.stencil_area_ratio_min = n(0.1, 3.0)?,
+            "stencil_thermal_percent" => self.stencil_thermal_percent = n(1.0, 100.0)?,
+            "stencil_thermal_min_percent" => self.stencil_thermal_min_percent = n(1.0, 100.0)?,
+            "stencil_thermal_max_percent" => self.stencil_thermal_max_percent = n(1.0, 100.0)?,
+            "stencil_thermal_side_mm" => self.stencil_thermal_side_mm = n(0.5, 50.0)?,
+            "stencil_window_max_mm" => self.stencil_window_max_mm = n(0.3, 20.0)?,
+            "stencil_web_mm" => self.stencil_web_mm = n(0.05, 5.0)?,
+            "tower_idle_gap_s" => self.tower_idle_gap_s = n(0.0, 3600.0)?,
+            "tower_slow_factor" => self.tower_slow_factor = n(1.0, 100.0)?,
+            "busy_gaps_listed" => self.busy_gaps_listed = int(line, key, v, 1, 1000)? as u32,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 mod cli_args;
+mod cmd_fab;
 mod cmd_flow;
 mod cmd_more;
 mod cmd_queue;
@@ -78,6 +79,15 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp clearance PARTS --packages F [--catalog F] [--min MM] [--out F] [--config F] [--lang CODE]   the pairs of parts on one side whose bodies are nearer than --min (clearance_min_mm) or overlap; exits with 1 when there is one
   phoenix-pnp bom-cost BOM PRICES [--boards N] [--spare PERCENT] [--currency TEXT] [--max-rows N] [--out F] [--config F] [--lang CODE]   what the run costs from a table of prices with price breaks (part_number|value[,package],price[,qty_from]); exits with 1 when a part has no price
   phoenix-pnp lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N] [--out F] [--config F] [--lang CODE]   how old the lot in each feeder is, from its date code, against the week given and lot_max_weeks; exits with 1 when a lot is old or has no readable code
+  phoenix-pnp export-fab PARTS [--bom BOM] [--side all|top|bottom] [--mount] [--dnp-mode column|omit] [--cpl-out F] [--bom-out F] [--config F] [--lang CODE]   the placement list (designator, Mid X, Mid Y, Layer, Rotation; one part on each line, surface and through-hole, the parts not to be mounted marked in the column fab_dnp_column) and the bill of materials (MPN, designators, quantity, description, footprint) that board assembly houses ask for
+  phoenix-pnp fab-check FILE [--config F] [--lang CODE]   what an assembly house would refuse in a placement list: a list or a range in a designator cell, a designator twice, a layer that is not Top or Bottom, a place that is not a number; exits with 1 when there is a line
+  phoenix-pnp convert-cpl FILE [--from kicad|altium|eagle|jlcpcb|generic] [--to jlcpcb|cpl|kicad-pos|generic] [--origin X,Y] [--flip-y] [--cw] [--rot-offset DEG] [--bottom keep|mirror|half_turn] [--out F] [--config F] [--lang CODE]   a position file of KiCad, Altium, EAGLE or an assembly house brought to another origin, Y direction and way of counting the rotation (the settings cpl_*)
+  phoenix-pnp ipc-name NAME... [--density L|N|M] | --make FAMILY [--pitch MM] [--span MM] [--length MM] [--width MM] [--height MM] [--pins N] [--config F] [--lang CODE]   names of footprints by the convention of IPC-7351B: a name taken apart, a chip package of the table (R_0603) in that convention, or a name made from the sizes
+  phoenix-pnp footprint-find QUERY... [--packages F] [--catalog F] [--limit N] [--distance N] [--config F] [--lang CODE]   the names of the table of packages that are the query, another name for the same footprint (R_0603, Resistor_SMD:R_0603_1608Metric, RESC1608X55N), hold its words or are a few letters away; exits with 1 when a query finds nothing
+  phoenix-pnp dfm-check PARTS FEATURES [--packages F] [--catalog F] [--out F] [--config F] [--lang CODE]   the checks of the board for assembly (pads, spaces, holes in pads, tracks in the middle of a pad, fiducials, tooling holes, tabs) against the settings dfm_*, in the eight languages; exits with 1 on a warning or an error
+  phoenix-pnp stencil-apertures FEATURES [--out F] [--config F] [--lang CODE]   the openings of the paste stencil for the pads of a table of features (reduced, the thermal pads split into windows) and the warnings (thickness, reduction, cover, web, area ratio) against the settings stencil_*; exits with 1 on a warning
+  phoenix-pnp sim-busy JOURNAL [--out F] [--config F] [--lang CODE]   how busy each nozzle and feeder was in a simulated job and where the machine waited, from the journal of simulate --journal; exits with 1 when a step did not end well
+  phoenix-pnp sim-tower JOURNAL [--out F] [--config F] [--lang CODE]   the light a signal tower would show at each second of a simulated job (red on a failure, yellow on a slow step or a wait, green otherwise); exits with 1 when the tower was red
   phoenix-pnp server-discover [--sim] [--config F] [--lang CODE]   looks for servers on the local network (needs server_mdns = on and a build with --features mdns)
   phoenix-pnp server-request PARTS FEEDERS --out DIR [--offset X,Y] [--partial] [--config F] [--lang CODE]   writes the requests that server-send would make, feeders.json and place.json, for other programs
   phoenix-pnp server-send PARTS FEEDERS [--offset X,Y] [--keep-feeders] [--start] [--follow] [--timeout S] [--sim] [--partial] [--dry-run] [--config F] [--lang CODE]   with mode = server, puts the table of feeders on the machine of the EH3D server (unless --keep-feeders), prepares the placements as a job and, with --start or --follow, starts it; --follow reads the job until it is over; --dry-run asks the server to go through the job without taking a part off a feeder; --sim does it all against a server in memory; the parts no feeder holds are told; exits with 1 when the job did not end done
@@ -318,6 +328,15 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "clearance" => cmd_shop::clearance_check(args),
         "bom-cost" => cmd_shop::bom_cost(args),
         "lot-age" => cmd_shop::lot_age(args),
+        "export-fab" => cmd_fab::export_fab(args),
+        "fab-check" => cmd_fab::fab_check(args),
+        "convert-cpl" => cmd_fab::convert_cpl(args),
+        "ipc-name" => cmd_fab::ipc_name(args),
+        "footprint-find" => cmd_fab::footprint_find(args),
+        "dfm-check" => cmd_fab::dfm_check(args),
+        "stencil-apertures" => cmd_fab::stencil_apertures(args),
+        "sim-busy" => cmd_fab::sim_busy(args),
+        "sim-tower" => cmd_fab::sim_tower(args),
         "server-discover" => cmd_server::server_discover(args),
         "tape-steps" => commands::tape_steps(args),
         "shift-oee" => commands::shift_oee(args),
