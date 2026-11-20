@@ -1,0 +1,14 @@
+# Events of a run, one word each, for `phoenix-pnp safety-replay`: success, retry, timeout, error, mismatch, vacuum, limit, or ack (a person says the cause was looked at).
+success
+success
+retry
+success
+timeout
+success
+timeout
+retry
+success
+mismatch
+success
+ack
+success

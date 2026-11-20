@@ -21,7 +21,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 239] = [
+pub const KEYS: [&str; 250] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -261,6 +261,17 @@ pub const KEYS: [&str; 239] = [
     "tower_idle_gap_s",
     "tower_slow_factor",
     "busy_gaps_listed",
+    "lml_max_step_mm",
+    "lml_tolerance_mm",
+    "lml_max_iterations",
+    "lml_gain",
+    "lml_offset_x_mm",
+    "lml_offset_y_mm",
+    "vacuum_margin_pct",
+    "vacuum_min_gap_kpa",
+    "vacuum_min_readings",
+    "testboard_pitch_mm",
+    "testboard_count",
 ];
 
 /// The order in which the places are visited.
@@ -794,6 +805,28 @@ pub struct MachineConfig {
     pub tower_slow_factor: f64,
     /// sim-busy: how many of the longest waits are listed.
     pub busy_gaps_listed: u32,
+    /// align-iterate: the longest step (mm) the head makes after a look; a look that gets worse halves it for the rest of the run.
+    pub lml_max_step_mm: f64,
+    /// align-iterate: the error (mm) under which the head is aligned.
+    pub lml_tolerance_mm: f64,
+    /// align-iterate: how many moves are made before it gives up.
+    pub lml_max_iterations: u32,
+    /// align-iterate: the share of what is seen that is moved at each step (0.05 to 1).
+    pub lml_gain: f64,
+    /// align-iterate: the constant error of the camera against the nozzle (mm), subtracted from what is seen.
+    pub lml_offset_x_mm: f64,
+    /// The same along Y.
+    pub lml_offset_y_mm: f64,
+    /// vacuum-calibrate: how far inside the gap between the readings with and without a part each threshold is put (per cent of the gap).
+    pub vacuum_margin_pct: f64,
+    /// vacuum-calibrate: a gap (kPa) under this is told as small.
+    pub vacuum_min_gap_kpa: f64,
+    /// vacuum-calibrate: fewer readings than this of a state are told as few.
+    pub vacuum_min_readings: u32,
+    /// test-board-gen: the distance (mm) between two parts of a made-up board.
+    pub testboard_pitch_mm: f64,
+    /// test-board-gen: how many parts a made-up board has.
+    pub testboard_count: u32,
 }
 
 /// The most retries of the link to the server.
@@ -1033,6 +1066,17 @@ impl Default for MachineConfig {
             tower_idle_gap_s: 2.0,
             tower_slow_factor: 3.0,
             busy_gaps_listed: 5,
+            lml_max_step_mm: 0.5,
+            lml_tolerance_mm: 0.02,
+            lml_max_iterations: 4,
+            lml_gain: 0.8,
+            lml_offset_x_mm: 0.0,
+            lml_offset_y_mm: 0.0,
+            vacuum_margin_pct: 25.0,
+            vacuum_min_gap_kpa: 10.0,
+            vacuum_min_readings: 5,
+            testboard_pitch_mm: 2.0,
+            testboard_count: 40,
         }
     }
 }
@@ -1757,6 +1801,17 @@ impl MachineConfig {
             "tower_idle_gap_s" => self.tower_idle_gap_s = n(0.0, 3600.0)?,
             "tower_slow_factor" => self.tower_slow_factor = n(1.0, 100.0)?,
             "busy_gaps_listed" => self.busy_gaps_listed = int(line, key, v, 1, 1000)? as u32,
+            "lml_max_step_mm" => self.lml_max_step_mm = n(0.01, 20.0)?,
+            "lml_tolerance_mm" => self.lml_tolerance_mm = n(0.001, 5.0)?,
+            "lml_max_iterations" => self.lml_max_iterations = int(line, key, v, 1, 20)? as u32,
+            "lml_gain" => self.lml_gain = n(0.05, 1.0)?,
+            "lml_offset_x_mm" => self.lml_offset_x_mm = n(-50.0, 50.0)?,
+            "lml_offset_y_mm" => self.lml_offset_y_mm = n(-50.0, 50.0)?,
+            "vacuum_margin_pct" => self.vacuum_margin_pct = n(0.0, 45.0)?,
+            "vacuum_min_gap_kpa" => self.vacuum_min_gap_kpa = n(0.0, 100.0)?,
+            "vacuum_min_readings" => self.vacuum_min_readings = int(line, key, v, 1, 1000)? as u32,
+            "testboard_pitch_mm" => self.testboard_pitch_mm = n(0.2, 100.0)?,
+            "testboard_count" => self.testboard_count = int(line, key, v, 1, 5000)? as u32,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

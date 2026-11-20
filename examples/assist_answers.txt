@@ -1,0 +1,9 @@
+# the answers of a person who places the parts of examples/board.pos, one line each (the walk takes a reel at a time: C1 C2, U1, R1 R2 R3 on the top side, then D1 on the bottom side)
+C1
+C2
+U1
+R1
+R2
+skip
+D1
+R3

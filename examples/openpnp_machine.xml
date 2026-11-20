@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- A file of a machine written for the tests of this program; not a copy of the file of any machine. It holds feeders and, besides them, heads, cameras and actuators that are not mapped. -->
+<openpnp-machine>
+   <machine class="org.example.ReferenceMachine">
+      <heads>
+         <head id="H1" name="head"/>
+      </heads>
+      <cameras>
+         <camera id="C1" name="top"/>
+         <camera id="C2" name="bottom"/>
+      </cameras>
+      <feeders>
+         <feeder class="org.example.StripFeeder" id="f1" name="F1" enabled="true" part-id="10k" part-count="100">
+            <location units="Millimeters" x="-20.0" y="10.0" z="0.0" rotation="0.0"/>
+         </feeder>
+         <feeder class="org.example.StripFeeder" id="f2" name="F2" enabled="true" part-id="100n" part-count="100">
+            <location units="Centimeters" x="-2.0" y="2.0" z="0.0" rotation="0.0"/>
+         </feeder>
+         <feeder class="org.example.TrayFeeder" id="f3" name="F3" enabled="true" part-id="MCU" tray-count="10">
+            <location units="Inches" x="-0.787402" y="1.574803" z="0.0" rotation="0.0"/>
+         </feeder>
+         <feeder class="org.example.StripFeeder" id="f4" name="F4" enabled="true" part-id="LED" part-count="50">
+            <location units="Millimeters" x="-20.0" y="50.0" z="0.0" rotation="0.0"/>
+         </feeder>
+         <feeder class="org.example.StripFeeder" id="f5" name="F5" enabled="false" part-id="10k" part-count="10">
+            <location units="Millimeters" x="-20.0" y="60.0" z="0.0" rotation="0.0"/>
+         </feeder>
+      </feeders>
+   </machine>
+</openpnp-machine>

@@ -1,0 +1,22 @@
+# Answers of a Marlin controller written down by hand, one row each: how the profile ought to read the line | the line. Played with `phoenix-pnp driver-test examples/driver_marlin.cfg this-file`.
+# The cases are the ones that make a pattern confuse two answers; none is a capture of a real machine.
+
+# the answer to a command is ok, with or without data after it
+ok | ok
+ok | ok T:21.4 /0.0 B:0.0 /0.0 @:0 B@:0
+ok | ok P15 B3
+
+# the position, with the E axis that a nozzle that turns reports, and without it
+position 10 20 5 90 | X:10.00 Y:20.00 Z:5.00 E:90.00 Count X:800 Y:1600 Z:2000
+position 0 0 10 | X:0.00 Y:0.00 Z:10.00
+position -3.5 120 0.5 0 | X:-3.50 Y:120.00 Z:0.50 E:0.00 Count X:-280 Y:9600 Z:200
+
+# lines that are not an answer
+busy | echo:busy: processing
+busy | busy: processing
+echo | echo:Unknown command: "G999"
+echo | echo:SD card ok
+error | Error:Printer halted. kill() called!
+error | Error:Heating failed, system stopped! Heater_ID: bed
+error | !! Printer halted
+other | FIRMWARE_NAME:Marlin 2.1 (simulated) PROTOCOL_VERSION:1.0

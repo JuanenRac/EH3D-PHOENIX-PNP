@@ -1,0 +1,11 @@
+# Answers of a Klipper controller, through the link of this program, written down by hand. Played with `phoenix-pnp driver-test examples/driver_klipper.cfg this-file`.
+# None is a capture of a real machine.
+
+ok | ok
+position 10 20 5 90 | X:10.000 Y:20.000 Z:5.000 E:90.000
+position 0 0 10 0 | X:0.000 Y:0.000 Z:10.000 E:0.000
+error | !! Must home axis first
+error | !! Move out of range: 450.000 0.000 10.000 [0.000]
+error | !! Printer is shutdown
+echo | // Klipper state: Ready
+busy | busy: processing

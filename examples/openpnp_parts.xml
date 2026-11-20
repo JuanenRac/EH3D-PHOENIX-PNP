@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- A file of parts written for the tests of this program; not a copy of the file of any machine. -->
+<openpnp-parts>
+   <part id="10k" height-units="Millimeters" height="0.5" package-id="R_0603" speed="1.0"/>
+   <part id="100n" height-units="Millimeters" height="0.5" package-id="C_0603" speed="1.0"/>
+   <part id="MCU" height-units="Millimeters" height="0.9" package-id="QFN-32" speed="0.5"/>
+   <part id="LED" height-units="Mils" height="23.6" package-id="LED_0603" speed="1.0"/>
+</openpnp-parts>

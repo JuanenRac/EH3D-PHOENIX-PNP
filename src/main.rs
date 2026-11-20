@@ -3,8 +3,10 @@
 #![forbid(unsafe_code)]
 
 mod cli_args;
+mod cmd_drive;
 mod cmd_fab;
 mod cmd_flow;
+mod cmd_import;
 mod cmd_more;
 mod cmd_queue;
 mod cmd_server;
@@ -84,6 +86,17 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp convert-cpl FILE [--from kicad|altium|eagle|jlcpcb|generic] [--to jlcpcb|cpl|kicad-pos|generic] [--origin X,Y] [--flip-y] [--cw] [--rot-offset DEG] [--bottom keep|mirror|half_turn] [--out F] [--config F] [--lang CODE]   a position file of KiCad, Altium, EAGLE or an assembly house brought to another origin, Y direction and way of counting the rotation (the settings cpl_*)
   phoenix-pnp ipc-name NAME... [--density L|N|M] | --make FAMILY [--pitch MM] [--span MM] [--length MM] [--width MM] [--height MM] [--pins N] [--config F] [--lang CODE]   names of footprints by the convention of IPC-7351B: a name taken apart, a chip package of the table (R_0603) in that convention, or a name made from the sizes
   phoenix-pnp footprint-find QUERY... [--packages F] [--catalog F] [--limit N] [--distance N] [--config F] [--lang CODE]   the names of the table of packages that are the query, another name for the same footprint (R_0603, Resistor_SMD:R_0603_1608Metric, RESC1608X55N), hold its words or are a few letters away; exits with 1 when a query finds nothing
+  phoenix-pnp driver-check PROFILE [--config F] [--lang CODE]   reads a profile of a G-code driver (Marlin by serial line, Klipper by Moonraker) and says what it holds; every value is checked against its range and nothing is sent anywhere
+  phoenix-pnp driver-test PROFILE TRANSCRIPT [--config F] [--lang CODE]   plays recorded answers of a controller (expected | line) against the patterns of a profile and names the lines it reads differently; exits with 1 when there is one
+  phoenix-pnp driver-run PARTS FEEDERS PROFILE [--side top|bottom] [--board-width MM] [--fault error@N|silent@N|halt@N|busy@N|offset@MM|slow@F|jitter@MM|strict] [--seed S] [--script-out F] [--log-out F] [--partial] [--config F] [--lang CODE]   plans the board and sends it, as the lines of the profile, to a SIMULATED controller with the timeouts, retries and stop of the profile; no port is opened
+  phoenix-pnp safety-replay EVENTS [--profile F] [--config F] [--lang CODE]   replays events (success, retry, timeout, error, mismatch, vacuum, limit, ack) against the rules that only slow the machine down after a trouble; exits with 1 when it ends held or stopped
+  phoenix-pnp homing-repeat PROFILE [--runs N] [--seed S] [--jitter MM] [--max-spread MM] [--config F] [--lang CODE]   homes a simulated machine N times and says how far apart the places it lands at are; exits with 1 over the limit
+  phoenix-pnp bringup PROFILE [--fault ...] [--seed S] [--config F] [--lang CODE]   the steps of a first start on a simulated controller (connect, home, position, each actuator, a square) with PASS or FAIL for each; exits with 1 on a FAIL
+  phoenix-pnp import-openpnp [--machine F] [--packages F] [--parts F] [--out-dir D] [--config F] [--lang CODE]   reads, and never writes to, the configuration files of OpenPnP (the machine with its feeders, the packages, the parts) into the tables of this program with the units in millimetres; every field it cannot map is told with its file and line; exits with 1 when a row could not be read
+  phoenix-pnp assist PARTS [--feeders F] [--order reel|reference] [--answers F] [--resume F] [--out F] [--config F] [--lang CODE]   the guided manual mode: the parts of the board one after the other (a reel at a time), where each goes and how it is turned; the person types the reference when it is placed (skip, back, quit); writes a checklist; no machine is involved
+  phoenix-pnp align-iterate [--error X,Y] [--noise MM] [--scale K] [--seed S] [--blind N] [--max-step MM] [--tolerance MM] [--iterations N] [--gain G] [--config F] [--lang CODE]   looks, moves a part of what it saw and looks again against a camera that is made up, with a cap on every step; exits with 1 when the head does not align
+  phoenix-pnp vacuum-calibrate READINGS [--out F] [--config F] [--lang CODE]   the thresholds of the vacuum (vacuum_pick_min_kpa, vacuum_release_max_kpa) from readings state,kpa (free, held, released), a margin inside the gap; exits with 1 when the readings overlap
+  phoenix-pnp test-board-gen grid|mixed|dense PARTS_OUT FEEDERS_OUT [--seed S] [--count N] [--pitch MM] [--print] [--config F] [--lang CODE]   a board made up from a seed (the same seed gives the same bytes) with its feeders, to compare machines and settings
   phoenix-pnp dfm-check PARTS FEATURES [--packages F] [--catalog F] [--out F] [--config F] [--lang CODE]   the checks of the board for assembly (pads, spaces, holes in pads, tracks in the middle of a pad, fiducials, tooling holes, tabs) against the settings dfm_*, in the eight languages; exits with 1 on a warning or an error
   phoenix-pnp stencil-apertures FEATURES [--out F] [--config F] [--lang CODE]   the openings of the paste stencil for the pads of a table of features (reduced, the thermal pads split into windows) and the warnings (thickness, reduction, cover, web, area ratio) against the settings stencil_*; exits with 1 on a warning
   phoenix-pnp sim-busy JOURNAL [--out F] [--config F] [--lang CODE]   how busy each nozzle and feeder was in a simulated job and where the machine waited, from the journal of simulate --journal; exits with 1 when a step did not end well
@@ -337,6 +350,17 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "stencil-apertures" => cmd_fab::stencil_apertures(args),
         "sim-busy" => cmd_fab::sim_busy(args),
         "sim-tower" => cmd_fab::sim_tower(args),
+        "driver-check" => cmd_drive::driver_check(args),
+        "driver-test" => cmd_drive::driver_test(args),
+        "driver-run" => cmd_drive::driver_run(args),
+        "safety-replay" => cmd_drive::safety_replay(args),
+        "homing-repeat" => cmd_drive::homing_repeat(args),
+        "bringup" => cmd_drive::bringup(args),
+        "import-openpnp" => cmd_import::import_openpnp(args),
+        "assist" => cmd_import::assist_cmd(args),
+        "align-iterate" => cmd_import::align_iterate(args),
+        "vacuum-calibrate" => cmd_import::vacuum_calibrate(args),
+        "test-board-gen" => cmd_import::test_board_gen(args),
         "server-discover" => cmd_server::server_discover(args),
         "tape-steps" => commands::tape_steps(args),
         "shift-oee" => commands::shift_oee(args),
