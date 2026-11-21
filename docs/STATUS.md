@@ -8,9 +8,13 @@ EH3D-PHOENIX-PNP is a working program whose every machine-facing capability is a
 
 The window is built on the docking frame of the suite (`eh3d-dock`, in EH3D-COMMON). Its panels are the seven of the sector of pick and place (the board view, parts, feeders, job, camera, machine and console) and the guide, packages, panels, boards, load sheet, tools and problems, and one panel for each of eleven commands of the driver and the assistants, hidden until they are asked for. It starts in one of three arrangements, Setup, Run and Compact; the person can move, float, fold, hide, maximise and lock the panels and save an arrangement under a name, and what was arranged is kept in `window.cfg` under keys that begin with `dock.`. The menus and the shortcuts, the panels and the arrangements are data and are tested without a screen. The drawing has been compiled and run in a context with no window; no person has looked at the arrangements on a screen, and the colours do not yet have the look that the other programs of the suite share.
 
+## Banks, nodes and panels
+
+The slots of the left and right banks of feeders are modelled (how many slots a tape takes, that none overlaps, the reach of the head, and the states free, occupied, depleted and jammed). The head node and the feeder node of the suite are asked over HTTP through the common client, with a hold on a node that cannot be heard and an interlock of the axes that reads whether the head is clear; both are tried only against nodes on a computer. The window has a panel for the slots and one for the nodes, hidden at the start. A panel of boards is composed and checked from a file (`panel-compose`).
+
 ## Capabilities
 
-The official state of each capability is in `REQUIREMENTS.md`. The register has 124 requirements: 74 implemented, 27 prototype, 23 planned and 0 validated. By progress: 74 done, 27 partial, 16 pending and 7 blocked. This page never states a state that `REQUIREMENTS.md` does not.
+The official state of each capability is in `REQUIREMENTS.md`. The register has 140 requirements: 86 implemented, 32 prototype, 22 planned and 0 validated. By progress: 86 done, 32 partial, 16 pending and 6 blocked. This page never states a state that `REQUIREMENTS.md` does not.
 
 ## Open questions
 
@@ -22,11 +26,12 @@ The official state of each capability is in `REQUIREMENTS.md`. The register has 
 ## What it needs from other repositories
 
 * `EH3D-COMMON`: the client of the server, the panel of the settings of the server and the docking frame, as a sibling folder at version 0.2.7.
-* The vision program of the suite for a live camera; the nodes of the feeders and of the head, which do not exist yet, for anything that is not simulated.
+* The vision program of the suite for a live camera; the nodes of the feeders and of the head, whose contracts this program follows, for anything that is not simulated: no real node has been asked.
 
 ## Known technical debt and omitted tests
 
 * The machine parts are separate pieces but not formal traits (see the first requirement of the register).
+* The common client keeps only the `error` and `detail` of a refusal, so the reason (`why`) of an order that a node refuses with 409 is not seen through it.
 * The answers of the controllers in the examples are written by hand, not captured; the import of the files of OpenPnP and the readers of the position files have not been tried with real files.
 * The drawing of the window is not covered by tests; the pictures of the README are taken by the program itself.
 * Tests that need a machine, a camera or a screen are not written: the register names each as `planned:` with the test that will show it.

@@ -301,6 +301,19 @@
           }
         },
         {
+          "name": "cmd_nodes.rs",
+          "desc": {
+            "en": "the commands slot-bank, panel-compose, node-sim and table-revision; exit code 2",
+            "es": "los comandos slot-bank, panel-compose, node-sim y table-revision; código de salida 2",
+            "de": "die Befehle slot-bank, panel-compose, node-sim und table-revision; Exit-Code 2",
+            "fr": "les commandes slot-bank, panel-compose, node-sim et table-revision ; code de sortie 2",
+            "it": "i comandi slot-bank, panel-compose, node-sim e table-revision; codice di uscita 2",
+            "ja": "コマンド slot-bank、panel-compose、node-sim、table-revision（終了コード 2）",
+            "zh": "命令 slot-bank、panel-compose、node-sim 与 table-revision；退出码 2",
+            "pt": "os comandos slot-bank, panel-compose, node-sim e table-revision; código de saída 2"
+          }
+        },
+        {
           "name": "cmd_queue.rs",
           "desc": {
             "en": "the commands of the queue of jobs: add, status, confirm, edit, run",
@@ -779,6 +792,19 @@
             "ja": "レベル付きのログと、コピーできる診断テキスト",
             "zh": "带级别的日志，以及可复制的诊断文本",
             "pt": "o registo com níveis e o texto do diagnóstico que se pode copiar"
+          }
+        },
+        {
+          "name": "gui/nodeview.rs",
+          "desc": {
+            "en": "what the panels of the slots and of the nodes show: the bench, the lights, the cells",
+            "es": "lo que muestran los paneles de ranuras y nodos: el banco, las luces, las celdas",
+            "de": "was die Panels der Slots und Knoten zeigen: Prüfstand, Lichter, Zellen",
+            "fr": "ce que montrent les panneaux des emplacements et des nœuds : le banc, les voyants",
+            "it": "ciò che mostrano i pannelli di slot e nodi: il banco, le luci, le celle",
+            "ja": "スロットとノードのパネルの表示内容：ベンチ、ランプ、セル",
+            "zh": "槽位和节点面板显示的内容：试验台、指示灯、单元格",
+            "pt": "o que mostram os painéis de ranhuras e nós: a bancada, as luzes, as células"
           }
         },
         {
@@ -1315,6 +1341,32 @@
           }
         },
         {
+          "name": "nodelink.rs",
+          "desc": {
+            "en": "link to the head node and the feeder node: states, orders, refusals and the hold",
+            "es": "enlace con el nodo del cabezal y el de alimentadores: estados, órdenes, rechazos y retención",
+            "de": "Verbindung zu Kopf- und Zuführungsknoten: Zustände, Befehle, Ablehnungen und Sperre",
+            "fr": "liaison avec le nœud de la tête et celui des alimentateurs : états, ordres, refus, blocage",
+            "it": "collegamento con il nodo della testa e quello dei feeder: stati, ordini, rifiuti, blocco",
+            "ja": "ヘッドノードとフィーダーノードへのリンク：状態、命令、拒否、保留",
+            "zh": "与吸头节点和供料器节点的链路：状态、命令、拒绝与保持",
+            "pt": "ligação ao nó da cabeça e ao dos alimentadores: estados, ordens, recusas e retenção"
+          }
+        },
+        {
+          "name": "nodesim.rs",
+          "desc": {
+            "en": "a head node and a feeder node on a computer, with faults drawn from a seed",
+            "es": "un nodo de cabezal y uno de alimentadores en un ordenador, con fallos de una semilla",
+            "de": "ein Kopf- und ein Zuführungsknoten auf dem Rechner, mit Fehlern aus einem Seed",
+            "fr": "un nœud de tête et un d'alimentateurs sur ordinateur, avec des pannes tirées d'une graine",
+            "it": "un nodo testa e uno feeder su computer, con guasti estratti da un seme",
+            "ja": "コンピュータ上のヘッドノードとフィーダーノード（シード由来の故障付き）",
+            "zh": "计算机上的吸头节点与供料器节点，故障由种子生成",
+            "pt": "um nó de cabeça e um de alimentadores num computador, com falhas de uma semente"
+          }
+        },
+        {
           "name": "nozzlelife.rs",
           "desc": {
             "en": "the use of the nozzle tips: parts placed, mountings, replacements, the warning level",
@@ -1377,6 +1429,19 @@
             "ja": "パネル：パネルの中の基板とパネル、それぞれの位置",
             "zh": "拼板：拼板中的电路板和拼板，各在其位",
             "pt": "painéis: placas e painéis dentro de painéis, cada um no seu lugar"
+          }
+        },
+        {
+          "name": "panelcomp.rs",
+          "desc": {
+            "en": "composition of a panel: sheet, rails, outlines, units put and turned; checks; panel file",
+            "es": "composición de un panel: hoja, railes, contornos, unidades colocadas y giradas; panel",
+            "de": "Panelzusammenstellung: Platte, Schienen, Umrisse, gesetzte und gedrehte Einheiten",
+            "fr": "composition d'un panneau : feuille, rails, contours, unités placées et tournées",
+            "it": "composizione di un pannello: foglio, binari, contorni, unità posizionate e ruotate",
+            "ja": "パネルの構成：シート、レール、外形、配置・回転した単位、検査、パネルファイル",
+            "zh": "拼板组合：板材、导轨、外形、摆放并旋转的单元、检查与拼板文件",
+            "pt": "composição de um painel: folha, calhas, contornos, unidades postas e rodadas"
           }
         },
         {
@@ -1627,6 +1692,19 @@
           }
         },
         {
+          "name": "revision.rs",
+          "desc": {
+            "en": "revision of a shared table: a write is refused when the file changed since it was read",
+            "es": "revisión de una tabla compartida: se rechaza escribir si el fichero cambió tras leerlo",
+            "de": "Revision einer gemeinsamen Tabelle: Schreiben wird abgelehnt, wenn sich die Datei änderte",
+            "fr": "révision d'une table partagée : l'écriture est refusée si le fichier a changé depuis la lecture",
+            "it": "revisione di una tabella condivisa: la scrittura è rifiutata se il file è cambiato",
+            "ja": "共有テーブルのリビジョン：読み込み後にファイルが変わっていれば書き込みを拒否",
+            "zh": "共享表的修订：读取后文件已变化则拒绝写入",
+            "pt": "revisão de uma tabela partilhada: recusa-se escrever se o ficheiro mudou depois de lido"
+          }
+        },
+        {
           "name": "rotation.rs",
           "desc": {
             "en": "corrections of the rotation by package, and how a limited nozzle turns",
@@ -1767,6 +1845,19 @@
             "ja": "模擬機械：仮想時計と注入できる故障",
             "zh": "模拟机器：虚拟时钟和可注入的故障",
             "pt": "a máquina simulada: relógio virtual e falhas que se podem injetar"
+          }
+        },
+        {
+          "name": "slotbank.rs",
+          "desc": {
+            "en": "slots of the banks of feeders: how many a tape takes, overlaps, reach and the states",
+            "es": "ranuras de los bancos de alimentadores: cuántas ocupa una cinta, solapes, alcance y estados",
+            "de": "Slots der Zuführungsbänke: wie viele ein Gurt belegt, Überlappung, Reichweite, Zustände",
+            "fr": "emplacements des bancs d'alimentateurs : place d'une bande, chevauchements, portée, états",
+            "it": "slot dei banchi di feeder: quanti ne occupa un nastro, sovrapposizioni, portata, stati",
+            "ja": "フィーダーバンクのスロット：テープの占有数、重なり、届く範囲、状態",
+            "zh": "供料器料架的槽位：料带占用数、重叠、可达范围与状态",
+            "pt": "ranhuras dos bancos de alimentadores: quantas uma fita ocupa, sobreposições, alcance, estados"
           }
         },
         {
@@ -2492,6 +2583,19 @@
           }
         },
         {
+          "name": "helpdemo.rs",
+          "desc": {
+            "en": "tests that run every example of the help and check the exit codes it promises",
+            "es": "pruebas que ejecutan cada ejemplo de la ayuda y comprueban los códigos de salida",
+            "de": "Tests, die jedes Beispiel der Hilfe ausführen und die Exit-Codes prüfen",
+            "fr": "tests qui exécutent chaque exemple de l'aide et vérifient les codes de sortie",
+            "it": "test che eseguono ogni esempio dell'aiuto e verificano i codici di uscita",
+            "ja": "ヘルプの各例を実行し、約束した終了コードを確認するテスト",
+            "zh": "运行帮助中每个示例并检查所承诺退出码的测试",
+            "pt": "testes que executam cada exemplo da ajuda e verificam os códigos de saída"
+          }
+        },
+        {
           "name": "hooks.rs",
           "desc": {
             "en": "tests of the hooks: off by default, the rules, the events, the calls, running, simulate --hooks",
@@ -2791,6 +2895,32 @@
           }
         },
         {
+          "name": "nodedock.rs",
+          "desc": {
+            "en": "tests of the panels of slots and nodes: in the frame, hidden, saved layouts, the bench",
+            "es": "pruebas de los paneles de ranuras y nodos: en el marco, ocultos, disposiciones, el banco",
+            "de": "Tests der Slot- und Knoten-Panels: im Rahmen, versteckt, gespeicherte Anordnungen, Prüfstand",
+            "fr": "tests des panneaux d'emplacements et de nœuds : dans le cadre, cachés, dispositions, banc",
+            "it": "test dei pannelli di slot e nodi: nel telaio, nascosti, disposizioni salvate, il banco",
+            "ja": "スロットとノードのパネルのテスト：枠内、非表示、保存された配置、ベンチ",
+            "zh": "槽位与节点面板测试：在框架中、隐藏、已保存布局、试验台",
+            "pt": "testes dos painéis de ranhuras e nós: no quadro, ocultos, disposições guardadas, bancada"
+          }
+        },
+        {
+          "name": "nodelink.rs",
+          "desc": {
+            "en": "tests of the link to the nodes: orders, refusals, silence, holds, seeded faults, the interlock",
+            "es": "pruebas del enlace con los nodos: órdenes, rechazos, silencio, retenciones, fallos, bloqueo",
+            "de": "Tests der Knotenverbindung: Befehle, Ablehnungen, Stille, Sperren, Seed-Fehler, Verriegelung",
+            "fr": "tests de la liaison aux nœuds : ordres, refus, silence, blocages, pannes, verrouillage",
+            "it": "test del collegamento ai nodi: ordini, rifiuti, silenzio, blocchi, guasti, interblocco",
+            "ja": "ノードリンクのテスト：命令、拒否、無応答、保留、シード故障、インターロック",
+            "zh": "节点链路测试：命令、拒绝、无响应、保持、种子故障、互锁",
+            "pt": "testes da ligação aos nós: ordens, recusas, silêncio, retenções, falhas, bloqueio"
+          }
+        },
+        {
           "name": "nozzlelife.rs",
           "desc": {
             "en": "tests of the use of the nozzle tips: the file, what a job adds, the commands",
@@ -2840,6 +2970,19 @@
             "ja": "パネルとそのフィデューシャルのテスト",
             "zh": "拼板及其基准点的测试",
             "pt": "testes dos painéis e dos seus fiduciais"
+          }
+        },
+        {
+          "name": "panelcomp.rs",
+          "desc": {
+            "en": "tests of the composition of a panel: rails, overlaps, distances, stable file, the command",
+            "es": "pruebas de la composición de un panel: railes, solapes, distancias, fichero estable, comando",
+            "de": "Tests der Panelzusammenstellung: Schienen, Überlappung, Abstände, stabile Datei, Befehl",
+            "fr": "tests de la composition d'un panneau : rails, chevauchements, distances, fichier stable",
+            "it": "test della composizione di un pannello: binari, sovrapposizioni, distanze, file stabile",
+            "ja": "パネル構成のテスト：レール、重なり、距離、安定した出力、コマンド",
+            "zh": "拼板组合测试：导轨、重叠、距离、稳定输出、命令",
+            "pt": "testes da composição de um painel: calhas, sobreposições, distâncias, ficheiro estável"
           }
         },
         {
@@ -3077,6 +3220,19 @@
           }
         },
         {
+          "name": "revision.rs",
+          "desc": {
+            "en": "tests of the revision of a table: token, stale writes refused, no half file",
+            "es": "pruebas de la revisión de una tabla: token, escrituras caducadas rechazadas, sin restos",
+            "de": "Tests der Tabellenrevision: Token, veraltete Schreibvorgänge abgelehnt, keine halben Dateien",
+            "fr": "tests de la révision d'une table : jeton, écritures périmées refusées, pas de fichier à moitié",
+            "it": "test della revisione di una tabella: token, scritture obsolete rifiutate, nessun file a metà",
+            "ja": "テーブルのリビジョンのテスト：トークン、古い書き込みの拒否、中途半端なファイルなし",
+            "zh": "表修订测试：令牌、拒绝过期写入、不留半个文件",
+            "pt": "testes da revisão de uma tabela: token, escritas desatualizadas recusadas, sem ficheiros a meio"
+          }
+        },
+        {
           "name": "runs.rs",
           "desc": {
             "en": "tests of the many runs of a job: seeds, errors, times, the command",
@@ -3220,6 +3376,19 @@
           }
         },
         {
+          "name": "slotbank.rs",
+          "desc": {
+            "en": "tests of the slots of the banks: widths, overlaps, reach, the states table, the chain",
+            "es": "pruebas de las ranuras de los bancos: anchos, solapes, alcance, tabla de estados, cadena",
+            "de": "Tests der Bank-Slots: Breiten, Überlappung, Reichweite, Zustandstabelle, Kette",
+            "fr": "tests des emplacements des bancs : largeurs, chevauchements, portée, états, chaîne",
+            "it": "test degli slot dei banchi: larghezze, sovrapposizioni, portata, stati, catena",
+            "ja": "バンクのスロットのテスト：幅、重なり、範囲、状態表、チェーン",
+            "zh": "料架槽位测试：宽度、重叠、可达范围、状态表、链",
+            "pt": "testes das ranhuras dos bancos: larguras, sobreposições, alcance, estados, cadeia"
+          }
+        },
+        {
           "name": "slots.rs",
           "desc": {
             "en": "tests of the places of the feeders: the swaps, what they save, the slots, the command",
@@ -3308,6 +3477,19 @@
             "ja": "設定の出発点のテスト：有効性、各テンプレートの変更点、コマンド",
             "zh": "设置起点的测试：有效性、各自的改动、命令",
             "pt": "testes dos pontos de partida das definições: válidos, o que cada um muda, comando"
+          }
+        },
+        {
+          "name": "textkeep.rs",
+          "desc": {
+            "en": "tests that a value that looks like a number is kept as text by every reader",
+            "es": "pruebas de que un valor que parece un número se conserva como texto en cada lector",
+            "de": "Tests, dass ein zahlenähnlicher Wert von jedem Leser als Text erhalten bleibt",
+            "fr": "tests qu'une valeur qui ressemble à un nombre reste du texte dans chaque lecteur",
+            "it": "test che un valore simile a un numero resti testo in ogni lettore",
+            "ja": "数字に見える値が各リーダーでテキストのまま保たれることのテスト",
+            "zh": "测试形似数字的值在每个读取器中都保持为文本",
+            "pt": "testes de que um valor que parece um número se mantém como texto em cada leitor"
           }
         },
         {
@@ -3617,19 +3799,6 @@
           }
         },
         {
-          "name": "camera_points.csv",
-          "desc": {
-            "en": "sightings of a mark for camera-calibrate",
-            "es": "avistamientos de una marca para camera-calibrate",
-            "de": "Sichtungen einer Marke für camera-calibrate",
-            "fr": "relevés d'une marque pour camera-calibrate",
-            "it": "rilevazioni di un segno per camera-calibrate",
-            "ja": "camera-calibrate 用のマークの観測",
-            "zh": "camera-calibrate 用的标记观测点",
-            "pt": "observações de uma marca para camera-calibrate"
-          }
-        },
-        {
           "name": "camera_pattern.csv",
           "desc": {
             "en": "points of a pattern on a grid for camera-pattern",
@@ -3640,6 +3809,19 @@
             "ja": "camera-pattern 用の格子上のパターンの点",
             "zh": "camera-pattern 用的网格图案上的点",
             "pt": "pontos de um padrão numa grelha para camera-pattern"
+          }
+        },
+        {
+          "name": "camera_points.csv",
+          "desc": {
+            "en": "sightings of a mark for camera-calibrate",
+            "es": "avistamientos de una marca para camera-calibrate",
+            "de": "Sichtungen einer Marke für camera-calibrate",
+            "fr": "relevés d'une marque pour camera-calibrate",
+            "it": "rilevazioni di un segno per camera-calibrate",
+            "ja": "camera-calibrate 用のマークの観測",
+            "zh": "camera-calibrate 用的标记观测点",
+            "pt": "observações de uma marca para camera-calibrate"
           }
         },
         {
@@ -3812,19 +3994,6 @@
           }
         },
         {
-          "name": "hooks.csv",
-          "desc": {
-            "en": "rules of the hooks for simulate --hooks: an event and a program for each",
-            "es": "reglas de los ganchos para simulate --hooks: un evento y un programa en cada una",
-            "de": "Regeln der Hooks für simulate --hooks: je ein Ereignis und ein Programm",
-            "fr": "règles des hooks pour simulate --hooks : un événement et un programme chacune",
-            "it": "regole degli hook per simulate --hooks: un evento e un programma ciascuna",
-            "ja": "simulate --hooks 用のフック規則：出来事とプログラムを 1 組ずつ",
-            "zh": "simulate --hooks 的钩子规则：每条含一个事件和一个程序",
-            "pt": "regras dos ganchos para simulate --hooks: um evento e um programa em cada"
-          }
-        },
-        {
           "name": "fid_design.csv",
           "desc": {
             "en": "the designed places of four fiducials",
@@ -3848,6 +4017,19 @@
             "ja": "機械で測定した同じ4つのフィデューシャル",
             "zh": "在机器上测得的同样四个基准点",
             "pt": "os mesmos quatro fiduciais medidos na máquina"
+          }
+        },
+        {
+          "name": "hooks.csv",
+          "desc": {
+            "en": "rules of the hooks for simulate --hooks: an event and a program for each",
+            "es": "reglas de los ganchos para simulate --hooks: un evento y un programa en cada una",
+            "de": "Regeln der Hooks für simulate --hooks: je ein Ereignis und ein Programm",
+            "fr": "règles des hooks pour simulate --hooks : un événement et un programme chacune",
+            "it": "regole degli hook per simulate --hooks: un evento e un programma ciascuna",
+            "ja": "simulate --hooks 用のフック規則：出来事とプログラムを 1 組ずつ",
+            "zh": "simulate --hooks 的钩子规则：每条含一个事件和一个程序",
+            "pt": "regras dos ganchos para simulate --hooks: um evento e um programa em cada"
           }
         },
         {
@@ -4098,6 +4280,19 @@
           }
         },
         {
+          "name": "panel_compose.json",
+          "desc": {
+            "en": "a panel of four units of two boards, put and turned, for panel-compose",
+            "es": "un panel de cuatro unidades de dos placas, colocadas y giradas, para panel-compose",
+            "de": "ein Panel aus vier Einheiten zweier Platinen, gesetzt und gedreht, für panel-compose",
+            "fr": "un panneau de quatre unités de deux cartes, placées et tournées, pour panel-compose",
+            "it": "un pannello di quattro unità di due schede, posizionate e ruotate, per panel-compose",
+            "ja": "panel-compose 用：2 種類の基板 4 単位を配置・回転したパネル",
+            "zh": "用于 panel-compose：由两种电路板的四个单元摆放并旋转而成的拼板",
+            "pt": "um painel de quatro unidades de duas placas, postas e rodadas, para o panel-compose"
+          }
+        },
+        {
           "name": "panel_marks.json",
           "desc": {
             "en": "a panel of boards with marks, one turned and one marked bad, for panel-fids",
@@ -4160,6 +4355,19 @@
             "ja": "safety-replay 用の実行イベント",
             "zh": "供 safety-replay 使用的运行事件",
             "pt": "eventos de uma execução para safety-replay"
+          }
+        },
+        {
+          "name": "slot_bank.csv",
+          "desc": {
+            "en": "the banks of feeders: which tape stands in which slots, for slot-bank",
+            "es": "los bancos de alimentadores: qué cinta está en qué ranuras, para slot-bank",
+            "de": "die Zuführungsbänke: welcher Gurt in welchen Slots steht, für slot-bank",
+            "fr": "les bancs d'alimentateurs : quelle bande est dans quels emplacements, pour slot-bank",
+            "it": "i banchi di feeder: quale nastro sta in quali slot, per slot-bank",
+            "ja": "slot-bank 用：どのテープがどのスロットにあるかを示すフィーダーバンク",
+            "zh": "用于 slot-bank：哪条料带位于哪些槽位的料架表",
+            "pt": "os bancos de alimentadores: que fita está em que ranhuras, para o slot-bank"
           }
         },
         {
