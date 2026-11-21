@@ -447,6 +447,8 @@ fn link_to(status: u16, body: &'static str) -> ScNodeLink {
     ScNodeLink::new("node:1", "t", 2, 0, Box::new(Fixed(status, body))).without_waiting()
 }
 
+// with the feature `common-refusal` the reason is the `why` of the node (tests/nodereason.rs)
+#[cfg(not(feature = "common-refusal"))]
 #[test]
 fn the_reason_of_a_refusal_over_the_common_client_is_its_code_or_its_detail() {
     // the `error` of the answer is the reason the common client keeps

@@ -14,6 +14,8 @@ default = []
 gui = ["dep:eframe", "dep:png", "eh3d-view/gui", "eh3d-dock/gui"]
 # the resolver of the common client for `_eh3d._tcp` on the local network (UDP, no more dependencies); with it off, `server-discover` says so and asks nothing of the network
 mdns = ["eh3d-serverclient/mdns"]
+# the reason (`why`) of a refusal of a node and its fixed token taken from the common client (`Client::why_of`, `Client::with_fixed_token`); it needs a release of EH3D-COMMON that has them, so it is off until the build is pinned to one
+common-refusal = []
 
 [lib]
 name = "eh3d_phoenix_pnp"

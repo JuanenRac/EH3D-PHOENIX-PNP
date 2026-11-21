@@ -6,8 +6,10 @@
 //! link), and `nodesim` holds nodes on a computer that speak the same contract, so everything here is tried without a node. On top of the link, `Head` and `Feeders` read the answers into
 //! typed states and give the orders; both keep a `Guard`: after `node_silence_limit` questions in a row without an answer (or when the node says it is in its safe state) the node is held and
 //! nothing that moves is asked of it until a person acknowledges, and a head that cannot be heard is never taken to be clear. `xy_clear_signal` is what the interlock of the axes reads: the
-//! machine may move in X and Y only while the head says every nozzle is raised. The refusal of an order keeps its status and, where the link can see it, its reason; the common client keeps
-//! only the `error` and `detail` of a refusal, so over `ScNodeLink` the reason of a `409` that the node gives as `why` is not seen. Nothing here has talked to a real node.
+//! machine may move in X and Y only while the head says every nozzle is raised. The refusal of an order keeps its status and, where the link can see it, its reason. Over `ScNodeLink` that
+//! reason is the `error` of the answer or, with none, its `detail`, because the released common client does not keep the `why` of a refusal and forgets a token after a `401`; with the feature
+//! `common-refusal` (for a release of the common client that has `Client::why_of` and `Client::with_fixed_token`) the reason is the `why` that the node gave and the token stays. Nothing
+//! here has talked to a real node.
 
 use crate::slotbank::Seen;
 use eh3d_serverclient as sc;
@@ -18,6 +20,9 @@ pub const XY_CLEAR: &str = "xy_clear";
 /// The most nozzles and the most feeders that are believed.
 pub const MAX_NOZZLES: usize = 6;
 pub const MAX_SLOTS: usize = 32;
+/// The most bytes of the body of a refusal that the link keeps when asked to (the most the common client keeps).
+#[cfg(feature = "common-refusal")]
+pub const MAX_EXCERPT_BYTES: u16 = 4096;
 
 /// Why a question or an order did not give an answer.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -78,6 +83,8 @@ pub trait NodeLink {
 /// The link over the common client of the suite.
 pub struct ScNodeLink {
     client: sc::Client,
+    /// Given back to the client after a `401` (the client that is released forgets it); a client with a fixed token keeps it by itself.
+    #[cfg(not(feature = "common-refusal"))]
     token: String,
 }
 
@@ -98,15 +105,60 @@ impl ScNodeLink {
         retries: u32,
         transport: Box<dyn sc::Transport>,
     ) -> ScNodeLink {
-        let settings = sc::Settings {
+        ScNodeLink::build(address, token, timeout_s, retries, 0, transport)
+    }
+
+    /// The same, keeping up to `excerpt_bytes` bytes (at most `MAX_EXCERPT_BYTES`) of the body of every refusal, with the token and the values under a name such as `token` or `password`
+    /// replaced by `***`; `refused_body` gives them. With 0, as in `new`, nothing of a body is kept.
+    #[cfg(feature = "common-refusal")]
+    pub fn new_with_excerpt(
+        address: &str,
+        token: &str,
+        timeout_s: u64,
+        retries: u32,
+        excerpt_bytes: u16,
+        transport: Box<dyn sc::Transport>,
+    ) -> ScNodeLink {
+        ScNodeLink::build(address, token, timeout_s, retries, excerpt_bytes, transport)
+    }
+
+    /// The start of the body of the last refusal, masked, when `new_with_excerpt` asked to keep one. Read it right after the error.
+    #[cfg(feature = "common-refusal")]
+    pub fn refused_body(&self) -> Option<&str> {
+        self.client
+            .last_refusal()
+            .and_then(|r| r.body_excerpt.as_deref())
+    }
+
+    // `excerpt_bytes` is used only with the feature: the settings of the released client have no such key
+    #[cfg_attr(not(feature = "common-refusal"), allow(unused_variables))]
+    fn build(
+        address: &str,
+        token: &str,
+        timeout_s: u64,
+        retries: u32,
+        excerpt_bytes: u16,
+        transport: Box<dyn sc::Transport>,
+    ) -> ScNodeLink {
+        #[cfg_attr(not(feature = "common-refusal"), allow(unused_mut))]
+        let mut settings = sc::Settings {
             server_address: address.to_string(),
             server_token: sc::Secret::new(token),
             server_timeout_s: timeout_s,
             server_retries: retries,
             ..sc::Settings::default()
         };
+        #[cfg(feature = "common-refusal")]
+        {
+            settings.server_error_body_bytes = u64::from(excerpt_bytes.min(MAX_EXCERPT_BYTES));
+        }
+        let client = sc::Client::new(settings, transport).with_auto_refresh(false);
+        // the token of a node is written in the settings and does not run out: a `401` does not make the client forget it
+        #[cfg(feature = "common-refusal")]
+        let client = client.with_fixed_token(true);
         ScNodeLink {
-            client: sc::Client::new(settings, transport).with_auto_refresh(false),
+            client,
+            #[cfg(not(feature = "common-refusal"))]
             token: token.to_string(),
         }
     }
@@ -118,6 +170,7 @@ impl ScNodeLink {
     }
 }
 
+/// The `why` of a refusal, or its `error`, in the text of an answer (what a node on a computer says; the common client is asked instead where it can say it).
 fn why_of(body: &str) -> Option<String> {
     let j = sc::Json::parse(body).ok()?;
     j.get("why")
@@ -150,7 +203,8 @@ impl NodeLink for ScNodeLink {
             Err(sc::ClientError::Unreachable { .. }) => Err(LinkError::Silent),
             Err(sc::ClientError::Unauthorized { .. }) => {
                 // the client forgets a token the server refused, as it should for a login that ran out; the token of a node is fixed in the settings, so it is given back and the next
-                // question asks again (a node that refuses it once is not taken to refuse it for ever)
+                // question asks again (a node that refuses it once is not taken to refuse it for ever). With a fixed token the client does that by itself.
+                #[cfg(not(feature = "common-refusal"))]
                 self.client.set_token(sc::Secret::new(self.token.clone()));
                 Err(LinkError::Unauthorized)
             }
@@ -158,13 +212,20 @@ impl NodeLink for ScNodeLink {
                 status: 403,
                 why: None,
             }),
+            #[cfg(feature = "common-refusal")]
+            Err(error @ sc::ClientError::Server { status, .. }) => {
+                // asked right after the error, as the client says: the `why` a node gives with a `409`, and none when the answer has none
+                let why = self.client.why_of(&error).map(str::to_string);
+                Err(LinkError::Refused { status, why })
+            }
+            #[cfg(not(feature = "common-refusal"))]
             Err(sc::ClientError::Server {
                 status,
                 code,
                 detail,
             }) => {
-                // the common client keeps the `error` and the `detail` of a refusal and not its `why`: the reason is the code of the refusal, and where the node gave none, its detail
-                // (see docs/COMMON_REQUESTS.md for what would let the `why` through)
+                // the released common client keeps the `error` and the `detail` of a refusal and not its `why`: the reason is the code of the refusal, and where the node gave none, its
+                // detail (see docs/COMMON_REQUESTS.md)
                 let detail = detail.trim();
                 let why = code.or_else(|| (!detail.is_empty()).then(|| detail.to_string()));
                 Err(LinkError::Refused { status, why })
