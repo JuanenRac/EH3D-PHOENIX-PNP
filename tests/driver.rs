@@ -87,9 +87,15 @@ fn every_key_is_documented_in_the_examples_and_is_a_name_in_lower_case_once() {
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'),
             "{k}"
         );
+        // the sensitivities are only a comment in the examples: giving one makes the homing go without switches
         let line = |t: &str| {
-            t.lines()
-                .any(|l| l.trim_start().starts_with(&format!("{k} =")))
+            t.lines().any(|l| {
+                let l = l.trim_start();
+                l.starts_with(&format!("{k} ="))
+                    || (k.starts_with("homing_sensitivity_x")
+                        || k.starts_with("homing_sensitivity_y"))
+                        && l.starts_with(&format!("# {k} ="))
+            })
         };
         assert!(line(MARLIN) || line(KLIPPER), "{k} is not in an example");
     }

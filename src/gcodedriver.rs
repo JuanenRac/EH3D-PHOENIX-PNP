@@ -23,7 +23,7 @@ pub const MAX_LINE: usize = 200;
 pub const MAX_PROFILE_BYTES: usize = 65_536;
 
 /// Every key of a profile file, in the order of the examples.
-pub const KEYS: [&str; 57] = [
+pub const KEYS: [&str; 61] = [
     "schema_version",
     "dialect",
     "transport",
@@ -79,6 +79,10 @@ pub const KEYS: [&str; 57] = [
     "safety_slow_speed_pct",
     "baud",
     "homing_spread_mm",
+    "homing_mode",
+    "homing_sensitivity_x",
+    "homing_sensitivity_y",
+    "homing_sensitivity_line",
     "bringup_probe_mm",
     "tolerate_unknown_echo",
 ];
@@ -122,6 +126,27 @@ impl Transport {
         }
     }
 }
+
+/// How the machine finds its origin.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HomingMode {
+    /// The axes run to end switches (the lines of `home` alone).
+    Switch,
+    /// The axes run to a stop and the driver of the motor feels it: a sensitivity for X and one for Y are sent first, with `homing_sensitivity_line`.
+    Sensorless,
+}
+
+impl HomingMode {
+    pub fn name(self) -> &'static str {
+        match self {
+            HomingMode::Switch => "switch",
+            HomingMode::Sensorless => "sensorless",
+        }
+    }
+}
+
+/// The lowest and the highest sensitivity a profile may give for sensorless homing (the drivers of the motors take different ranges; the profile says which number its line wants).
+pub const SENSITIVITY_RANGE: (f64, f64) = (-64.0, 255.0);
 
 /// A pin, a valve or a pump that two lines switch.
 #[derive(Debug, Clone, PartialEq)]
@@ -372,6 +397,12 @@ pub struct DriverProfile {
     pub slow_speed_pct: f64,
     pub baud: u32,
     pub homing_spread_mm: f64,
+    /// Homing with end switches or without them.
+    pub homing_mode: HomingMode,
+    /// The sensitivity of X and of Y for sensorless homing; none when the profile gives none.
+    pub homing_sensitivity: [Option<i32>; 2],
+    /// The line that sets a sensitivity: `{axis}` is the letter of the axis (`{axis_lower}` its lower case) and `{value}` the sensitivity.
+    pub homing_sensitivity_line: String,
     pub bringup_probe_mm: f64,
     pub tolerate_unknown_echo: bool,
 }
@@ -489,6 +520,9 @@ impl Default for DriverProfile {
             slow_speed_pct: 25.0,
             baud: 115_200,
             homing_spread_mm: 0.05,
+            homing_mode: HomingMode::Switch,
+            homing_sensitivity: [None, None],
+            homing_sensitivity_line: "M914 {axis}{value}".into(),
             bringup_probe_mm: 20.0,
             tolerate_unknown_echo: true,
         }
@@ -774,6 +808,30 @@ impl DriverProfile {
             "safety_slow_speed_pct" => self.slow_speed_pct = number(1.0, 100.0)?,
             "baud" => self.baud = whole(1200.0, 4_000_000.0)?,
             "homing_spread_mm" => self.homing_spread_mm = number(0.0, 5.0)?,
+            "homing_mode" => {
+                self.homing_mode = match v.to_ascii_lowercase().as_str() {
+                    "switch" => HomingMode::Switch,
+                    "sensorless" => HomingMode::Sensorless,
+                    _ => return Err(err(Fault::BadValue("switch or sensorless".into()))),
+                }
+            }
+            "homing_sensitivity_x" | "homing_sensitivity_y" => {
+                let n = number(SENSITIVITY_RANGE.0, SENSITIVITY_RANGE.1)?;
+                if n.fract() != 0.0 {
+                    return Err(err(Fault::BadValue("a whole number".into())));
+                }
+                self.homing_sensitivity[usize::from(key == "homing_sensitivity_y")] =
+                    Some(n as i32);
+            }
+            "homing_sensitivity_line" => {
+                let g = gcode()?;
+                if !g.contains("{value}") || !(g.contains("{axis}") || g.contains("{axis_lower}")) {
+                    return Err(err(Fault::BadValue(
+                        "a line with {axis} (or {axis_lower}) and {value}".into(),
+                    )));
+                }
+                self.homing_sensitivity_line = g;
+            }
             "bringup_probe_mm" => self.bringup_probe_mm = number(1.0, 500.0)?,
             "tolerate_unknown_echo" => {
                 self.tolerate_unknown_echo =
@@ -856,6 +914,40 @@ impl DriverProfile {
                 return Err(order("ok_pattern", "through Moonraker the patterns must read `ok`, `!! message` and `X:1.000 Y:2.000 Z:3.000 E:4.000`"));
             }
         }
+        match self.homing_mode {
+            HomingMode::Sensorless => {
+                for (value, axis, key) in [
+                    (
+                        self.homing_sensitivity[0],
+                        &self.axis_x,
+                        "homing_sensitivity_x",
+                    ),
+                    (
+                        self.homing_sensitivity[1],
+                        &self.axis_y,
+                        "homing_sensitivity_y",
+                    ),
+                ] {
+                    if value.is_none() {
+                        return Err(ProfileError::new(
+                            0,
+                            key,
+                            Fault::Missing(format!(
+                                "the sensitivity of the axis {axis} for homing without switches"
+                            )),
+                        ));
+                    }
+                }
+            }
+            HomingMode::Switch => {
+                if self.homing_sensitivity.iter().any(Option::is_some) {
+                    return Err(order(
+                        "homing_mode",
+                        "a sensitivity is for homing_mode = sensorless",
+                    ));
+                }
+            }
+        }
         if self.home.is_empty() {
             return Err(ProfileError::new(
                 0,
@@ -871,6 +963,29 @@ impl DriverProfile {
             ));
         }
         Ok(())
+    }
+
+    /// The lines that home the machine: the sensitivities of X and Y first when the homing is without switches, then the lines of `home`.
+    pub fn home_lines(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if self.homing_mode == HomingMode::Sensorless {
+            for (value, axis) in self
+                .homing_sensitivity
+                .iter()
+                .zip([&self.axis_x, &self.axis_y])
+            {
+                if let Some(value) = value {
+                    out.push(
+                        self.homing_sensitivity_line
+                            .replace("{axis_lower}", &axis.to_ascii_lowercase())
+                            .replace("{axis}", axis)
+                            .replace("{value}", &value.to_string()),
+                    );
+                }
+            }
+        }
+        out.extend(self.home.iter().cloned());
+        out
     }
 
     /// The names of the axes (x, y, z, turn) in the order of the letters of a move.

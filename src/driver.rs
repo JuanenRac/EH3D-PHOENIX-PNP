@@ -279,7 +279,7 @@ impl<L: Link> Session<L> {
     pub fn home(&mut self) -> Result<(), Failure> {
         self.ready()?;
         let t = self.profile.move_timeout_s;
-        for l in self.profile.home.clone() {
+        for l in self.profile.home_lines() {
             self.send(&l, t, false)?;
         }
         Ok(())

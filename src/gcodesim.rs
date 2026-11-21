@@ -67,6 +67,7 @@ pub struct GcodeSim {
     received: usize,
     halted: bool,
     homed: bool,
+    sensitivity: [Option<i64>; 2],
     seed: u64,
     /// Every line received, in order.
     pub log: Vec<String>,
@@ -109,9 +110,15 @@ impl GcodeSim {
             received: 0,
             halted: false,
             homed: false,
+            sensitivity: [None, None],
             seed,
             log: Vec::new(),
         }
+    }
+
+    /// The sensitivity for homing without switches that the controller was given for X (0) or Y (1): `M914` in Marlin, `SET_TMC_FIELD` in Klipper.
+    pub fn sensitivity(&self, axis: usize) -> Option<i64> {
+        self.sensitivity.get(axis).copied().flatten()
     }
 
     /// The value of a pin that `M42` set.
@@ -282,6 +289,37 @@ impl GcodeSim {
                 self.motion_end_s = self.motion_end_s.max(self.now_s) + t;
                 self.pos = target;
                 (self.done(vec![]), 0.0)
+            }
+            "M914" if !self.klipper => {
+                for (c, v) in &w {
+                    if let Some(i) = self.letters[..2].iter().position(|l| l == c) {
+                        self.sensitivity[i] = Some(*v as i64);
+                    }
+                }
+                (self.done(vec![]), 0.0)
+            }
+            "SET_TMC_FIELD" if self.klipper => {
+                let field = |name: &str| {
+                    text.split_whitespace()
+                        .find_map(|t| t.strip_prefix(name))
+                        .map(str::to_string)
+                };
+                let axis = field("STEPPER=")
+                    .and_then(|s| s.chars().last())
+                    .map(|c| c.to_ascii_uppercase());
+                let value = field("VALUE=").and_then(|v| v.parse::<i64>().ok());
+                match (axis, value) {
+                    (Some(a), Some(v)) => {
+                        if let Some(i) = self.letters[..2].iter().position(|l| *l == a) {
+                            self.sensitivity[i] = Some(v);
+                        }
+                        (self.done(vec![]), 0.0)
+                    }
+                    _ => (
+                        vec![self.error_text("SET_TMC_FIELD needs STEPPER= and VALUE=")],
+                        0.0,
+                    ),
+                }
             }
             "G4" => {
                 let ms = w.iter().find(|(c, _)| *c == 'P').map_or(0.0, |(_, v)| *v);

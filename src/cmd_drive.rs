@@ -13,7 +13,9 @@ use eh3d_phoenix_pnp::driver::{Failure, Session};
 use eh3d_phoenix_pnp::drivertest;
 use eh3d_phoenix_pnp::error::Lang;
 use eh3d_phoenix_pnp::feeders::{assign_side, from_csv as feeders_csv};
-use eh3d_phoenix_pnp::gcodedriver::{DriverProfile, Op, Target, Transport, MAX_PROFILE_BYTES};
+use eh3d_phoenix_pnp::gcodedriver::{
+    DriverProfile, HomingMode, Op, Target, Transport, MAX_PROFILE_BYTES,
+};
 use eh3d_phoenix_pnp::gcodesim::{Faults, GcodeSim, Link, MoonrakerLink, SimLink, SimMoonraker};
 use eh3d_phoenix_pnp::msg8::{num as show, pick, say};
 use eh3d_phoenix_pnp::parts::{parse, Side};
@@ -285,7 +287,7 @@ pub fn driver_run(mut args: Vec<String>) -> Result<(), String> {
     let mut script: Vec<String> = Vec::new();
     script.extend(profile.connect.clone());
     script.push(profile.absolute_mode.clone());
-    script.extend(profile.home.clone());
+    script.extend(profile.home_lines());
     for p in &planned.placements {
         for op in profile.placement_ops(p)? {
             script.extend(profile.lines(&op)?);
@@ -453,6 +455,21 @@ pub fn homing_repeat(mut args: Vec<String>) -> Result<(), String> {
             ]
         )
     );
+    if profile.homing_mode == HomingMode::Sensorless {
+        let rows: [&str; 8] = [
+            "homing without switches: sensitivity {sx} in X and {sy} in Y",
+            "referenciado sin finales de carrera: sensibilidad {sx} en X y {sy} en Y",
+            "Referenzfahrt ohne Endschalter: Empfindlichkeit {sx} in X und {sy} in Y",
+            "prise d'origine sans fins de course : sensibilité {sx} en X et {sy} en Y",
+            "homing senza finecorsa: sensibilità {sx} in X e {sy} in Y",
+            "リミットスイッチなしの原点復帰：感度 X {sx}、Y {sy}",
+            "无限位开关回零：X 灵敏度 {sx}，Y 灵敏度 {sy}",
+            "homing sem fins de curso: sensibilidade {sx} em X e {sy} em Y",
+        ];
+        let at =
+            |i: usize| profile.homing_sensitivity[i].map_or("-".to_string(), |v| v.to_string());
+        println!("{}", say(lang, &rows, &[("sx", at(0)), ("sy", at(1))]));
+    }
     println!("evidence=simulator");
     if worst > limit {
         fail(format!(
