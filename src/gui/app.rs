@@ -518,6 +518,7 @@ impl AppState {
                 })
                 .collect(),
             life: None,
+            machine: Some(crate::machsheet::from_config(&self.ws.cfg)),
         }
     }
 

@@ -30,6 +30,8 @@ pub struct ReportInput {
     pub checks: Vec<ReportCheck>,
     /// The record of the use of the nozzle tips as it was before the job (`simulate --nozzle-life`); none: the tips show what this job did and nothing of what they did before.
     pub life: Option<crate::nozzlelife::NozzleLife>,
+    /// The specification sheet of the machine (`machine-sheet`); the report shows it when at least one field is given. None: the report says nothing of the machine.
+    pub machine: Option<crate::machsheet::MachineSheet>,
 }
 
 /// What the job did with a nozzle tip and how worn the tip is.
@@ -145,6 +147,8 @@ pub struct WorkReport {
     pub actions: [u32; 4],
     pub put_aside: Vec<(String, String)>,
     pub left_out: Vec<(String, String)>,
+    /// The specification sheet of the machine, when the settings give at least one field of it.
+    pub machine: Option<crate::machsheet::MachineSheet>,
     /// For each feeder of the plan, the parts of it that were put aside and the parts that the person left out.
     pub feeder_rejects: Vec<(String, usize, usize)>,
     /// The nozzle tips of the job with their wear, and the number of parts at which `nozzle_life_warn` warns (0: never).
@@ -333,6 +337,7 @@ pub fn build(job: &Job, input: &ReportInput) -> WorkReport {
         actions: t.actions,
         put_aside,
         left_out,
+        machine: input.machine.clone().filter(|m| m.given() > 0),
         feeder_rejects,
         tip_life,
         life_warn_at,
@@ -646,6 +651,12 @@ impl WorkReport {
             phase_word(self.phase, lang).to_string(),
         ));
         out.push(head);
+
+        if let Some(machine) = &self.machine {
+            let mut sheet = section(crate::machsheet::title(lang));
+            sheet.pairs.extend(machine.rows(lang));
+            out.push(sheet);
+        }
 
         let mut parts = section(word(K::Parts, lang));
         for (k, n) in [
@@ -1101,6 +1112,9 @@ impl WorkReport {
             "put_aside": self.put_aside.iter().map(|(r, why)| json!({"reference": r, "reason": why})).collect::<Vec<_>>(),
             "left_out": self.left_out.iter().map(|(r, why)| json!({"reference": r, "reason": why})).collect::<Vec<_>>()
         });
+        if let Some(machine) = &self.machine {
+            doc["machine"] = machine.json();
+        }
         if self.align_on {
             doc["camera"] = json!({
                 "corrected": self.corrected, "over_tolerance": self.over_tolerance,
@@ -1134,6 +1148,11 @@ impl WorkReport {
             "state",
             self.json()["state"].as_str().unwrap_or("").to_string(),
         );
+        if let Some(machine) = &self.machine {
+            for (field, value) in &machine.values {
+                row("machine", field.name(), value.clone().unwrap_or_default());
+            }
+        }
         row("work", "planned", self.planned.to_string());
         row("work", "skipped", self.skipped.to_string());
         row("work", "pending", self.pending.to_string());

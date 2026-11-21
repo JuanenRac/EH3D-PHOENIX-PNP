@@ -114,6 +114,8 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp job-import FILE [--csv F] [--config F] [--lang CODE]   reads and checks such a file and says what it holds; --csv writes the placements with their status as a table; exits with 2 when the file is not valid
   phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] [--config F] [--lang CODE]   what changed between two tables of parts, part by part: added, removed, moved, turned, another value, another package or the other side; exits with 2 when they differ
   phoenix-pnp config-diff FIRST SECOND [--lang CODE]   the settings that two configuration files give differently, in what they mean (yes and on, 5 and 5.0 and a line that gives the default are the same); exits with 2 when the machines differ
+  phoenix-pnp fw-config-diff FIRST SECOND [--lang CODE]   the values that two dumps of the configuration of a firmware (the answer to M503) give differently, as lines of G-code are read (80 and 80.00 are the same), and a warning to reset the EEPROM when the firmware is not the same in both; exits with 2 when the values differ
+  phoenix-pnp machine-sheet [--config F] [--lang CODE]   the specification sheet of the machine as the settings give it (table, machine, work area, smallest part tried, greatest speed); what nobody measured says so and no figure is made up
   phoenix-pnp board-stats PARTS [--near MM] [--limit N] [--config F] [--lang CODE]   what a table of parts holds (the sides, the kinds, each package, the box of the centres) and, with --near, the pairs of parts of one side whose centres are closer than MM; exits with 2 when it finds a pair
   phoenix-pnp queue-stock QUEUE [--out F] [--config F] [--lang CODE]   whether the feeders hold enough parts for all the jobs of the queue that are still to be made, one after the other, and the job in which each reel that falls short runs out; exits with 2 when one does
   phoenix-pnp feeder-deplete FEEDERS --state F [--out F] [--config F] [--lang CODE]   the table of feeders as it stands after the job of a saved state: what is left in each feeder and the next place of each strip; exits with 2 when a feeder is low or empty
@@ -156,6 +158,8 @@ Examples (each one is run by a test, from the folder of the repository):
   example: phoenix-pnp parts examples/board.pos
   example: phoenix-pnp check examples/board.pos examples/feeders.csv
   example: phoenix-pnp board-stats examples/board.pos
+  example: phoenix-pnp fw-config-diff examples/firmware_old.txt examples/firmware_old.txt
+  example: phoenix-pnp machine-sheet --config examples/machine.cfg
   example: phoenix-pnp slot-bank examples/slot_bank.csv --tape 8
   example: phoenix-pnp panel-compose examples/panel_compose.json
   example: phoenix-pnp wiring-sheet examples/driver_marlin.cfg
@@ -314,6 +318,8 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "camera-combined" => cmd_tools::camera_combined(args),
         "parts-diff" => cmd_more::parts_diff(args),
         "config-diff" => cmd_more::config_diff(args),
+        "fw-config-diff" => cmd_more::fw_config_diff(args),
+        "machine-sheet" => cmd_more::machine_sheet(args),
         "board-stats" => cmd_more::board_stats(args),
         "queue-stock" => cmd_more::queue_stock(args),
         "feeder-deplete" => cmd_more::feeder_deplete(args),

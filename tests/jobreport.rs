@@ -48,6 +48,7 @@ fn life(text: &str) -> NozzleLife {
 fn input(record: &str) -> ReportInput {
     ReportInput {
         life: Some(life(record)),
+        machine: None,
         ..ReportInput::default()
     }
 }

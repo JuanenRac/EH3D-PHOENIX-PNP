@@ -21,7 +21,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 258] = [
+pub const KEYS: [&str; 263] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -280,6 +280,11 @@ pub const KEYS: [&str; 258] = [
     "node_silence_limit",
     "node_timeout_s",
     "panel_clearance_mm",
+    "spec_table",
+    "spec_machine",
+    "spec_work_area",
+    "spec_smallest_part",
+    "spec_max_speed_mm_s",
 ];
 
 /// The order in which the places are visited.
@@ -848,6 +853,13 @@ pub struct MachineConfig {
     pub node_timeout_s: u64,
     /// panel-compose: the least distance between the outlines of two boards of a panel (millimetres).
     pub panel_clearance_mm: f64,
+    /// The specification sheet of the machine (`machine-sheet`): the table, the machine, the work area and the smallest part tried, as text, and the greatest speed (mm/s). Empty, and 0,
+    /// mean that nobody measured it; the sheet then says so and no figure is made up.
+    pub spec_table: String,
+    pub spec_machine: String,
+    pub spec_work_area: String,
+    pub spec_smallest_part: String,
+    pub spec_max_speed_mm_s: f64,
 }
 
 /// The most retries of the link to the server.
@@ -1106,6 +1118,11 @@ impl Default for MachineConfig {
             node_silence_limit: 3,
             node_timeout_s: 2,
             panel_clearance_mm: 1.0,
+            spec_table: String::new(),
+            spec_machine: String::new(),
+            spec_work_area: String::new(),
+            spec_smallest_part: String::new(),
+            spec_max_speed_mm_s: 0.0,
         }
     }
 }
@@ -1852,6 +1869,11 @@ impl MachineConfig {
             "node_silence_limit" => self.node_silence_limit = int(line, key, v, 1, 100)? as u32,
             "node_timeout_s" => self.node_timeout_s = int(line, key, v, 1, 120)? as u64,
             "panel_clearance_mm" => self.panel_clearance_mm = n(0.0, 50.0)?,
+            "spec_table" => self.spec_table = server_text(line, key, v, 80)?,
+            "spec_machine" => self.spec_machine = server_text(line, key, v, 80)?,
+            "spec_work_area" => self.spec_work_area = server_text(line, key, v, 80)?,
+            "spec_smallest_part" => self.spec_smallest_part = server_text(line, key, v, 80)?,
+            "spec_max_speed_mm_s" => self.spec_max_speed_mm_s = n(0.0, 100_000.0)?,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

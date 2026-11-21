@@ -166,6 +166,13 @@ fn the_comparisons_end_with_2_when_the_two_differ() {
         &["config-diff", &same, &other],
         &["config-diff", &same, "no_such.cfg"],
     );
+    let (old, new) = ("examples/firmware_old.txt", "examples/firmware_new.txt");
+    expect(
+        "fw-config-diff",
+        Some(&["fw-config-diff", old, old]),
+        &["fw-config-diff", old, new],
+        &["fw-config-diff", old, "no_such.txt"],
+    );
     let _ = std::fs::remove_dir_all(&d);
 }
 

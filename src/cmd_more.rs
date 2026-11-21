@@ -9,11 +9,12 @@ use crate::cmd_tools::language_and_config;
 use crate::commands::{read_text, refuse_same_file};
 use eh3d_phoenix_pnp::config::MAX_CONFIG_BYTES;
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
+use eh3d_phoenix_pnp::msg8::say;
 use eh3d_phoenix_pnp::parts::parse_all;
 use eh3d_phoenix_pnp::revision;
 use eh3d_phoenix_pnp::{
-    boardstats, changeover, configdiff, deplete, exchange, jobdiff, partsdiff, queuestock, refill,
-    report,
+    boardstats, changeover, configdiff, deplete, exchange, fwdiff, jobdiff, machsheet, partsdiff,
+    queuestock, refill, report,
 };
 
 /// `parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F]`: what changed between two tables of parts, part by part (added, removed, moved, turned, another value, another package,
@@ -78,6 +79,90 @@ pub fn config_diff(mut args: Vec<String>) -> Result<(), String> {
     } else {
         fail(format!("{} settings differ", diff.changes.len()))
     }
+}
+
+/// `fw-config-diff FIRST SECOND [--lang CODE]`: the values that two dumps of the configuration of a firmware (the answer to `M503`) give differently, and a warning when the firmware is not the
+/// same in both (the EEPROM is to be reset). The exit code is 2 when the values differ.
+pub fn fw_config_diff(mut args: Vec<String>) -> Result<(), String> {
+    let lang = match flag(&mut args, "--lang")? {
+        Some(l) => Lang::from_code(&l)
+            .ok_or_else(|| format!("--lang '{l}' is not one of en es de fr it ja zh pt"))?,
+        None => Lang::En,
+    };
+    finish(&args, 2)?;
+    let (a, b) = match (args.first(), args.get(1)) {
+        (Some(a), Some(b)) => (a.clone(), b.clone()),
+        _ => return Err("fw-config-diff needs two dumps of a firmware".into()),
+    };
+    let load = |path: &str| -> Result<fwdiff::Dump, String> {
+        fwdiff::parse(&read_text(path, fwdiff::MAX_DUMP_BYTES as u64)?)
+            .map_err(|e| format!("{path}: {e}"))
+    };
+    let diff = fwdiff::diff(&load(&a)?, &load(&b)?);
+    for line in diff.lines() {
+        println!("{line}");
+    }
+    let (added, removed, changed) = diff.counts();
+    let sum: [&str; 8] = [
+        "{n} values differ ({c} changed, {a} only in the second, {r} only in the first); {s} are written differently and mean the same",
+        "{n} valores difieren ({c} cambiados, {a} solo en el segundo, {r} solo en el primero); {s} se escriben distinto y significan lo mismo",
+        "{n} Werte weichen ab ({c} geändert, {a} nur im zweiten, {r} nur im ersten); {s} sind anders geschrieben und bedeuten dasselbe",
+        "{n} valeurs diffèrent ({c} modifiées, {a} seulement dans le second, {r} seulement dans le premier) ; {s} sont écrites autrement et veulent dire la même chose",
+        "{n} valori differiscono ({c} cambiati, {a} solo nel secondo, {r} solo nel primo); {s} sono scritti diversamente e significano lo stesso",
+        "{n} 個の値が異なります（変更 {c}、2つ目のみ {a}、1つ目のみ {r}）。表記が違うだけで同じ意味のものが {s} 個あります",
+        "{n} 个值不同（更改 {c}，仅第二个有 {a}，仅第一个有 {r}）；{s} 个写法不同但含义相同",
+        "{n} valores diferem ({c} alterados, {a} só no segundo, {r} só no primeiro); {s} escrevem-se de outra forma e querem dizer o mesmo",
+    ];
+    println!(
+        "{}",
+        say(
+            lang,
+            &sum,
+            &[
+                ("n", diff.changes.len().to_string()),
+                ("c", changed.to_string()),
+                ("a", added.to_string()),
+                ("r", removed.to_string()),
+                ("s", diff.same_meaning.to_string()),
+            ]
+        )
+    );
+    if let Some((old, new)) = diff.firmware_changed() {
+        let warn: [&str; 8] = [
+            "warning: the firmware changed from {old} to {new}; after flashing, reset the EEPROM (M502, then M500) and read the dump again, or the values stored by the old firmware stay in force",
+            "aviso: el firmware cambió de {old} a {new}; tras flashear, restablece la EEPROM (M502 y luego M500) y vuelve a leer el volcado, o seguirán en vigor los valores guardados por el firmware anterior",
+            "Warnung: Die Firmware wechselte von {old} zu {new}; nach dem Flashen den EEPROM zurücksetzen (M502, dann M500) und den Auszug neu lesen, sonst gelten die vom alten Firmware gespeicherten Werte weiter",
+            "avertissement : le firmware est passé de {old} à {new} ; après le flashage, réinitialisez l'EEPROM (M502, puis M500) et relisez le relevé, sinon les valeurs enregistrées par l'ancien firmware restent en vigueur",
+            "avviso: il firmware è passato da {old} a {new}; dopo il flash, reimposta l'EEPROM (M502, poi M500) e rileggi il dump, altrimenti restano in vigore i valori salvati dal firmware precedente",
+            "警告：ファームウェアが {old} から {new} に変わりました。書き込み後は EEPROM をリセット（M502 のあと M500）してダンプを読み直してください。そうしないと旧ファームウェアが保存した値が有効のままです",
+            "警告：固件已从 {old} 变为 {new}；刷写后请重置 EEPROM（先 M502 再 M500）并重新读取转储，否则旧固件保存的值仍然有效",
+            "aviso: o firmware mudou de {old} para {new}; depois de gravar, reponha a EEPROM (M502 e depois M500) e volte a ler o despejo, ou os valores guardados pelo firmware anterior continuam em vigor",
+        ];
+        println!(
+            "{}",
+            say(
+                lang,
+                &warn,
+                &[("old", old.to_string()), ("new", new.to_string())]
+            )
+        );
+    }
+    if diff.is_same() {
+        Ok(())
+    } else {
+        fail(format!(
+            "{} values of the firmware differ",
+            diff.changes.len()
+        ))
+    }
+}
+
+/// `machine-sheet [--config F] [--lang CODE]`: the specification sheet of the machine as the settings give it; what nobody measured says so.
+pub fn machine_sheet(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    finish(&args, 0)?;
+    print!("{}", machsheet::from_config(&cfg).text(lang));
+    Ok(())
 }
 
 /// `board-stats PARTS [--near MM] [--limit N]`: what the table holds (the parts on each side, the kinds, a line for each package, the box of the centres) and, with `--near`, the pairs of

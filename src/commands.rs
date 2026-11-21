@@ -1216,6 +1216,7 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
             })
             .collect(),
         life: life_before,
+        machine: Some(eh3d_phoenix_pnp::machsheet::from_config(&p.c.cfg)),
     };
     let mut job = Job::new(planned.plan, p.feeders.clone(), p.c.cfg.clone()).map_err(l)?;
     if let Some(settings) = vision {

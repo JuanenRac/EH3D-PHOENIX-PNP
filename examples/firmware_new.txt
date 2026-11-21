@@ -1,0 +1,20 @@
+FIRMWARE_NAME:Marlin 2.1.3 (Github) SOURCE_CODE_URL:github.com/MarlinFirmware/Marlin PROTOCOL_VERSION:1.0 MACHINE_TYPE:Pick and place EXTRUDER_COUNT:1
+echo:  G21 ; Units in mm
+echo:; Steps per unit:
+echo:  M92 X80 Y80.00 Z400.00 E500.00
+echo:; Maximum feedrates (units/s):
+echo:  M203 X350.00 Y300.00 Z10.00 E50.00
+echo:; Maximum Acceleration (units/s2):
+echo:  M201 X3000.00 Y3000.00 Z100.00 E1000.00
+echo:; Acceleration (units/s2): P<print_accel> R<retract_accel> T<travel_accel>
+echo:  M204 P3000.00 R3000.00 T2500.00
+echo:; Advanced: B<min_segment_time_us> S<min_feedrate> T<min_travel_feedrate> J<junc_dev>
+echo:  M205 B20000 S0.00 T0.00 J0.01
+echo:; Home offset:
+echo:; Stepper driver current:
+echo:  M906 X900 Y800 Z600
+echo:  M906 I1 Z600
+echo:; Sensorless homing sensitivity:
+echo:  M914 X70 Y75
+echo:  M913 X100
+ok

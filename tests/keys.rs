@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 const EXAMPLE: &str = include_str!("../examples/machine.cfg");
 
 /// The keys that take a name, a list of words or an address, and so take any text without a control character. Every other key takes a number, a word of a short list or a yes or a no.
-const TEXT_KEYS: [&str; 20] = [
+const TEXT_KEYS: [&str; 24] = [
     "default_tip",
     "header_reference",
     "header_value",
@@ -29,6 +29,10 @@ const TEXT_KEYS: [&str; 20] = [
     "server_token",
     "fab_dnp_column",
     "fab_tht_words",
+    "spec_table",
+    "spec_machine",
+    "spec_work_area",
+    "spec_smallest_part",
 ];
 
 /// The keys that may be written more than once, one line for each rule.
