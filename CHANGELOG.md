@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **What the server answers can no longer wrap round to another slot, and what is written for it cannot hold a number that is not one (security):** a slot, a count of slots or a free slot above 32 bits was cut with `as u32` and showed another slot (4294967297 was slot 1); the percent of a job overflowed on a huge count; a part with a position or a rotation that was not a number, or a board offset that was not, was written as `null` in the request of the placements; a part name that the server sends and that starts like a formula (`=`, `+`, `-`, `@`) was written as it came in the CSV of the feeders and a spreadsheet would run it, and now has a quote in front. 27 new tests cover them, the ids and names of the requests, the slots and counts at their edges, and the calibrations.
 
 ## [0.1.4] - Toolpath hash, Klipper configuration diff, height map, equivalent parts, drag feeder plan and queue editing
 
