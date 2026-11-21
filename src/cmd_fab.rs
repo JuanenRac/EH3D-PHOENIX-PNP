@@ -6,6 +6,7 @@
 
 use crate::cli_args::{finish, flag, num, switch};
 use crate::cmd_flow::deliver;
+use crate::cmd_nodes::fail;
 use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
 use eh3d_phoenix_pnp::asmexport::{self, Format, Sides, Unit};
@@ -80,7 +81,7 @@ pub fn export_fab(mut args: Vec<String>) -> Result<(), String> {
     let list = jlcpcb::cpl(&parsed.parts, &parsed.dnp, &options);
     let problems = jlcpcb::check_cpl(&list);
     if let Some(p) = problems.first() {
-        return Err(format!("line {}: {}", p.line, p.what));
+        return fail(format!("line {}: {}", p.line, p.what));
     }
     if cpl_out.is_some() || bom_out.is_none() {
         deliver(&list, cpl_out.as_deref(), &inputs, lang)?;
@@ -99,7 +100,7 @@ pub fn export_fab(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// `fab-check FILE`: reads a placement list and says what an assembly house would refuse (a list in a designator cell, a designator twice, a layer that is not Top or Bottom, a place that is
-/// not a number). The exit code is 1 when there is a line.
+/// not a number). The exit code is 2 when there is a line.
 pub fn fab_check(mut args: Vec<String>) -> Result<(), String> {
     let (_, cfg) = language_and_config(&mut args)?;
     finish(&args, 1)?;
@@ -113,7 +114,7 @@ pub fn fab_check(mut args: Vec<String>) -> Result<(), String> {
             println!("the placement list would be accepted");
             Ok(())
         }
-        n => Err(format!("{n} lines would be refused")),
+        n => fail(format!("{n} lines would be refused")),
     }
 }
 
@@ -200,7 +201,7 @@ fn whole(text: &str, what: &str, lo: u32, hi: u32) -> Result<u32, String> {
 
 /// `ipc-name NAME... [--density L|N|M]` or `ipc-name --make FAMILY ...`: a name of the convention of IPC-7351B taken apart and written the one way, or the name of a chip package of the table
 /// (`R_0603`) in that convention, or a name made from the sizes (`--make RESC --length 1.6 --width 0.8 --height 0.55`, `--make SOIC --pitch 1.27 --span 6 --height 1.75 --pins 8`,
-/// `--make QFP --pitch 0.5 --length 10 --width 10 --height 1.6 --pins 48`). The exit code is 1 when a name is not understood.
+/// `--make QFP --pitch 0.5 --length 10 --width 10 --height 1.6 --pins 48`). The exit code is 2 when a name is not understood.
 pub fn ipc_name(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let asked = match flag(&mut args, "--density")? {
@@ -285,12 +286,12 @@ pub fn ipc_name(mut args: Vec<String>) -> Result<(), String> {
     }
     match failed {
         0 => Ok(()),
-        n => Err(format!("{n} names were not understood")),
+        n => fail(format!("{n} names were not understood")),
     }
 }
 
 /// `footprint-find QUERY... [--packages F] [--catalog F] [--limit N] [--distance N]`: the names of the table of packages that are the query, another name for the same footprint (`R_0603`,
-/// `Resistor_SMD:R_0603_1608Metric` and `RESC1608X55N` are one), hold the words or are a few letters away. The exit code is 1 when a query finds nothing.
+/// `Resistor_SMD:R_0603_1608Metric` and `RESC1608X55N` are one), hold the words or are a few letters away. The exit code is 2 when a query finds nothing.
 pub fn footprint_find(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let limit = match flag(&mut args, "--limit")? {
@@ -331,12 +332,12 @@ pub fn footprint_find(mut args: Vec<String>) -> Result<(), String> {
     }
     match empty {
         0 => Ok(()),
-        n => Err(format!("{n} queries found nothing")),
+        n => fail(format!("{n} queries found nothing")),
     }
 }
 
 /// `dfm-check PARTS FEATURES [--packages F] [--catalog F] [--out F]`: the checks of the board for assembly, in the language of `--lang`. `FEATURES` is a table of `kind,id,x_mm,y_mm,w_mm,h_mm,side`
-/// with the outline, the pads, the holes, the ends of tracks, the fiducials, the tooling holes and the tabs. The limits are the settings `dfm_*`. The exit code is 1 when there is a warning or an
+/// with the outline, the pads, the holes, the ends of tracks, the fiducials, the tooling holes and the tabs. The limits are the settings `dfm_*`. The exit code is 2 when there is a warning or an
 /// error.
 pub fn dfm_check(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
@@ -371,12 +372,12 @@ pub fn dfm_check(mut args: Vec<String>) -> Result<(), String> {
     }
     match report.problems() {
         0 => Ok(()),
-        n => Err(format!("{n} findings need a look")),
+        n => fail(format!("{n} findings need a look")),
     }
 }
 
 /// `stencil-apertures FEATURES [--out F]`: the openings of the paste stencil for the pads of a table of features (reduced by the settings `stencil_*`, the thermal pads split into windows) and
-/// the warnings, in the language of `--lang`. `--out` writes the openings. The exit code is 1 when there is a warning.
+/// the warnings, in the language of `--lang`. `--out` writes the openings. The exit code is 2 when there is a warning.
 pub fn stencil_apertures(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let out = flag(&mut args, "--out")?;
@@ -393,12 +394,12 @@ pub fn stencil_apertures(mut args: Vec<String>) -> Result<(), String> {
     }
     match made.warnings.len() {
         0 => Ok(()),
-        n => Err(format!("{n} warnings")),
+        n => fail(format!("{n} warnings")),
     }
 }
 
 /// `sim-busy JOURNAL [--out F]`: how busy each nozzle and feeder was in a simulated job and where the machine waited, read from the journal that `simulate --journal` writes. The longest
-/// waits that are listed are `busy_gaps_listed`. The exit code is 1 when a step did not end well.
+/// waits that are listed are `busy_gaps_listed`. The exit code is 2 when a step did not end well.
 pub fn sim_busy(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let out = flag(&mut args, "--out")?;
@@ -413,12 +414,12 @@ pub fn sim_busy(mut args: Vec<String>) -> Result<(), String> {
     }
     match found.failed {
         0 => Ok(()),
-        n => Err(format!("{n} steps did not end well")),
+        n => fail(format!("{n} steps did not end well")),
     }
 }
 
 /// `sim-tower JOURNAL [--out F]`: the light a signal tower would show at each second of a simulated job: red for a step that failed, yellow for a slow step (`tower_slow_factor`) and for a
-/// wait over `tower_idle_gap_s`, green the rest. `--out` writes the intervals. The exit code is 1 when the tower was red.
+/// wait over `tower_idle_gap_s`, green the rest. `--out` writes the intervals. The exit code is 2 when the tower was red.
 pub fn sim_tower(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let out = flag(&mut args, "--out")?;
@@ -437,7 +438,7 @@ pub fn sim_tower(mut args: Vec<String>) -> Result<(), String> {
         )?;
     }
     if tower::seconds(&intervals)[2] > 0.0 {
-        return Err("the tower was red".into());
+        return fail("the tower was red".into());
     }
     Ok(())
 }

@@ -162,7 +162,7 @@ fn the_parts_diff_says_what_changed_against_the_table_that_is_loaded() {
     let b = dir.join("second.pos");
     std::fs::write(&b, &second).unwrap();
     let o = run(&["parts-diff", "examples/board.pos", b.to_str().unwrap()]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert_eq!(out_of(&o).trim_end(), info.trim_end());
 }
 
@@ -243,7 +243,7 @@ fn the_settings_diff_tells_a_meaning_from_a_way_of_writing() {
     )
     .unwrap();
     let o = run(&["config-diff", a.to_str().unwrap(), b.to_str().unwrap()]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert_eq!(out_of(&o), text);
     // two files that mean the same are not a difference
     let (_, same) = config_diff_text("vacuum = yes\n", "vacuum = on\n", Lang::En).unwrap();
@@ -287,7 +287,7 @@ fn the_board_statistics_count_the_table_and_find_the_parts_that_sit_too_near() {
     let (_, near) = board_stats_text(&ws, 6.0, 20, Lang::En).unwrap();
     assert!(near.contains("R1") && near.contains("R2"), "{near}");
     let o = run(&["board-stats", "examples/board.pos", "--near", "6"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert_eq!(out_of(&o), near);
     let (_, none) = board_stats_text(&ws, 1.0, 20, Lang::En).unwrap();
     assert!(!none.contains("R1 "), "{none}");
@@ -343,7 +343,7 @@ fn the_stock_of_a_queue_is_what_the_command_says_and_names_the_job_where_a_reel_
     );
     assert!(csv.starts_with("feeders,value,package,needed,available,short,runs_out_in,feeders\n"));
     let o = run(&["queue-stock", q.to_str().unwrap()]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert_eq!(out_of(&o), format!("{info}\n"));
     // with the boards that fit nothing falls short
     let dir = scratch("qstock_ok");
@@ -466,7 +466,9 @@ fn the_journal_has_a_row_for_every_step_of_the_plan_and_is_what_simulate_writes(
     let (info, csv) = journal_text(&ws, 0, Lang::En).unwrap();
     // six parts of the top side, a pick and a place for each
     assert_eq!(csv.lines().count(), 1 + 12, "{csv}");
-    assert!(csv.starts_with("step,at_s,took_s,action,reference,feeder,nozzle,result,status\n"));
+    assert!(csv.starts_with(
+        "step,at_s,took_s,action,reference,feeder,nozzle,result,status,nozzle_state\n"
+    ));
     assert!(
         info.starts_with("12 steps (6 picks, 6 places), 0 that did not end well"),
         "{info}"

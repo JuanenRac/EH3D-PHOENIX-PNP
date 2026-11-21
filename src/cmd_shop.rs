@@ -7,6 +7,7 @@
 
 use crate::cli_args::{finish, flag, num, switch};
 use crate::cmd_flow::{deliver, whole};
+use crate::cmd_nodes::fail;
 use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
 use eh3d_phoenix_pnp::bom::Bom;
@@ -170,7 +171,7 @@ pub fn serial_sign(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// `serial-verify FILE [--key-file F] [--prev SIG]`: reads a record that `serial-sign` wrote and says whether it is whole: the shape, the counts and the signature. With `--prev` the record
-/// must name that signature as the board before. The exit code is 1 when it is not.
+/// must name that signature as the board before. The exit code is 2 when it is not.
 pub fn serial_verify(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let key = flag(&mut args, "--key-file")?
@@ -185,7 +186,7 @@ pub fn serial_verify(mut args: Vec<String>) -> Result<(), String> {
     };
     let text = read_text(path, cfg.max_file_bytes)?;
     let v = serialsig::verify(&text, key.as_deref(), prev.as_deref())
-        .map_err(|e| format!("{path}: {}", e.localized(lang)))?;
+        .map_err(|e| crate::cmd_nodes::not_passed(format!("{path}: {}", e.localized(lang))))?;
     print!("{}", serialsig::describe(&v));
     println!("the record is whole");
     Ok(())
@@ -262,7 +263,7 @@ fn catalog_from(
 }
 
 /// `footprint-check PARTS [--packages F] [--catalog F] [--out F]`: how each package of the board stands against the table of packages: known, an alias of a row under another name
-/// (`R_0603_1608Metric` for `0603`), made from its name (as `package-gen` does), one or two letters from a name of the table, or unknown. The exit code is 1 when a package is similar or
+/// (`R_0603_1608Metric` for `0603`), made from its name (as `package-gen` does), one or two letters from a name of the table, or unknown. The exit code is 2 when a package is similar or
 /// unknown, for a person to look at.
 pub fn footprint_check(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
@@ -282,12 +283,12 @@ pub fn footprint_check(mut args: Vec<String>) -> Result<(), String> {
     }
     match footcheck::problems(&rows) {
         0 => Ok(()),
-        n => Err(format!("{n} packages need a look")),
+        n => fail(format!("{n} packages need a look")),
     }
 }
 
 /// `reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT] [--out F]`: the parts that were rejected in a run (`reference,reason[,board]`) by reason in the order of a Pareto
-/// chart, by package, by feeder and by reference. `--boards` is the boards of the run (else the different serials of the table, or one). The exit code is 1 when a reference was rejected
+/// chart, by package, by feeder and by reference. `--boards` is the boards of the run (else the different serials of the table, or one). The exit code is 2 when a reference was rejected
 /// on `--max-rate` per cent of the boards or more (not looked at by default).
 pub fn reject_report(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
@@ -331,7 +332,7 @@ pub fn reject_report(mut args: Vec<String>) -> Result<(), String> {
         )?;
     }
     match max_rate {
-        Some(limit) if !report.over(limit).is_empty() => Err(format!(
+        Some(limit) if !report.over(limit).is_empty() => fail(format!(
             "{} references were rejected on {limit}% of the boards or more",
             report.over(limit).len()
         )),
@@ -341,7 +342,7 @@ pub fn reject_report(mut args: Vec<String>) -> Result<(), String> {
 
 /// `retry-policy PARTS FEEDERS RULES [--out F]`: the retries that rules which look at a reference, a value, a package or a feeder give each part (the first rule that fits wins; the
 /// settings give the rest) and what that does to the chance of a board going through with no part in error. It says which rules fit nothing and which never act. `--out` writes a row for
-/// each part. The exit code is 1 when a rule fits no part or never acts.
+/// each part. The exit code is 2 when a rule fits no part or never acts.
 pub fn retry_policy(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let out = flag(&mut args, "--out")?;
@@ -368,14 +369,14 @@ pub fn retry_policy(mut args: Vec<String>) -> Result<(), String> {
     if unused + shadowed == 0 {
         Ok(())
     } else {
-        Err(format!(
+        fail(format!(
             "{unused} rules fit no part and {shadowed} never act"
         ))
     }
 }
 
 /// `clearance PARTS --packages F [--catalog F] [--min MM] [--out F]`: the pairs of parts on the same side whose bodies (from the table of packages, turned with the part) are nearer than
-/// `--min` (the key `clearance_min_mm`, 0.2 mm by default), or overlap. The exit code is 1 when there is one.
+/// `--min` (the key `clearance_min_mm`, 0.2 mm by default), or overlap. The exit code is 2 when there is one.
 pub fn clearance_check(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let mut inputs = Vec::new();
@@ -408,12 +409,12 @@ pub fn clearance_check(mut args: Vec<String>) -> Result<(), String> {
     if found.is_clear() {
         Ok(())
     } else {
-        Err(format!("{} pairs are too near", found.pairs.len()))
+        fail(format!("{} pairs are too near", found.pairs.len()))
     }
 }
 
 /// `bom-cost BOM PRICES [--boards N] [--spare PERCENT] [--currency TEXT] [--max-rows N] [--out F]`: what the run costs, from the bill of materials and a table of prices with price breaks
-/// (`part_number|value[,package],price[,qty_from]`): the pieces of each part with the spares, the break they fall in, the cost of the run and of a board. The exit code is 1 when a part
+/// (`part_number|value[,package],price[,qty_from]`): the pieces of each part with the spares, the break they fall in, the cost of the run and of a board. The exit code is 2 when a part
 /// has no price.
 pub fn bom_cost(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
@@ -455,12 +456,12 @@ pub fn bom_cost(mut args: Vec<String>) -> Result<(), String> {
     if cost.unpriced.is_empty() {
         Ok(())
     } else {
-        Err(format!("{} parts have no price", cost.unpriced.len()))
+        fail(format!("{} parts have no price", cost.unpriced.len()))
     }
 }
 
 /// `lot-age PARTS FEEDERS LOTS --week YYWW [--max-weeks N] [--out F]`: how old the lot in each feeder that gives parts is, from the date code of the table of lots (`YYWW` or `YYYYWW`),
-/// against the week that is given (never read from a clock) and `--max-weeks` (the key `lot_max_weeks`, 104 by default). The exit code is 1 when a lot is old, from the future, without a
+/// against the week that is given (never read from a clock) and `--max-weeks` (the key `lot_max_weeks`, 104 by default). The exit code is 2 when a lot is old, from the future, without a
 /// readable code or missing.
 pub fn lot_age(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
@@ -494,7 +495,7 @@ pub fn lot_age(mut args: Vec<String>) -> Result<(), String> {
     }
     match lotage::problems(&rows) {
         0 => Ok(()),
-        n => Err(format!("{n} feeders have a lot to look at")),
+        n => fail(format!("{n} feeders have a lot to look at")),
     }
 }
 

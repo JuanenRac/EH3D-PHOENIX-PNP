@@ -266,3 +266,110 @@ fn a_feeder_that_jams_in_the_chain_turns_its_slot_red_and_clears_when_the_cause_
     assert_eq!(b.ask(), 1);
     assert_eq!(b.layout.find("F2").unwrap().state, State::Occupied);
 }
+
+fn table_file(tag: &str, text: &str) -> std::path::PathBuf {
+    let d = std::env::temp_dir().join(format!("phoenix_pnp_bench_{tag}_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    std::fs::create_dir_all(&d).unwrap();
+    let p = d.join("banks.csv");
+    std::fs::write(&p, text).unwrap();
+    p
+}
+
+#[test]
+fn the_bench_reads_a_table_from_a_file_edits_it_in_place_and_saves_it_back_with_its_revision() {
+    use eh3d_phoenix_pnp::gui::workspace::{classify, FileKind};
+    use eh3d_phoenix_pnp::revision::token_of;
+    let cfg = MachineConfig::default();
+    let path = table_file("save", EXAMPLE_TABLE);
+    // the window tells the table of the banks from the other tables
+    assert_eq!(classify("banks.csv", EXAMPLE_TABLE), Some(FileKind::Banks));
+    assert_eq!(
+        classify("x.csv", "id,value,package,x,y,count\n"),
+        Some(FileKind::Feeders)
+    );
+    let mut b = Bench::new(&cfg);
+    assert!(b.source.is_none() && !b.dirty);
+    assert!(b.open_file(&path, &cfg), "{:?}", b.message);
+    let read = b.source.clone().unwrap();
+    assert_eq!(read.revision, token_of(EXAMPLE_TABLE));
+    assert!(!b.dirty);
+    // an edit marks the table as changed; the rules say which edits are allowed
+    assert!(b.set_state("F1", State::Depleted));
+    assert!(b.dirty);
+    assert_eq!(b.layout.find("F1").unwrap().state, State::Depleted);
+    assert!(
+        !b.set_state("F1", State::Jammed),
+        "a depleted tape does not jam"
+    );
+    assert!(b.message.is_some());
+    assert!(!b.set_state("NOBODY", State::Free));
+    // the file has not changed until it is saved
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), EXAMPLE_TABLE);
+    let new = b.save(&cfg).unwrap();
+    assert_ne!(new, read.revision);
+    assert!(!b.dirty);
+    let saved = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(token_of(&saved), new);
+    assert!(
+        saved.contains("F1,left") && saved.contains("depleted"),
+        "{saved}"
+    );
+    // and what was saved reads back as the same banks
+    let mut again = Bench::new(&cfg);
+    assert!(again.open_file(&path, &cfg));
+    assert_eq!(again.layout, b.layout);
+    // the next save is held to the new revision
+    assert!(b.set_state("F1", State::Occupied));
+    assert!(b.save(&cfg).is_ok());
+    let _ = std::fs::remove_dir_all(path.parent().unwrap());
+}
+
+#[test]
+fn a_save_is_refused_when_the_file_changed_since_it_was_read_and_nothing_is_lost() {
+    let cfg = MachineConfig::default();
+    let path = table_file("held", EXAMPLE_TABLE);
+    let mut b = Bench::new(&cfg);
+    assert!(b.open_file(&path, &cfg));
+    assert!(b.set_state("F2", State::Jammed));
+    // somebody else edits the file with a text editor
+    let theirs = format!("{EXAMPLE_TABLE}Z9,right,30,8,,\n");
+    std::fs::write(&path, &theirs).unwrap();
+    let e = b.save(&cfg).unwrap_err();
+    assert!(e.contains("changed since it was read"), "{e}");
+    // their file is as they left it, and the edit on show is still there, marked as not saved
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), theirs);
+    assert!(b.dirty);
+    assert_eq!(b.layout.find("F2").unwrap().state, State::Jammed);
+    assert!(b.message.as_deref().unwrap_or("").contains("changed since"));
+    // reading it again takes their change and drops the edit that was not saved
+    assert!(b.read_again(&cfg));
+    assert!(b.layout.find("Z9").is_some());
+    assert_eq!(b.layout.find("F2").unwrap().state, State::Occupied);
+    assert!(!b.dirty);
+    assert!(b.set_state("F2", State::Jammed));
+    assert!(b.save(&cfg).is_ok());
+    // a file that is gone is refused too, and a table of text was never a file
+    std::fs::remove_file(&path).unwrap();
+    assert!(b.set_state("F2", State::Occupied));
+    assert!(b.save(&cfg).unwrap_err().contains("no file to replace"));
+    assert!(b.load_table(EXAMPLE_TABLE, &cfg));
+    assert!(b.source.is_none());
+    assert!(b.save(&cfg).is_err());
+    assert!(!b.read_again(&cfg));
+    let _ = std::fs::remove_dir_all(path.parent().unwrap());
+}
+
+#[test]
+fn a_table_that_cannot_be_read_leaves_the_one_on_show() {
+    let cfg = MachineConfig::default();
+    let path = table_file("wrong", "id,bank\nA,left\n");
+    let mut b = Bench::new(&cfg);
+    assert!(!b.open_file(&path, &cfg));
+    assert!(b.message.is_some());
+    assert_eq!(b.layout.entries().len(), 6);
+    assert!(b.source.is_none());
+    assert!(!b.open_file(&path.with_file_name("missing.csv"), &cfg));
+    assert_eq!(b.layout.entries().len(), 6);
+    let _ = std::fs::remove_dir_all(path.parent().unwrap());
+}

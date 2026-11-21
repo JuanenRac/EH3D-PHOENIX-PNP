@@ -483,10 +483,10 @@ fn a_phase_that_the_machine_does_is_told_and_waits_for_done() {
 #[test]
 fn quitting_in_the_middle_of_a_process_is_not_a_finished_job() {
     let (code, text) = assist(&["--process", "manual"], "done\nC1\nquit\n");
-    assert_eq!(code, 1, "{text}");
+    assert_eq!(code, 2, "{text}");
     // something other than done at a task that is not a placing asks again
     let (code, text) = assist(&["--process", "manual"], "maybe\nquit\n");
-    assert_eq!(code, 1, "{text}");
+    assert_eq!(code, 2, "{text}");
     assert!(text.contains("done"), "{text}");
 }
 

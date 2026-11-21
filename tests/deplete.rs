@@ -262,7 +262,7 @@ fn the_table_after_a_simulated_job_is_the_table_that_the_next_job_counts_on() {
 }
 
 #[test]
-fn the_command_exits_with_1_when_a_feeder_is_low() {
+fn the_command_exits_with_2_when_a_feeder_is_low() {
     let dir = std::env::temp_dir().join(format!("phoenix_pnp_deplete_low_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();

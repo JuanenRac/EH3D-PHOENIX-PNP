@@ -218,7 +218,7 @@ fn the_command_says_how_to_stand_the_feeders_and_writes_the_table_once() {
     let text = String::from_utf8_lossy(&o.stdout).into_owned();
     assert_eq!(
         o.status.code(),
-        Some(1),
+        Some(2),
         "{text}{}",
         String::from_utf8_lossy(&o.stderr)
     );
@@ -230,7 +230,7 @@ fn the_command_says_how_to_stand_the_feeders_and_writes_the_table_once() {
     // --out writes the table once, never over what was read
     let out = dir.join("after.csv");
     let o = run(&["feeder-slots", p(&pos), p(&bad), "--out", p(&out)]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert_eq!(
         std::fs::read_to_string(&out).unwrap(),
         best(BAD, 5000).unwrap().csv

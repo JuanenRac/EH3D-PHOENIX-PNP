@@ -222,7 +222,7 @@ fn stock_says_ok_or_what_falls_short_and_exits_with_the_answer() {
         "--boards",
         "40",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         text(&o.stdout).contains("MCU / QFN-32: 40 needed"),
         "{}",
@@ -243,7 +243,7 @@ fn stock_says_ok_or_what_falls_short_and_exits_with_the_answer() {
         "--boards",
         "60",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         text(&o.stderr).contains("lack 10 parts"),
         "{}",
@@ -265,7 +265,7 @@ fn stock_takes_the_boards_from_the_configuration_unless_the_option_says_otherwis
         "--config",
         c,
     ]);
-    assert_eq!(o.status.code(), Some(1), "{}", text(&o.stdout));
+    assert_eq!(o.status.code(), Some(2), "{}", text(&o.stdout));
     let o = run(&[
         "stock",
         "examples/board.pos",

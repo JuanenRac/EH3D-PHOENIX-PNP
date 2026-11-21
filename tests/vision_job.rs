@@ -377,7 +377,7 @@ fn vision_test_with_noise_is_the_same_for_the_same_seed() {
 #[test]
 fn a_part_that_is_not_found_is_an_error_with_its_code_in_the_language_asked_for() {
     let o = run(&["vision-test", "--dx", "40"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(err(&o).contains("PHOENIX-PNP-037"), "{}", err(&o));
     let es = run(&["vision-test", "--dx", "40", "--lang", "es"]);
     assert!(
@@ -393,7 +393,7 @@ fn a_part_that_is_not_found_is_an_error_with_its_code_in_the_language_asked_for(
     );
     // a part that fills the picture is too large for the range of area
     let big = run(&["vision-test", "--part", "6x6"]);
-    assert_eq!(big.status.code(), Some(1));
+    assert_eq!(big.status.code(), Some(2));
     assert!(err(&big).contains("PHOENIX-PNP-038"), "{}", err(&big));
 }
 

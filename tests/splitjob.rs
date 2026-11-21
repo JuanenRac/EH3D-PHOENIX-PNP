@@ -204,7 +204,7 @@ fn the_command_prints_the_share_of_each_machine_and_writes_the_rows() {
 }
 
 #[test]
-fn the_command_uses_the_times_of_the_settings_and_exits_with_1_for_a_part_with_no_feeder() {
+fn the_command_uses_the_times_of_the_settings_and_exits_with_2_for_a_part_with_no_feeder() {
     let dir = temp("cfg");
     let cfg = dir.join("m.cfg");
     std::fs::write(&cfg, "pick_s = 1\nplace_s = 1\n").unwrap();
@@ -236,7 +236,7 @@ fn the_command_uses_the_times_of_the_settings_and_exits_with_1_for_a_part_with_n
         "--machines",
         "2",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(err(&o).contains("4 parts have no feeder"), "{}", err(&o));
     let _ = std::fs::remove_dir_all(dir);
 }

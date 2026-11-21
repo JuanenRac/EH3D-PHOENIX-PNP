@@ -654,6 +654,36 @@ impl PnpApp {
                 self.s.bench.jam_feeder(jam);
             }
         });
+        // a table that was read from a file is saved back to it, while the file is as it was read
+        if let Some(source) = self.s.bench.source.clone() {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(format!(
+                    "{}  ({})",
+                    super::workspace::file_name(&source.path),
+                    source.revision
+                ));
+                if self.s.bench.dirty {
+                    ui.label(RichText::new(tr(Text::SlotsUnsaved, lang)).color(col(pal.warn)));
+                }
+                if ui
+                    .add_enabled(
+                        self.s.bench.dirty,
+                        egui::Button::new(tr(Text::SlotsSave, lang)),
+                    )
+                    .clicked()
+                {
+                    let cfg = self.s.ws.cfg.clone();
+                    match self.s.bench.save(&cfg) {
+                        Ok(_) => self.s.log.info(tr(Text::SlotsSaved, lang).to_string()),
+                        Err(_) => self.s.log.error(tr(Text::SlotsChanged, lang).to_string()),
+                    }
+                }
+                if ui.button(tr(Text::SlotsFileAgain, lang)).clicked() {
+                    let cfg = self.s.ws.cfg.clone();
+                    self.s.bench.read_again(&cfg);
+                }
+            });
+        }
         if let Some(m) = &self.s.bench.message {
             ui.label(RichText::new(m).color(col(pal.danger)));
         }
@@ -693,21 +723,44 @@ impl PnpApp {
                     }
                 }
                 ui.add_space(6.0);
-                let mut rows: Vec<_> = self.s.bench.layout.entries().iter().collect();
+                let mut rows: Vec<_> = self.s.bench.layout.entries().to_vec();
                 rows.sort_by_key(|a| (a.bank, a.first));
+                let mut change: Option<(String, crate::slotbank::State)> = None;
                 for e in rows {
-                    ui.label(
-                        RichText::new(format!(
-                            "{}  {} {}-{}  {} mm  {}",
-                            e.id,
-                            tr(nodeview::bank_text(e.bank), lang),
-                            e.first,
-                            e.last(),
-                            e.tape_mm,
-                            tr(nodeview::state_text(e.state), lang)
-                        ))
-                        .color(PnpApp::slot_colour(e.state, &pal)),
-                    );
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(
+                            RichText::new(format!(
+                                "{}  {} {}-{}  {} mm  {}",
+                                e.id,
+                                tr(nodeview::bank_text(e.bank), lang),
+                                e.first,
+                                e.last(),
+                                e.tape_mm,
+                                tr(nodeview::state_text(e.state), lang)
+                            ))
+                            .color(PnpApp::slot_colour(e.state, &pal)),
+                        );
+                        // the states the rules allow from this one, for a table that is edited in place
+                        if self.s.bench.source.is_some() {
+                            use crate::slotbank::State;
+                            let to: &[State] = match e.state {
+                                State::Occupied => &[State::Depleted, State::Jammed, State::Free],
+                                State::Depleted | State::Jammed => &[State::Occupied, State::Free],
+                                State::Free => &[],
+                            };
+                            for s in to {
+                                if ui
+                                    .small_button(tr(nodeview::state_text(*s), lang))
+                                    .clicked()
+                                {
+                                    change = Some((e.id.clone(), *s));
+                                }
+                            }
+                        }
+                    });
+                }
+                if let Some((id, to)) = change {
+                    self.s.bench.set_state(&id, to);
                 }
             });
     }

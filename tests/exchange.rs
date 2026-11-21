@@ -376,7 +376,7 @@ fn the_commands_write_a_job_and_read_it_back() {
     ]);
     assert!(!other.status.success());
     let o = run(&["job-import", board[0]]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         text(&o.stderr).contains("PHOENIX-PNP-026"),
         "{}",

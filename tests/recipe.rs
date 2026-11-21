@@ -816,7 +816,7 @@ fn recipe_check_reads_the_examples_and_names_the_code_and_the_line_of_an_error()
     )
     .unwrap();
     let e = run(&["recipe-check", &bad]);
-    assert_eq!(e.status.code(), Some(1));
+    assert_eq!(e.status.code(), Some(2));
     assert!(err(&e).contains("PHOENIX-PNP-050"), "{}", err(&e));
     let es = run(&["recipe-check", &bad, "--lang", "es"]);
     assert!(
@@ -830,7 +830,7 @@ fn recipe_check_reads_the_examples_and_names_the_code_and_the_line_of_an_error()
     let cfg = path(&dir, "small.cfg");
     std::fs::write(&cfg, "recipe_max_bytes = 256\n").unwrap();
     let big = run(&["recipe-check", &example("job.recipe"), "--config", &cfg]);
-    assert_eq!(big.status.code(), Some(1));
+    assert_eq!(big.status.code(), Some(2));
     assert!(err(&big).contains("PHOENIX-PNP-051"), "{}", err(&big));
     assert_eq!(run(&["recipe-check"]).status.code(), Some(1));
     assert_eq!(

@@ -252,7 +252,7 @@ fn the_command_prints_the_lots_and_writes_the_rows() {
 }
 
 #[test]
-fn the_command_exits_with_1_when_a_lot_is_missing_and_still_says_which() {
+fn the_command_exits_with_2_when_a_lot_is_missing_and_still_says_which() {
     let dir = temp("missing");
     let lots = dir.join("lots.csv");
     std::fs::write(&lots, "feeder,lot\nF1,A\n").unwrap();
@@ -262,7 +262,7 @@ fn the_command_exits_with_1_when_a_lot_is_missing_and_still_says_which() {
         "examples/feeders.csv",
         &lots.to_string_lossy(),
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         out(&o).contains("no lot for the feeders: F2, F3, F4"),
         "{}",

@@ -271,7 +271,7 @@ fn the_command_writes_the_rows_of_files_and_of_a_folder() {
     assert_eq!(lines[2], "R_0603_1608Metric,1.2,8,1.6,0.825");
     // without --height the footprint that has no known name is told and the exit code is 1, the other is written
     let o = run(&["package-kicad", p(&lib)]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(text(&o.stdout).contains("R_0603_1608Metric,0.5,8,1.6,0.825"));
     let err = text(&o.stderr);
     assert!(
@@ -285,7 +285,7 @@ fn the_command_writes_the_rows_of_files_and_of_a_folder() {
         "examples/chip_0603.kicad_mod",
         p(&lib.join("b.kicad_mod")),
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert_eq!(text(&o.stdout).lines().count(), 2);
     assert!(text(&o.stderr).contains("listed twice"));
     // a courtyard stands in for the body: a note, and the row is written
@@ -355,7 +355,7 @@ fn the_command_writes_a_table_that_part_inspect_reads_and_refuses_what_it_should
     assert!(text(&o.stderr).contains("no .kicad_mod file"));
     // a file of another sort is not a footprint
     let o = run(&["package-kicad", "examples/board.pos"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         text(&o.stderr).contains("PHOENIX-PNP-010"),
         "{}",

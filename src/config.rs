@@ -21,7 +21,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 257] = [
+pub const KEYS: [&str; 258] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -59,6 +59,7 @@ pub const KEYS: [&str; 257] = [
     "fault_limit",
     "fault_action",
     "order",
+    "placement_order",
     "tip_strategy",
     "two_opt",
     "two_opt_max_points",
@@ -492,6 +493,8 @@ pub struct MachineConfig {
     pub fault_limit: u32,
     /// What happens when the limit is reached.
     pub fault_action: FaultAction,
+    /// The list of keys that orders the places in place of `order` (empty: `order` decides), see `placeorder`.
+    pub placement_order: Vec<crate::placeorder::Term>,
     pub order: OrderStrategy,
     pub tip_strategy: TipStrategy,
     pub two_opt: bool,
@@ -892,6 +895,7 @@ impl Default for MachineConfig {
             fault_limit: 3,
             fault_action: FaultAction::Disable,
             order: OrderStrategy::Nearest,
+            placement_order: Vec::new(),
             tip_strategy: TipStrategy::Minimize,
             two_opt: true,
             two_opt_max_points: 2000,
@@ -1389,6 +1393,10 @@ impl MachineConfig {
                     "alert" => FaultAction::Alert,
                     _ => return Err(bad(line, key, v, "disable or alert")),
                 }
+            }
+            "placement_order" => {
+                self.placement_order = crate::placeorder::parse(v)
+                    .map_err(|why| bad(line, key, v, &format!("a list of keys: {why}")))?;
             }
             "order" => {
                 self.order = OrderStrategy::parse(&v.to_ascii_lowercase()).ok_or_else(|| {

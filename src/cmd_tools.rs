@@ -4,6 +4,7 @@
 // Each one reads its files, calls the library and prints; none of them moves or writes anything but the file named by --out, and a file that exists is never written over.
 
 use crate::cli_args::{finish, flag, num, switch};
+use crate::cmd_nodes::fail;
 use crate::commands::{read_text, refuse_same_file, write_atomic};
 use eh3d_phoenix_pnp::bom::{
     buy_after_stock, buy_csv, compare, order as bom_order_lines, order_csv, Bom,
@@ -55,7 +56,7 @@ pub fn language_and_config(args: &mut Vec<String>) -> Result<(Lang, MachineConfi
     Ok((lang_option.unwrap_or(cfg.language), cfg))
 }
 
-/// `bom-check`: whether the bill of materials and the table of parts agree. The findings go to the standard output; the exit code is 1 when there is any.
+/// `bom-check`: whether the bill of materials and the table of parts agree. The findings go to the standard output; the exit code is 2 when there is any.
 pub fn bom_check(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     finish(&args, 2)?;
@@ -71,7 +72,7 @@ pub fn bom_check(mut args: Vec<String>) -> Result<(), String> {
     if report.is_clean() {
         Ok(())
     } else {
-        Err(format!(
+        fail(format!(
             "the BOM and the board disagree in {} places",
             report.problems()
         ))
@@ -94,7 +95,7 @@ pub fn camera_calibrate(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// `camera-pattern`: the size of a pixel and the bending of the lens from the points of a pattern on a grid seen by the camera; prints how good the fit is, with the bending and without it,
-/// and the lines to put in the configuration. The exit code is 1 when a point is farther from the model than `camera_pattern_max_residual_mm`.
+/// and the lines to put in the configuration. The exit code is 2 when a point is farther from the model than `camera_pattern_max_residual_mm`.
 pub fn camera_pattern(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let pitch = match flag(&mut args, "--pitch")? {
@@ -111,14 +112,14 @@ pub fn camera_pattern(mut args: Vec<String>) -> Result<(), String> {
     println!("{}", found.summary());
     print!("{}", found.config_lines());
     match found.warning(cfg.camera_pattern_max_residual_mm) {
-        Some(w) => Err(w),
+        Some(w) => fail(w),
         None => Ok(()),
     }
 }
 
 /// `camera-combined`: the camera, the turn of the sheet and the bending of the lens from the points of a pattern that is fixed to the bed while the head moves (`head_x,head_y,col,row,px,py`);
 /// prints how good the fit is and the lines to put in the configuration. Off until `camera_combined` is on. `--pitch MM` and `--origin X,Y` take the place of
-/// `camera_pattern_pitch_mm` and of `camera_pattern_origin_x_mm`, `camera_pattern_origin_y_mm`; `--touch` (or `camera_combined_touch = on`) takes the origin from a row `origin,X,Y` of the file instead. The exit code is 1 when a sighting is over `camera_pattern_max_residual_mm`.
+/// `camera_pattern_pitch_mm` and of `camera_pattern_origin_x_mm`, `camera_pattern_origin_y_mm`; `--touch` (or `camera_combined_touch = on`) takes the origin from a row `origin,X,Y` of the file instead. The exit code is 2 when a sighting is over `camera_pattern_max_residual_mm`.
 pub fn camera_combined(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let pitch = match flag(&mut args, "--pitch")? {
@@ -148,14 +149,14 @@ pub fn camera_combined(mut args: Vec<String>) -> Result<(), String> {
     println!("{}", found.summary());
     print!("{}", found.config_lines());
     match found.warning(cfg.camera_pattern_max_residual_mm) {
-        Some(w) => Err(w),
+        Some(w) => fail(w),
         None => Ok(()),
     }
 }
 
 /// `package-gen [NAME...] [--from PARTS] [--out F]`: the rows of a table of packages (`package,height_mm,tape_mm,body_long_mm,body_short_mm`) for the packages called NAME (chips by EIA code,
 /// SOT, SOD, SOIC, TSSOP, QFN, DFN and QFP) and for those of a position file; the sizes are the nominal ones of the standards. The rows go to the screen or to `--out` (never over a file that
-/// exists). The exit code is 1 when a name is not known; the ones that are known are written all the same.
+/// exists). The exit code is 2 when a name is not known; the ones that are known are written all the same.
 pub fn package_gen(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let from = flag(&mut args, "--from")?;
@@ -211,7 +212,7 @@ const MAX_FOOTPRINTS: usize = 2000;
 /// `package-kicad PATH... [--height MM] [--out F]`: the rows of a table of packages (`package,height_mm,tape_mm,body_long_mm,body_short_mm`) from footprints of KiCad. A PATH is a `.kicad_mod`
 /// file or a folder (a `.pretty` library, not searched deeper) of them; the body is the drawing on the fabrication layer. The height is that of the package when the name is a known one, or
 /// `--height`. The rows go to the screen or to `--out` (never over a file that exists); a footprint that is not understood is named on the error output with its reason, the others are written
-/// all the same, and the exit code is 1.
+/// all the same, and the exit code is 2.
 pub fn package_kicad(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let height = match flag(&mut args, "--height")? {
@@ -242,8 +243,11 @@ pub fn package_kicad(mut args: Vec<String>) -> Result<(), String> {
                 .collect();
             found.sort();
             files.extend(found);
-        } else {
+        } else if path.is_file() {
             files.push(a.clone());
+        } else {
+            // a name that is not a file is a mistake of the arguments, not a footprint that was not understood
+            return Err(format!("{a}: there is no such file or folder"));
         }
         if files.len() > MAX_FOOTPRINTS {
             return Err(format!(
@@ -287,7 +291,7 @@ pub fn package_kicad(mut args: Vec<String>) -> Result<(), String> {
     if problems.is_empty() {
         Ok(())
     } else {
-        Err(format!("{} footprints were not read", problems.len()))
+        fail(format!("{} footprints were not read", problems.len()))
     }
 }
 
@@ -355,14 +359,14 @@ pub fn place_learn(mut args: Vec<String>) -> Result<(), String> {
         println!("nothing was learned; {state} was not written");
     }
     if changed == 0 {
-        Err("no package had enough readings".into())
+        fail("no package had enough readings".into())
     } else {
         Ok(())
     }
 }
 
 /// `job-import FILE [--csv F]`: reads a job exchange file (the plan and where the job is), checks it and says what it holds; `--csv` writes the placements with their status as a table, never
-/// over a file that exists. Nothing is run and nothing is applied to a machine. The exit code is 1 when the file is not valid.
+/// over a file that exists. Nothing is run and nothing is applied to a machine. The exit code is 2 when the file is not valid.
 pub fn job_import(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let csv = flag(&mut args, "--csv")?;
@@ -371,8 +375,8 @@ pub fn job_import(mut args: Vec<String>) -> Result<(), String> {
     if let Some(c) = &csv {
         refuse_same_file(std::slice::from_ref(path), c)?;
     }
-    let found =
-        exchange::parse(&read_text(path, cfg.max_file_bytes)?).map_err(|e| e.localized(lang))?;
+    let found = exchange::parse(&read_text(path, cfg.max_file_bytes)?)
+        .map_err(|e| crate::cmd_nodes::not_passed(e.localized(lang)))?;
     println!("{}", found.summary());
     if let Some(c) = &csv {
         report::write_new(c, &found.csv()).map_err(|e| e.localized(lang))?;
@@ -607,7 +611,7 @@ pub fn bom_order(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// `nozzle-life`: the use of the nozzle tips kept in a file, with the tips that have placed `nozzle_life_warn` parts or more; `--reset TIP` records that a tip was replaced (the only way the
-/// counts of a tip go down). The exit code is 1 when a tip is at or over the limit.
+/// counts of a tip go down). The exit code is 2 when a tip is at or over the limit.
 pub fn nozzle_life(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let warn_at = match flag(&mut args, "--warn")? {
@@ -638,7 +642,7 @@ pub fn nozzle_life(mut args: Vec<String>) -> Result<(), String> {
     print!("{}", life.text(warn_at));
     let over = life.over(warn_at).len();
     if over > 0 {
-        Err(format!(
+        fail(format!(
             "{over} tips have placed {warn_at} parts or more (nozzle_life_warn)"
         ))
     } else {
@@ -647,7 +651,7 @@ pub fn nozzle_life(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// `stock`: whether the feeders that are loaded hold enough parts for a number of boards, kind by kind. The findings go to the standard output (or the table as a CSV to `--out`, never over a
-/// file that exists); the exit code is 1 when a kind falls short.
+/// file that exists); the exit code is 2 when a kind falls short.
 pub fn stock(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let boards = whole(&mut args, "--boards", cfg.order_boards)?;
@@ -680,7 +684,7 @@ pub fn stock(mut args: Vec<String>) -> Result<(), String> {
     if plan.is_enough() {
         Ok(())
     } else {
-        Err(format!(
+        fail(format!(
             "the feeders lack {} parts for {boards} boards",
             plan.short_parts()
         ))

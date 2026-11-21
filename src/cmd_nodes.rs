@@ -12,7 +12,7 @@ use eh3d_phoenix_pnp::nodesim::{Injection, SimFeeders, SimHead};
 use eh3d_phoenix_pnp::panelcomp::Composition;
 use eh3d_phoenix_pnp::report;
 use eh3d_phoenix_pnp::revision;
-use eh3d_phoenix_pnp::slotbank::{Bank, Geometry, Layout, State};
+use eh3d_phoenix_pnp::slotbank::{self, Bank, Geometry, Layout, State};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static CHECK_FAILED: AtomicBool = AtomicBool::new(false);
@@ -21,6 +21,11 @@ static CHECK_FAILED: AtomicBool = AtomicBool::new(false);
 pub fn not_passed(message: impl Into<String>) -> String {
     CHECK_FAILED.store(true, Ordering::SeqCst);
     message.into()
+}
+
+/// The result of a command whose check was not passed: an error with the message, and the exit code of the program becomes 2.
+pub fn fail<T>(message: String) -> Result<T, String> {
+    Err(not_passed(message))
 }
 
 /// The exit code for an error: 2 when a check was not passed, else 1.
@@ -67,12 +72,35 @@ pub fn slot_bank(mut args: Vec<String>) -> Result<(), String> {
         .map(|v| bounded(&v, "--tape", 2.0, 104.0))
         .transpose()?;
     let out = flag(&mut args, "--out")?;
+    let held_to = flag(&mut args, "--revision")?;
+    let mut events: Vec<(String, slotbank::Event)> = Vec::new();
+    while let Some(v) = flag(&mut args, "--event")? {
+        let (id, name) = v
+            .split_once('=')
+            .ok_or_else(|| format!("--event {v} is not ID=EVENT"))?;
+        let event = slotbank::Event::ALL
+            .into_iter()
+            .find(|e| e.name() == name)
+            .ok_or_else(|| {
+                format!("--event {v}: '{name}' is not load, exhaust, jam, clear, reload or remove")
+            })?;
+        events.push((id.to_string(), event));
+    }
     finish(&args, 1)?;
-    refuse_existing(out.as_deref())?;
+    if held_to.is_some() && out.is_none() {
+        return Err("--revision needs --out: it holds the file that is replaced".into());
+    }
+    if held_to.is_none() {
+        refuse_existing(out.as_deref())?;
+    }
     let path = args.first().ok_or("slot-bank needs a table of the banks")?;
     let geo = Geometry::from_config(&cfg);
-    let layout = Layout::from_csv(&read_text(path, cfg.max_file_bytes)?, geo)
+    let mut layout = Layout::from_csv(&read_text(path, cfg.max_file_bytes)?, geo)
         .map_err(|e| e.localized(lang))?;
+    for (id, event) in &events {
+        let to = layout.apply(id, *event).map_err(|e| e.localized(lang))?;
+        println!("{id}: {} -> {}", event.name(), to.name());
+    }
     print!("{}", layout.text());
     if let Some(mm) = tape {
         let width = geo.slots_for(mm).map_err(|e| e.localized(lang))?;
@@ -89,8 +117,18 @@ pub fn slot_bank(mut args: Vec<String>) -> Result<(), String> {
         }
     }
     if let Some(o) = &out {
-        report::write_new(o, &layout.to_csv()).map_err(|e| e.localized(lang))?;
-        println!("written to {o}");
+        match &held_to {
+            // with a revision the file named may be replaced, the table that was read included, but only if it is still as it was when the revision was taken
+            Some(token) => {
+                let new = revision::replace(o, token, &layout.to_csv(), cfg.max_file_bytes)
+                    .map_err(|e| e.localized(lang))?;
+                println!("written to {o} (revision {new})");
+            }
+            None => {
+                report::write_new(o, &layout.to_csv()).map_err(|e| e.localized(lang))?;
+                println!("written to {o}");
+            }
+        }
     }
     let stopped = layout
         .entries()

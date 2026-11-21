@@ -244,7 +244,7 @@ fn the_command_says_which_parts_are_left_for_a_person_and_never_writes_over_a_fi
     let text = String::from_utf8_lossy(&o.stdout).into_owned();
     assert_eq!(
         o.status.code(),
-        Some(1),
+        Some(2),
         "{text}{}",
         String::from_utf8_lossy(&o.stderr)
     );
@@ -254,7 +254,7 @@ fn the_command_says_which_parts_are_left_for_a_person_and_never_writes_over_a_fi
     let mut with_out = base.to_vec();
     with_out.extend(["--out", p(&out)]);
     let o = run(&with_out);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let csv = std::fs::read_to_string(&out).unwrap();
     assert!(csv.starts_with("reference,value,package,side,x,y,rotation,status,reason,feeder\n"));
     assert!(csv.lines().count() >= 2);
@@ -272,7 +272,7 @@ fn the_command_says_which_parts_are_left_for_a_person_and_never_writes_over_a_fi
     // the parts the job did not get to are told with --pending, and a job without any left over exits with 0
     let mut args = base.to_vec();
     args.push("--pending");
-    assert_eq!(run(&args).status.code(), Some(1));
+    assert_eq!(run(&args).status.code(), Some(2));
     let clean = dir.join("clean.json");
     let o = run(&[
         "simulate",

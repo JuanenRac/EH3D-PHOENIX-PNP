@@ -116,7 +116,7 @@ fn a_signed_record_is_whole_and_a_changed_one_is_found() {
     ] {
         let changed = write(&dir, "changed.txt", &text.replacen(from, to, 1));
         let o = run(&["serial-verify", p(&changed)]);
-        assert_eq!(code(&o), 1, "{from}");
+        assert_eq!(code(&o), 2, "{from}");
         assert!(
             err(&o).contains("the signature does not match"),
             "{}",
@@ -129,7 +129,7 @@ fn a_signed_record_is_whole_and_a_changed_one_is_found() {
         .map(|l| format!("{l}\n"))
         .collect();
     let cut = write(&dir, "cut.txt", &cut);
-    assert_eq!(code(&run(&["serial-verify", p(&cut)])), 1);
+    assert_eq!(code(&run(&["serial-verify", p(&cut)])), 2);
     // the same board and the same serial give the same record
     let again = dir.join("again.txt");
     run(&[
@@ -247,7 +247,7 @@ fn a_key_signs_the_record_and_is_needed_to_check_it_and_is_never_printed() {
         vec!["serial-verify", p(&rec), "--key-file", p(&wrong)],
     ] {
         let o = run(&args);
-        assert_eq!(code(&o), 1, "{args:?}");
+        assert_eq!(code(&o), 2, "{args:?}");
         assert!(!err(&o).contains("secret") || err(&o).contains("give the key"));
     }
     // a record with no key does not pass for one that has it
@@ -263,7 +263,7 @@ fn a_key_signs_the_record_and_is_needed_to_check_it_and_is_never_printed() {
     ]);
     assert_eq!(
         code(&run(&["serial-verify", p(&plain), "--key-file", p(&key)])),
-        1
+        2
     );
     // an empty key is refused
     let empty = write(&dir, "empty.txt", "\n");
@@ -328,10 +328,10 @@ fn the_records_of_a_run_make_a_chain() {
     let wrong = "0".repeat(64);
     assert_eq!(
         code(&run(&["serial-verify", p(&second), "--prev", &wrong])),
-        1
+        2
     );
     assert_eq!(code(&run(&["serial-verify", p(&first), "--prev", "-"])), 0);
-    assert_eq!(code(&run(&["serial-verify", p(&first), "--prev", &sig])), 1);
+    assert_eq!(code(&run(&["serial-verify", p(&first), "--prev", &sig])), 2);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -435,7 +435,7 @@ fn shift_plan_writes_the_table_of_changes_once_and_checks_its_options() {
         "feeders.csv",
         "id,value,package,x,y,count\nF1,10k,R_0603,-20,10,100\n",
     );
-    assert_eq!(code(&run(&["shift-plan", BOARD, p(&feeders)])), 1);
+    assert_eq!(code(&run(&["shift-plan", BOARD, p(&feeders)])), 2);
     assert_eq!(
         code(&run(&["shift-plan", BOARD, p(&feeders), "--partial"])),
         0
@@ -523,7 +523,7 @@ fn footprint_check_says_how_each_package_stands_against_the_table() {
         "--packages",
         "examples/packages_bodies.csv",
     ]);
-    assert_eq!(code(&o), 1);
+    assert_eq!(code(&o), 2);
     let text = out(&o);
     assert!(
         text.contains("Resistor_SMD:R_0603_1608Metric: 1 parts, alias as R_0603"),
@@ -579,7 +579,7 @@ fn clearance_finds_the_parts_that_are_too_near_and_asks_for_the_sizes() {
         "--packages",
         "examples/packages_bodies.csv",
     ]);
-    assert_eq!(code(&o), 1);
+    assert_eq!(code(&o), 2);
     let text = out(&o);
     assert!(text.contains("R1 and R2 overlap by 0.600 mm"), "{text}");
     assert!(text.contains("R3 and R4 are 0.100 mm apart"), "{text}");
@@ -652,7 +652,7 @@ fn reject_report_ranks_the_reasons_and_fails_over_the_share_that_is_asked() {
         "--max-rate",
         "50",
     ]);
-    assert_eq!(code(&o), 1);
+    assert_eq!(code(&o), 2);
     assert!(err(&o).contains("1 references were rejected on 50% of the boards or more"));
     assert_eq!(
         code(&run(&[
@@ -796,7 +796,7 @@ fn retry_policy_fails_for_a_rule_that_fits_nothing_and_writes_the_table() {
         "--out",
         p(&table),
     ]);
-    assert_eq!(code(&o), 1);
+    assert_eq!(code(&o), 2);
     assert!(out(&o).contains("rules that fit no part: 1"), "{}", out(&o));
     assert!(out(&o).contains("rules that never act: 3"), "{}", out(&o));
     assert!(
@@ -875,7 +875,7 @@ fn bom_cost_prices_the_run_with_the_breaks_and_the_spares() {
     // a part with no price fails the command
     let some = write(&dir, "some.csv", "part_number,price\nRC0603FR-0710KL,0.1\n");
     let o = run(&["bom-cost", "examples/bom.csv", p(&some)]);
-    assert_eq!(code(&o), 1);
+    assert_eq!(code(&o), 2);
     assert!(out(&o).contains("no price for: "), "{}", out(&o));
     for args in [
         vec!["--boards", "0"],
@@ -903,7 +903,7 @@ fn lot_age_judges_the_date_codes_against_the_week_given() {
     assert!(out(&o).ends_with("4 feeders, 0 to look at (the limit is 104 weeks)\n"));
     // two years on, the old lots are called out
     let o = run(&["lot-age", BOARD, FEEDERS, lots, "--week", "2611"]);
-    assert_eq!(code(&o), 1);
+    assert_eq!(code(&o), 2);
     assert!(
         out(&o).contains("feeder F3: lot MCU-77812 date code 2352, 115 weeks old: old"),
         "{}",
@@ -929,7 +929,7 @@ fn lot_age_judges_the_date_codes_against_the_week_given() {
         0
     );
     let o = run(&["lot-age", BOARD, FEEDERS, lots, "--week", "2301"]);
-    assert_eq!(code(&o), 1);
+    assert_eq!(code(&o), 2);
     assert!(out(&o).contains("future"), "{}", out(&o));
     for args in [
         vec![],

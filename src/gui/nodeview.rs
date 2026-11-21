@@ -111,6 +111,17 @@ pub struct Bench {
     pub nozzle_down: bool,
     pub head_cut: bool,
     pub feeder_jammed: bool,
+    /// The file the table of the banks was read from and the revision it had then; none for the example.
+    pub source: Option<Source>,
+    /// Whether the table on show was changed since it was read or saved.
+    pub dirty: bool,
+}
+
+/// The file a table of the banks was read from and its revision.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Source {
+    pub path: std::path::PathBuf,
+    pub revision: String,
 }
 
 impl std::fmt::Debug for Bench {
@@ -144,6 +155,106 @@ impl Bench {
             nozzle_down: false,
             head_cut: false,
             feeder_jammed: false,
+            source: None,
+            dirty: false,
+        }
+    }
+
+    /// Reads a table of the banks from a file and keeps its revision, so that a later save is held to it. A file that cannot be read or is wrong leaves the table on show where it is and says
+    /// why.
+    pub fn open_file(&mut self, path: &std::path::Path, cfg: &MachineConfig) -> bool {
+        let shown = path.to_string_lossy().into_owned();
+        match crate::revision::read(&shown, cfg.max_file_bytes) {
+            Ok((text, revision)) => {
+                if self.load_table(&text, cfg) {
+                    self.source = Some(Source {
+                        path: path.to_path_buf(),
+                        revision,
+                    });
+                    self.dirty = false;
+                    true
+                } else {
+                    false
+                }
+            }
+            Err(e) => {
+                self.message = Some(e.to_string());
+                false
+            }
+        }
+    }
+
+    /// Reads the file of the table again (a change that somebody else made is taken, one that was not saved is dropped).
+    pub fn read_again(&mut self, cfg: &MachineConfig) -> bool {
+        match self.source.clone() {
+            Some(s) => self.open_file(&s.path, cfg),
+            None => false,
+        }
+    }
+
+    /// Puts a feeder in another state with the event that leads there (a reel put in again or a fault cleared for `Occupied`, the tape out for `Depleted`, a fault for `Jammed`, the feeder
+    /// taken away for `Free`). A change that the rules do not allow is told and nothing changes.
+    pub fn set_state(&mut self, id: &str, to: State) -> bool {
+        use crate::slotbank::Event;
+        let Some(from) = self.layout.find(id).map(|e| e.state) else {
+            self.message = Some(format!("there is no feeder '{id}' in the banks"));
+            return false;
+        };
+        let event = match (from, to) {
+            (State::Depleted, State::Occupied) => Event::Reload,
+            (State::Jammed, State::Occupied) => Event::Clear,
+            (State::Occupied, State::Depleted) => Event::Exhaust,
+            (State::Occupied, State::Jammed) => Event::Jam,
+            (_, State::Free) => Event::Remove,
+            _ => {
+                self.message = Some(format!(
+                    "{id}: a slot that is {} cannot become {}",
+                    from.name(),
+                    to.name()
+                ));
+                return false;
+            }
+        };
+        match self.layout.apply(id, event) {
+            Ok(_) => {
+                self.message = None;
+                self.dirty = true;
+                true
+            }
+            Err(e) => {
+                self.message = Some(e.to_string());
+                false
+            }
+        }
+    }
+
+    /// Saves the table to the file it was read from, but only while the file is as it was read (the revision). A file that changed is not written over: the table on show stays as it is,
+    /// marked as changed, and the reason is told. Gives the new revision.
+    pub fn save(&mut self, cfg: &MachineConfig) -> Result<String, String> {
+        let Some(source) = self.source.clone() else {
+            return Err("the table was not read from a file".to_string());
+        };
+        let path = source.path.to_string_lossy().into_owned();
+        match crate::revision::replace(
+            &path,
+            &source.revision,
+            &self.layout.to_csv(),
+            cfg.max_file_bytes,
+        ) {
+            Ok(new) => {
+                self.source = Some(Source {
+                    path: source.path,
+                    revision: new.clone(),
+                });
+                self.dirty = false;
+                self.message = None;
+                Ok(new)
+            }
+            Err(e) => {
+                let why = e.to_string();
+                self.message = Some(why.clone());
+                Err(why)
+            }
         }
     }
 
@@ -153,6 +264,9 @@ impl Bench {
             Ok(l) => {
                 self.layout = l;
                 self.message = None;
+                // a table that comes from text is not the one of a file
+                self.source = None;
+                self.dirty = false;
                 true
             }
             Err(e) => {

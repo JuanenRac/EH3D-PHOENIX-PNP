@@ -158,8 +158,16 @@ impl NodeLink for ScNodeLink {
                 status: 403,
                 why: None,
             }),
-            Err(sc::ClientError::Server { status, code, .. }) => {
-                Err(LinkError::Refused { status, why: code })
+            Err(sc::ClientError::Server {
+                status,
+                code,
+                detail,
+            }) => {
+                // the common client keeps the `error` and the `detail` of a refusal and not its `why`: the reason is the code of the refusal, and where the node gave none, its detail
+                // (see docs/COMMON_REQUESTS.md for what would let the `why` through)
+                let detail = detail.trim();
+                let why = code.or_else(|| (!detail.is_empty()).then(|| detail.to_string()));
+                Err(LinkError::Refused { status, why })
             }
             Err(sc::ClientError::Config(m) | sc::ClientError::BadReply(m)) => {
                 Err(LinkError::Bad(m))

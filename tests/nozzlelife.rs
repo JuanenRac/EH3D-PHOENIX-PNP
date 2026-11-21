@@ -272,7 +272,7 @@ fn a_file_that_is_not_a_record_is_never_written_over_and_a_big_one_is_refused() 
 #[test]
 fn the_command_lists_the_tips_and_fails_while_one_is_at_the_level() {
     let o = run(&["nozzle-life", "examples/nozzle_life.csv"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let out = text(&o.stdout);
     assert!(
         out.contains("tip N45: 120000 parts placed, mounted 40 times, replaced 1 times\n"),

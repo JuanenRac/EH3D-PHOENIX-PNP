@@ -30,10 +30,12 @@ pub enum FileKind {
     Catalog,
     Panel,
     Slots,
+    /// The table of the banks of feeders (`id,bank,first_slot,tape_mm,state,chain`).
+    Banks,
 }
 
 impl FileKind {
-    pub const ALL: [FileKind; 7] = [
+    pub const ALL: [FileKind; 8] = [
         FileKind::Parts,
         FileKind::Feeders,
         FileKind::Config,
@@ -41,6 +43,7 @@ impl FileKind {
         FileKind::Catalog,
         FileKind::Panel,
         FileKind::Slots,
+        FileKind::Banks,
     ];
 
     pub fn key(self) -> &'static str {
@@ -52,6 +55,7 @@ impl FileKind {
             FileKind::Catalog => "catalog",
             FileKind::Panel => "panel",
             FileKind::Slots => "slots",
+            FileKind::Banks => "banks",
         }
     }
 }
@@ -100,7 +104,9 @@ pub fn classify(name: &str, text: &str) -> Option<FileKind> {
         .map(|c| c.trim().trim_matches('"').to_ascii_lowercase())
         .collect();
     let has = |n: &str| cols.iter().any(|c| c == n);
-    if has("max_width_mm") {
+    if has("bank") && has("first_slot") {
+        Some(FileKind::Banks)
+    } else if has("max_width_mm") {
         Some(FileKind::Slots)
     } else if has("id") && has("count") {
         Some(FileKind::Feeders)
@@ -315,6 +321,14 @@ impl Workspace {
             }
             FileKind::Slots => {
                 self.slots = loadsheet::slots_from_csv(text).map_err(|e| self.localize(&e))?;
+            }
+            FileKind::Banks => {
+                // the window shows the banks on its own bench; here the table is only found valid
+                crate::slotbank::Layout::from_csv(
+                    text,
+                    crate::slotbank::Geometry::from_config(&self.cfg),
+                )
+                .map_err(|e| self.localize(&e))?;
             }
         }
         self.names.insert(kind, name.to_string());

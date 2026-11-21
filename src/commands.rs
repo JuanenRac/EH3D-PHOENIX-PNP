@@ -4,6 +4,7 @@
 // `schedule`, `preflight`, `simulate`, `loadsheet` and `config-check`: they read the configuration, the tables of parts and packages and the panel, and use the library for the rest.
 
 use crate::cli_args::{finish, flag, num, switch};
+use crate::cmd_nodes::fail;
 use eh3d_phoenix_pnp::asidesheet;
 use eh3d_phoenix_pnp::catalog::Catalog;
 use eh3d_phoenix_pnp::compare;
@@ -47,7 +48,7 @@ use eh3d_phoenix_pnp::tapesteps;
 use eh3d_phoenix_pnp::vision::{measure_image, render, wrap, VisionConfig, MAX_VISION_BYTES};
 use std::cell::RefCell;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Reads a text file no larger than `max` bytes. UTF-16 with a byte order mark is decoded; text that is not UTF-8 is read as Latin-1, with a note.
 pub fn read_text(path: &str, max: u64) -> Result<String, String> {
@@ -81,9 +82,10 @@ pub fn write_atomic(out: &str, text: &str) -> Result<(), String> {
 
 /// An output file is never one of the files it was made from.
 pub fn refuse_same_file(inputs: &[String], out: &str) -> Result<(), String> {
+    // the same file by where it leads, or, for a file that is not there yet, by the way its path is written once the separators, the `..` and the capitals are taken out
     let same = |a: &str, b: &str| match (Path::new(a).canonicalize(), Path::new(b).canonicalize()) {
         (Ok(x), Ok(y)) => x == y,
-        _ => a == b,
+        _ => eh3d_phoenix_pnp::pathid::same(a, b),
     };
     if inputs.iter().any(|input| same(input, out)) {
         return Err(format!(
@@ -453,11 +455,13 @@ fn make_plan(p: &Prepared) -> Result<Planned, String> {
 fn stop_on_errors(p: &Prepared, planned: &Planned, partial: bool) -> Result<(), String> {
     print!("{}", to_text(&planned.checks));
     if has_errors(&planned.checks) && !partial {
-        return Err(PnpError::new(
-            Code::PreflightFailed,
-            "use --partial to go on with only what can be placed",
-        )
-        .localized(p.c.lang));
+        return Err(crate::cmd_nodes::not_passed(
+            PnpError::new(
+                Code::PreflightFailed,
+                "use --partial to go on with only what can be placed",
+            )
+            .localized(p.c.lang),
+        ));
     }
     Ok(())
 }
@@ -600,11 +604,13 @@ pub fn plan_identity(args: Vec<String>) -> Result<String, String> {
     let lang = p.c.lang;
     let planned = make_plan(&p)?;
     if has_errors(&planned.checks) {
-        return Err(PnpError::new(
-            Code::PreflightFailed,
-            "the checks of the plan found errors (see preflight)",
-        )
-        .localized(lang));
+        return Err(crate::cmd_nodes::not_passed(
+            PnpError::new(
+                Code::PreflightFailed,
+                "the checks of the plan found errors (see preflight)",
+            )
+            .localized(lang),
+        ));
     }
     let mut files = Vec::new();
     for path in &p.inputs {
@@ -654,7 +660,7 @@ pub fn job_export(mut args: Vec<String>) -> Result<(), String> {
 
 /// `aside-sheet PARTS FEEDERS --state F [--pending] [--out F]`: the parts that a person has to place by hand after the job of a saved state (`simulate --state`): the ones that were put
 /// aside or left out and, with `--pending`, the ones the job did not get to, sorted by value and package. The sheet goes to the screen, or as a table to `--out` (never over a file that
-/// exists, and never over a file that was read). The exit code is 1 when there is any part on it.
+/// exists, and never over a file that was read). The exit code is 2 when there is any part on it.
 pub fn aside_sheet(mut args: Vec<String>) -> Result<(), String> {
     let state_path = flag(&mut args, "--state")?.ok_or("aside-sheet needs --state FILE")?;
     let pending = switch(&mut args, "--pending");
@@ -670,11 +676,13 @@ pub fn aside_sheet(mut args: Vec<String>) -> Result<(), String> {
     }
     let planned = make_plan(&p)?;
     if has_errors(&planned.checks) && !partial {
-        return Err(PnpError::new(
-            Code::PreflightFailed,
-            "use --partial to go on with only what can be placed",
-        )
-        .localized(lang));
+        return Err(crate::cmd_nodes::not_passed(
+            PnpError::new(
+                Code::PreflightFailed,
+                "use --partial to go on with only what can be placed",
+            )
+            .localized(lang),
+        ));
     }
     let mut job = Job::new(planned.plan, p.feeders.clone(), p.c.cfg.clone()).map_err(l)?;
     job.restore_state(&read_text(&state_path, p.c.cfg.max_file_bytes)?)
@@ -688,13 +696,13 @@ pub fn aside_sheet(mut args: Vec<String>) -> Result<(), String> {
     if sheet.rows.is_empty() {
         Ok(())
     } else {
-        Err(format!("{} parts are left for a person", sheet.rows.len()))
+        fail(format!("{} parts are left for a person", sheet.rows.len()))
     }
 }
 
 /// `feeder-slots PARTS FEEDERS [--max-plans N] [--out F]`: looks for the places of the feeders that make the plan of the board the fastest, by swapping the places of two feeders of the same
 /// kind while that saves time. The report goes to the screen, or the table of feeders with the new places to `--out` (never over a file that exists, and never over a file that was read).
-/// The exit code is 1 when a better way to stand the feeders exists.
+/// The exit code is 2 when a better way to stand the feeders exists.
 pub fn feeder_slots(mut args: Vec<String>) -> Result<(), String> {
     let max_plans = match flag(&mut args, "--max-plans")? {
         Some(v) => {
@@ -737,7 +745,7 @@ pub fn feeder_slots(mut args: Vec<String>) -> Result<(), String> {
     if found.moves.is_empty() {
         Ok(())
     } else {
-        Err(format!("{} feeders could stand better", found.moves.len()))
+        fail(format!("{} feeders could stand better", found.moves.len()))
     }
 }
 
@@ -779,11 +787,13 @@ pub fn simulate_runs(mut args: Vec<String>) -> Result<(), String> {
     }
     let planned = make_plan(&p)?;
     if has_errors(&planned.checks) && !partial {
-        return Err(PnpError::new(
-            Code::PreflightFailed,
-            "use --partial to go on with only what can be placed",
-        )
-        .localized(lang));
+        return Err(crate::cmd_nodes::not_passed(
+            PnpError::new(
+                Code::PreflightFailed,
+                "use --partial to go on with only what can be placed",
+            )
+            .localized(lang),
+        ));
     }
     let found = runs::run_many(
         &planned.plan,
@@ -801,7 +811,7 @@ pub fn simulate_runs(mut args: Vec<String>) -> Result<(), String> {
     if found.complete() == found.rows.len() {
         Ok(())
     } else {
-        Err(format!(
+        fail(format!(
             "{} runs did not place every part",
             found.rows.len() - found.complete()
         ))
@@ -809,7 +819,7 @@ pub fn simulate_runs(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// `reel-runway PARTS FEEDERS [--boards N] [--out F]`: how many whole boards each reel of the feeders that are switched on lasts, with the parts that are left over after them, the reel that
-/// runs out first marked. The report goes to the screen, or the table to `--out` (never over a file that exists, and never over a file that was read). The exit code is 1 when a reel lasts
+/// runs out first marked. The report goes to the screen, or the table to `--out` (never over a file that exists, and never over a file that was read). The exit code is 2 when a reel lasts
 /// fewer boards than `--boards` (1 when it is not given).
 pub fn reel_runway(mut args: Vec<String>) -> Result<(), String> {
     let wanted = match flag(&mut args, "--boards")? {
@@ -836,11 +846,13 @@ pub fn reel_runway(mut args: Vec<String>) -> Result<(), String> {
     }
     let planned = make_plan(&p)?;
     if has_errors(&planned.checks) && !partial {
-        return Err(PnpError::new(
-            Code::PreflightFailed,
-            "use --partial to go on with only what can be placed",
-        )
-        .localized(lang));
+        return Err(crate::cmd_nodes::not_passed(
+            PnpError::new(
+                Code::PreflightFailed,
+                "use --partial to go on with only what can be placed",
+            )
+            .localized(lang),
+        ));
     }
     let used: Vec<&str> = planned
         .plan
@@ -859,13 +871,13 @@ pub fn reel_runway(mut args: Vec<String>) -> Result<(), String> {
     if short == 0 {
         Ok(())
     } else {
-        Err(format!("{short} reels last fewer than {wanted} boards"))
+        fail(format!("{short} reels last fewer than {wanted} boards"))
     }
 }
 
 /// `nozzle-compare PARTS FEEDERS [--max N] [--out F]`: the board planned with one nozzle on the head, then two, up to `--max` (6 by default), side by side: the batches, the changes of tip, the
 /// travel and the seconds, the fastest marked and what each nozzle takes off the one before. The heads of the configuration are left out. The report goes to the screen, or the table to
-/// `--out` (never over a file that exists, and never over a file that was read). The exit code is 1 when no number of nozzles gives a plan.
+/// `--out` (never over a file that exists, and never over a file that was read). The exit code is 2 when no number of nozzles gives a plan.
 pub fn nozzle_compare(mut args: Vec<String>) -> Result<(), String> {
     let most = match flag(&mut args, "--max")? {
         Some(v) => {
@@ -909,13 +921,13 @@ pub fn nozzle_compare(mut args: Vec<String>) -> Result<(), String> {
     if nozzles::fastest(&rows).is_some() {
         Ok(())
     } else {
-        Err("no plan could be made with any number of nozzles".to_string())
+        fail("no plan could be made with any number of nozzles".to_string())
     }
 }
 
 /// `simulate-hotspots PARTS FEEDERS [--runs N] [--seed S] [--out F]`: the job run `N` times on the simulated machine, each time from another seed, and for each feeder the picks that failed, the
 /// runs in which it was switched off and the parts of it that were put aside, the worst feeder first. `N` is `simulate_runs_count` of the settings when `--runs` is not given. `--out`
-/// writes a row for each feeder (never over a file that exists, and never over a file that was read). The exit code is 1 when a feeder gave trouble in some run.
+/// writes a row for each feeder (never over a file that exists, and never over a file that was read). The exit code is 2 when a feeder gave trouble in some run.
 pub fn simulate_hotspots(mut args: Vec<String>) -> Result<(), String> {
     let count = match flag(&mut args, "--runs")? {
         Some(v) => {
@@ -951,11 +963,13 @@ pub fn simulate_hotspots(mut args: Vec<String>) -> Result<(), String> {
     }
     let planned = make_plan(&p)?;
     if has_errors(&planned.checks) && !partial {
-        return Err(PnpError::new(
-            Code::PreflightFailed,
-            "use --partial to go on with only what can be placed",
-        )
-        .localized(lang));
+        return Err(crate::cmd_nodes::not_passed(
+            PnpError::new(
+                Code::PreflightFailed,
+                "use --partial to go on with only what can be placed",
+            )
+            .localized(lang),
+        ));
     }
     let found = hotspots::run_many(
         &planned.plan,
@@ -974,46 +988,87 @@ pub fn simulate_hotspots(mut args: Vec<String>) -> Result<(), String> {
     if n == 0 {
         Ok(())
     } else {
-        Err(format!("{n} feeders gave trouble in the runs"))
+        fail(format!("{n} feeders gave trouble in the runs"))
     }
 }
 
-/// Runs the hooks for the events of a job (or only lists them, with `dry`): what each one did is told, and none of it changes the job or the exit code.
-fn run_hooks(rules: &[hooks::Rule], rules_path: &str, job: &Job, dry: bool) {
-    let cfg = job.config();
-    let (calls, left_out) =
-        hooks::calls_for(rules, &hooks::events_of(job), cfg.hooks_max_runs as usize);
-    let folder = Path::new(rules_path)
-        .parent()
-        .filter(|f| !f.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    for c in &calls {
-        if dry {
-            println!("hook (not run): {}", c.line());
-            continue;
-        }
-        match hooks::run_call(folder, c, cfg.hooks_timeout_s) {
-            hooks::Outcome::Ran { code: 0, output } => {
-                println!("hook {}: ran{}", c.line(), shown(&output));
-            }
-            hooks::Outcome::Ran { code, output } => {
-                println!(
-                    "hook {}: ended with code {code}{}",
-                    c.line(),
-                    shown(&output)
-                );
-            }
-            hooks::Outcome::TimedOut => {
-                println!("hook {}: stopped after {} s", c.line(), cfg.hooks_timeout_s)
-            }
-            hooks::Outcome::Failed(why) => println!("hook {}: not run, {why}", c.line()),
+/// Runs the hooks of a job, while it goes (the events of every step) and when it stops (the events of its final state), or only lists them, with `dry`: what each one did is told, and none of it
+/// changes the job or the exit code. The programs of a whole job are at most `hooks_max_runs`, each one gets `hooks_timeout_s` seconds, and the data of the event also go to its standard input.
+struct HookRunner<'a> {
+    rules: &'a [hooks::Rule],
+    folder: PathBuf,
+    dry: bool,
+    left: usize,
+    left_out: usize,
+    timeout_s: f64,
+    max_runs: u32,
+}
+
+impl<'a> HookRunner<'a> {
+    fn new(rules: &'a [hooks::Rule], rules_path: &str, cfg: &MachineConfig, dry: bool) -> Self {
+        let folder = Path::new(rules_path)
+            .parent()
+            .filter(|f| !f.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf();
+        HookRunner {
+            rules,
+            folder,
+            dry,
+            left: cfg.hooks_max_runs as usize,
+            left_out: 0,
+            timeout_s: cfg.hooks_timeout_s,
+            max_runs: cfg.hooks_max_runs,
         }
     }
-    if left_out > 0 {
-        println!(
-            "{left_out} more hooks were left out: hooks_max_runs is {}",
-            cfg.hooks_max_runs
-        );
+
+    /// Whether any rule asks for an event that is told while the job goes.
+    fn wants_steps(&self) -> bool {
+        self.rules
+            .iter()
+            .any(|r| hooks::STEP_EVENTS.contains(&r.event.as_str()))
+    }
+
+    fn fire(&mut self, events: &[hooks::HookEvent]) {
+        for e in events {
+            let (calls, left_out) =
+                hooks::calls_for(self.rules, std::slice::from_ref(e), self.left);
+            self.left -= calls.len();
+            self.left_out += left_out;
+            let payload = e.payload();
+            for c in &calls {
+                if self.dry {
+                    println!("hook (not run): {}", c.line());
+                    continue;
+                }
+                match hooks::run_call_with(&self.folder, c, self.timeout_s, Some(&payload)) {
+                    hooks::Outcome::Ran { code: 0, output } => {
+                        println!("hook {}: ran{}", c.line(), shown(&output));
+                    }
+                    hooks::Outcome::Ran { code, output } => {
+                        println!(
+                            "hook {}: ended with code {code}{}",
+                            c.line(),
+                            shown(&output)
+                        );
+                    }
+                    hooks::Outcome::TimedOut => {
+                        println!("hook {}: stopped after {} s", c.line(), self.timeout_s)
+                    }
+                    hooks::Outcome::Failed(why) => println!("hook {}: not run, {why}", c.line()),
+                }
+            }
+        }
+    }
+
+    /// Tells how many hooks were left out for the limit, once, at the end.
+    fn finish(&self) {
+        if self.left_out > 0 {
+            println!(
+                "{} more hooks were left out: hooks_max_runs is {}",
+                self.left_out, self.max_runs
+            );
+        }
     }
 }
 
@@ -1181,8 +1236,20 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
             println!("resumed from {sp}");
         }
     }
-    let (outcome, journal_rows, journal_cut) = if journal_path.is_some() {
-        journal::run_recorded(&mut job, steps, 0)
+    let mut runner = match (&hook_rules, &hooks_path) {
+        (Some(rules), Some(hp)) => Some(HookRunner::new(rules, hp, job.config(), hooks_dry)),
+        _ => None,
+    };
+    // the events of every step are told while the job goes; a job with no rule for them is run as it always was
+    let step_hooks = runner.as_ref().is_some_and(HookRunner::wants_steps);
+    let (outcome, journal_rows, journal_cut) = if journal_path.is_some() || step_hooks {
+        journal::run_observed(&mut job, steps, 0, &mut |j, seen| {
+            if let Some(r) = runner.as_mut() {
+                if r.wants_steps() {
+                    r.fire(&hooks::step_events(j, seen));
+                }
+            }
+        })
     } else {
         (job.run(steps), Vec::new(), false)
     };
@@ -1219,8 +1286,9 @@ pub fn simulate(mut args: Vec<String>) -> Result<(), String> {
         report::write_new(fp, &feedrep::csv(&feeder_rows)).map_err(l)?;
     }
     // the hooks are run for the job as it stands, also when an error stopped it
-    if let (Some(rules), Some(hp)) = (&hook_rules, &hooks_path) {
-        run_hooks(rules, hp, &job, hooks_dry);
+    if let Some(r) = runner.as_mut() {
+        r.fire(&hooks::events_of(&job));
+        r.finish();
     }
     let phase = outcome.map_err(l)?;
     if let Some(lp) = &life_path {
@@ -1316,7 +1384,7 @@ fn track_nozzle_life(job: &Job, phase: Phase, path: &str, lang: Lang) -> Result<
 
 /// `setup-sheet`: what the person who sets the machine up needs before a run of boards: the feeders to load (slot, kind, part, tape, tip), the parts that are missing for the run, the
 /// nozzle tips and how worn they are, and the calibrations the job depends on. The text is in the language of `--lang`; `--out` also writes the feeders as a CSV (never over a file that
-/// exists). The exit code is 1 when the feeders that are on do not hold enough for the run.
+/// exists). The exit code is 2 when the feeders that are on do not hold enough for the run.
 pub fn setup_sheet(mut args: Vec<String>) -> Result<(), String> {
     let out_path = flag(&mut args, "--out")?;
     let life_path = flag(&mut args, "--life")?;
@@ -1375,7 +1443,7 @@ pub fn setup_sheet(mut args: Vec<String>) -> Result<(), String> {
     if sheet.is_ready() {
         Ok(())
     } else {
-        Err(format!(
+        fail(format!(
             "the feeders lack {} parts for {boards} boards",
             sheet.short_parts()
         ))
@@ -1422,7 +1490,7 @@ pub fn run_loadsheet(mut args: Vec<String>) -> Result<(), String> {
     if sheet.unassigned.is_empty() {
         Ok(())
     } else {
-        Err("some kinds of part have no slot that is wide enough".into())
+        fail("some kinds of part have no slot that is wide enough".into())
     }
 }
 
@@ -1436,7 +1504,7 @@ pub fn config_check(mut args: Vec<String>) -> Result<(), String> {
     finish(&args, 1)?;
     let path = args.first().ok_or("config-check needs a file")?;
     let cfg = MachineConfig::parse(&read_text(path, MAX_CONFIG_BYTES as u64)?)
-        .map_err(|e| e.localized(lang))?;
+        .map_err(|e| crate::cmd_nodes::not_passed(e.localized(lang)))?;
     println!(
         "ok: schema {}, {} nozzles, order {}, {} rotation rules",
         cfg.schema_version,
@@ -1449,21 +1517,40 @@ pub fn config_check(mut args: Vec<String>) -> Result<(), String> {
 
 /// Reads a recipe within the limits of the configuration; an error shows its stable code.
 fn read_recipe(path: &str, cfg: &MachineConfig, lang: Lang) -> Result<Recipe, String> {
+    read_recipe_as(path, cfg, lang, false)
+}
+
+/// Reads a recipe; with `check` a recipe that is not valid is a check not passed (the exit code 2) and not a mistake of the arguments.
+fn read_recipe_as(
+    path: &str,
+    cfg: &MachineConfig,
+    lang: Lang,
+    check: bool,
+) -> Result<Recipe, String> {
+    let mark = move |e: String| {
+        if check {
+            crate::cmd_nodes::not_passed(e)
+        } else {
+            e
+        }
+    };
     let size = fs::metadata(path)
         .map_err(|e| format!("{path}: {e}"))?
         .len();
     if size > cfg.recipe_max_bytes {
-        return Err(PnpError::new(
-            Code::RecipeLimit,
-            format!(
-                "{path} has {size} bytes, the limit is {}",
-                cfg.recipe_max_bytes
-            ),
-        )
-        .localized(lang));
+        return Err(mark(
+            PnpError::new(
+                Code::RecipeLimit,
+                format!(
+                    "{path} has {size} bytes, the limit is {}",
+                    cfg.recipe_max_bytes
+                ),
+            )
+            .localized(lang),
+        ));
     }
     let text = read_text(path, cfg.recipe_max_bytes)?;
-    Recipe::parse(&text, &Limits::from_config(cfg)).map_err(|e| e.localized(lang))
+    Recipe::parse(&text, &Limits::from_config(cfg)).map_err(|e| mark(e.localized(lang)))
 }
 
 /// `recipe-check`: reads a recipe and says whether it is valid, with the code and the line of an error.
@@ -1480,7 +1567,7 @@ pub fn recipe_check(mut args: Vec<String>) -> Result<(), String> {
     };
     finish(&args, 1)?;
     let path = args.first().ok_or("recipe-check needs a file")?;
-    println!("{}", read_recipe(path, &cfg, lang)?.summary());
+    println!("{}", read_recipe_as(path, &cfg, lang, true)?.summary());
     Ok(())
 }
 
@@ -1509,9 +1596,13 @@ pub fn import_centroid(mut args: Vec<String>) -> Result<(), String> {
     };
     let map_path = flag(&mut args, "--map")?;
     let out_path = flag(&mut args, "--out")?;
+    let held_to = flag(&mut args, "--revision")?;
     let dnp = flag(&mut args, "--dnp")?;
     finish(&args, 1)?;
     let path = args.first().ok_or("import-centroid needs a file")?.clone();
+    if held_to.is_some() && out_path.is_none() {
+        return Err("--revision needs --out: it holds the file that is replaced".into());
+    }
     if let Some(out) = &out_path {
         refuse_same_file(std::slice::from_ref(&path), out)?;
     }
@@ -1529,8 +1620,22 @@ pub fn import_centroid(mut args: Vec<String>) -> Result<(), String> {
     let csv = imported.to_csv();
     match out_path {
         Some(out) => {
-            report::write_new(&out, &csv).map_err(l)?;
-            println!("ok: {}; written to {out}", imported.summary());
+            match &held_to {
+                // with a revision the table of parts named may be replaced, but only if it is still as it was when the revision was taken
+                Some(token) => {
+                    let new =
+                        eh3d_phoenix_pnp::revision::replace(&out, token, &csv, cfg.max_file_bytes)
+                            .map_err(l)?;
+                    println!(
+                        "ok: {}; written to {out} (revision {new})",
+                        imported.summary()
+                    );
+                }
+                None => {
+                    report::write_new(&out, &csv).map_err(l)?;
+                    println!("ok: {}; written to {out}", imported.summary());
+                }
+            }
         }
         None => {
             print!("{csv}");
@@ -1541,7 +1646,7 @@ pub fn import_centroid(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// `tables-check`: reads each table that is named (`--parts`, `--packages`, `--catalog`, `--feeders`, `--slots`) and says whether it is valid; an error shows its stable code and the row.
-/// The exit code is 1 when any table is not valid, after all of them were read.
+/// The exit code is 2 when any table is not valid, after all of them were read.
 pub fn tables_check(mut args: Vec<String>) -> Result<(), String> {
     let lang = match flag(&mut args, "--lang")? {
         Some(l) => Lang::from_code(&l)
@@ -1595,7 +1700,7 @@ pub fn tables_check(mut args: Vec<String>) -> Result<(), String> {
         }
     }
     if bad > 0 {
-        return Err(format!("{bad} of {} tables are not valid", named.len()));
+        return fail(format!("{bad} of {} tables are not valid", named.len()));
     }
     Ok(())
 }
@@ -1620,7 +1725,7 @@ fn whole(text: &str, what: &str, lo: f64, hi: f64) -> Result<u64, String> {
 }
 
 /// `vision-test`: draws the picture of a part from the size, the turn, the offset and the noise that the options say, measures it with the pipeline of the vision settings
-/// (`--vision FILE`, else the defaults) and prints what was measured with its error against what was true. The exit code is 1 when the pipeline finds no part.
+/// (`--vision FILE`, else the defaults) and prints what was measured with its error against what was true. The exit code is 2 when the pipeline finds no part.
 pub fn vision_test(mut args: Vec<String>) -> Result<(), String> {
     let lang = match flag(&mut args, "--lang")? {
         Some(l) => Lang::from_code(&l)
@@ -1683,7 +1788,8 @@ pub fn vision_test(mut args: Vec<String>) -> Result<(), String> {
     }
     cfg.validate().map_err(|e| e.localized(lang))?;
     let picture = render(&cfg, truth, &mut Rng::new(seed));
-    let reading = measure_image(&cfg, &picture).map_err(|e| e.localized(lang))?;
+    let reading = measure_image(&cfg, &picture)
+        .map_err(|e| crate::cmd_nodes::not_passed(e.localized(lang)))?;
     // a number that is a hair below zero must not print as -0.000
     let tidy = |x: f64| -> f64 { (x * 1000.0).round() / 1000.0 + 0.0 };
     let seen = Offset {
@@ -1754,7 +1860,7 @@ pub fn check_bottom(mut args: Vec<String>) -> Result<(), String> {
 /// `tape-steps PARTS FEEDERS [--out F] [OPTIONS] [--partial]`: the tapes of the feeders checked at every step of the plan: for each pick, which part of the reel it is, the parts left after it,
 /// the pick place, how far it is from the place of the pick before on the same feeder (a strip must advance by its pitch, within `tape_pitch_tol_mm`) and what the step comes to: `ok`, `low`
 /// (the first step under the warning of the feeder), `last`, `empty` (the reel had no part left), `pitch`, `reach` (outside the area the machine reaches) or `nofeeder`. The report goes to the
-/// screen, or the table of all the steps to `--out` (never over a file that exists, and never over a file that was read). The exit code is 1 when a step is a fault.
+/// screen, or the table of all the steps to `--out` (never over a file that exists, and never over a file that was read). The exit code is 2 when a step is a fault.
 pub fn tape_steps(mut args: Vec<String>) -> Result<(), String> {
     let out = flag(&mut args, "--out")?;
     let partial = switch(&mut args, "--partial");
@@ -1768,11 +1874,13 @@ pub fn tape_steps(mut args: Vec<String>) -> Result<(), String> {
     }
     let planned = make_plan(&p)?;
     if has_errors(&planned.checks) && !partial {
-        return Err(PnpError::new(
-            Code::PreflightFailed,
-            "use --partial to go on with only what can be placed",
-        )
-        .localized(lang));
+        return Err(crate::cmd_nodes::not_passed(
+            PnpError::new(
+                Code::PreflightFailed,
+                "use --partial to go on with only what can be placed",
+            )
+            .localized(lang),
+        ));
     }
     let cfg = &p.c.cfg;
     let limits = tapesteps::Limits {
@@ -1797,7 +1905,7 @@ pub fn tape_steps(mut args: Vec<String>) -> Result<(), String> {
     }
     match tapesteps::faults(&steps) {
         0 => Ok(()),
-        n => Err(format!("{n} steps are a fault of the tapes")),
+        n => fail(format!("{n} steps are a fault of the tapes")),
     }
 }
 
@@ -1805,7 +1913,7 @@ pub fn tape_steps(mut args: Vec<String>) -> Result<(), String> {
 /// shift on the simulated machine: availability (the shift less the changes of reels that the boards need), performance (the ideal time of the plan against the mean time of the runs that went to
 /// the end) and quality (the share of the runs that placed every part), the boards that fit in the shift and how many are expected to be good. The runs are the ones of `simulate-runs` (the
 /// `simulate_runs_count` of the settings and the `sim_seed` when not given), the shift is `shift_minutes` and a change of reel `reel_change_s`. `--out` writes the figures as a table, never
-/// over a file that exists or over a file that was read. The exit code is 1 when the effectiveness is under `--min-oee` (0 by default: never).
+/// over a file that exists or over a file that was read. The exit code is 2 when the effectiveness is under `--min-oee` (0 by default: never).
 pub fn shift_oee(mut args: Vec<String>) -> Result<(), String> {
     let count = match flag(&mut args, "--runs")? {
         Some(v) => {
@@ -1872,11 +1980,13 @@ pub fn shift_oee(mut args: Vec<String>) -> Result<(), String> {
     }
     let planned = make_plan(&p)?;
     if has_errors(&planned.checks) && !partial {
-        return Err(PnpError::new(
-            Code::PreflightFailed,
-            "use --partial to go on with only what can be placed",
-        )
-        .localized(lang));
+        return Err(crate::cmd_nodes::not_passed(
+            PnpError::new(
+                Code::PreflightFailed,
+                "use --partial to go on with only what can be placed",
+            )
+            .localized(lang),
+        ));
     }
     let l = move |e: PnpError| e.localized(lang);
     let found = runs::run_many(
@@ -1914,7 +2024,7 @@ pub fn shift_oee(mut args: Vec<String>) -> Result<(), String> {
         println!("written to {o}");
     }
     if oee.oee * 100.0 + 1e-9 < min_oee {
-        Err(format!(
+        fail(format!(
             "the effectiveness is {:.1}%, under the {min_oee}% that was asked",
             oee.oee * 100.0
         ))
@@ -1975,11 +2085,13 @@ pub fn shift_plan(mut args: Vec<String>) -> Result<(), String> {
     }
     let planned = make_plan(&p)?;
     if has_errors(&planned.checks) && !partial {
-        return Err(PnpError::new(
-            Code::PreflightFailed,
-            "use --partial to go on with only what can be placed",
-        )
-        .localized(lang));
+        return Err(crate::cmd_nodes::not_passed(
+            PnpError::new(
+                Code::PreflightFailed,
+                "use --partial to go on with only what can be placed",
+            )
+            .localized(lang),
+        ));
     }
     let used: Vec<&str> = planned
         .plan

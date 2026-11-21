@@ -62,7 +62,7 @@ fn driver_check_refuses_a_bad_profile_with_its_line_in_the_language_asked() {
     let bad = dir.join("bad.cfg");
     std::fs::write(&bad, "dialect = marlin\nretries = 99\n").unwrap();
     let o = run(&["driver-check", p(&bad), "--lang", "de"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let e = err(&o);
     assert!(e.contains("Zeile 2") && e.contains("retries"), "{e}");
     let o = run(&["driver-check", "examples/nothing.cfg"]);
@@ -85,7 +85,7 @@ fn driver_test_passes_the_examples_and_fails_on_a_row_read_differently() {
     )
     .unwrap();
     let o = run(&["driver-test", MARLIN, p(&t), "--lang", "es"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let text = out(&o);
     assert!(
         text.contains("línea 2") && text.contains("línea 4") && !text.contains("línea 1:"),
@@ -153,7 +153,7 @@ fn driver_run_fails_closed_on_every_fault_and_says_where() {
         ("offset@0.5", "Mismatch"),
     ] {
         let o = run(&["driver-run", BOARD, FEEDERS, MARLIN, "--fault", fault]);
-        assert_eq!(o.status.code(), Some(1), "{fault}");
+        assert_eq!(o.status.code(), Some(2), "{fault}");
         let e = err(&o);
         assert!(e.contains("stopped at") && e.contains(word), "{fault}: {e}");
     }
@@ -190,7 +190,7 @@ fn driver_run_refuses_a_board_the_profile_cannot_reach_before_anything_is_sent()
 }
 
 #[test]
-fn safety_replay_prints_the_levels_and_exits_with_one_when_the_machine_ends_held() {
+fn safety_replay_prints_the_levels_and_exits_with_two_when_the_machine_ends_held() {
     let o = run(&["safety-replay", "examples/safety_events.txt"]);
     assert!(o.status.success(), "{}", err(&o));
     assert!(out(&o).contains("mismatch") && out(&o).contains("slow"));
@@ -198,7 +198,7 @@ fn safety_replay_prints_the_levels_and_exits_with_one_when_the_machine_ends_held
     let f = dir.join("e.txt");
     std::fs::write(&f, "success\nerror\nsuccess\n").unwrap();
     let o = run(&["safety-replay", p(&f), "--profile", MARLIN, "--lang", "fr"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(out(&o).contains("stopped") && out(&o).contains("niveau"));
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -222,7 +222,7 @@ fn homing_repeat_measures_the_spread_and_fails_over_the_limit() {
         "--seed",
         "5",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(err(&o).contains("is over"), "{}", err(&o));
     let o = run(&[
         "homing-repeat",
@@ -281,7 +281,7 @@ fn bringup_passes_on_a_good_machine_and_names_the_step_that_fails() {
     }
     assert!(text.contains("evidence=simulator"));
     let o = run(&["bringup", MARLIN, "--fault", "error@12"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(out(&o).contains("FAIL"), "{}", out(&o));
     assert!(err(&o).contains("steps failed"));
 }

@@ -214,6 +214,9 @@ fn event(name: &'static str, reference: &str, reason: &str) -> HookEvent {
         phase: "finished",
         placed: 4,
         total: 6,
+        nozzle: 0,
+        step: 0,
+        nozzle_state: "",
     }
 }
 
@@ -626,5 +629,197 @@ fn the_dry_run_tells_that_a_rule_names_a_batch_file_and_lists_its_calls() {
     let warn = out.find("warning:").unwrap();
     let placed = out.find("placed 6 of 6").unwrap();
     assert!(warn < placed, "{out}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---- while the job goes
+
+#[test]
+fn the_events_of_a_step_name_the_moment_and_the_state_of_the_nozzle() {
+    use eh3d_phoenix_pnp::hooks::{step_events, STEP_EVENTS};
+    use eh3d_phoenix_pnp::journal::run_observed;
+    let mut j = job("");
+    let mut seen: Vec<(String, usize, String, String)> = Vec::new();
+    let (outcome, rows, _) = run_observed(&mut j, None, 0, &mut |job, s| {
+        for e in step_events(job, s) {
+            seen.push((
+                e.name.to_string(),
+                e.step,
+                e.reference,
+                e.nozzle_state.to_string(),
+            ));
+        }
+    });
+    assert!(outcome.is_ok());
+    assert_eq!(rows.len(), 12);
+    // every event is one of the step events, and each pick and each place is told twice
+    assert!(seen.iter().all(|(n, ..)| STEP_EVENTS.contains(&n.as_str())));
+    let count = |name: &str| seen.iter().filter(|(n, ..)| n == name).count();
+    assert_eq!(count("nozzle-before-pick"), 6);
+    assert_eq!(count("nozzle-after-pick"), 6);
+    assert_eq!(count("nozzle-before-place"), 6);
+    assert_eq!(count("nozzle-after-place"), 6);
+    assert_eq!(count("placement-complete"), 6);
+    // the first step: before the pick the nozzle is picking, after it, carrying
+    assert_eq!(seen[0].0, "nozzle-before-pick");
+    assert_eq!((seen[0].1, seen[0].3.as_str()), (1, "picking"));
+    assert_eq!(seen[1].0, "nozzle-after-pick");
+    assert_eq!(seen[1].3, "carrying");
+    // a place that went well is told, then the part is complete, and the nozzle is idle
+    let at = seen
+        .iter()
+        .position(|(n, ..)| n == "nozzle-after-place")
+        .unwrap();
+    assert_eq!(seen[at].3, "idle");
+    assert_eq!(seen[at + 1].0, "placement-complete");
+    assert_eq!(seen[at + 1].2, seen[at].2);
+}
+
+#[test]
+fn a_pick_that_fails_leaves_the_nozzle_idle_and_says_why() {
+    use eh3d_phoenix_pnp::hooks::step_events;
+    use eh3d_phoenix_pnp::journal::run_observed;
+    let mut j =
+        job("error_policy = alert\nsim_pick_fail_rate = 1\npick_retries = 0\nfault_limit = 0\n");
+    let mut last = None;
+    let (outcome, _, _) = run_observed(&mut j, None, 0, &mut |job, s| {
+        for e in step_events(job, s) {
+            last = Some(e);
+        }
+    });
+    assert!(outcome.is_err());
+    let e = last.unwrap();
+    assert_eq!(e.name, "nozzle-after-pick");
+    assert_eq!(e.nozzle_state, "idle");
+    assert!(!e.reason.is_empty());
+}
+
+#[test]
+fn the_data_of_an_event_go_to_a_program_as_one_bounded_line_of_json() {
+    let mut e = event("nozzle-after-pick", "R\"1\\", "a \"quoted\"\nreason");
+    e.nozzle = 2;
+    e.step = 7;
+    e.nozzle_state = "carrying";
+    let line = e.payload();
+    assert!(!line.contains('\n') && line.len() <= 1024, "{line}");
+    let j: serde_json::Value = serde_json::from_str(&line).unwrap();
+    assert_eq!(j["event"], "nozzle-after-pick");
+    assert_eq!(j["reference"], "R\"1\\");
+    assert_eq!(j["step"], 7);
+    assert_eq!(j["nozzle"], 2);
+    assert_eq!(j["nozzle_state"], "carrying");
+    assert_eq!(j["placed"], 4);
+    // text of any length is cut so that the line stays within the limit
+    e.reason = "x".repeat(100_000);
+    e.reference = "é".repeat(100_000);
+    let long = e.payload();
+    assert!(long.len() <= 1024, "{}", long.len());
+    assert!(serde_json::from_str::<serde_json::Value>(&long).is_ok());
+}
+
+#[test]
+fn the_new_events_are_known_to_the_rules_and_the_new_names_are_filled_in() {
+    for name in [
+        "nozzle-before-pick",
+        "nozzle-after-pick",
+        "nozzle-before-place",
+        "nozzle-after-place",
+        "placement-complete",
+    ] {
+        let rules = parse_rules(&format!(
+            "{name},notify,{{step}},{{nozzle}},{{nozzle_state}}\n"
+        ))
+        .unwrap();
+        assert_eq!(rules[0].event, name);
+        let mut e = event("job-finished", "R1", "");
+        e.name = EVENTS.iter().find(|n| **n == name).unwrap();
+        e.step = 3;
+        e.nozzle = 2;
+        e.nozzle_state = "picking";
+        let (calls, _) = calls_for(&rules, &[e], 5);
+        assert_eq!(calls[0].args, ["3", "2", "picking"], "{name}");
+    }
+    assert!(parse_rules("nozzle-during-pick,notify\n").is_err());
+}
+
+#[test]
+fn simulate_tells_the_hooks_while_the_job_goes_with_a_fixed_seed() {
+    let dir = scratch("steps");
+    plant(&dir, HOOK);
+    let rules = dir.join("steps.csv");
+    std::fs::write(
+        &rules,
+        format!(
+            "nozzle-after-pick,{HOOK},{{step}},{{reference}},{{nozzle_state}}\nplacement-complete,{HOOK},{{reference}}\njob-finished,{HOOK},{{placed}}\n"
+        ),
+    )
+    .unwrap();
+    let cfg = dir.join("steps.cfg");
+    std::fs::write(
+        &cfg,
+        "hooks = on\nhooks_max_runs = 100\nsim_seed = 7\nhooks_timeout_s = 20\n",
+    )
+    .unwrap();
+    let go = |extra: &[&str]| {
+        let mut v = vec![
+            "simulate",
+            "examples/board.pos",
+            "examples/feeders.csv",
+            "--hooks",
+            p(&rules),
+            "--config",
+            p(&cfg),
+        ];
+        v.extend_from_slice(extra);
+        text(&run(&v).stdout)
+    };
+    // the dry run lists the calls in the order of the job: a pick, later its place, and the job last
+    let dry = go(&["--hooks-dry-run"]);
+    let lines: Vec<&str> = dry
+        .lines()
+        .filter(|l| l.starts_with("hook (not run)"))
+        .collect();
+    assert_eq!(lines.len(), 6 + 6 + 1, "{dry}");
+    assert!(
+        lines[0].contains("nozzle-after-pick")
+            && lines[0].contains("\"1\"")
+            && lines[0].contains("\"carrying\""),
+        "{}",
+        lines[0]
+    );
+    assert!(
+        lines.last().unwrap().contains("job-finished") && lines.last().unwrap().contains("\"6\"")
+    );
+    // the same seed gives the same list
+    assert_eq!(dry, go(&["--hooks-dry-run"]));
+    // really run, the programs get the JSON on their input without holding the job up
+    let real = go(&[]);
+    assert!(real.contains("placed 6 of 6"), "{real}");
+    assert_eq!(real.matches("nozzle-after-pick").count(), 6, "{real}");
+    // the limit counts the calls of the whole job, the ones of the steps included
+    let one = dir.join("one.cfg");
+    std::fs::write(
+        &one,
+        "hooks = on\nhooks_max_runs = 3\nsim_seed = 7\nhooks_timeout_s = 20\n",
+    )
+    .unwrap();
+    let limited = text(
+        &run(&[
+            "simulate",
+            "examples/board.pos",
+            "examples/feeders.csv",
+            "--hooks",
+            p(&rules),
+            "--config",
+            p(&one),
+            "--hooks-dry-run",
+        ])
+        .stdout,
+    );
+    assert_eq!(limited.matches("hook (not run)").count(), 3, "{limited}");
+    assert!(
+        limited.contains("more hooks were left out: hooks_max_runs is 3"),
+        "{limited}"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }

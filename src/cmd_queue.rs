@@ -5,6 +5,7 @@
 // and writes the queue after every board, so that the program stopping loses at most the board that was under way. A job whose plan was not confirmed (`queue_confirm`) is not run.
 
 use crate::cli_args::{finish, flag, num, switch};
+use crate::cmd_nodes::fail;
 use crate::cmd_tools::language_and_config;
 use crate::commands::{plan_identity, simulate};
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
@@ -23,6 +24,25 @@ fn store(path: &str, queue: &Queue, lang: eh3d_phoenix_pnp::error::Lang) -> Resu
     queue::write_file(path, queue).map_err(|e| e.localized(lang))
 }
 
+/// The revision the write is to be held to (`--revision TOKEN`, as `table-revision` gives it), when the person gave one.
+fn held_to(args: &mut Vec<String>) -> Result<Option<String>, String> {
+    flag(args, "--revision")
+}
+
+/// Writes the queue, but only if the file is still as it was when `held` was taken (when there is one): a queue that somebody else changed since is not written over.
+fn store_held(
+    path: &str,
+    queue: &Queue,
+    lang: eh3d_phoenix_pnp::error::Lang,
+    held: Option<&str>,
+) -> Result<(), String> {
+    if let Some(token) = held {
+        eh3d_phoenix_pnp::revision::check(path, token, MAX_QUEUE_BYTES)
+            .map_err(|e| e.localized(lang))?;
+    }
+    store(path, queue, lang)
+}
+
 /// The folder of the queue file, as an absolute path: where the relative paths of its entries are taken from.
 pub fn queue_dir(queue_path: &str) -> std::path::PathBuf {
     let parent = Path::new(queue_path)
@@ -37,8 +57,9 @@ fn existing(path: &str, what: &str) -> Result<String, String> {
     if !Path::new(path).is_file() {
         return Err(format!("{what} '{path}': there is no such file"));
     }
+    // kept the way every system reads it: `/` between the names, no `\?\` prefix, no `..`
     std::path::absolute(path)
-        .map(|p| p.to_string_lossy().into_owned())
+        .map(|p| eh3d_phoenix_pnp::pathid::portable(&p.to_string_lossy()))
         .map_err(|e| format!("{path}: {e}"))
 }
 
@@ -64,6 +85,7 @@ pub fn queue_add(mut args: Vec<String>) -> Result<(), String> {
         None => 1,
     };
     let panel = switch(&mut args, "--panel");
+    let held = held_to(&mut args)?;
     let relative_switch = switch(&mut args, "--relative");
     let (lang, _) = language_and_config(&mut args)?;
     finish(&args, 4)?;
@@ -111,7 +133,7 @@ pub fn queue_add(mut args: Vec<String>) -> Result<(), String> {
     }
     let mut q = load(path, lang)?;
     q.add(entry).map_err(|e| e.localized(lang))?;
-    store(path, &q, lang)?;
+    store_held(path, &q, lang, held.as_deref())?;
     println!("added '{name}' to {path}: {} entries", q.len());
     Ok(())
 }
@@ -129,7 +151,7 @@ fn standing(q: &Queue, e: &Entry, need_confirm: bool, dir: &Path) -> Result<Stri
     }
 }
 
-/// `queue-status QUEUE [--check]`: the entries and what became of each. `--check` plans every job that is still to be made and says whether it could be run now; the exit code is 1 when one
+/// `queue-status QUEUE [--check]`: the entries and what became of each. `--check` plans every job that is still to be made and says whether it could be run now; the exit code is 2 when one
 /// could not.
 pub fn queue_status(mut args: Vec<String>) -> Result<(), String> {
     let check = switch(&mut args, "--check");
@@ -153,7 +175,7 @@ pub fn queue_status(mut args: Vec<String>) -> Result<(), String> {
         }
     }
     if blocked > 0 {
-        Err(format!("{blocked} entries cannot be run now"))
+        fail(format!("{blocked} entries cannot be run now"))
     } else {
         Ok(())
     }
@@ -161,6 +183,7 @@ pub fn queue_status(mut args: Vec<String>) -> Result<(), String> {
 
 /// `queue-confirm QUEUE NAME`: records that the person looked at the plan of the entry as it is now and wants it run. When the files or the plan change, the confirmation is void.
 pub fn queue_confirm(mut args: Vec<String>) -> Result<(), String> {
+    let held = held_to(&mut args)?;
     let (lang, _) = language_and_config(&mut args)?;
     finish(&args, 2)?;
     let [path, name] = args.as_slice() else {
@@ -173,13 +196,14 @@ pub fn queue_confirm(mut args: Vec<String>) -> Result<(), String> {
         .clone();
     let id = plan_identity(e.arguments_in(&queue_dir(path)))?;
     q.confirm(name, &id).map_err(|e| e.localized(lang))?;
-    store(path, &q, lang)?;
+    store_held(path, &q, lang, held.as_deref())?;
     println!("confirmed '{name}' for the plan {id}");
     Ok(())
 }
 
 /// `queue-edit QUEUE NAME skip|reset|revoke|remove`: leaves an entry out, puts it back to the start, takes its confirmation back or takes it out of the queue.
 pub fn queue_edit(mut args: Vec<String>) -> Result<(), String> {
+    let held = held_to(&mut args)?;
     let (lang, _) = language_and_config(&mut args)?;
     finish(&args, 3)?;
     let [path, name, action] = args.as_slice() else {
@@ -197,7 +221,7 @@ pub fn queue_edit(mut args: Vec<String>) -> Result<(), String> {
         "remove" => q.remove(name).map_err(l)?,
         other => return Err(format!("'{other}' is not skip, reset, revoke or remove")),
     }
-    store(path, &q, lang)?;
+    store_held(path, &q, lang, held.as_deref())?;
     println!("{action}: '{name}'");
     Ok(())
 }
@@ -227,7 +251,7 @@ impl Drop for Lock {
 
 /// `queue-run QUEUE [--only NAME]`: makes the jobs that are still to be made, in order, a board at a time on the simulated machine. A job runs only when its plan is confirmed
 /// (`queue_confirm`, with `--config` for the settings of the queue); the queue is written after every board; a job that fails stops the queue unless `queue_stop_on_failure` is off.
-/// The exit code is 1 when a job failed or was not run.
+/// The exit code is 2 when a job failed or was not run.
 pub fn queue_run(mut args: Vec<String>) -> Result<(), String> {
     let only = flag(&mut args, "--only")?;
     let (lang, cfg) = language_and_config(&mut args)?;
@@ -296,7 +320,7 @@ pub fn queue_run(mut args: Vec<String>) -> Result<(), String> {
     }
     print!("{}", q.text());
     if problems > 0 {
-        Err(format!("{problems} jobs failed or were not run"))
+        fail(format!("{problems} jobs failed or were not run"))
     } else {
         Ok(())
     }

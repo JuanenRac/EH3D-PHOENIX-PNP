@@ -284,7 +284,7 @@ fn the_probings_that_are_written_are_read_back_to_the_digits_written() {
 #[test]
 fn nozzle_zcal_reads_a_file_or_makes_up_the_probings() {
     let o = run(&["nozzle-zcal", "examples/z_probe.csv"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         out(&o).contains("N1: 4 probings, height 0.0127 mm"),
         "{}",
@@ -537,7 +537,7 @@ fn panel_fids_lists_the_marks_and_fails_when_a_board_cannot_be_aligned() {
     assert!(out(&o).contains("C: marked as bad and left out"));
     // the least distance is a setting and an option
     let o = run(&["panel-fids", "examples/panel_marks.json", "--min-sep", "50"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(out(&o).contains("- too_close"), "{}", out(&o));
     assert!(
         err(&o).contains("2 boards cannot be aligned"),
@@ -553,10 +553,10 @@ fn panel_fids_lists_the_marks_and_fails_when_a_board_cannot_be_aligned() {
         "--config",
         p(&cfg),
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     // the board of the plain example has no mark
     let o = run(&["panel-fids", "examples/panel.json"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(out(&o).contains("- no_mark"), "{}", out(&o));
     // a board marked as bad on the command line
     let o = run(&["panel-fids", "examples/panel_marks.json", "--x-out", "A"]);
@@ -843,7 +843,7 @@ fn tape_steps_walks_the_plan_of_the_tables_and_fails_on_a_reel_that_runs_dry() {
         "--config",
         p(&cfg),
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(err(&o).contains("use --partial"), "{}", err(&o));
     let o = run(&[
         "tape-steps",
@@ -853,7 +853,7 @@ fn tape_steps_walks_the_plan_of_the_tables_and_fails_on_a_reel_that_runs_dry() {
         p(&cfg),
         "--partial",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(out(&o).contains("- reach"), "{}", out(&o));
     assert!(
         err(&o).contains("steps are a fault of the tapes"),
@@ -1180,7 +1180,7 @@ fn shift_oee_fails_under_the_effectiveness_that_is_asked_and_checks_its_options(
         "--min-oee",
         "100",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         err(&o).contains("under the 100% that was asked"),
         "{}",

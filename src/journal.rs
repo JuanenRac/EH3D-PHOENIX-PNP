@@ -32,10 +32,84 @@ pub struct Row {
     pub result: String,
     /// The status of the part after the step: `pending`, `placed`, `deferred` or `skipped`.
     pub status: &'static str,
+    /// What the nozzle is doing after the step: `idle` or `carrying` (see `NozzleState`).
+    pub nozzle_state: &'static str,
+}
+
+/// What a nozzle is doing. A nozzle is `idle` (the vacuum is off and nothing is held), `picking` (the vacuum is on and the part is not held yet), `carrying` (a part is held) or `placing`
+/// (the part is being let go). A step of the journal takes a nozzle through `picking` or `placing`, and the row says where it stands when the step is over.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NozzleState {
+    Idle,
+    Picking,
+    Carrying,
+    Placing,
+}
+
+impl NozzleState {
+    pub const ALL: [NozzleState; 4] = [
+        NozzleState::Idle,
+        NozzleState::Picking,
+        NozzleState::Carrying,
+        NozzleState::Placing,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            NozzleState::Idle => "idle",
+            NozzleState::Picking => "picking",
+            NozzleState::Carrying => "carrying",
+            NozzleState::Placing => "placing",
+        }
+    }
+
+    pub fn parse(text: &str) -> Option<NozzleState> {
+        NozzleState::ALL.into_iter().find(|s| s.name() == text)
+    }
+
+    /// The state of the nozzle while the step goes on.
+    pub fn during(is_pick: bool) -> NozzleState {
+        if is_pick {
+            NozzleState::Picking
+        } else {
+            NozzleState::Placing
+        }
+    }
+
+    /// The state of the nozzle when the step is over: a pick that went well leaves it carrying a part and one that did not, empty; a place that went well leaves it empty and one that did
+    /// not, still carrying the part.
+    pub fn after(is_pick: bool, ok: bool) -> NozzleState {
+        if is_pick == ok {
+            NozzleState::Carrying
+        } else {
+            NozzleState::Idle
+        }
+    }
 }
 
 /// The header of the CSV of a journal.
-pub const HEADER: &str = "step,at_s,took_s,action,reference,feeder,nozzle,result,status";
+pub const HEADER: &str =
+    "step,at_s,took_s,action,reference,feeder,nozzle,result,status,nozzle_state";
+
+/// A moment of a step that an observer is told of: just before the step is done, and just after.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Seen {
+    /// True after the step, false before it.
+    pub after: bool,
+    /// The number of the step, from 1.
+    pub step: usize,
+    pub is_pick: bool,
+    /// The index of the placement in the plan.
+    pub index: usize,
+    /// How the step ended (always true before it).
+    pub ok: bool,
+    /// The label of the error that stopped the step (empty when it went well).
+    pub error: String,
+    pub reference: String,
+    pub feeder: String,
+    /// The nozzle, from 1.
+    pub nozzle: usize,
+}
 
 /// Runs `job` as `Job::run(max_steps)` does and notes every step that is done. The journal is given back whatever happens: when an error stops the job, the last row says which one.
 /// Past `MAX_ROWS` the job goes on and no more rows are kept (`truncated` is true).
@@ -43,6 +117,17 @@ pub fn run_recorded(
     job: &mut Job,
     max_steps: Option<usize>,
     first_step: usize,
+) -> (Result<Phase, PnpError>, Vec<Row>, bool) {
+    run_observed(job, max_steps, first_step, &mut |_, _| {})
+}
+
+/// As `run_recorded`, and tells `observer` of every step twice: before it is done and after, with the job as it stands at that moment. The observer only looks (it has the job by reference),
+/// so a job run with an observer does the same steps as one run without.
+pub fn run_observed(
+    job: &mut Job,
+    max_steps: Option<usize>,
+    first_step: usize,
+    observer: &mut dyn FnMut(&Job, &Seen),
 ) -> (Result<Phase, PnpError>, Vec<Row>, bool) {
     let mut rows: Vec<Row> = Vec::new();
     let mut truncated = false;
@@ -56,10 +141,29 @@ pub fn run_recorded(
             break;
         };
         let placement = job.plan().plan.placements[index].clone();
+        let mut seen = Seen {
+            after: false,
+            step: first_step + done + 1,
+            is_pick,
+            index,
+            ok: true,
+            error: String::new(),
+            reference: placement.reference.clone(),
+            feeder: placement.feeder.clone(),
+            nozzle: placement.nozzle + 1,
+        };
+        observer(job, &seen);
         let began = job.machine().now_us();
         let outcome = job.step();
         let ended = job.machine().now_us();
         done += 1;
+        seen.after = true;
+        seen.ok = outcome.is_ok();
+        seen.error = match &outcome {
+            Ok(()) => String::new(),
+            Err(e) => e.code.label(),
+        };
+        observer(job, &seen);
         if rows.len() >= MAX_ROWS {
             truncated = true;
         } else {
@@ -76,6 +180,7 @@ pub fn run_recorded(
                     Err(e) => e.code.label(),
                 },
                 status: status_name(job.status()[index]),
+                nozzle_state: NozzleState::after(is_pick, outcome.is_ok()).name(),
             });
         }
         if let Err(e) = outcome {
@@ -95,7 +200,7 @@ pub fn csv(rows: &[Row]) -> String {
     out.push('\n');
     for r in rows {
         out.push_str(&format!(
-            "{},{:.3},{:.3},{},{},{},{},{},{}\n",
+            "{},{:.3},{:.3},{},{},{},{},{},{},{}\n",
             r.step,
             r.at_s,
             r.took_s,
@@ -104,7 +209,8 @@ pub fn csv(rows: &[Row]) -> String {
             csv_field(&r.feeder),
             r.nozzle,
             r.result,
-            r.status
+            r.status,
+            r.nozzle_state
         ));
     }
     out

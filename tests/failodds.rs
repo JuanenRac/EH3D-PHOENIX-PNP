@@ -311,7 +311,7 @@ fn the_command_takes_the_rules_and_fails_under_the_chance_that_is_asked_for() {
     let o = run(&base);
     assert!(o.status.success(), "no minimum: it never fails");
     let o = run(&[&base[..], &["--min-ok", "50"]].concat());
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(err(&o).contains("under the 50% asked for"), "{}", err(&o));
     // retries for every package by a rule bring it above 50%
     let rules = dir.join("rules.csv");

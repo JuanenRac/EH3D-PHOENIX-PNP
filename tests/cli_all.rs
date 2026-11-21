@@ -56,7 +56,8 @@ fn no_panic(o: &Output, what: &str) {
     let all = format!("{}{}", text(&o.stdout), text(&o.stderr));
     assert!(!all.contains("panicked"), "{what}: {all}");
     assert!(
-        matches!(o.status.code(), Some(0 | 1)),
+        // 2 is the answer of a command whose check is not passed (a query that finds nothing is one), never a panic
+        matches!(o.status.code(), Some(0..=2)),
         "{what}: exit {:?}",
         o.status.code()
     );
@@ -143,6 +144,8 @@ fn a_command_given_files_that_are_not_there_says_so_and_never_panics() {
     };
     // the queue is a file that may be missing: the queue that is not there has nothing to run
     let empty_is_fine = ["queue-run", "queue-status"];
+    // footprint-find and ipc-name take names, not files: names that are not found or not understood are a check that is not passed
+    let looks_up_names = ["footprint-find", "ipc-name"];
     let files = [file(1), file(2)];
     for n in help_commands() {
         let mut args = vec![n.as_str()];
@@ -150,9 +153,14 @@ fn a_command_given_files_that_are_not_there_says_so_and_never_panics() {
         let o = run(&args);
         no_panic(&o, &format!("{args:?}"));
         if !empty_is_fine.contains(&n.as_str()) {
+            let expected = if looks_up_names.contains(&n.as_str()) {
+                Some(2)
+            } else {
+                Some(1)
+            };
             assert_eq!(
                 o.status.code(),
-                Some(1),
+                expected,
                 "{args:?}: {}{}",
                 text(&o.stdout),
                 text(&o.stderr)

@@ -4,6 +4,7 @@
 // Each one reads its files, calls the library and prints; none of them moves a machine or writes anything but the file named by --out, and a file that exists is never written over.
 
 use crate::cli_args::{finish, flag, num};
+use crate::cmd_nodes::fail;
 use crate::cmd_tools::language_and_config;
 use crate::commands::{read_text, refuse_same_file};
 use eh3d_phoenix_pnp::config::MAX_CONFIG_BYTES;
@@ -16,7 +17,7 @@ use eh3d_phoenix_pnp::{
 };
 
 /// `parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F]`: what changed between two tables of parts, part by part (added, removed, moved, turned, another value, another package,
-/// the other side). The report goes to the screen, or the changes as a CSV to `--out` (never over a file that exists). The exit code is 1 when the tables differ.
+/// the other side). The report goes to the screen, or the changes as a CSV to `--out` (never over a file that exists). The exit code is 2 when the tables differ.
 pub fn parts_diff(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let mut settings = partsdiff::Settings {
@@ -48,12 +49,12 @@ pub fn parts_diff(mut args: Vec<String>) -> Result<(), String> {
     if diff.is_same() {
         Ok(())
     } else {
-        Err(format!("{} parts differ", diff.parts_changed()))
+        fail(format!("{} parts differ", diff.parts_changed()))
     }
 }
 
 /// `config-diff FIRST SECOND [--lang CODE]`: the settings that two configuration files give differently, in what they mean (`yes` and `on`, `5` and `5.0`, and a line that gives the
-/// default are the same as they are). The exit code is 1 when the machines differ.
+/// default are the same as they are). The exit code is 2 when the machines differ.
 pub fn config_diff(mut args: Vec<String>) -> Result<(), String> {
     let lang = match flag(&mut args, "--lang")? {
         Some(l) => Lang::from_code(&l)
@@ -75,12 +76,12 @@ pub fn config_diff(mut args: Vec<String>) -> Result<(), String> {
     if diff.is_same() {
         Ok(())
     } else {
-        Err(format!("{} settings differ", diff.changes.len()))
+        fail(format!("{} settings differ", diff.changes.len()))
     }
 }
 
 /// `board-stats PARTS [--near MM] [--limit N]`: what the table holds (the parts on each side, the kinds, a line for each package, the box of the centres) and, with `--near`, the pairs of
-/// parts of one side whose centres are closer than that distance. The exit code is 1 when `--near` finds a pair.
+/// parts of one side whose centres are closer than that distance. The exit code is 2 when `--near` finds a pair.
 pub fn board_stats(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let near = match flag(&mut args, "--near")? {
@@ -109,12 +110,12 @@ pub fn board_stats(mut args: Vec<String>) -> Result<(), String> {
     if pairs.is_empty() {
         Ok(())
     } else {
-        Err(format!("{} pairs of parts are too near", pairs.len()))
+        fail(format!("{} pairs of parts are too near", pairs.len()))
     }
 }
 
 /// `queue-stock QUEUE [--out F] [--config F]`: whether the feeders hold enough parts for all the jobs of the queue that are still to be made, one after the other, and the job in which
-/// each reel that falls short runs out. Jobs that share a table of feeders share its reels; a panel is not counted (the line says so). The exit code is 1 when a reel falls short.
+/// each reel that falls short runs out. Jobs that share a table of feeders share its reels; a panel is not counted (the line says so). The exit code is 2 when a reel falls short.
 pub fn queue_stock(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let out = flag(&mut args, "--out")?;
@@ -133,7 +134,7 @@ pub fn queue_stock(mut args: Vec<String>) -> Result<(), String> {
     if found.short == 0 {
         Ok(())
     } else {
-        Err(format!(
+        fail(format!(
             "{} kinds of part fall short for the queue",
             found.short
         ))
@@ -142,7 +143,7 @@ pub fn queue_stock(mut args: Vec<String>) -> Result<(), String> {
 
 /// `feeder-deplete FEEDERS --state STATE [--out F]`: the table of feeders as it stands after the job that the saved state (`simulate --state`) is of: the count of each feeder is what is left
 /// and the next place of a strip moves along. Without `--out` it only says what each feeder gave; with it the table is written (never over a file that exists, and never over the table
-/// that was read). The exit code is 1 when a feeder is low or empty.
+/// that was read). The exit code is 2 when a feeder is low or empty.
 pub fn feeder_deplete(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let state = flag(&mut args, "--state")?.ok_or("feeder-deplete needs --state FILE")?;
@@ -167,7 +168,7 @@ pub fn feeder_deplete(mut args: Vec<String>) -> Result<(), String> {
     if result.low() == 0 {
         Ok(())
     } else {
-        Err(format!("{} feeders are low or empty", result.low()))
+        fail(format!("{} feeders are low or empty", result.low()))
     }
 }
 
@@ -208,7 +209,7 @@ pub fn feeder_refill(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// `job-diff FIRST SECOND [--out F]`: what differs between two files of `job-export`, part by part and in the plan as a whole. The report goes to the screen, or the differences as a table to
-/// `--out` (never over a file that exists, and never over a file that was read). The exit code is 1 when the jobs differ.
+/// `--out` (never over a file that exists, and never over a file that was read). The exit code is 2 when the jobs differ.
 pub fn job_diff(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let out = flag(&mut args, "--out")?;
@@ -232,13 +233,13 @@ pub fn job_diff(mut args: Vec<String>) -> Result<(), String> {
     if found.is_same() {
         Ok(())
     } else {
-        Err(format!("{} parts differ", found.parts_changed()))
+        fail(format!("{} parts differ", found.parts_changed()))
     }
 }
 
 /// `queue-changeover QUEUE [--out F] [--config F]`: what has to be changed on the feeders between one job of the queue and the next, for the jobs that are still to be made: the feeders that
 /// hold another kind of part (a reel to change), the ones that are switched on for the next job only (a reel to put in), the ones it does not use (a reel that may stay) and how many stay as
-/// they are. The report goes to the screen, or the table to `--out` (never over a file that exists, and never over a file that was read). The exit code is 1 when a reel has to be changed or put in.
+/// they are. The report goes to the screen, or the table to `--out` (never over a file that exists, and never over a file that was read). The exit code is 2 when a reel has to be changed or put in.
 pub fn queue_changeover(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let out = flag(&mut args, "--out")?;
@@ -257,7 +258,7 @@ pub fn queue_changeover(mut args: Vec<String>) -> Result<(), String> {
     if found.work == 0 {
         Ok(())
     } else {
-        Err(format!(
+        fail(format!(
             "{} reels have to be changed or put in between the jobs",
             found.work
         ))

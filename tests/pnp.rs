@@ -714,10 +714,10 @@ fn the_command_line_plans_writes_and_refuses_a_board_the_feeders_do_not_cover() 
         out.to_str().unwrap(),
     );
     let check = cli(&["check", p, f]);
-    assert_eq!(check.status.code(), Some(1));
+    assert_eq!(check.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&check.stdout).contains("no feeder for U1"));
     let refused = cli(&["plan", p, f, o]);
-    assert_eq!(refused.status.code(), Some(1));
+    assert_eq!(refused.status.code(), Some(2));
     assert!(!out.exists(), "a refused plan must not leave a file behind");
     let partial = cli(&["plan", p, f, o, "--partial", "--nozzles", "2"]);
     assert!(

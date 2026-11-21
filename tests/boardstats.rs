@@ -171,7 +171,7 @@ fn run(args: &[&str]) -> Output {
 }
 
 #[test]
-fn the_command_prints_the_counts_and_exits_with_1_only_when_near_finds_a_pair() {
+fn the_command_prints_the_counts_and_exits_with_2_only_when_near_finds_a_pair() {
     let o = run(&["board-stats", "examples/board.pos"]);
     let out = String::from_utf8_lossy(&o.stdout).into_owned();
     assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));

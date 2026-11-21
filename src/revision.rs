@@ -41,6 +41,32 @@ pub fn read(path: &str, max_bytes: u64) -> Result<(String, String), PnpError> {
     Ok((text, token))
 }
 
+/// Holds a write to the revision that was read: gives the revision the file has now when it is `expected`, and refuses (writing nothing) when the file changed, is gone or was never there.
+pub fn check(path: &str, expected: &str, max_bytes: u64) -> Result<String, PnpError> {
+    if !is_token(expected) {
+        return Err(failed(
+            path,
+            format!("'{expected}' is not a revision ({TOKEN_CHARS} hexadecimal digits)"),
+        ));
+    }
+    if !Path::new(path).is_file() {
+        return Err(failed(
+            path,
+            "there is no file to replace, so no revision to hold it to",
+        ));
+    }
+    let (_, now) = read(path, max_bytes)?;
+    if now != expected {
+        return Err(PnpError::new(
+            Code::ReportExists,
+            format!(
+                "{path} changed since it was read (revision {now}, not {expected}): read it again"
+            ),
+        ));
+    }
+    Ok(now)
+}
+
 /// Replaces the file `path` with `text` if its revision is still `expected`, and gives the revision of the new content. A file that changed, that is gone or that was never there is
 /// refused, and nothing is written.
 pub fn replace(path: &str, expected: &str, text: &str, max_bytes: u64) -> Result<String, PnpError> {

@@ -623,7 +623,7 @@ fn the_readings_of_the_command_are_what_part_inspect_reads() {
         "--sizes",
         "examples/package_sizes.csv",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     // R2 and C1 are the wrong ones that were read; the third wrong one is the QFN, which does not fit the picture
     assert!(
         text(&o.stderr).contains("4 accepted, 2 refused"),

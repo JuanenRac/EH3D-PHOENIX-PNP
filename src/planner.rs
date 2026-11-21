@@ -90,6 +90,10 @@ struct Item {
     kind: String,
     reference: String,
     feeder_id: String,
+    /// The board of a panel the place belongs to (empty for a single board).
+    unit: String,
+    /// The area of the body from the table of packages (0 when it is not known).
+    area: f64,
 }
 
 fn dist(a: (f64, f64), b: (f64, f64)) -> f64 {
@@ -158,6 +162,36 @@ fn order_group(
     start: (f64, f64),
     cfg: &MachineConfig,
 ) -> Vec<usize> {
+    // a list of keys (`placement_order`) takes the place of the single order
+    if !cfg.placement_order.is_empty() {
+        let mut how_many: BTreeMap<(&str, &str), usize> = BTreeMap::new();
+        for &k in idx {
+            *how_many
+                .entry((items[k].unit.as_str(), items[k].kind.as_str()))
+                .or_default() += 1;
+        }
+        let row = |k: usize| crate::placeorder::Row {
+            unit: items[k].unit.clone(),
+            feeder: items[k].feeder_id.clone(),
+            part: items[k].kind.clone(),
+            height: items[k].height,
+            area: items[k].area,
+            quantity: how_many
+                .get(&(items[k].unit.as_str(), items[k].kind.as_str()))
+                .copied()
+                .unwrap_or(0),
+        };
+        let mut out = Vec::with_capacity(idx.len());
+        let mut at = start;
+        for g in crate::placeorder::groups(&cfg.placement_order, idx, &row) {
+            let w = walk(items, &g, at, cfg);
+            if let Some(&last) = w.last() {
+                at = items[last].at;
+            }
+            out.extend(w);
+        }
+        return out;
+    }
     match cfg.order {
         OrderStrategy::None => idx.to_vec(),
         OrderStrategy::Nearest => walk(items, idx, start, cfg),
@@ -503,6 +537,10 @@ pub fn plan_advanced(
             kind: p.key(),
             reference: p.reference.clone(),
             feeder_id: f.base.id.clone(),
+            unit: crate::placeorder::unit_of(&p.reference),
+            area: catalog
+                .body_size(p)
+                .map_or(0.0, |(long, short)| long * short),
         });
     }
     // the canonical order: by reference, so that the order of the files does not change the plan

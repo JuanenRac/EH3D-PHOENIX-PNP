@@ -5,6 +5,7 @@
 // Each one reads its files, calls the library and prints; none of them moves a machine or writes anything but the file named by --out, and a file that exists is never written over.
 
 use crate::cli_args::{finish, flag, num, switch};
+use crate::cmd_nodes::fail;
 use crate::cmd_tools::language_and_config;
 use crate::commands::{read_text, refuse_same_file};
 use eh3d_phoenix_pnp::asmexport::{self, Format, Sides, Unit};
@@ -144,7 +145,7 @@ pub fn camera_selftest(mut args: Vec<String>) -> Result<(), String> {
     if test.within(tol) {
         Ok(())
     } else {
-        Err(format!(
+        fail(format!(
             "the camera that was found is {:.4} mm from the true one, over {tol} mm",
             test.max_mm
         ))
@@ -170,7 +171,7 @@ pub fn machine_template(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// `lot-trace PARTS FEEDERS LOTS [--serial S] [--out F]`: the lot of the reel that each placed part came from, by the lots that the table `feeder,lot[,reel][,date_code][,supplier]` says are in
-/// the feeders. `--out` writes a row for each part (with `--serial` as the board). The exit code is 1 when a part has no feeder or a feeder that gives parts has no lot.
+/// the feeders. `--out` writes a row for each part (with `--serial` as the board). The exit code is 2 when a part has no feeder or a feeder that gives parts has no lot.
 pub fn lot_trace(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let serial = flag(&mut args, "--serial")?.unwrap_or_default();
@@ -197,7 +198,7 @@ pub fn lot_trace(mut args: Vec<String>) -> Result<(), String> {
     if found.is_complete() {
         Ok(())
     } else {
-        Err("some parts have no lot".into())
+        fail("some parts have no lot".into())
     }
 }
 
@@ -235,7 +236,7 @@ pub fn export_assembler(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// `split-job PARTS FEEDERS --machines N [--out F]`: the feeders (and so the parts) shared between N machines so that each has about the same work. `--out` writes a row for each part. The
-/// exit code is 1 when a part has no feeder.
+/// exit code is 2 when a part has no feeder.
 pub fn split_job(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let machines = whole(
@@ -264,7 +265,7 @@ pub fn split_job(mut args: Vec<String>) -> Result<(), String> {
     if found.without_feeder.is_empty() {
         Ok(())
     } else {
-        Err(format!(
+        fail(format!(
             "{} parts have no feeder",
             found.without_feeder.len()
         ))
@@ -272,7 +273,7 @@ pub fn split_job(mut args: Vec<String>) -> Result<(), String> {
 }
 
 /// `failure-odds PARTS FEEDERS [--rules F] [--min-ok PERCENT] [--out F]`: the chance that a board goes through with no part in error, from the chances of failure and the retries of the
-/// settings (and, by package, of a file of rules). `--out` writes a row for each package. The exit code is 1 when the chance is under `--min-ok` (0 by default: never).
+/// settings (and, by package, of a file of rules). `--out` writes a row for each package. The exit code is 2 when the chance is under `--min-ok` (0 by default: never).
 pub fn failure_odds(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let rules_path = flag(&mut args, "--rules")?;
@@ -307,7 +308,7 @@ pub fn failure_odds(mut args: Vec<String>) -> Result<(), String> {
         deliver(&odds.csv(), Some(o), &inputs, lang)?;
     }
     if odds.board_ok * 100.0 < min_ok {
-        Err(format!(
+        fail(format!(
             "{:.3}% of the boards go through with no error, under the {min_ok}% asked for",
             odds.board_ok * 100.0
         ))
@@ -378,7 +379,7 @@ fn refuse_existing(out: Option<&str>, lang: Lang) -> Result<(), String> {
 /// bed (`nozzle,z_mm`, from FILE) or from probings that are made up (`--simulate`: the heights of the tips are made up between plus and minus half of `--spread`, and every probing reads its
 /// height with `--noise`). Gives each tip's mean height, how much its probings differ, its offset from the mean of the tips and its correction, and whether it is out of line (over `--tol`, the
 /// `nozzle_z_tol_mm` of the settings), noisy or probed once. With `--simulate` it also says how far the offsets are from the heights that were made up. `--out` writes the table and
-/// `--readings-out` the made-up probings, never over a file that exists. The exit code is 1 when a tip needs a look.
+/// `--readings-out` the made-up probings, never over a file that exists. The exit code is 2 when a tip needs a look.
 pub fn nozzle_zcal(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let simulate = switch(&mut args, "--simulate");
@@ -448,13 +449,13 @@ pub fn nozzle_zcal(mut args: Vec<String>) -> Result<(), String> {
     }
     match report.problems() {
         0 => Ok(()),
-        n => Err(format!("{n} nozzles need a look")),
+        n => fail(format!("{n} nozzles need a look")),
     }
 }
 
 /// `panel-fids PANEL [--x-out P2,P5] [--min-sep MM] [--out F]`: the marks of every board of a panel (the parts of its file that are marks: `FID1`, or a part with a word of `fiducial_words`)
 /// in the coordinates of the panel, with the place and the turn of the board counted in, and which boards cannot be aligned by their own marks: none, only one, or the farthest two closer than
-/// `--min-sep` (the `panel_fid_min_sep_mm` of the settings). A board marked as bad is left out. `--out` writes a row for each mark, never over a file that exists. The exit code is 1 when a
+/// `--min-sep` (the `panel_fid_min_sep_mm` of the settings). A board marked as bad is left out. `--out` writes a row for each mark, never over a file that exists. The exit code is 2 when a
 /// board cannot be aligned.
 pub fn panel_fids(mut args: Vec<String>) -> Result<(), String> {
     let (lang, mut cfg) = language_and_config(&mut args)?;
@@ -494,7 +495,7 @@ pub fn panel_fids(mut args: Vec<String>) -> Result<(), String> {
     }
     match report.problems() {
         0 => Ok(()),
-        n => Err(format!("{n} boards cannot be aligned by their own marks")),
+        n => fail(format!("{n} boards cannot be aligned by their own marks")),
     }
 }
 

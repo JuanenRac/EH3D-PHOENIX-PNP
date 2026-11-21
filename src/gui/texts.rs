@@ -435,11 +435,16 @@ pub enum Text {
     NodeCut,
     NodeJam,
     NodeSimOnly,
+    SlotsSave,
+    SlotsFileAgain,
+    SlotsChanged,
+    SlotsSaved,
+    SlotsUnsaved,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::NodeSimOnly as usize + 1;
+    pub const COUNT: usize = Text::SlotsUnsaved as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -977,4 +982,9 @@ static TABLE: &[[&str; 8]] = &[
     ["Link to the head cut (simulation)", "Enlace con el cabezal cortado (simulación)", "Verbindung zum Kopf getrennt (Simulation)", "Liaison avec la tête coupée (simulation)", "Collegamento con la testa interrotto (simulazione)", "ヘッドとのリンクを切る（模擬）", "与吸头的链路切断（模拟）", "Ligação à cabeça cortada (simulação)"],
     ["Feeder 2 jammed (simulation)", "Alimentador 2 atascado (simulación)", "Zuführung 2 verklemmt (Simulation)", "Alimentateur 2 bloqué (simulation)", "Alimentatore 2 inceppato (simulazione)", "フィーダー 2 が詰まる（模擬）", "供料器 2 卡住（模拟）", "Alimentador 2 encravado (simulação)"],
     ["These nodes are made up: nothing here talks to a real node.", "Estos nodos son simulados: nada aquí habla con un nodo real.", "Diese Knoten sind simuliert: Nichts hier spricht mit einem echten Knoten.", "Ces nœuds sont simulés : rien ici ne parle à un vrai nœud.", "Questi nodi sono simulati: nulla qui parla con un nodo reale.", "これらのノードは模擬です。実際のノードとは通信しません。", "这些节点是模拟的：这里不与任何真实节点通信。", "Estes nós são simulados: nada aqui fala com um nó real."],
+    ["Save the table", "Guardar la tabla", "Tabelle speichern", "Enregistrer la table", "Salva la tabella", "表を保存", "保存表", "Guardar a tabela"],
+    ["Read the file again", "Leer el fichero otra vez", "Datei neu lesen", "Relire le fichier", "Rileggi il file", "ファイルを読み直す", "重新读取文件", "Ler o ficheiro outra vez"],
+    ["The file changed since it was read: read it again before saving", "El fichero cambió desde que se leyó: léelo otra vez antes de guardar", "Die Datei hat sich seit dem Lesen geändert: vor dem Speichern neu lesen", "Le fichier a changé depuis sa lecture : relisez-le avant d'enregistrer", "Il file è cambiato dopo la lettura: rileggilo prima di salvare", "読み込み後にファイルが変更されました。保存の前に読み直してください", "文件在读取后已更改：保存前请重新读取", "O ficheiro mudou desde que foi lido: leia-o outra vez antes de guardar"],
+    ["Table saved", "Tabla guardada", "Tabelle gespeichert", "Table enregistrée", "Tabella salvata", "表を保存しました", "表已保存", "Tabela guardada"],
+    ["changed, not saved", "cambiada, sin guardar", "geändert, nicht gespeichert", "modifiée, non enregistrée", "modificata, non salvata", "変更あり・未保存", "已更改，未保存", "alterada, por guardar"],
 ];

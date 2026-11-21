@@ -5,6 +5,7 @@
 // The token of the settings is sent to the server and never printed.
 
 use crate::cli_args::{finish, flag, num, switch};
+use crate::cmd_nodes::fail;
 use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
 use eh3d_phoenix_pnp::config::MachineConfig;
@@ -62,7 +63,7 @@ fn print_progress(last: &mut Option<(String, u64)>, info: &JobInfo) {
 /// `server-send PARTS FEEDERS [--offset X,Y] [--keep-feeders] [--start] [--follow] [--timeout S] [--sim] [--partial] [--dry-run]`: puts the table of feeders on the machine of the server (unless
 /// `--keep-feeders`), prepares the placements as a job and, with `--start` or `--follow`, starts it; `--follow` reads the job until it is over. The parts that no feeder holds are told, and
 /// with no `--partial` they stop the command. `--dry-run` asks the server to go through the job without taking a part off a feeder. `--sim` does it all against a server in memory, to see what
-/// would be sent. The exit code is 1 when the job did not end `done`.
+/// would be sent. The exit code is 2 when the job did not end `done`.
 pub fn server_send(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let sim = switch(&mut args, "--sim");
@@ -172,7 +173,7 @@ pub fn server_send(mut args: Vec<String>) -> Result<(), String> {
     if end.state == "done" {
         Ok(())
     } else {
-        Err(format!("the job did not end done: {}", end.line()))
+        fail(format!("the job did not end done: {}", end.line()))
     }
 }
 
@@ -318,7 +319,7 @@ fn whole(text: &str, what: &str, hi: u64) -> Result<u64, String> {
 
 /// `server-feeders [list | set SLOT PART COUNT | clear SLOT] [--sim] [--out F]`: the feeders that the machine of the server holds, with where each is picked from and its calibration (`list`, the
 /// default), a slot declared or refilled at once with no job (`set`) or a slot emptied (`clear`); `set` and `clear` print the table after the change. `--out` writes the table as a CSV, never over
-/// a file that exists. A machine that is running a job refuses a change. The exit code is 1 when a feeder holds no parts.
+/// a file that exists. A machine that is running a job refuses a change. The exit code is 2 when a feeder holds no parts.
 pub fn server_feeders(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let sim = switch(&mut args, "--sim");
@@ -349,13 +350,13 @@ pub fn server_feeders(mut args: Vec<String>) -> Result<(), String> {
     }
     match table.empty_count() {
         0 => Ok(()),
-        n => Err(format!("{n} feeders hold no parts")),
+        n => fail(format!("{n} feeders hold no parts")),
     }
 }
 
 /// `server-calibrate feeder|nozzle|camera TARGET [--offset X,Y] [--timeout S] [--sim]`: makes a calibration job on the machine of the server, starts it and follows it to its end. The target of a
 /// feeder is its slot; the one of a nozzle or a camera is a name. The offset (up to 5 mm on each axis, 0 when it is not given) is the one the command brings: the machine of the server measures
-/// nothing today. For a feeder the table is printed after the job, so that the calibration can be read. The exit code is 1 when the job did not end `done`.
+/// nothing today. For a feeder the table is printed after the job, so that the calibration can be read. The exit code is 2 when the job did not end `done`.
 pub fn server_calibrate(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let sim = switch(&mut args, "--sim");
@@ -404,6 +405,6 @@ pub fn server_calibrate(mut args: Vec<String>) -> Result<(), String> {
     if end.state == "done" {
         Ok(())
     } else {
-        Err(format!("the calibration did not end done: {}", end.line()))
+        fail(format!("the calibration did not end done: {}", end.line()))
     }
 }

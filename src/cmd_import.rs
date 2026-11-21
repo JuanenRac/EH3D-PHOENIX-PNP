@@ -6,6 +6,7 @@
 
 use crate::cli_args::{finish, flag, num, switch};
 use crate::cmd_flow::{deliver, whole};
+use crate::cmd_nodes::fail;
 use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
 use eh3d_phoenix_pnp::assist::{self, Answer, Assist, Order};
@@ -117,7 +118,7 @@ pub fn import_openpnp(mut args: Vec<String>) -> Result<(), String> {
         }
     }
     if errors > 0 {
-        Err(format!("{errors} rows could not be read"))
+        fail(format!("{errors} rows could not be read"))
     } else {
         Ok(())
     }
@@ -264,7 +265,7 @@ pub fn assist_cmd(mut args: Vec<String>) -> Result<(), String> {
     }
     let (placed, skipped, total) = walk.progress();
     if placed + skipped < total || skipped > 0 {
-        Err(format!("{} parts are not placed", total - placed))
+        fail(format!("{} parts are not placed", total - placed))
     } else {
         Ok(())
     }
@@ -342,7 +343,7 @@ fn walk_process(
         }
     }
     if quit || left > 0 || !process.finished() {
-        Err(format!(
+        fail(format!(
             "the process is not finished: {} of {} phases are done, {left} parts are not placed",
             process.progress().0,
             total
@@ -418,7 +419,7 @@ pub fn align_iterate(mut args: Vec<String>) -> Result<(), String> {
     if result.outcome == lookmove::Outcome::Aligned {
         Ok(())
     } else {
-        Err(format!("the head did not align: {}", result.outcome.name()))
+        fail(format!("the head did not align: {}", result.outcome.name()))
     }
 }
 
@@ -439,7 +440,7 @@ pub fn vacuum_calibrate(mut args: Vec<String>) -> Result<(), String> {
         None => print!("{text}"),
     }
     if proposal.thresholds.is_none() {
-        Err("the readings with and without a part overlap".into())
+        fail("the readings with and without a part overlap".into())
     } else {
         Ok(())
     }

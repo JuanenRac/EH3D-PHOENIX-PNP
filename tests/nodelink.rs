@@ -430,3 +430,66 @@ fn the_command_runs_a_job_on_made_up_nodes_with_the_same_text_for_the_same_seed(
     assert_eq!(node_sim(&["--steps", "0"]).0, 1);
     assert_eq!(node_sim(&["--oops"]).0, 1);
 }
+
+/// A node that answers every question with one status and one body, to see what the common client lets through of a refusal.
+struct Fixed(u16, &'static str);
+
+impl eh3d_serverclient::Transport for Fixed {
+    fn send(
+        &self,
+        _request: &eh3d_serverclient::Request,
+    ) -> Result<eh3d_serverclient::Reply, eh3d_serverclient::TransportError> {
+        Ok(eh3d_serverclient::Reply::new(self.0, self.1))
+    }
+}
+
+fn link_to(status: u16, body: &'static str) -> ScNodeLink {
+    ScNodeLink::new("node:1", "t", 2, 0, Box::new(Fixed(status, body))).without_waiting()
+}
+
+#[test]
+fn the_reason_of_a_refusal_over_the_common_client_is_its_code_or_its_detail() {
+    // the `error` of the answer is the reason the common client keeps
+    let mut l = link_to(
+        409,
+        "{\"error\":\"busy\",\"detail\":\"a pick is under way\"}",
+    );
+    assert_eq!(
+        refused(l.call("POST", "/api/nozzle/pick?n=1", true).unwrap_err()),
+        (409, Some("busy".to_string()))
+    );
+    // with no code, the detail
+    let mut l = link_to(409, "{\"detail\":\"a pick is under way\"}");
+    assert_eq!(
+        refused(l.call("POST", "/api/nozzle/pick?n=1", true).unwrap_err()),
+        (409, Some("a pick is under way".to_string()))
+    );
+    // with neither, the status alone: the `why` of the node is not kept by the client (see docs/COMMON_REQUESTS.md)
+    let mut l = link_to(409, "{\"ok\":false,\"why\":\"not_holding\"}");
+    assert_eq!(
+        refused(l.call("POST", "/api/nozzle/place?n=1", true).unwrap_err()),
+        (409, None)
+    );
+    // a refusal that is not JSON is still a refusal
+    let mut l = link_to(500, "boom");
+    assert_eq!(
+        refused(l.call("GET", "/api/state", false).unwrap_err()),
+        (500, None)
+    );
+}
+
+#[test]
+fn a_node_that_refuses_the_token_is_asked_again_with_it_and_a_link_that_is_fixed_is_never_logged_out(
+) {
+    let mut l = link_to(401, "{\"error\":\"unauthorized\"}");
+    // refused, and refused again: the token of a node is fixed in the settings, so the client forgetting it after the first refusal must not turn the second into silence or a login error
+    for _ in 0..3 {
+        assert_eq!(
+            l.call("POST", "/api/stop", true).unwrap_err(),
+            LinkError::Unauthorized
+        );
+    }
+    // the answer of a node that accepts it comes back whole
+    let mut ok = link_to(200, "{\"ok\":true}");
+    assert_eq!(ok.call("POST", "/api/stop", true).unwrap(), "{\"ok\":true}");
+}

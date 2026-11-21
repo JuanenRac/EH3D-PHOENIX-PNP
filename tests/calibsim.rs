@@ -219,7 +219,7 @@ fn the_command_fails_when_the_error_is_over_the_tolerance() {
         "--tol",
         "0.0001",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(err(&o).contains("over 0.0001 mm"), "{}", err(&o));
     assert!(out(&o).contains("over 0.0001 mm"));
     let ok = run(&["camera-selftest", "--noise", "0", "--tol", "0.0001"]);

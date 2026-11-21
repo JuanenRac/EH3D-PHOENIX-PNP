@@ -85,7 +85,7 @@ fn the_csv_has_the_header_and_a_row_for_each_step() {
     assert_eq!(lines.len(), rows.len() + 1);
     assert!(lines[1].starts_with("1,0.000,"), "{}", lines[1]);
     for l in &lines[1..] {
-        assert_eq!(l.split(',').count(), 9, "{l}");
+        assert_eq!(l.split(',').count(), 10, "{l}");
     }
     assert_eq!(
         summary(&rows),
@@ -228,4 +228,43 @@ fn the_journal_of_a_cut_job_has_the_steps_that_were_done() {
     let text = std::fs::read_to_string(&file).unwrap();
     assert_eq!(text.lines().count(), 4);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn every_row_says_what_the_nozzle_is_doing_after_the_step() {
+    use eh3d_phoenix_pnp::journal::NozzleState;
+    let mut j = job();
+    let (_, rows, _) = run_recorded(&mut j, None, 0);
+    for r in &rows {
+        let want = if r.action == "pick" {
+            "carrying"
+        } else {
+            "idle"
+        };
+        assert_eq!(r.nozzle_state, want, "step {}", r.step);
+    }
+    // the last column of the file
+    let text = csv(&rows);
+    assert!(HEADER.ends_with(",nozzle_state"));
+    let first = text.lines().nth(1).unwrap();
+    assert!(first.ends_with(",pending,carrying"), "{first}");
+    // the four states, their names, and the rule for what a step leaves
+    for s in NozzleState::ALL {
+        assert_eq!(NozzleState::parse(s.name()), Some(s));
+    }
+    assert_eq!(NozzleState::parse("holding"), None);
+    assert_eq!(NozzleState::during(true), NozzleState::Picking);
+    assert_eq!(NozzleState::during(false), NozzleState::Placing);
+    assert_eq!(NozzleState::after(true, true), NozzleState::Carrying);
+    assert_eq!(NozzleState::after(true, false), NozzleState::Idle);
+    assert_eq!(NozzleState::after(false, true), NozzleState::Idle);
+    assert_eq!(NozzleState::after(false, false), NozzleState::Carrying);
+}
+
+#[test]
+fn a_journal_from_before_the_column_is_still_read_by_the_views() {
+    let old = "step,at_s,took_s,action,reference,feeder,nozzle,result,status\n1,0,1,pick,R1,F1,1,ok,pending\n2,1,1,place,R1,F1,1,ok,placed\n";
+    let found = eh3d_phoenix_pnp::busy::read_journal(old);
+    assert!(found.is_ok(), "{found:?}");
+    assert_eq!(found.unwrap().len(), 2);
 }

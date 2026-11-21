@@ -85,12 +85,12 @@ fn import_openpnp_writes_the_three_tables_and_the_program_plans_with_them() {
 }
 
 #[test]
-fn import_openpnp_says_in_the_language_asked_what_it_could_not_read_and_exits_with_one() {
+fn import_openpnp_says_in_the_language_asked_what_it_could_not_read_and_exits_with_two() {
     let dir = temp("bad");
     let bad = dir.join("parts.xml");
     std::fs::write(&bad, "<openpnp-parts>\n<part id=\"a\" package-id=\"P\" height=\"1\" height-units=\"Cubits\"/>\n</openpnp-parts>").unwrap();
     let o = run(&["import-openpnp", "--parts", p(&bad), "--lang", "de"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let text = out(&o);
     assert!(
         text.contains("Zeile 2") && text.contains("Cubits") && text.contains("Fehler"),
@@ -104,7 +104,7 @@ fn import_openpnp_says_in_the_language_asked_what_it_could_not_read_and_exits_wi
     let bomb = dir.join("bomb.xml");
     std::fs::write(&bomb, "<!DOCTYPE x [<!ENTITY a \"aaaa\">]><openpnp-parts/>").unwrap();
     let o = run(&["import-openpnp", "--parts", p(&bomb)]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(out(&o).contains("document type"), "{}", out(&o));
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -139,7 +139,7 @@ fn assist_walks_the_board_with_the_answers_of_a_file_and_writes_the_checklist() 
 }
 
 #[test]
-fn assist_with_a_wrong_reference_does_not_move_and_exits_with_one_when_parts_are_left() {
+fn assist_with_a_wrong_reference_does_not_move_and_exits_with_two_when_parts_are_left() {
     let dir = temp("assist_wrong");
     let ans = dir.join("a.txt");
     std::fs::write(&ans, "R1\nC1\nback\nquit\n").unwrap();
@@ -151,7 +151,7 @@ fn assist_with_a_wrong_reference_does_not_move_and_exits_with_one_when_parts_are
         "--lang",
         "es",
     ]);
-    assert_eq!(o.status.code(), Some(1), "{}", out(&o));
+    assert_eq!(o.status.code(), Some(2), "{}", out(&o));
     let text = out(&o);
     assert!(
         text.contains("'R1' no es la pieza que toca ahora; la pieza es C1"),
@@ -190,7 +190,7 @@ fn assist_reads_the_answers_from_the_keyboard_when_there_is_no_file_and_can_resu
         stdin.write_all(b"C1\nC2\nquit\n").unwrap();
     }
     let o = child.wait_with_output().unwrap();
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let csv = std::fs::read_to_string(&list).unwrap();
     assert!(csv.contains("C1,placed\nC2,placed\nR1,pending"), "{csv}");
     let ans = dir.join("a.txt");
@@ -216,7 +216,7 @@ fn align_iterate_aligns_a_made_up_camera_and_fails_when_it_cannot() {
     assert!(o.status.success(), "{}{}", out(&o), err(&o));
     assert!(out(&o).contains("aligned:") && out(&o).contains("evidence=simulator"));
     let o = run(&["align-iterate", "--error", "50,0"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(err(&o).contains("not_converged"));
     let o = run(&["align-iterate", "--blind", "1"]);
     assert!(err(&o).contains("unreadable"));
@@ -232,7 +232,7 @@ fn align_iterate_takes_its_figures_from_the_settings_and_the_options_win() {
     let cfg = dir.join("m.cfg");
     std::fs::write(&cfg, "lml_max_step_mm = 0.05\nlml_max_iterations = 2\n").unwrap();
     let o = run(&["align-iterate", "--config", p(&cfg)]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(err(&o).contains("not_converged"));
     let o = run(&[
         "align-iterate",
@@ -259,7 +259,7 @@ fn vacuum_calibrate_prints_the_lines_for_the_settings_and_fails_on_an_overlap() 
     let bad = dir.join("r.csv");
     std::fs::write(&bad, "state,kpa\nfree,30\nheld,20\n").unwrap();
     let o = run(&["vacuum-calibrate", p(&bad), "--lang", "it"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(out(&o).contains("si sovrappongono"), "{}", out(&o));
     let report = dir.join("report.txt");
     let o = run(&[

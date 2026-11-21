@@ -2,6 +2,7 @@
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 
 use crate::cli_args::{finish, flag, num};
+use crate::cmd_nodes::fail;
 use crate::commands::{read_text, refuse_same_file};
 use eh3d_phoenix_pnp::catalog::Catalog;
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
@@ -31,7 +32,7 @@ fn language_and_config(args: &mut Vec<String>) -> Result<(Lang, MachineConfig), 
     Ok((lang_option.unwrap_or(cfg.language), cfg))
 }
 
-/// `part-inspect`: the readings of the parts on the nozzle against the sizes of their packages. The exit code is 1 when a part is refused or has no size to be judged against.
+/// `part-inspect`: the readings of the parts on the nozzle against the sizes of their packages. The exit code is 2 when a part is refused or has no size to be judged against.
 pub fn part_inspect(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let sizes = flag(&mut args, "--sizes")?;
@@ -78,7 +79,7 @@ pub fn part_inspect(mut args: Vec<String>) -> Result<(), String> {
     let (ok, refused, unknown) = inspect::tally(&rows);
     eprintln!("{ok} accepted, {refused} refused, {unknown} without a size to be judged against");
     if refused + unknown > 0 {
-        Err(format!("{} parts are not accepted", refused + unknown))
+        fail(format!("{} parts are not accepted", refused + unknown))
     } else {
         Ok(())
     }
@@ -272,18 +273,18 @@ pub fn fiducial_check(mut args: Vec<String>) -> Result<(), String> {
     let (a, ids) = fidcheck::analyze_marks(&design, &measured, &cfg).map_err(l)?;
     print!("{}", fidcheck::report(&a, &ids));
     if a.fit.max > cfg.fiducial_max_residual_mm {
-        return Err(format!(
+        return fail(format!(
             "a mark is {:.3} mm from where the fit puts it, the limit is {} mm",
             a.fit.max, cfg.fiducial_max_residual_mm
         ));
     }
     if !a.check.ok() {
-        return Err("the marks put the panel somewhere unexpected".into());
+        return fail("the marks put the panel somewhere unexpected".into());
     }
     Ok(())
 }
 
-/// `feeder-check`: whether the table of feeders agrees with itself. The exit code is 1 when there is an error (a warning alone does not fail).
+/// `feeder-check`: whether the table of feeders agrees with itself. The exit code is 2 when there is an error (a warning alone does not fail).
 pub fn feeder_check(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let packages = flag(&mut args, "--packages")?;
@@ -315,7 +316,7 @@ pub fn feeder_check(mut args: Vec<String>) -> Result<(), String> {
     print!("{}", eh3d_phoenix_pnp::feedlib::text(&found));
     let (errors, _) = eh3d_phoenix_pnp::feedlib::counts(&found);
     if errors > 0 {
-        Err(format!("the table of feeders has {errors} errors"))
+        fail(format!("the table of feeders has {errors} errors"))
     } else {
         Ok(())
     }

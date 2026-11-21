@@ -268,13 +268,13 @@ fn the_command_compares_two_files_and_never_writes_over_a_file() {
     );
     // different jobs: exit 1, the same text as the library
     let o = run(&["job-diff", p(&a), p(&b)]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let expected = diff(&read(&base()), &read(&text_of(PARTS, FEEDERS, Some(4)))).text();
     assert_eq!(String::from_utf8_lossy(&o.stdout), expected);
     // --out writes the table once, never over a file that exists or was read
     let out = dir.join("changes.csv");
     let o = run(&["job-diff", p(&a), p(&b), "--out", p(&out)]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(std::fs::read_to_string(&out)
         .unwrap()
         .starts_with("reference,change,first,second\n"));

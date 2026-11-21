@@ -273,6 +273,11 @@ impl AppState {
                         self.config_path = Some(path.clone());
                         self.server.reload(&self.ws.cfg);
                     }
+                    if kind == FileKind::Banks {
+                        // the bench shows the table, keeps its revision and saves back to the file
+                        let cfg = self.ws.cfg.clone();
+                        self.bench.open_file(path, &cfg);
+                    }
                     self.after_load(kind, &name);
                 }
                 Err(e) => self.log.error(e),

@@ -52,6 +52,7 @@ fn csv_of(steps: &[Step]) -> String {
             nozzle: s.nozzle,
             result: s.result.clone(),
             status: "placed",
+            nozzle_state: "idle",
         })
         .collect();
     journal::csv(&rows)

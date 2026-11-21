@@ -444,7 +444,7 @@ fn tables_check_names_the_code_and_the_row_of_every_table_that_is_not_valid() {
         "--parts",
         &parts,
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let text = out(&o);
     // every table is read, in the order parts, packages, feeders
     assert_eq!(text.lines().count(), 3, "{text}");

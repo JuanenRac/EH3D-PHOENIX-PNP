@@ -629,7 +629,7 @@ fn the_command_learns_shows_and_forgets_only_when_it_is_turned_on() {
         "--config",
         p(&on),
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert_eq!(std::fs::read_to_string(&state).unwrap(), before);
     // forget one package
     let o = run(&["place-learn", "--state", p(&state), "--forget", "r_0603"]);

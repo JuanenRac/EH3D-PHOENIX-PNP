@@ -178,7 +178,7 @@ fn run(args: &[&str]) -> Output {
 }
 
 #[test]
-fn the_command_exits_with_1_when_the_tables_differ_and_writes_the_changes_to_a_new_file() {
+fn the_command_exits_with_2_when_the_tables_differ_and_writes_the_changes_to_a_new_file() {
     let dir = std::env::temp_dir().join(format!("phoenix_pnp_partsdiff_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();

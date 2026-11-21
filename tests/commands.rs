@@ -143,7 +143,7 @@ fn preflight_prints_what_it_finds_and_fails_on_an_error() {
         "--config",
         &cfg,
     ]);
-    assert_eq!(bad.status.code(), Some(1));
+    assert_eq!(bad.status.code(), Some(2));
     assert!(out(&bad).contains("error: part "), "{}", out(&bad));
     assert!(err(&bad).contains("PHOENIX-PNP-028"), "{}", err(&bad));
     let _ = std::fs::remove_dir_all(&dir);
@@ -279,7 +279,7 @@ fn loadsheet_fails_when_a_kind_has_no_slot_wide_enough() {
         "--packages",
         &example("packages.csv"),
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(out(&o).contains("no slot for MCU / QFN-32"), "{}", out(&o));
     assert!(
         std::path::Path::new(&sheet).exists(),
@@ -301,7 +301,7 @@ fn config_check_says_ok_or_names_the_code_in_the_language_asked() {
     let bad = path(&dir, "bad.cfg");
     std::fs::write(&bad, "colour = red\n").unwrap();
     let en = run(&["config-check", &bad]);
-    assert_eq!(en.status.code(), Some(1));
+    assert_eq!(en.status.code(), Some(2));
     assert!(
         err(&en).contains("PHOENIX-PNP-004: The configuration has a key that is not known"),
         "{}",

@@ -1392,7 +1392,7 @@ fn the_commands_of_the_feeders_and_of_the_calibration_work_against_the_server_in
         out(&o)
     );
     let o = run(&["server-feeders", "set", "3", "R_0603_10k", "0", "--sim"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(err(&o).contains("1 feeders hold no parts"), "{}", err(&o));
     assert!(out(&o).contains("(empty)"));
     let o = run(&["server-feeders", "clear", "3", "--sim"]);

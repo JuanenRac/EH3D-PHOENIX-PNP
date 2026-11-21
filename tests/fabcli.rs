@@ -134,7 +134,7 @@ fn fab_check_accepts_what_export_fab_writes_and_names_the_lines_it_refuses() {
     )
     .unwrap();
     let o = run(&["fab-check", p(&bad)]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let text = out(&o);
     assert!(
         text.contains("line 2: ") && text.contains("line 3: "),
@@ -262,7 +262,7 @@ fn ipc_name_reads_makes_and_refuses() {
     ]);
     assert_eq!(out(&o).trim(), "QFP50P1000X1000X160-48N");
     let o = run(&["ipc-name", "R_0603", "banana"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(err(&o).contains("banana"));
     assert!(out(&o).contains("RESC1608X50N"));
     for bad in [
@@ -297,7 +297,7 @@ fn footprint_find_lists_the_names_of_the_table_that_are_the_query() {
         "--distance",
         "0",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(out(&o).contains("no name of the table matches"));
     assert!(!run(&["footprint-find"]).status.success());
     assert!(!run(&["footprint-find", "R", "--limit", "0"])
@@ -306,7 +306,7 @@ fn footprint_find_lists_the_names_of_the_table_that_are_the_query() {
 }
 
 #[test]
-fn dfm_check_reports_in_the_language_asked_for_and_exits_with_one_on_a_warning() {
+fn dfm_check_reports_in_the_language_asked_for_and_exits_with_two_on_a_warning() {
     let dir = temp("dfm");
     let features = dir.join("features.csv");
     std::fs::write(&features, FEATURES).unwrap();
@@ -317,7 +317,7 @@ fn dfm_check_reports_in_the_language_asked_for_and_exits_with_one_on_a_warning()
         "--packages",
         "examples/packages.csv",
     ]);
-    assert_eq!(o.status.code(), Some(1), "{}", err(&o));
+    assert_eq!(o.status.code(), Some(2), "{}", err(&o));
     let text = out(&o);
     assert!(
         text.contains("[error] C1: a hole lies inside a pad"),
@@ -375,7 +375,7 @@ fn dfm_check_takes_its_limits_from_the_settings() {
     let features = dir.join("features.csv");
     std::fs::write(&features, "kind,id,x_mm,y_mm,w_mm\ntab,left,0,0,3\n").unwrap();
     let o = run(&["dfm-check", "examples/board_dnp.csv", p(&features)]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let cfg = dir.join("machine.cfg");
     std::fs::write(&cfg, "dfm_rail_min_mm = 2\ndfm_verified = yes\n").unwrap();
     let o = run(&[
@@ -390,7 +390,7 @@ fn dfm_check_takes_its_limits_from_the_settings() {
 }
 
 #[test]
-fn stencil_apertures_gives_the_openings_and_exits_with_one_on_a_warning() {
+fn stencil_apertures_gives_the_openings_and_exits_with_two_on_a_warning() {
     let dir = temp("stencil");
     let features = dir.join("features.csv");
     std::fs::write(&features, FEATURES).unwrap();
@@ -403,7 +403,7 @@ fn stencil_apertures_gives_the_openings_and_exits_with_one_on_a_warning() {
         "--lang",
         "de",
     ]);
-    assert_eq!(o.status.code(), Some(1), "{}", err(&o));
+    assert_eq!(o.status.code(), Some(2), "{}", err(&o));
     let text = out(&o);
     assert!(
         text.contains("das Flächenverhältnis einer Öffnung"),
@@ -421,7 +421,7 @@ fn sim_busy_and_sim_tower_read_the_journal_of_a_simulated_job() {
     let journal = dir.join("journal.csv");
     std::fs::write(&journal, JOURNAL).unwrap();
     let o = run(&["sim-busy", p(&journal)]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let text = out(&o);
     assert!(
         text.contains("12.000 s from the first step to the last, 6.000 s of waiting"),
@@ -433,7 +433,7 @@ fn sim_busy_and_sim_tower_read_the_journal_of_a_simulated_job() {
         "{text}"
     );
     let o = run(&["sim-tower", p(&journal)]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let text = out(&o);
     assert!(
         text.contains("3.000 s to 9.000 s: yellow (waiting)"),
@@ -486,7 +486,7 @@ fn the_example_features_and_journal_are_read_by_the_commands() {
         "--packages",
         "examples/packages_bodies.csv",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let text = out(&o);
     assert!(
         text.contains("[error] C1: a hole lies inside a pad"),
@@ -502,7 +502,7 @@ fn the_example_features_and_journal_are_read_by_the_commands() {
     assert!(o.status.success(), "{}", err(&o));
     assert!(out(&o).contains("11 openings (4 of them windows of thermal pads), 0 warnings"));
     let o = run(&["sim-busy", "examples/journal.csv"]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         out(&o).contains("13.500 s from the first step to the last"),
         "{}",

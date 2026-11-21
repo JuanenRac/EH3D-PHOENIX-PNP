@@ -228,7 +228,7 @@ fn the_command_runs_the_job_many_times_and_writes_a_row_for_each_run_once() {
     let o = run(&args);
     assert_eq!(
         o.status.code(),
-        Some(1),
+        Some(2),
         "{}",
         String::from_utf8_lossy(&o.stderr)
     );

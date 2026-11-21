@@ -6,6 +6,7 @@
 
 use crate::cli_args::{finish, flag, num, switch};
 use crate::cmd_flow::{deliver, whole};
+use crate::cmd_nodes::fail;
 use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
 use eh3d_phoenix_pnp::driver::{Failure, Session};
@@ -67,12 +68,45 @@ fn seed_of(args: &mut Vec<String>) -> Result<u64, String> {
     }
 }
 
+/// `wiring-sheet PROFILE [--out F] [--svg F]`: what is to be connected to which pin of the controller (the axes, the pump, the blow-off valve and any other valve), read from a driver
+/// profile, and a drawing of the pneumatics. `--out` writes the table as a CSV and `--svg` the drawing, never over a file that exists. The exit code is 2 when a pin cannot be read from the
+/// lines of an actuator, when the profile names no pump or no blow-off valve, or when two actuators share a pin.
+pub fn wiring_sheet(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, _) = language_and_config(&mut args)?;
+    let out = flag(&mut args, "--out")?;
+    let svg = flag(&mut args, "--svg")?;
+    finish(&args, 1)?;
+    for o in [&out, &svg].into_iter().flatten() {
+        if std::path::Path::new(o).exists() {
+            return Err(format!("{o}: exists and is never written over"));
+        }
+    }
+    let path = args.first().ok_or("wiring-sheet needs a profile")?;
+    let profile = load_profile(path, lang)?;
+    let sheet = eh3d_phoenix_pnp::wiring::build(&profile);
+    print!("{}", sheet.text());
+    if let Some(o) = &out {
+        eh3d_phoenix_pnp::report::write_new(o, &sheet.csv()).map_err(|e| e.localized(lang))?;
+        println!("written to {o}");
+    }
+    if let Some(o) = &svg {
+        eh3d_phoenix_pnp::report::write_new(o, &sheet.svg()).map_err(|e| e.localized(lang))?;
+        println!("written to {o}");
+    }
+    match sheet.problems.len() {
+        0 => Ok(()),
+        n => fail(format!("{n} problems in the wiring of the profile")),
+    }
+}
+
 /// `driver-check PROFILE`: reads a driver profile and says what it holds.
 pub fn driver_check(mut args: Vec<String>) -> Result<(), String> {
     let (lang, _) = language_and_config(&mut args)?;
     finish(&args, 1)?;
     let path = args.first().ok_or("driver-check needs a profile")?;
-    let p = load_profile(path, lang)?;
+    let text = read_text(path, MAX_PROFILE_BYTES as u64)?;
+    let p = DriverProfile::parse(&text)
+        .map_err(|e| crate::cmd_nodes::not_passed(format!("{path}: {}", e.localized(lang))))?;
     let rows: [&str; 8] = [
         "profile {path}: {dialect} over {transport}, axes {x}{y}{z} and {rot}, {n} actuators (pump: {pump})",
         "perfil {path}: {dialect} por {transport}, ejes {x}{y}{z} y {rot}, {n} actuadores (bomba: {pump})",
@@ -181,7 +215,7 @@ pub fn driver_test(mut args: Vec<String>) -> Result<(), String> {
         println!("{line}");
         Ok(())
     } else {
-        Err(line)
+        fail(line)
     }
 }
 
@@ -200,7 +234,7 @@ fn run_on<L: Link>(
     let _ = s.close();
     match report.failed {
         None => Ok(report.placed),
-        Some((reference, f)) => Err(format!(
+        Some((reference, f)) => fail(format!(
             "stopped at {reference} after {} parts: {}",
             report.placed,
             session_text(&f)
@@ -330,7 +364,7 @@ fn finish_run(
     Ok(())
 }
 
-/// `safety-replay EVENTS [--profile F]`: replays a file of events against the rules of safety and shows the level and the limits after each; the exit code is 1 when the machine ends held or
+/// `safety-replay EVENTS [--profile F]`: replays a file of events against the rules of safety and shows the level and the limits after each; the exit code is 2 when the machine ends held or
 /// stopped.
 pub fn safety_replay(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
@@ -346,7 +380,7 @@ pub fn safety_replay(mut args: Vec<String>) -> Result<(), String> {
     print!("{}", replay_text(&r, lang));
     match r.rows.last() {
         Some((_, level, _, _)) if *level >= Level::Hold => {
-            Err(format!("the machine ends {}", level.name()))
+            fail(format!("the machine ends {}", level.name()))
         }
         _ => Ok(()),
     }
@@ -421,7 +455,7 @@ pub fn homing_repeat(mut args: Vec<String>) -> Result<(), String> {
     );
     println!("evidence=simulator");
     if worst > limit {
-        Err(format!(
+        fail(format!(
             "the spread of {} mm is over {} mm",
             show(worst),
             show(limit)
@@ -485,6 +519,6 @@ pub fn bringup(mut args: Vec<String>) -> Result<(), String> {
     if failed == 0 {
         Ok(())
     } else {
-        Err(format!("{failed} of {} steps failed", results.len()))
+        fail(format!("{failed} of {} steps failed", results.len()))
     }
 }

@@ -138,7 +138,7 @@ fn run(args: &[&str]) -> Output {
 }
 
 #[test]
-fn the_command_says_what_differs_and_exits_with_1() {
+fn the_command_says_what_differs_and_exits_with_2() {
     let dir = std::env::temp_dir().join(format!("phoenix_pnp_configdiff_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();

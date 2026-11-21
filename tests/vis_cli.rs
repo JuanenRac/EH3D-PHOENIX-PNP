@@ -29,7 +29,7 @@ fn part_inspect_prints_the_verdicts_and_fails_while_a_part_is_not_accepted() {
         "--sizes",
         "examples/package_sizes.csv",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let out = text(&o.stdout);
     assert!(out.contains("R1,R_0603,ok,"), "{out}");
     assert!(out.contains("C1,C_0603,reject,"), "{out}");
@@ -136,7 +136,7 @@ fn fiducial_check_refuses_a_panel_that_is_turned_too_far_and_a_mark_that_is_off(
         "examples/fid_design.csv",
         turned.to_str().unwrap(),
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         text(&o.stdout).contains("check: turned +10.00 degrees"),
         "{}",
@@ -165,7 +165,7 @@ fn fiducial_check_refuses_a_panel_that_is_turned_too_far_and_a_mark_that_is_off(
         "examples/fid_design.csv",
         off.to_str().unwrap(),
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         text(&o.stderr).contains("from where the fit puts it"),
         "{}",
@@ -209,7 +209,7 @@ fn feeder_check_accepts_the_example_and_fails_on_a_clash() {
     )
     .unwrap();
     let o = run(&["feeder-check", clash.to_str().unwrap()]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         text(&o.stdout).contains("error: feeder F2:"),
         "{}",
@@ -269,7 +269,7 @@ fn part_inspect_takes_the_sizes_from_the_bodies_of_the_table_of_packages() {
         "--packages",
         "examples/packages_bodies.csv",
     ]);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     let out = text(&o.stdout);
     assert!(out.contains("R1,R_0603,ok,"), "{out}");
     assert!(out.contains("C1,C_0603,reject,"), "{out}");

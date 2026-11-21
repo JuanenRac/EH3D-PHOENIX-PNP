@@ -150,7 +150,7 @@ fn err(o: &Output) -> String {
 }
 
 #[test]
-fn the_command_says_how_many_boards_the_reels_last_and_exits_with_1_for_a_reel_that_is_short() {
+fn the_command_says_how_many_boards_the_reels_last_and_exits_with_2_for_a_reel_that_is_short() {
     let o = run(&["reel-runway", "examples/board.pos", "examples/feeders.csv"]);
     let t = out(&o);
     assert!(o.status.success(), "{t}{}", err(&o));

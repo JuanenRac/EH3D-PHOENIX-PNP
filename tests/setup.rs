@@ -399,7 +399,7 @@ fn the_command_prints_the_sheet_in_the_language_asked_and_writes_the_csv_once() 
     let mut big: Vec<&str> = base.to_vec();
     big.extend(["--boards", "40"]);
     let o = run(&big);
-    assert_eq!(o.status.code(), Some(1));
+    assert_eq!(o.status.code(), Some(2));
     assert!(
         text(&o.stderr).contains("the feeders lack"),
         "{}",

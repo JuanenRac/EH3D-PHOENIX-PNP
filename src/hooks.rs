@@ -4,12 +4,14 @@
 //! program is the riskiest thing this crate can do, so it is done with care and only when it is asked for:
 //!
 //! * It is off until `hooks` is on. Without it `simulate --hooks FILE` refuses; `--hooks-dry-run` only lists what would be run and runs nothing.
-//! * The rules are a file (`event,program,argument...`, see `examples/hooks.csv`). The event is one of `job-finished`, `job-paused`, `job-stopped`, `part-aside` and `feeder-off`.
+//! * The rules are a file (`event,program,argument...`, see `examples/hooks.csv`). The event is one of `job-finished`, `job-paused`, `job-stopped`, `part-aside` and `feeder-off`, which are
+//!   told when the job stops, and `nozzle-before-pick`, `nozzle-after-pick`, `nozzle-before-place`, `nozzle-after-place` and `placement-complete`, which are told while the job goes, for every step.
 //!   The program is **the name of a file that lies in the folder of the rules file**, made of letters, digits, `.`, `_` and `-`: no path, no search of the system, no shell, nothing from a
 //!   folder above, no symbolic link out of the folder. A batch file (`.bat`, `.cmd`) is allowed, with a warning before the job: it runs commands of the system, with the arguments of its
 //!   rule, and what a person writes in it is not looked at here. The rules file is the list of what may be run.
 //! * The arguments are passed one by one, never through a shell, so nothing in a reference or in a reason can become a command. `{event}`, `{reference}`, `{feeder}`, `{reason}`, `{phase}`,
-//!   `{placed}` and `{total}` stand for the data of the event when they are the whole argument or part of it; at most 8 arguments of 256 characters, without control characters.
+//!   `{placed}`, `{total}`, `{nozzle}`, `{step}` and `{nozzle_state}` stand for the data of the event when they are the whole argument or part of it; at most 8 arguments of 256 characters,
+//!   without control characters. The same data go to the standard input of the program as one line of JSON of at most 1024 bytes (`payload`); a program that does not read it is not held up.
 //! * A rules file has a size limit and at most 50 rules; at most `hooks_max_runs` programs are run in one job; each one gets `hooks_timeout_s` seconds and is stopped when it takes longer; what
 //!   it prints is cut to 4096 bytes. A hook that fails, is not found or is stopped is told and changes nothing about the job.
 //!
@@ -24,13 +26,28 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 /// The events a hook can be run for.
-pub const EVENTS: [&str; 5] = [
+pub const EVENTS: [&str; 10] = [
     "job-finished",
     "job-paused",
     "job-stopped",
     "part-aside",
     "feeder-off",
+    "nozzle-before-pick",
+    "nozzle-after-pick",
+    "nozzle-before-place",
+    "nozzle-after-place",
+    "placement-complete",
 ];
+/// The events that are told while the job goes, one set for every step (the others are told when it stops).
+pub const STEP_EVENTS: [&str; 5] = [
+    "nozzle-before-pick",
+    "nozzle-after-pick",
+    "nozzle-before-place",
+    "nozzle-after-place",
+    "placement-complete",
+];
+/// The longest line of JSON that goes to the standard input of a hook.
+pub const MAX_PAYLOAD: usize = 1024;
 /// The largest rules file and the most rules in it.
 pub const MAX_BYTES: usize = 65_536;
 pub const MAX_RULES: usize = 50;
@@ -170,6 +187,53 @@ pub struct HookEvent {
     pub phase: &'static str,
     pub placed: usize,
     pub total: usize,
+    /// The nozzle, from 1 (0 for an event that is not about a nozzle).
+    pub nozzle: usize,
+    /// The number of the step, from 1 (0 for an event that is not about a step).
+    pub step: usize,
+    /// What the nozzle is doing (`idle`, `picking`, `carrying` or `placing`); empty for an event that is not about a nozzle.
+    pub nozzle_state: &'static str,
+}
+
+impl HookEvent {
+    /// The data of the event as one line of JSON for the standard input of a hook, cut to `MAX_PAYLOAD` bytes by shortening the free text (the reference, the feeder and the reason).
+    pub fn payload(&self) -> String {
+        let mut shorten = 64usize;
+        loop {
+            let text = format!(
+                "{{\"event\":{},\"step\":{},\"reference\":{},\"feeder\":{},\"nozzle\":{},\"nozzle_state\":{},\"reason\":{},\"phase\":{},\"placed\":{},\"total\":{}}}",
+                json_text(self.name, shorten),
+                self.step,
+                json_text(&self.reference, shorten),
+                json_text(&self.feeder, shorten),
+                self.nozzle,
+                json_text(self.nozzle_state, shorten),
+                json_text(&self.reason, shorten),
+                json_text(self.phase, shorten),
+                self.placed,
+                self.total
+            );
+            if text.len() <= MAX_PAYLOAD || shorten <= 1 {
+                return text;
+            }
+            shorten /= 2;
+        }
+    }
+}
+
+/// A text as a JSON string of at most `limit` characters, with the quotes, the backslashes and the control characters written out.
+fn json_text(s: &str, limit: usize) -> String {
+    let mut out = String::from("\"");
+    for c in s.chars().take(limit) {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            c if c.is_control() => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
 }
 
 /// The events of a job as it stands: a `part-aside` for each part put aside, a `feeder-off` for each feeder that was switched off, and last the event of the phase of the job (`job-finished`,
@@ -190,6 +254,9 @@ pub fn events_of(job: &Job) -> Vec<HookEvent> {
         phase,
         placed,
         total,
+        nozzle: 0,
+        step: 0,
+        nozzle_state: "",
     };
     let mut out = Vec::new();
     for (i, p) in job.plan().plan.placements.iter().enumerate() {
@@ -217,6 +284,46 @@ pub fn events_of(job: &Job) -> Vec<HookEvent> {
     out
 }
 
+/// The events of one moment of a step of the job, to be told while the job goes: `nozzle-before-pick` or `nozzle-before-place` before the step, `nozzle-after-pick` or
+/// `nozzle-after-place` after it and, when a place went well, `placement-complete` too. The reason of an event after a step that did not end well is the label of its error.
+pub fn step_events(job: &Job, seen: &crate::journal::Seen) -> Vec<HookEvent> {
+    use crate::journal::NozzleState;
+    let total = job.status().len();
+    let placed = job
+        .status()
+        .iter()
+        .filter(|s| **s == Status::Placed)
+        .count();
+    let name: &'static str = match (seen.is_pick, seen.after) {
+        (true, false) => "nozzle-before-pick",
+        (true, true) => "nozzle-after-pick",
+        (false, false) => "nozzle-before-place",
+        (false, true) => "nozzle-after-place",
+    };
+    let state = if seen.after {
+        NozzleState::after(seen.is_pick, seen.ok)
+    } else {
+        NozzleState::during(seen.is_pick)
+    };
+    let one = |name: &'static str| HookEvent {
+        name,
+        reference: seen.reference.clone(),
+        feeder: seen.feeder.clone(),
+        reason: seen.error.clone(),
+        phase: crate::exchange::phase_name(job.phase()),
+        placed,
+        total,
+        nozzle: seen.nozzle,
+        step: seen.step,
+        nozzle_state: state.name(),
+    };
+    let mut out = vec![one(name)];
+    if seen.after && !seen.is_pick && seen.ok && job.status()[seen.index] == Status::Placed {
+        out.push(one("placement-complete"));
+    }
+    out
+}
+
 /// A program to run: its name, its arguments with the data of the event put in, and the event.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Call {
@@ -239,7 +346,7 @@ impl Call {
 
 /// The argument with the data of the event put in. It is done in one pass, so that data which looks like a name between brackets is not filled in again.
 fn fill(arg: &str, e: &HookEvent) -> String {
-    let names: [(&str, String); 7] = [
+    let names: [(&str, String); 10] = [
         ("{event}", e.name.to_string()),
         ("{reference}", e.reference.clone()),
         ("{feeder}", e.feeder.clone()),
@@ -247,6 +354,9 @@ fn fill(arg: &str, e: &HookEvent) -> String {
         ("{phase}", e.phase.to_string()),
         ("{placed}", e.placed.to_string()),
         ("{total}", e.total.to_string()),
+        ("{nozzle}", e.nozzle.to_string()),
+        ("{step}", e.step.to_string()),
+        ("{nozzle_state}", e.nozzle_state.to_string()),
     ];
     let mut out = String::new();
     let mut rest = arg;
@@ -341,6 +451,12 @@ fn cut(bytes: &[u8]) -> String {
 /// Runs one call: the program of `folder` with the arguments, through no shell, waiting at most `timeout_s` seconds, with what it prints cut to `MAX_OUTPUT` bytes. The event is also in the
 /// environment (`PHOENIX_PNP_EVENT`).
 pub fn run_call(folder: &Path, call: &Call, timeout_s: f64) -> Outcome {
+    run_call_with(folder, call, timeout_s, None)
+}
+
+/// As `run_call`, and writes `payload` (cut to `MAX_PAYLOAD` bytes) and a line end to the standard input of the program, on a thread of its own, so that a program that never reads it does
+/// not hold the job up: the pipe is closed when the program ends or is stopped.
+pub fn run_call_with(folder: &Path, call: &Call, timeout_s: f64, payload: Option<&str>) -> Outcome {
     let path = match resolve(folder, &call.program) {
         Ok(p) => p,
         Err(e) => return Outcome::Failed(e),
@@ -349,7 +465,11 @@ pub fn run_call(folder: &Path, call: &Call, timeout_s: f64) -> Outcome {
     cmd.args(&call.args)
         .env("PHOENIX_PNP_EVENT", call.event)
         .current_dir(folder)
-        .stdin(Stdio::null())
+        .stdin(if payload.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     #[cfg(windows)]
@@ -362,6 +482,14 @@ pub fn run_call(folder: &Path, call: &Call, timeout_s: f64) -> Outcome {
         Ok(c) => c,
         Err(e) => return Outcome::Failed(format!("{}: {e}", call.program)),
     };
+    if let (Some(text), Some(mut pipe)) = (payload, child.stdin.take()) {
+        let mut line = text.as_bytes()[..text.len().min(MAX_PAYLOAD)].to_vec();
+        line.push(b'\n');
+        std::thread::spawn(move || {
+            use std::io::Write;
+            let _ = pipe.write_all(&line);
+        });
+    }
     // what it prints is read on threads, so that a program that prints a lot cannot fill the pipe and wait for ever
     let reader = |pipe: Option<Box<dyn std::io::Read + Send>>| {
         std::thread::spawn(move || {
