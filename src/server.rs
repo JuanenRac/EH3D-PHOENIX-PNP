@@ -468,6 +468,9 @@ pub fn placements(
     rows: &[FeederRow],
     offset: (f64, f64),
 ) -> Result<Placements, String> {
+    if !(offset.0.is_finite() && offset.1.is_finite()) {
+        return Err("the offset of the board is not a number".into());
+    }
     let mut by_key: BTreeMap<&str, &str> = BTreeMap::new();
     for r in rows {
         by_key.entry(r.key.as_str()).or_insert(r.part.as_str());
@@ -480,6 +483,13 @@ pub fn placements(
             unmatched.push(p.reference.clone());
             continue;
         };
+        // a number that is not one would be written as null (the JSON of the server has no such number) and the part would go to a place of the server's choice
+        if !(p.x.is_finite() && p.y.is_finite() && p.rotation.is_finite()) {
+            return Err(format!(
+                "the part {} has a position or a rotation that is not a number",
+                p.reference
+            ));
+        }
         let reference = label(&p.reference, 32, "_-.");
         if !seen.insert(reference.clone()) {
             return Err(format!(
@@ -541,9 +551,10 @@ impl JobInfo {
     }
 
     pub fn percent(&self) -> u64 {
-        (self.done * 100)
-            .checked_div(self.total)
-            .map_or(0, |p| p.min(100))
+        // in 128 bits: a server that answers a huge count must not overflow the product
+        (u128::from(self.done) * 100)
+            .checked_div(u128::from(self.total))
+            .map_or(0, |p| p.min(100) as u64)
     }
 
     /// One line for a person.
@@ -601,7 +612,7 @@ impl MachineInfo {
                 a.iter()
                     .map(|f| {
                         (
-                            f["slot"].as_u64().unwrap_or(0) as u32,
+                            whole_u32(&f["slot"]),
                             f["part"].as_str().unwrap_or("").to_string(),
                             f["count"].as_u64().unwrap_or(0),
                         )
@@ -640,17 +651,31 @@ pub struct FeederTable {
     pub free: Vec<u32>,
 }
 
+/// A whole number of the answer of the server that fits 32 bits; 0 for anything else (a number that is too large must not wrap round to another slot).
+fn whole_u32(v: &Value) -> u32 {
+    v.as_u64().and_then(|n| u32::try_from(n).ok()).unwrap_or(0)
+}
+
+/// A text of the server as a cell of a spreadsheet: one that starts like a formula (`=`, `+`, `-`, `@`, a tab or a return) gets a quote in front, so that it is shown as text and not run.
+fn sheet_text(text: &str) -> String {
+    if text.starts_with(['=', '+', '-', '@', '\t', '\r']) {
+        format!("'{text}")
+    } else {
+        text.to_string()
+    }
+}
+
 impl FeederTable {
     pub fn from_json(v: &Value) -> FeederTable {
         let number = |f: &Value, k: &str| f[k].as_f64().unwrap_or(0.0);
         FeederTable {
-            slots: v["slots"].as_u64().unwrap_or(0) as u32,
+            slots: whole_u32(&v["slots"]),
             feeders: v["feeders"]
                 .as_array()
                 .map(|a| {
                     a.iter()
                         .map(|f| FeederState {
-                            slot: f["slot"].as_u64().unwrap_or(0) as u32,
+                            slot: whole_u32(&f["slot"]),
                             part: f["part"].as_str().unwrap_or("").to_string(),
                             count: f["count"].as_u64().unwrap_or(0),
                             empty: f["empty"].as_bool().unwrap_or(false),
@@ -666,7 +691,7 @@ impl FeederTable {
                 .map(|a| {
                     a.iter()
                         .filter_map(Value::as_u64)
-                        .map(|n| n as u32)
+                        .filter_map(|n| u32::try_from(n).ok())
                         .collect()
                 })
                 .unwrap_or_default(),
@@ -718,7 +743,7 @@ impl FeederTable {
             out.push_str(&format!(
                 "{},{},{},{:.3},{:.3},{:.3},{:.3}\n",
                 f.slot,
-                crate::parts::csv_field(&f.part),
+                crate::parts::csv_field(&sheet_text(&f.part)),
                 f.count,
                 f.x_mm,
                 f.y_mm,

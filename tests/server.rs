@@ -1542,3 +1542,553 @@ fn the_new_commands_do_nothing_in_the_local_mode_either() {
     }
     let _ = std::fs::remove_dir_all(dir);
 }
+
+// Bug hunt (round 4): what the server answers with numbers that are too large, what is written for it when a number is not one, and the names and ids that go into its requests.
+mod hunt_round4 {
+    use eh3d_phoenix_pnp::parts::{Part, Side};
+    use eh3d_phoenix_pnp::server::{
+        calibrate_request, clear_body, dry_run, error_text, feeder_body, feeders_request, label,
+        parse_response, part_name, placements, safe_segment, Calibrate, FeederRow, FeederState,
+        FeederTable, JobInfo, MachineInfo, Mode, MAX_COUNT, MAX_OFFSET_MM, MAX_PLACEMENTS,
+        MAX_SLOTS,
+    };
+    use serde_json::{json, Value};
+
+    fn part(reference: &str, x: f64, y: f64, rotation: f64) -> Part {
+        Part {
+            reference: reference.to_string(),
+            value: "100n".to_string(),
+            package: "0402".to_string(),
+            x,
+            y,
+            rotation,
+            side: Side::Top,
+        }
+    }
+
+    fn row() -> FeederRow {
+        FeederRow {
+            id: "f1".to_string(),
+            slot: 1,
+            part: "0402_100n".to_string(),
+            count: 10,
+            key: "100n|0402".to_string(),
+        }
+    }
+
+    fn feeder(slot: u32, part: &str, count: u64) -> FeederState {
+        FeederState {
+            slot,
+            part: part.to_string(),
+            count,
+            empty: false,
+            x_mm: 1.0,
+            y_mm: 2.0,
+            offset: (0.0, 0.0),
+        }
+    }
+
+    // ---- what the server answers ----
+
+    #[test]
+    fn a_job_with_a_huge_count_of_lines_does_not_overflow_the_percent() {
+        let at = |done, total| {
+            JobInfo {
+                done,
+                total,
+                ..JobInfo::default()
+            }
+            .percent()
+        };
+        assert_eq!(at(u64::MAX, u64::MAX), 100);
+        assert_eq!(at(1 << 62, 1 << 63), 50);
+        assert_eq!(at(u64::MAX, 1), 100);
+        assert_eq!(at(0, u64::MAX), 0);
+        assert_eq!(at(5, 0), 0);
+        assert_eq!(at(0, 0), 0);
+        assert_eq!(at(1, 3), 33);
+        assert_eq!(at(9, 3), 100);
+    }
+
+    #[test]
+    fn an_answer_with_the_wrong_types_gives_an_empty_job_and_an_empty_machine() {
+        for v in [
+            json!(null),
+            json!([]),
+            json!("x"),
+            json!(5),
+            json!({"id": 5, "state": null, "done": "7", "total": -1, "message": [1]}),
+            json!({"done": 1.5, "total": 2.5}),
+        ] {
+            let j = JobInfo::from_json(&v);
+            assert_eq!(j, JobInfo::default(), "{v}");
+            assert_eq!(j.percent(), 0);
+            assert!(!j.finished());
+            let m = MachineInfo::from_json(&v);
+            assert_eq!(m, MachineInfo::default(), "{v}");
+        }
+    }
+
+    #[test]
+    fn the_state_of_a_job_decides_whether_it_is_over_and_the_line_says_it() {
+        for (state, over) in [
+            ("done", true),
+            ("failed", true),
+            ("cancelled", true),
+            ("running", false),
+            ("queued", false),
+            ("DONE", false),
+            ("", false),
+        ] {
+            let j = JobInfo {
+                state: state.to_string(),
+                ..JobInfo::default()
+            };
+            assert_eq!(j.finished(), over, "{state}");
+        }
+        let j = JobInfo {
+            id: "j1".to_string(),
+            state: "running".to_string(),
+            done: 1,
+            total: 2,
+            message: "half".to_string(),
+        };
+        assert_eq!(j.line(), "j1: running, 1 of 2 (50%) - half");
+        let quiet = JobInfo {
+            message: String::new(),
+            ..j
+        };
+        assert_eq!(quiet.line(), "j1: running, 1 of 2 (50%)");
+    }
+
+    #[test]
+    fn a_slot_that_does_not_fit_32_bits_is_zero_and_never_wraps_to_another_slot() {
+        let table = FeederTable::from_json(&json!({
+            "slots": 4_294_967_296u64 + 5,
+            "feeders": [
+                {"slot": 4_294_967_297u64, "part": "a", "count": 1},
+                {"slot": 7, "part": "b", "count": 2},
+                {"slot": u64::MAX, "part": "c", "count": 3},
+                {"slot": -1, "part": "d", "count": 4},
+                {"slot": "9", "part": "e", "count": 5},
+                {"slot": 4_294_967_295u64, "part": "f", "count": 6}
+            ],
+            "free": [1, 4_294_967_296u64, 2, u64::MAX, -3, 4_294_967_295u64]
+        }));
+        assert_eq!(table.slots, 0);
+        let slots: Vec<u32> = table.feeders.iter().map(|f| f.slot).collect();
+        assert_eq!(slots, vec![0, 7, 0, 0, 0, 4_294_967_295]);
+        assert_eq!(table.free, vec![1, 2, 4_294_967_295]);
+    }
+
+    #[test]
+    fn a_machine_with_a_slot_that_does_not_fit_32_bits_shows_slot_zero() {
+        let m = MachineInfo::from_json(&json!({
+            "id": "m1",
+            "detail": {"feeders": [{"slot": 4_294_967_297u64, "part": "a", "count": 2}, {"slot": 3, "part": "b", "count": 1}]}
+        }));
+        assert_eq!(m.id, "m1");
+        assert_eq!(
+            m.feeders,
+            vec![(0, "a".to_string(), 2), (3, "b".to_string(), 1)]
+        );
+    }
+
+    #[test]
+    fn a_table_that_says_nothing_is_empty_and_never_panics() {
+        for v in [
+            json!(null),
+            json!({}),
+            json!([]),
+            json!({"feeders": "x", "free": 5, "slots": "many"}),
+        ] {
+            let t = FeederTable::from_json(&v);
+            assert_eq!(t, FeederTable::default(), "{v}");
+            assert_eq!(t.empty_count(), 0);
+            assert!(t
+                .text()
+                .starts_with("0 of 0 slots hold a part, 0 are free, 0 are empty"));
+            assert_eq!(
+                t.csv(),
+                "slot,part,count,x_mm,y_mm,offset_x_mm,offset_y_mm\n"
+            );
+        }
+    }
+
+    #[test]
+    fn the_table_sums_up_the_slots_and_counts_the_empty_ones() {
+        let mut empty = feeder(2, "b", 0);
+        empty.offset = (0.5, -0.25);
+        let table = FeederTable {
+            slots: 5,
+            feeders: vec![
+                feeder(1, "a", 3),
+                empty,
+                FeederState {
+                    empty: true,
+                    ..feeder(3, "c", 9)
+                },
+            ],
+            free: vec![4, 5],
+        };
+        assert_eq!(table.empty_count(), 2);
+        let text = table.text();
+        assert!(
+            text.starts_with("3 of 5 slots hold a part, 2 are free, 2 are empty\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains(
+                "slot 2: b, 0 left (empty), picked at 1.00,2.00 mm, calibrated by 0.500,-0.250 mm"
+            ),
+            "{text}"
+        );
+        assert!(!text.contains("slot 1: a, 3 left (empty)"));
+    }
+
+    #[test]
+    fn a_part_of_the_server_that_starts_like_a_formula_is_written_as_text_in_the_csv() {
+        for (part, cell) in [
+            ("=1+1", "'=1+1"),
+            ("+3V3", "'+3V3"),
+            ("-x", "'-x"),
+            ("@SUM(A1)", "'@SUM(A1)"),
+            ("0402_100n", "0402_100n"),
+            ("a=b", "a=b"),
+        ] {
+            let table = FeederTable {
+                slots: 1,
+                feeders: vec![feeder(1, part, 1)],
+                free: vec![],
+            };
+            let csv = table.csv();
+            let line = csv.lines().nth(1).unwrap();
+            assert_eq!(line.split(',').nth(1).unwrap(), cell, "{part}");
+        }
+        let table = FeederTable {
+            slots: 1,
+            feeders: vec![feeder(1, "-a,b", 1), feeder(2, "say \"hi\"", 1)],
+            free: vec![],
+        };
+        let csv = table.csv();
+        assert!(csv.contains(",\"'-a,b\","), "{csv}");
+        assert!(csv.contains(",\"say \"\"hi\"\"\","), "{csv}");
+    }
+
+    #[test]
+    fn what_the_server_refuses_is_told_in_one_line_whatever_the_types() {
+        assert_eq!(
+            error_text(400, &json!({"error": "bad", "detail": "why"})),
+            "bad: why"
+        );
+        assert_eq!(
+            error_text(400, &json!({"error": "bad", "detail": ""})),
+            "bad"
+        );
+        assert_eq!(error_text(400, &json!({"error": "bad"})), "bad");
+        assert_eq!(error_text(500, &json!({})), "the server answered 500");
+        assert_eq!(error_text(502, &json!(null)), "the server answered 502");
+        assert_eq!(
+            error_text(404, &json!({"error": 5, "detail": []})),
+            "the server answered 404"
+        );
+        assert_eq!(error_text(0, &json!("x")), "the server answered 0");
+    }
+
+    #[test]
+    fn a_response_that_is_not_http_is_refused_and_one_with_a_body_that_is_not_json_has_a_null_body()
+    {
+        assert!(parse_response(b"").is_err());
+        assert!(parse_response(b"not http at all").is_err());
+        let (status, body) =
+            parse_response(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 4\r\n\r\noops").unwrap();
+        assert_eq!(status, 502);
+        assert_eq!(body, Value::Null);
+        let (status, body) =
+            parse_response(b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\n{\"ok\":true}").unwrap();
+        assert_eq!(status, 200);
+        assert_eq!(body, json!({"ok": true}));
+    }
+
+    // ---- what is written for the server ----
+
+    #[test]
+    fn a_part_with_a_position_or_a_rotation_that_is_not_a_number_is_not_put_in_the_request() {
+        for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            for parts in [
+                vec![part("R1", bad, 1.0, 0.0)],
+                vec![part("R1", 1.0, bad, 0.0)],
+                vec![part("R1", 1.0, 1.0, bad)],
+            ] {
+                let e = placements(&parts, &[row()], (0.0, 0.0)).unwrap_err();
+                assert!(e.contains("R1") && e.contains("not a number"), "{e}");
+            }
+        }
+    }
+
+    #[test]
+    fn an_offset_of_the_board_that_is_not_a_number_is_refused() {
+        for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            assert!(placements(&[part("R1", 1.0, 1.0, 0.0)], &[row()], (bad, 0.0)).is_err());
+            assert!(placements(&[part("R1", 1.0, 1.0, 0.0)], &[row()], (0.0, bad)).is_err());
+        }
+    }
+
+    #[test]
+    fn a_part_that_no_feeder_holds_is_left_out_with_its_reference_and_the_numbers_are_kept() {
+        let mut other = part("R2", 3.0, 4.0, 90.0);
+        other.value = "1u".to_string();
+        let p = placements(&[part("R1", 1.5, -2.5, 270.0), other], &[row()], (0.0, 0.0)).unwrap();
+        assert_eq!(p.count, 1);
+        assert_eq!(p.unmatched, vec!["R2".to_string()]);
+        let first = &p.request["placements"][0];
+        assert_eq!(first["x"], json!(1.5));
+        assert_eq!(first["y"], json!(-2.5));
+        assert_eq!(first["rot"], json!(270.0));
+        assert_eq!(first["side"], json!("top"));
+        assert_eq!(first["part"], json!("0402_100n"));
+        assert!(p.request.get("offset").is_none());
+    }
+
+    #[test]
+    fn the_offset_is_written_only_when_it_is_not_zero_and_a_negative_zero_is_zero() {
+        let with = |o: (f64, f64)| {
+            placements(&[part("R1", 1.0, 1.0, 0.0)], &[row()], o)
+                .unwrap()
+                .request
+        };
+        assert!(with((0.0, 0.0)).get("offset").is_none());
+        assert!(with((-0.0, 0.0)).get("offset").is_none());
+        assert_eq!(with((1.5, -2.0))["offset"], json!({"x": 1.5, "y": -2.0}));
+    }
+
+    #[test]
+    fn two_references_that_become_the_same_name_for_the_server_are_refused() {
+        let e = placements(
+            &[part("R 1", 1.0, 1.0, 0.0), part("R_1", 2.0, 2.0, 0.0)],
+            &[row()],
+            (0.0, 0.0),
+        )
+        .unwrap_err();
+        assert!(e.contains("also"), "{e}");
+        assert!(placements(
+            &[part("R1", 1.0, 1.0, 0.0), part("R1", 2.0, 2.0, 0.0)],
+            &[row()],
+            (0.0, 0.0)
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn a_job_of_more_placements_than_the_server_takes_is_refused() {
+        let parts: Vec<Part> = (0..=MAX_PLACEMENTS)
+            .map(|i| part(&format!("R{i}"), 1.0, 1.0, 0.0))
+            .collect();
+        let e = placements(&parts, &[row()], (0.0, 0.0)).unwrap_err();
+        assert!(e.contains("placements"), "{e}");
+    }
+
+    #[test]
+    fn the_request_that_loads_the_feeders_keeps_the_slots_the_parts_and_the_counts() {
+        let v = feeders_request(&[row()], true);
+        assert_eq!(v["kind"], json!("load_feeders"));
+        assert_eq!(v["replace"], json!(true));
+        assert_eq!(
+            v["feeders"],
+            json!([{"slot": 1, "part": "0402_100n", "count": 10}])
+        );
+        assert_eq!(feeders_request(&[], false)["feeders"], json!([]));
+    }
+
+    #[test]
+    fn a_dry_run_marks_an_object_and_leaves_anything_else_alone() {
+        assert_eq!(dry_run(json!({"kind": "place"}))["dry_run"], json!(true));
+        assert_eq!(dry_run(json!([1, 2])), json!([1, 2]));
+        assert_eq!(dry_run(json!(null)), json!(null));
+        assert_eq!(dry_run(json!("x")), json!("x"));
+    }
+
+    // ---- names and ids ----
+
+    #[test]
+    fn an_id_that_could_change_the_path_of_a_request_is_refused() {
+        for bad in [
+            "",
+            "..",
+            ".",
+            "a/b",
+            "a\\b",
+            "../x",
+            "a b",
+            "a%2e",
+            "a\n",
+            "a\0",
+            "\u{e9}",
+            "a;b",
+            "a?b",
+            "a#b",
+            "a:b",
+            "@",
+            "a@b",
+            "user:pw@host",
+            "C:\\x",
+            "/abs",
+        ] {
+            assert!(!safe_segment(bad), "{bad:?}");
+        }
+        assert!(safe_segment("a"));
+        assert!(safe_segment("Machine_1-b"));
+        assert!(safe_segment(&"x".repeat(64)));
+        assert!(!safe_segment(&"x".repeat(65)));
+    }
+
+    #[test]
+    fn a_name_for_the_server_keeps_its_characters_cuts_by_characters_and_is_never_empty() {
+        assert_eq!(label("", 10, ""), "_");
+        assert_eq!(label("   ", 10, ""), "_");
+        assert_eq!(label(" a b ", 10, ""), "a_b");
+        assert_eq!(label("a.b", 10, "."), "a.b");
+        assert_eq!(label("a.b", 10, ""), "a_b");
+        assert_eq!(label("../x", 10, "_-."), ".._x");
+        assert_eq!(label("\u{1f600}\u{1f600}\u{1f600}", 2, ""), "__");
+        assert_eq!(label("abcdef", 3, ""), "abc");
+        assert_eq!(label("ab\ncd\u{0}", 10, ""), "ab_cd_");
+        assert_eq!(label("\u{e9}\u{65e5}", 10, ""), "__");
+    }
+
+    #[test]
+    fn a_name_is_never_longer_than_asked_and_only_has_allowed_characters() {
+        for text in [
+            "",
+            "a",
+            "A very long text with many words and symbols !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
+            "\u{1f600}\u{65e5}\u{e9}x",
+        ] {
+            for max in [1usize, 2, 5, 64] {
+                let l = label(text, max, "_-");
+                assert!(!l.is_empty() && l.chars().count() <= max, "{text:?} {max}");
+                assert!(
+                    l.chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'),
+                    "{l}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_name_of_a_part_joins_the_package_and_the_value_and_stays_inside_sixty_four_characters() {
+        assert_eq!(part_name("100n", "0402"), "0402_100n");
+        assert_eq!(part_name(" 100n ", " 0402 "), "0402_100n");
+        assert_eq!(part_name("1\u{b5}F", "0603"), "0603_1_F");
+        assert_eq!(part_name("a b", "c d"), "c_d_a_b");
+        assert_eq!(part_name(&"v".repeat(100), "p").chars().count(), 64);
+        assert_eq!(part_name("", ""), "_");
+    }
+
+    #[test]
+    fn a_slot_and_a_count_have_exact_edges() {
+        assert!(feeder_body(1, "p", 0).is_ok());
+        assert!(feeder_body(MAX_SLOTS, "p", MAX_COUNT).is_ok());
+        assert!(feeder_body(0, "p", 0).is_err());
+        assert!(feeder_body(MAX_SLOTS + 1, "p", 0).is_err());
+        assert!(feeder_body(u32::MAX, "p", 0).is_err());
+        assert!(feeder_body(1, "p", MAX_COUNT + 1).is_err());
+        assert!(feeder_body(1, "p", u64::MAX).is_err());
+        assert!(clear_body(1).is_ok());
+        assert!(clear_body(MAX_SLOTS).is_ok());
+        assert!(clear_body(0).is_err());
+        assert!(clear_body(MAX_SLOTS + 1).is_err());
+        assert_eq!(clear_body(7).unwrap(), json!({"slot": 7, "clear": true}));
+    }
+
+    #[test]
+    fn the_name_of_a_part_in_a_request_has_one_to_sixty_four_allowed_characters() {
+        assert!(feeder_body(1, &"x".repeat(64), 1).is_ok());
+        assert!(feeder_body(1, &"x".repeat(65), 1).is_err());
+        assert!(feeder_body(1, "a/b.c-d_e+f:g", 1).is_ok());
+        for bad in [
+            "", "a b", "a\n", "\u{e9}", "a;b", "a\"b", "a\\b", "a%b", "a*b",
+        ] {
+            assert!(feeder_body(1, bad, 1).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn a_calibration_of_a_feeder_names_a_slot_and_the_offset_has_exact_edges() {
+        for ok in ["1", "200", " 7 "] {
+            assert!(
+                calibrate_request(Calibrate::Feeder, ok, (0.0, 0.0)).is_ok(),
+                "{ok:?}"
+            );
+        }
+        for bad in [
+            "0",
+            "201",
+            "",
+            "-1",
+            "abc",
+            "1.5",
+            "4294967297",
+            "1e1",
+            "0x10",
+            "1 2",
+        ] {
+            assert!(
+                calibrate_request(Calibrate::Feeder, bad, (0.0, 0.0)).is_err(),
+                "{bad:?}"
+            );
+        }
+        assert!(
+            calibrate_request(Calibrate::Nozzle, "n1", (MAX_OFFSET_MM, -MAX_OFFSET_MM)).is_ok()
+        );
+        for bad in [
+            MAX_OFFSET_MM + 0.001,
+            -MAX_OFFSET_MM - 0.001,
+            f64::NAN,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+        ] {
+            assert!(
+                calibrate_request(Calibrate::Camera, "cam", (bad, 0.0)).is_err(),
+                "{bad}"
+            );
+            assert!(
+                calibrate_request(Calibrate::Camera, "cam", (0.0, bad)).is_err(),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_calibration_of_a_nozzle_or_a_camera_names_it_with_up_to_sixty_four_characters() {
+        assert!(calibrate_request(Calibrate::Nozzle, &"n".repeat(64), (0.0, 0.0)).is_ok());
+        assert!(calibrate_request(Calibrate::Nozzle, &"n".repeat(65), (0.0, 0.0)).is_err());
+        for bad in ["", "   ", "a b", "a;b", "\u{e9}", "a\n"] {
+            assert!(
+                calibrate_request(Calibrate::Nozzle, bad, (0.0, 0.0)).is_err(),
+                "{bad:?}"
+            );
+        }
+        let v = calibrate_request(Calibrate::Camera, " cam-1 ", (1.0, 2.0)).unwrap();
+        assert_eq!(v["target"], json!("cam-1"));
+        assert_eq!(v["what"], json!("camera"));
+        assert_eq!(v["offset_mm"], json!({"x": 1.0, "y": 2.0}));
+    }
+
+    #[test]
+    fn the_words_of_the_modes_and_of_the_calibrations_read_back_their_own_names() {
+        for m in [Mode::Local, Mode::Server] {
+            assert_eq!(Mode::parse(m.name()), Some(m));
+        }
+        assert_eq!(Mode::parse(" SERVER "), Some(Mode::Server));
+        for c in [Calibrate::Feeder, Calibrate::Nozzle, Calibrate::Camera] {
+            assert_eq!(Calibrate::parse(c.word()), Some(c));
+        }
+        assert_eq!(Calibrate::parse(" Camera "), Some(Calibrate::Camera));
+        for bad in ["", "remote", "loca l", "server\n x", "feeders", "\u{e9}"] {
+            assert_eq!(Mode::parse(bad), None, "{bad:?}");
+            assert_eq!(Calibrate::parse(bad), None, "{bad:?}");
+        }
+    }
+}
