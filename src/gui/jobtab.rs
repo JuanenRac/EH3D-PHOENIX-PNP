@@ -7,6 +7,7 @@ use super::tables::{compare_plan, directed_order, plan_rows, PlanColumn, PlanRow
 use super::texts::Text;
 use super::workspace::Planned;
 use crate::job::{Action, Failure, Job, Phase, Status};
+use crate::journal::NozzleState;
 use crate::model::{Machine, Nozzle};
 use crate::parts::{Part, Side};
 
@@ -86,6 +87,75 @@ pub struct JobRow {
     pub state: PlaceState,
     /// Why it was put aside or left out, or the error that stopped it.
     pub note: String,
+    /// What the nozzle of the placement is doing now; none for a part that is not mounted and while there is no job.
+    pub nozzle_state: Option<NozzleState>,
+}
+
+impl NozzleState {
+    /// The word of the state.
+    pub fn text(self) -> Text {
+        match self {
+            NozzleState::Idle => Text::NozzleIdle,
+            NozzleState::Picking => Text::NozzlePicking,
+            NozzleState::Carrying => Text::NozzleCarrying,
+            NozzleState::Placing => Text::NozzlePlacing,
+        }
+    }
+}
+
+/// What a nozzle is doing between two steps of the job: `carrying` the part it holds, or `idle`. The states `picking` and `placing` last only inside a step, so they are seen in the journal
+/// and in the events of the hooks and not here.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NozzleNow {
+    /// From 1.
+    pub nozzle: usize,
+    pub state: NozzleState,
+    /// The reference of the part it holds; empty when idle.
+    pub part: String,
+}
+
+/// What every nozzle of the machine is doing now; empty while there is no job.
+pub fn nozzles_now(job: Option<&Job>) -> Vec<NozzleNow> {
+    let Some(job) = job else {
+        return Vec::new();
+    };
+    let planned = job
+        .plan()
+        .plan
+        .placements
+        .iter()
+        .map(|p| p.nozzle + 1)
+        .max()
+        .unwrap_or(0);
+    (0..job.config().nozzles.max(planned))
+        .map(|n| match job.machine().holding(n) {
+            Some(part) => NozzleNow {
+                nozzle: n + 1,
+                state: NozzleState::Carrying,
+                part: part.to_string(),
+            },
+            None => NozzleNow {
+                nozzle: n + 1,
+                state: NozzleState::Idle,
+                part: String::new(),
+            },
+        })
+        .collect()
+}
+
+/// The nozzles as one line for a person: `1: carrying a part (R5)  2: idle`.
+pub fn nozzle_line(job: Option<&Job>, tr: impl Fn(Text) -> &'static str) -> String {
+    nozzles_now(job)
+        .iter()
+        .map(|n| {
+            if n.part.is_empty() {
+                format!("{}: {}", n.nozzle, tr(n.state.text()))
+            } else {
+                format!("{}: {} ({})", n.nozzle, tr(n.state.text()), n.part)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("  ")
 }
 
 /// The state of the placement `index` of the plan.
@@ -131,7 +201,21 @@ pub fn job_rows(planned: &Planned, dnp: &[Part], side: Side, job: Option<&Job>) 
                 }
                 _ => String::new(),
             };
-            JobRow { row, state, note }
+            let nozzle_state = job.and_then(|j| {
+                (row.nozzle > 0).then(|| {
+                    if j.machine().holding(row.nozzle - 1).is_some() {
+                        NozzleState::Carrying
+                    } else {
+                        NozzleState::Idle
+                    }
+                })
+            });
+            JobRow {
+                row,
+                state,
+                note,
+                nozzle_state,
+            }
         })
         .collect();
     for d in dnp.iter().filter(|d| d.side == side) {
@@ -149,6 +233,7 @@ pub fn job_rows(planned: &Planned, dnp: &[Part], side: Side, job: Option<&Job>) 
             },
             state: PlaceState::Dnp,
             note: String::new(),
+            nozzle_state: None,
         });
     }
     out

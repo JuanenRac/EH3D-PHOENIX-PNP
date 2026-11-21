@@ -977,6 +977,13 @@ impl PnpApp {
         };
         let prog = jobtab::progress(self.s.session.job());
         let counts = jobtab::counts(&rows);
+        let nozzles = jobtab::nozzle_line(self.s.session.job(), |t| tr(t, lang));
+        if !nozzles.is_empty() {
+            ui.label(
+                RichText::new(format!("{}  {}", tr(Text::Nozzles, lang), nozzles))
+                    .color(col(pal.dim)),
+            );
+        }
         ui.horizontal(|ui| {
             ui.label(
                 RichText::new(tr(Text::ProgressLabel, lang))

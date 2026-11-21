@@ -34,6 +34,9 @@ pub struct Interval {
     pub light: Light,
     /// Why: `running`, `slow step`, `waiting` or `failed`.
     pub why: &'static str,
+    /// The nozzle of the step that makes the light (from 1) and what it was doing when the step was over; 0 and empty for green and for a wait, and when the journal has no such column.
+    pub nozzle: usize,
+    pub nozzle_state: String,
 }
 
 /// The middle value of a list of seconds (the mean of the two in the middle for an even count).
@@ -77,6 +80,8 @@ pub fn timeline(steps: &[Step], idle_gap_s: f64, slow_factor: f64) -> Vec<Interv
                     to_s: s.at_s,
                     light: if long { Light::Yellow } else { Light::Green },
                     why: if long { "waiting" } else { "running" },
+                    nozzle: 0,
+                    nozzle_state: String::new(),
                 });
             }
         }
@@ -88,11 +93,19 @@ pub fn timeline(steps: &[Step], idle_gap_s: f64, slow_factor: f64) -> Vec<Interv
         } else {
             (Light::Green, "running")
         };
+        // green says nothing of a nozzle; a light that is not green says which nozzle made it and what it was doing
+        let named = light != Light::Green && !s.nozzle_state.is_empty();
         raw.push(Interval {
             from_s: s.at_s,
             to_s: s.at_s + s.took_s,
             light,
             why,
+            nozzle: if named { s.nozzle } else { 0 },
+            nozzle_state: if named {
+                s.nozzle_state.clone()
+            } else {
+                String::new()
+            },
         });
         previous_end = Some(s.at_s + s.took_s);
     }
@@ -102,6 +115,8 @@ pub fn timeline(steps: &[Step], idle_gap_s: f64, slow_factor: f64) -> Vec<Interv
             Some(last)
                 if last.light == i.light
                     && last.why == i.why
+                    && last.nozzle == i.nozzle
+                    && last.nozzle_state == i.nozzle_state
                     && (i.from_s - last.to_s).abs() < 1e-9 =>
             {
                 last.to_s = i.to_s;
@@ -130,12 +145,18 @@ pub fn seconds(intervals: &[Interval]) -> [f64; 3] {
 pub fn text(intervals: &[Interval]) -> String {
     let mut out = String::new();
     for i in intervals.iter().filter(|i| i.light != Light::Green) {
+        let nozzle = if i.nozzle > 0 {
+            format!(" - nozzle {}: {}", i.nozzle, i.nozzle_state)
+        } else {
+            String::new()
+        };
         out.push_str(&format!(
-            "{:.3} s to {:.3} s: {} ({})\n",
+            "{:.3} s to {:.3} s: {} ({}){}\n",
             i.from_s,
             i.to_s,
             i.light.name(),
-            i.why
+            i.why,
+            nozzle
         ));
     }
     let t = seconds(intervals);
@@ -146,16 +167,18 @@ pub fn text(intervals: &[Interval]) -> String {
     out
 }
 
-/// The intervals as a CSV: `from_s,to_s,light,why`.
+/// The intervals as a CSV: `from_s,to_s,light,why,nozzle,nozzle_state` (the nozzle is 0 and its state empty where the interval names none).
 pub fn csv(intervals: &[Interval]) -> String {
-    let mut out = String::from("from_s,to_s,light,why\n");
+    let mut out = String::from("from_s,to_s,light,why,nozzle,nozzle_state\n");
     for i in intervals {
         out.push_str(&format!(
-            "{:.3},{:.3},{},{}\n",
+            "{:.3},{:.3},{},{},{},{}\n",
             i.from_s,
             i.to_s,
             i.light.name(),
-            i.why
+            i.why,
+            i.nozzle,
+            i.nozzle_state
         ));
     }
     out

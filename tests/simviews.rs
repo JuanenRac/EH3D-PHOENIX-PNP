@@ -25,6 +25,7 @@ fn step(
         nozzle,
         result: result.into(),
         status: "placed".into(),
+        nozzle_state: String::new(),
     }
 }
 
@@ -241,7 +242,7 @@ fn the_tower_report_names_what_is_not_green() {
     assert!(text.contains("6.000 s to 11.000 s: yellow (waiting)"));
     assert!(text.lines().last().unwrap().starts_with("green "));
     let csv = tower::csv(&t);
-    assert!(csv.starts_with("from_s,to_s,light,why\n"));
+    assert!(csv.starts_with("from_s,to_s,light,why,nozzle,nozzle_state\n"));
     assert!(csv.contains("1.000,2.000,red,failed"));
     assert_eq!(Light::Red.name(), "red");
 }

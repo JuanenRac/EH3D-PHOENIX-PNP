@@ -440,11 +440,15 @@ pub enum Text {
     SlotsChanged,
     SlotsSaved,
     SlotsUnsaved,
+    NozzleIdle,
+    NozzlePicking,
+    NozzleCarrying,
+    NozzlePlacing,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::SlotsUnsaved as usize + 1;
+    pub const COUNT: usize = Text::NozzlePlacing as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -987,4 +991,8 @@ static TABLE: &[[&str; 8]] = &[
     ["The file changed since it was read: read it again before saving", "El fichero cambió desde que se leyó: léelo otra vez antes de guardar", "Die Datei hat sich seit dem Lesen geändert: vor dem Speichern neu lesen", "Le fichier a changé depuis sa lecture : relisez-le avant d'enregistrer", "Il file è cambiato dopo la lettura: rileggilo prima di salvare", "読み込み後にファイルが変更されました。保存の前に読み直してください", "文件在读取后已更改：保存前请重新读取", "O ficheiro mudou desde que foi lido: leia-o outra vez antes de guardar"],
     ["Table saved", "Tabla guardada", "Tabelle gespeichert", "Table enregistrée", "Tabella salvata", "表を保存しました", "表已保存", "Tabela guardada"],
     ["changed, not saved", "cambiada, sin guardar", "geändert, nicht gespeichert", "modifiée, non enregistrée", "modificata, non salvata", "変更あり・未保存", "已更改，未保存", "alterada, por guardar"],
+    ["idle", "libre", "frei", "libre", "libera", "待機中", "空闲", "livre"],
+    ["picking", "recogiendo", "nimmt auf", "prélève", "preleva", "ピック中", "拾取中", "a recolher"],
+    ["carrying a part", "con una pieza", "trägt ein Teil", "porte une pièce", "con una parte", "部品を保持", "持有零件", "com uma peça"],
+    ["placing", "colocando", "setzt", "pose", "posiziona", "配置中", "贴装中", "a colocar"],
 ];

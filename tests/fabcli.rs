@@ -445,7 +445,7 @@ fn sim_busy_and_sim_tower_read_the_journal_of_a_simulated_job() {
     assert!(out(&o).contains("written to"));
     assert!(std::fs::read_to_string(&csv)
         .unwrap()
-        .starts_with("from_s,to_s,light,why\n"));
+        .starts_with("from_s,to_s,light,why,nozzle,nozzle_state\n"));
     let fine = dir.join("fine.csv");
     std::fs::write(&fine, "step,at_s,took_s,action,reference,feeder,nozzle,result,status\n1,0,1,pick,R1,F1,1,ok,pending\n").unwrap();
     assert!(run(&["sim-busy", p(&fine)]).status.success());

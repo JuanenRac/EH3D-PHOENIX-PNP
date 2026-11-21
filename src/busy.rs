@@ -5,6 +5,7 @@
 //! a step and the start of the next. It reads a file and changes nothing; a damaged row is an error with its line.
 
 use crate::error::{Code, PnpError};
+use crate::journal::NozzleState;
 use crate::parts::{csv_field, detect_delimiter, read_records_numbered};
 use std::collections::BTreeMap;
 
@@ -23,6 +24,8 @@ pub struct Step {
     pub nozzle: usize,
     pub result: String,
     pub status: String,
+    /// What the nozzle was doing when the step was over (`idle`, `carrying`...; see `journal::NozzleState`); empty in a journal that has no such column.
+    pub nozzle_state: String,
 }
 
 fn bad(line: usize, what: impl Into<String>) -> PnpError {
@@ -54,6 +57,7 @@ pub fn read_journal(text: &str) -> Result<Vec<Step>, PnpError> {
         at("result")?,
     );
     let c_status = keys.iter().position(|k| k == "status");
+    let c_state = keys.iter().position(|k| k == "nozzle_state");
     let mut out = Vec::new();
     for (line, row) in rows {
         if row.iter().all(|c| c.trim().is_empty()) {
@@ -77,6 +81,13 @@ pub fn read_journal(text: &str) -> Result<Vec<Step>, PnpError> {
                 .filter(|v| *v <= 1_000_000_000)
                 .ok_or_else(|| bad(line, format!("{what} is a whole number")))
         };
+        let nozzle_state = c_state.map_or("", cell).to_string();
+        if !nozzle_state.is_empty() && NozzleState::parse(&nozzle_state).is_none() {
+            return Err(bad(
+                line,
+                format!("'{nozzle_state}' is not a state of a nozzle"),
+            ));
+        }
         out.push(Step {
             step: whole(c_step, "step")?,
             at_s: seconds(c_at, "at_s")?,
@@ -87,6 +98,7 @@ pub fn read_journal(text: &str) -> Result<Vec<Step>, PnpError> {
             nozzle: whole(c_nozzle, "nozzle")?,
             result: cell(c_result).to_string(),
             status: c_status.map_or("", cell).to_string(),
+            nozzle_state,
         });
     }
     if out.is_empty() {
