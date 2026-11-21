@@ -4,6 +4,7 @@
 
 mod cli_args;
 mod cmd_drive;
+mod cmd_extra;
 mod cmd_fab;
 mod cmd_flow;
 mod cmd_import;
@@ -115,6 +116,10 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] [--config F] [--lang CODE]   what changed between two tables of parts, part by part: added, removed, moved, turned, another value, another package or the other side; exits with 2 when they differ
   phoenix-pnp config-diff FIRST SECOND [--lang CODE]   the settings that two configuration files give differently, in what they mean (yes and on, 5 and 5.0 and a line that gives the default are the same); exits with 2 when the machines differ
   phoenix-pnp fw-config-diff FIRST SECOND [--lang CODE]   the values that two dumps of the configuration of a firmware (the answer to M503) give differently, as lines of G-code are read (80 and 80.00 are the same), and a warning to reset the EEPROM when the firmware is not the same in both; exits with 2 when the values differ
+  phoenix-pnp toolpath-hash PARTS FEEDERS PROFILE [--side top|bottom] [--board-width MM] [--partial] [--expect HASH] [--script-out F] [--config F] [--lang CODE]   the lines that the driver profile writes for the whole job and their SHA-256, the fingerprint of what a person is shown before authorising it; with --expect it exits with 2 when the lines are not the ones of that hash (the plan changed after it was seen); it is the fingerprint of the lines of this program, not the one the server makes
+  phoenix-pnp height-map GRID [--parts PARTS] [--zero X,Y] [--out F] [--config F] [--lang CODE]   a grid of measured heights of a board (x_mm,y_mm,z_mm): how much it bends and, with --parts, how much the height of each placement changes (bilinear, against the zero at the lowest corner or at --zero); --out writes the table; exits with 2 when the board bends more than heightmap_max_warp_mm or a part is outside the grid
+  phoenix-pnp equivalents PARTS FEEDERS GROUPS [--out F] [--config F] [--lang CODE]   for the parts that no feeder holds, the feeder that holds an equivalent part (GROUPS is a table group,value,package) and has parts left, how many reels that saves; --out writes the table of parts with the swaps made; exits with 2 when a part still has no feeder
+  phoenix-pnp drag-plan FEEDERS [--out F] [--config F] [--lang CODE]   for each strip of the table of feeders, the stroke of a drag feeder (a whole number of sprocket holes and of pockets), the picks that one stroke serves and the strokes the tape takes; --out writes the table; exits with 2 when a strip cannot be dragged
   phoenix-pnp machine-sheet [--config F] [--lang CODE]   the specification sheet of the machine as the settings give it (table, machine, work area, smallest part tried, greatest speed); what nobody measured says so and no figure is made up
   phoenix-pnp board-stats PARTS [--near MM] [--limit N] [--config F] [--lang CODE]   what a table of parts holds (the sides, the kinds, each package, the box of the centres) and, with --near, the pairs of parts of one side whose centres are closer than MM; exits with 2 when it finds a pair
   phoenix-pnp queue-stock QUEUE [--out F] [--config F] [--lang CODE]   whether the feeders hold enough parts for all the jobs of the queue that are still to be made, one after the other, and the job in which each reel that falls short runs out; exits with 2 when one does
@@ -124,7 +129,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS [--panel] [--boards N] [--side top|bottom] [--config F] [--packages F] [--catalog F] [--relative] [--revision TOKEN]   puts a job (a table of parts, or a panel with --panel) at the end of a queue of jobs
   phoenix-pnp queue-status QUEUE [--check] [--config F]   the jobs of the queue and what became of each; --check plans the ones still to be made and exits with 2 when one cannot run now
   phoenix-pnp queue-confirm QUEUE NAME [--revision TOKEN]   records that the plan of the job, as it is now, was looked at and may be run (void when the files change)
-  phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove [--revision TOKEN]   leaves a job out, puts it back to the start, takes its confirmation back or takes it out
+  phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove|up|down|top|bottom [--revision TOKEN]   leaves a job out, puts it back to the start, takes its confirmation back, takes it out or moves it in the order (what is running or made keeps its place)
   phoenix-pnp queue-run QUEUE [--only NAME] [--config F]   makes the jobs one board at a time on the simulated machine, writing the queue after every board; a job whose plan was not confirmed is not run (queue_confirm)
   phoenix-pnp nozzle-calibrate FILE [--config F] [--lang CODE]   the runout of the nozzle tip from readings at several angles (angle_deg,x_mm,y_mm)
   phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--spare-min N] [--parts PARTS] [--have FEEDERS] [--out F] [--config F] [--lang CODE]   the parts to buy for N boards, with a spare (less what the feeders already hold)
@@ -160,6 +165,11 @@ Examples (each one is run by a test, from the folder of the repository):
   example: phoenix-pnp board-stats examples/board.pos
   example: phoenix-pnp fw-config-diff examples/firmware_old.txt examples/firmware_old.txt
   example: phoenix-pnp machine-sheet --config examples/machine.cfg
+  example: phoenix-pnp fw-config-diff examples/klipper_old.cfg examples/klipper_old.cfg
+  example: phoenix-pnp toolpath-hash examples/board.pos examples/feeders.csv examples/driver_marlin.cfg
+  example: phoenix-pnp height-map examples/height_grid.csv --parts examples/board.pos --zero 0,0
+  example: phoenix-pnp equivalents examples/board_equiv.pos examples/feeders_drag.csv examples/equivalents.csv
+  example: phoenix-pnp drag-plan examples/feeders_drag.csv
   example: phoenix-pnp slot-bank examples/slot_bank.csv --tape 8
   example: phoenix-pnp panel-compose examples/panel_compose.json
   example: phoenix-pnp wiring-sheet examples/driver_marlin.cfg
@@ -319,6 +329,10 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "parts-diff" => cmd_more::parts_diff(args),
         "config-diff" => cmd_more::config_diff(args),
         "fw-config-diff" => cmd_more::fw_config_diff(args),
+        "toolpath-hash" => cmd_extra::toolpath_hash(args),
+        "height-map" => cmd_extra::height_map(args),
+        "equivalents" => cmd_extra::equivalents_cmd(args),
+        "drag-plan" => cmd_extra::drag_plan(args),
         "machine-sheet" => cmd_more::machine_sheet(args),
         "board-stats" => cmd_more::board_stats(args),
         "queue-stock" => cmd_more::queue_stock(args),

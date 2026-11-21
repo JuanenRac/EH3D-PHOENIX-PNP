@@ -94,11 +94,20 @@ pub fn fw_config_diff(mut args: Vec<String>) -> Result<(), String> {
         (Some(a), Some(b)) => (a.clone(), b.clone()),
         _ => return Err("fw-config-diff needs two dumps of a firmware".into()),
     };
-    let load = |path: &str| -> Result<fwdiff::Dump, String> {
-        fwdiff::parse(&read_text(path, fwdiff::MAX_DUMP_BYTES as u64)?)
-            .map_err(|e| format!("{path}: {e}"))
+    let mut saved_block = false;
+    let mut load = |path: &str| -> Result<fwdiff::Dump, String> {
+        let text = read_text(path, fwdiff::MAX_DUMP_BYTES as u64)?;
+        saved_block |= text.contains(fwdiff::SAVE_MARKER);
+        fwdiff::parse(&text).map_err(|e| format!("{path}: {e}"))
     };
-    let diff = fwdiff::diff(&load(&a)?, &load(&b)?);
+    let (first, second) = (load(&a)?, load(&b)?);
+    if first.klipper != second.klipper {
+        return Err(
+            "one dump is the configuration of a Klipper controller and the other the answer of a Marlin one: they cannot be compared"
+                .into(),
+        );
+    }
+    let diff = fwdiff::diff(&first, &second);
     for line in diff.lines() {
         println!("{line}");
     }
@@ -146,6 +155,19 @@ pub fn fw_config_diff(mut args: Vec<String>) -> Result<(), String> {
                 &[("old", old.to_string()), ("new", new.to_string())]
             )
         );
+    }
+    if diff.klipper && saved_block {
+        let note: [&str; 8] = [
+            "note: a file has values saved under SAVE_CONFIG; they win over the same value above them, so change them there (or take the block out) and not above",
+            "nota: un fichero tiene valores guardados bajo SAVE_CONFIG; mandan sobre el mismo valor de más arriba, así que cámbialos ahí (o quita el bloque) y no arriba",
+            "Hinweis: Eine Datei hat unter SAVE_CONFIG gespeicherte Werte; sie gelten vor demselben Wert weiter oben, ändere sie also dort (oder entferne den Block) und nicht oben",
+            "remarque : un fichier a des valeurs enregistrées sous SAVE_CONFIG ; elles l'emportent sur la même valeur plus haut, changez-les donc là (ou retirez le bloc) et non plus haut",
+            "nota: un file ha valori salvati sotto SAVE_CONFIG; prevalgono sullo stesso valore più in alto, quindi cambiali lì (o togli il blocco) e non sopra",
+            "注意：SAVE_CONFIG の下に保存された値があります。上にある同じ値より優先されるので、上ではなくそこで変更してください（またはブロックを削除）",
+            "注意：文件中有保存在 SAVE_CONFIG 之下的值；它们优先于上面的同一个值，所以请在那里修改（或删除该块），而不是在上面",
+            "nota: um ficheiro tem valores guardados sob SAVE_CONFIG; mandam sobre o mesmo valor mais acima, por isso altere-os aí (ou retire o bloco) e não acima",
+        ];
+        println!("{}", say(lang, &note, &[]));
     }
     if diff.is_same() {
         Ok(())

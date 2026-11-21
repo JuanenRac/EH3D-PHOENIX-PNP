@@ -3240,6 +3240,12 @@ impl PnpApp {
                     if ui.button(tr(Text::QueueRemove, lang)).clicked() {
                         act = Some("remove");
                     }
+                    if ui.button(tr(Text::QueueUp, lang)).clicked() {
+                        act = Some("up");
+                    }
+                    if ui.button(tr(Text::QueueDown, lang)).clicked() {
+                        act = Some("down");
+                    }
                 });
                 ui.horizontal_wrapped(|ui| {
                     if armed {
@@ -3315,7 +3321,9 @@ impl PnpApp {
             Some("refresh") => self.s.queue_refresh(),
             Some("check") => self.s.queue_check(),
             Some("confirm") => self.s.queue_confirm(),
-            Some(edit @ ("revoke" | "skip" | "reset" | "remove")) => self.s.queue_edit(edit),
+            Some(edit @ ("revoke" | "skip" | "reset" | "remove" | "up" | "down")) => {
+                self.s.queue_edit(edit)
+            }
             Some("run") => self.s.queue_run(),
             Some("cancel") => self.s.tools.queue.cancel_run(),
             Some("stop") => self.s.queue_stop(),

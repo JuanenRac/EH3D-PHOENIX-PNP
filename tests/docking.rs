@@ -231,7 +231,7 @@ fn the_menu_bar_is_file_edit_view_tools_window_and_help_and_has_no_clash() {
 }
 
 #[test]
-fn the_view_menu_lists_every_panel_and_the_tools_menu_opens_the_eleven_commands() {
+fn the_view_menu_lists_every_panel_and_the_tools_menu_opens_the_fifteen_commands() {
     let bar = menu_bar();
     let c = core();
     let built = bar.resolve(&c.menu_context());
@@ -247,7 +247,7 @@ fn the_view_menu_lists_every_panel_and_the_tools_menu_opens_the_eleven_commands(
             _ => None,
         })
         .expect("a submenu of commands");
-    assert_eq!(commands.len(), 11);
+    assert_eq!(commands.len(), 15);
     for (entry, cmd) in commands.iter().zip(Command::ALL) {
         assert_eq!(
             entry.activate(),

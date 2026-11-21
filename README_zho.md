@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 1876 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 1915 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.1.3` |
 | 成熟度 | 脚手架 |
-| 测试 | 1876 |
+| 测试 | 1915 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -47,11 +47,11 @@
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
 | 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 1876 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 测试 | 🟡 | 1915 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
-| 窗口 | 🟠 | 一个 egui 窗口（用 `--features gui` 构建；不带命令运行 `phoenix-pnp` 即可打开）：作业、零件、封装、供料器、上料表、机器、工具、问题和日志等页面，显示贴装头路径、极性标记和下一个零件的工作台地图，五步向导，带可撤销修复的问题列表，可暂停、继续和单步的模拟作业，以及八种语言。其逻辑在没有屏幕的情况下经过测试；绘制不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。还有拼板页（含基准点和移动零件的拟合）和电路板页、文件选择器、可撤销编辑的供料器与封装表、会记住的列宽，以及在 Windows 上无控制台打开的独立程序（`phoenix-pnp-gui`）。 标签页现在是套件停靠框架（`eh3d-dock`）的面板：可以移动、浮动、折叠并保存为三种布局，有菜单栏，十一个命令各有一个面板；这只在没有窗口的环境中编译并运行过，没有在屏幕上看过。 |
+| 窗口 | 🟠 | 一个 egui 窗口（用 `--features gui` 构建；不带命令运行 `phoenix-pnp` 即可打开）：作业、零件、封装、供料器、上料表、机器、工具、问题和日志等页面，显示贴装头路径、极性标记和下一个零件的工作台地图，五步向导，带可撤销修复的问题列表，可暂停、继续和单步的模拟作业，以及八种语言。其逻辑在没有屏幕的情况下经过测试；绘制不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。还有拼板页（含基准点和移动零件的拟合）和电路板页、文件选择器、可撤销编辑的供料器与封装表、会记住的列宽，以及在 Windows 上无控制台打开的独立程序（`phoenix-pnp-gui`）。 标签页现在是套件停靠框架（`eh3d-dock`）的面板：可以移动、浮动、折叠并保存为三种布局，有菜单栏，十五个命令各有一个面板；这只在没有窗口的环境中编译并运行过，没有在屏幕上看过。 |
 | 真实硬件 | 🔴 | 未试过：这里的任何内容都没有在机器上运行过。 |
 | 文档 | 🟡 | 八种语言的 README、更新日志，以及由 `docs/` 绘制的两张图。 |
 
@@ -178,6 +178,7 @@
 * **作业进行中的钩子，以及每个吸嘴在做什么**（`src/hooks.rs`, `src/journal.rs`, `src/commands.rs`）：除了作业结束时的事件，规则还可以写 `nozzle-before-pick`、`nozzle-after-pick`、`nozzle-before-place`、`nozzle-after-place` 和 `placement-complete`，`simulate --hooks` 在作业进行时的每一步都会通知（相同的种子给出相同的列表；钩子的限制对整个作业计数）。参数的数据中增加了 `{nozzle}`、`{step}` 和 `{nozzle_state}`，同样的数据还会以最多 1024 字节的一行 JSON 送到程序的输入。日志有一列 `nozzle_state`（`idle`、`picking`、`carrying`、`placing`），说明每一步之后吸嘴在做什么。
 * **顺序、接线与路径**（`src/placeorder.rs`, `src/wiring.rs`, `src/pathid.rs`）：`placement_order = unit, height:desc, quantity:desc` 用一个键列表（拼板单元、供料器、元件、高度、面积、数量，各自升序或降序）来排列贴装，取代单一的 `order`。`phoenix-pnp wiring-sheet PROFILE [--out F] [--svg F]` 读取驱动配置，写出什么接到哪个引脚（各轴、泵、吹气阀，以及使机器进入安全状态的那一行是否释放每一项）和气路图；无法读出引脚、缺泵或缺阀、两个执行器共用一个引脚时，退出码为 2。队列中的路径以 `/` 分隔名称保存，不带 Windows 前缀和 `..`，同一文件的两种写法视为同一个。本程序对公共客户端的请求写在 `docs/COMMON_REQUESTS.md`。
 * **无限位开关回零、固件转储、机器规格表和每个喷嘴的状态**（`src/gcodedriver.rs`, `src/fwdiff.rs`, `src/machsheet.rs`, `src/tower.rs`, `src/gui/jobtab.rs`, `examples/firmware_old.txt`）：驱动配置档可写 `homing_mode = sensorless`，并给出 X 和 Y 各一个灵敏度（`homing_sensitivity_x` 和 `homing_sensitivity_y`，-64 到 255）以及设置它的行；它们先于 `home` 的各行发出，`homing-repeat` 会列出它们并显示机器每次落点相差多远。`phoenix-pnp fw-config-diff FIRST SECOND` 逐值比较两份固件配置转储（`M503` 的回答），把 `80` 和 `80.00` 视为相同，并在两者固件不同时提醒重置 EEPROM（值不同则退出码为 2）。`phoenix-pnp machine-sheet` 输出设置中五行 `spec_` 给出的工作台、机器、工作区域、已试过的最小零件和最高速度；无人填写的项目在八种语言中都写“未测量”，不会编造数值，作业报告也带有这张表。作业选项卡显示每个喷嘴在做什么（空闲或持有零件），`sim-tower` 在每个非绿色的灯旁标出喷嘴及其状态。通过公共客户端，与节点的连接会按节点所写给出拒绝的 `why`，并保留固定令牌。以上全部只在模拟器上试过。
+* **作业指纹、Klipper 文件、翘曲的板子、等效元件、拖动供料器和队列顺序**（`src/toolpath.rs`, `src/heightmap.rs`, `src/equivalents.rs`, `src/drag.rs`, `src/cmd_extra.rs`, `src/fwdiff.rs`, `src/queue.rs`）：`phoenix-pnp toolpath-hash PARTS FEEDERS PROFILE` 写出驱动配置为整个作业给出的行并打印其 SHA-256（同一计划总得到同一个值，位置移动千分之一毫米就得到另一个值），`--expect HASH` 在这些行不是看过的那些时以 2 退出；它不是服务器计算的指纹。`fw-config-diff` 也能读取 Klipper 控制器的配置（`[段]` 与 `键: 值` 行，宏算作一个值，`SAVE_CONFIG` 保存的值优先于上面的文件），并且从不把它与 Marlin 转储相比较。`phoenix-pnp height-map GRID --parts PARTS` 读取在完整网格上测得的高度，给出板子翘曲量（`heightmap_max_warp_mm`）以及通过双线性插值得到的每个贴装的高度变化；网格之外的位置没有校正。`phoenix-pnp equivalents PARTS FEEDERS GROUPS` 把没有供料器的元件放到装有等效元件且余量最多的供料器上，并说明省下几卷料。`phoenix-pnp drag-plan FEEDERS` 为每条料带给出由整数个料孔（`drag_hole_pitch_mm`）和整数个料穴构成的最短行程、一次行程可供的取料次数（最多 `drag_max_picks_per_stroke`）以及整盘料带的行程数。`queue-edit 队列 名称 up|down|top|bottom` 在顺序中移动作业，正在运行或已完成的保持原位，窗口里有两个按钮；四个新命令各有一个面板（共十五个）。在手写文件和模拟控制器上试过，从未在真机上试过。
 
 ## 🧩 在 EH3D 中的角色
 
@@ -251,7 +252,7 @@ phoenix-pnp camera-pattern FILE [--pitch MM]             根据网格图案上�
 phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS          把作业（板或拼板）加到作业队列末尾
 phoenix-pnp queue-status QUEUE [--check]                 队列中的作业及其状态；--check 为尚未完成的作业做计划
 phoenix-pnp queue-confirm QUEUE NAME                     记录某作业当前的计划可以运行
-phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove   跳过、重新开始、撤销确认或移除作业
+phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove|up|down|top|bottom   跳过、重新开始、撤销确认、移除作业或在顺序中移动
 phoenix-pnp queue-run QUEUE [--only NAME]                在模拟机上逐块板完成已确认的作业
 phoenix-pnp camera-combined FILE [--pitch MM] [--origin X,Y] [--touch]   用固定在台面上的图案并移动头，得到相机、图案的旋转和镜头畸变（需要 camera_combined = on）
 phoenix-pnp vision-readings PARTS --sizes F [--seed N]   模拟相机对零件的读数，写成 part-inspect 读取的文件
@@ -265,6 +266,10 @@ phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] 两个�
 phoenix-pnp config-diff FIRST SECOND                       两个配置文件在含义上不同的设置（yes 与 on、5 与 5.0 相同；机器不同则以 2 退出）
 phoenix-pnp fw-config-diff FIRST SECOND                    两份固件配置转储（M503 的回答）中不同的值；固件变化时提醒重置 EEPROM（值不同则以 2 退出）
 phoenix-pnp machine-sheet [--config F]                     根据设置生成的机器规格表；无人测量的项目会注明
+phoenix-pnp toolpath-hash PARTS FEEDERS PROFILE [--expect HASH] 驱动配置为整个作业写出的行的 SHA-256；带 --expect 时，若不是看过的那些行则以 2 退出
+phoenix-pnp height-map GRID [--parts PARTS] [--zero X,Y] [--out F] 根据实测高度网格给出板子翘曲量和每个贴装的高度变化（翘曲过大或有元件在网格之外时以 2 退出）
+phoenix-pnp equivalents PARTS FEEDERS GROUPS [--out F]     把没有供料器的元件放到装有等效元件且仍有余量的供料器上，并给出省下的料卷（仍有元件没有供料器时以 2 退出）
+phoenix-pnp drag-plan FEEDERS [--out F]                    每条料带的拖动供料器行程（整数个料孔和料穴）、一次行程可供的取料次数、整盘料带的行程数（有无法拖动的以 2 退出）
 phoenix-pnp board-stats PARTS [--near MM] [--limit N]      零件表里有什么（面、种类、封装、中心范围），加 --near 时列出间距小于 MM 的零件对（发现则以 2 退出）
 phoenix-pnp queue-stock QUEUE [--out F]                    供料器够不够做完队列中尚未完成的全部作业，以及每个料盘在哪个作业中用完（不够则以 2 退出）
 phoenix-pnp feeder-deplete FEEDERS --state F [--out F]     保存状态对应的作业之后的供料器表：剩余零件数和料条的下一个位置（有供料器不足或已空则以 2 退出）
@@ -443,7 +448,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 1876 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 1915 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -478,6 +483,7 @@ EH3D-PHOENIX-PNP/
 │   ├── clearance.rs                             板上元件本体之间的间距：过近或重叠的元件对
 │   ├── cli_args.rs                              命令行参数，严格：未知选项即错误
 │   ├── cmd_drive.rs                             G-code 驱动命令：driver-check、driver-test、driver-run、bringup
+│   ├── cmd_extra.rs                             命令 toolpath-hash、height-map、equivalents、drag-plan
 │   ├── cmd_fab.rs                               装配文件、检查、钢网和日志视图的命令
 │   ├── cmd_flow.rs                              无需机器的流程命令：批次、拆分、概率、吸嘴高度、标记、导入、清单
 │   ├── cmd_import.rs                            命令 import-openpnp、assist、align-iterate、vacuum-calibrate、test-board-gen
@@ -497,8 +503,10 @@ EH3D-PHOENIX-PNP/
 │   ├── deplete.rs                               作业之后的供料器表：剩余零件数和料条的下一个位置
 │   ├── designators.rs                           位号的自然顺序（R2 在 R10 前）与范围写法
 │   ├── dfm.rs                                   电路板装配检查（限值在设置中），八种语言
+│   ├── drag.rs                                  通过料孔拖动料带的供料器：行程、一次行程可供的取料次数、整盘料带的行程数
 │   ├── driver.rs                                驱动会话：超时、重试、失败即关闭的停止，故障后降速
 │   ├── drivertest.rs                            把控制器的记录应答与配置档的模式对照
+│   ├── equivalents.rs                           可由已在供料器上的另一元件代替的元件，以及由此省下的料卷
 │   ├── error.rs                                 错误代码 PHOENIX-PNP-NNN 及其八种语言的含义
 │   ├── exchange.rs                              供其他程序使用的作业 JSON 文件：计划和每个零件的状态
 │   ├── export.rs                                报告、缺料清单和移动的 G 代码
@@ -517,7 +525,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui.rs                                   窗口：无需屏幕的模块，以及 window.rs 中的绘制
 │   ├── gui/app.rs                               窗口的状态：载入、规划、开始、暂停、单步、修复、保存
 │   ├── gui/browse.rs                            文件选择器：文件夹和文件、上一级、输入的路径
-│   ├── gui/cmdpanel.rs                          十一个驱动与助手命令的面板：运行、限制、输出
+│   ├── gui/cmdpanel.rs                          十五个驱动与助手命令的面板：运行、限制、输出
 │   ├── gui/docking.rs                           交给停靠框架的面板、三种布局和菜单栏
 │   ├── gui/jobtab.rs                            不依赖窗口的作业标签页：状态、筛选、进度、错误对话框
 │   ├── gui/log.rs                               带级别的日志，以及可复制的诊断文本
@@ -541,6 +549,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui_main.rs                              作为独立程序的窗口，在 Windows 上没有控制台
 │   ├── heads.rs                                 多贴装头：可达范围、零件分配、等待供料器
 │   ├── headsplit.rs                             多个贴装头共用一排供料器：按带分区或按整个供料器，含等待时间
+│   ├── heightmap.rs                             由实测点网格得出的翘曲板高度，以及每个贴装的高度变化
 │   ├── hooks.rs                                 针对作业事件运行的程序，默认关闭，清单和时间均有限制
 │   ├── hotspots.rs                              多次模拟运行中出问题的供料器：取料失败、被关闭、被搁置
 │   ├── import.rs                                位置文件的导入：带列映射的质心 CSV、EAGLE 文本、KiCad 的 .pos
@@ -615,6 +624,7 @@ EH3D-PHOENIX-PNP/
 │   ├── testboard.rs                             由种子生成的虚拟板：网格、双面混合、密集，附带供料器
 │   ├── textmatch.rs                             用于控制器应答行、耗时有界的小型模式匹配器
 │   ├── tips.rs                                  封装可接受的吸嘴，以及为每类零件选择其一
+│   ├── toolpath.rs                              驱动配置文件为作业写出的行及其 SHA-256 指纹
 │   ├── toolvalues.rs                            工具表单的值作为设置文件的项目，以及将它们保存回文件
 │   ├── tower.rs                                 模拟作业信号灯塔每秒的灯色
 │   ├── units.rs                                 带单位的长度和位置
@@ -646,9 +656,11 @@ EH3D-PHOENIX-PNP/
 │   ├── deplete.rs                               作业后供料器表的测试：数量、料条、托盘、命令
 │   ├── dfm.rs                                   装配检查和钢网的测试：每条规则、八种语言
 │   ├── docking.rs                               停靠框架的测试：面板、布局、菜单、已保存的布局和快捷键
+│   ├── drag.rs                                  拖动供料器的测试：行程、一次行程的取料、被拒绝的间距、固定种子的间距、命令
 │   ├── driver.rs                                驱动测试：配置档、行、应答、Moonraker、模拟控制器、会话
 │   ├── drivercli.rs                             driver-check、driver-test、driver-run、safety-replay、homing-repeat、bringup 的测试
 │   ├── encoding.rs                              文件编码的测试：UTF-8、UTF-16 和 Latin-1
+│   ├── equivalent.rs                            等效元件的测试：替换、剩余数量、供料器顺序、被拒绝的表、命令
 │   ├── exchange.rs                              作业交换文件测试：写入、读取、各种拒绝、命令
 │   ├── exitcodes.rs                             逐个命令测试未通过检查时的退出码 2
 │   ├── fab.rs                                   装配厂文件及位置文件转换的测试
@@ -665,6 +677,7 @@ EH3D-PHOENIX-PNP/
 │   ├── fwdiff.rs                                固件转储差异、EEPROM 警告和固定种子噪声的测试
 │   ├── gui.rs                                   无屏幕的窗口测试：状态、规划、作业、地图、表格和向导
 │   ├── heads.rs                                 贴装头测试：配置行、可达范围、分配、时钟和 schedule
+│   ├── heightmap.rs                             翘曲板高度的测试：双线性高度、固定种子的平面、范围之外的位置、被拒绝的网格、命令
 │   ├── helpdemo.rs                              运行帮助中每个示例并检查所承诺退出码的测试
 │   ├── homingmode.rs                            无限位开关回零的测试：模式、灵敏度、行的顺序
 │   ├── hooks.rs                                 钩子测试：默认关闭、规则、事件、调用、运行、simulate --hooks
@@ -681,6 +694,7 @@ EH3D-PHOENIX-PNP/
 │   ├── journal.rs                               作业日志的测试：每步一行、使其停止的错误、命令
 │   ├── keys.rs                                  设置中每个键的测试：列表、示例、校验、重复
 │   ├── kicadmod.rs                              KiCad 封装测试：本体、占位区、损坏文件、行、命令
+│   ├── klippercfg.rs                            Klipper 控制器配置比较的测试：段、保存的块、宏，Marlin 转储另行处理
 │   ├── learn.rs                                 学习偏移测试：读数、离群值、上限、文件、作业、命令
 │   ├── loadsheet.rs                             上料表和导出的测试
 │   ├── lookmove.rs                              看、移动、再看的测试：收敛、上限、只会更小的步长、设置
@@ -713,6 +727,7 @@ EH3D-PHOENIX-PNP/
 │   ├── preview.rs                               计划图的测试：内容、转义、尺寸和 --svg
 │   ├── process.rs                               流程的测试：阶段、顺序、装料、已保存的状态和引导模式的流程
 │   ├── queue.rs                                 作业队列的测试：文件、校验和、关卡、命令和工具
+│   ├── queuemove.rs                             队列顺序的测试：上移、下移、首位、末位、固定的保持原位、固定种子的移动、命令
 │   ├── queuestock.rs                            供料器与队列对照的测试：累计总量、料盘用完的位置、命令
 │   ├── readme.rs                                验证 README 可运行且完整的测试
 │   ├── recipe.rs                                配方的测试：文件、限制、步骤、作业中的规则和已保存的状态
@@ -747,6 +762,7 @@ EH3D-PHOENIX-PNP/
 │   ├── toolflow.rs                              料盘、吸嘴、故障热点、换料面板及保存表单值的测试
 │   ├── toolmore.rs                              工具页比较与统计面板的测试：各面板与其命令的对照、拒绝、文件
 │   ├── toolpanels.rs                            料盘、手工贴装零件、作业差异、供料器位置和多次运行面板及选项卡文字的测试
+│   ├── toolpath.rs                              作业行指纹的测试：已知值、--expect、移动的位置、固定种子的板子
 │   ├── toolshop.rs                              工具页的六个新面板：命令的输出、文字、保存的表
 │   ├── toolvalues.rs                            表单值作为设置项的测试：范围、默认值、命令、保存到文件
 │   ├── vacuum.rs                                真空、执行器和供料器故障窗口的测试
@@ -762,6 +778,7 @@ EH3D-PHOENIX-PNP/
 │   ├── board.mnt                                EAGLE 文本格式的电路板位置
 │   ├── board.pos                                试用的示例
 │   ├── board_dnp.csv                            带 dnp 列的电路板：其中两个零件不贴装
+│   ├── board_equiv.pos                          元件没有专用供料器的小板子，供 equivalents 使用
 │   ├── board_marks.pos                          带两个基准标记零件的示例板，供 panel-fids 使用
 │   ├── bom.csv                                  与 board.pos 一致的物料清单
 │   ├── bom_b.csv                                第二块板的物料清单，供 bom-merge 使用
@@ -775,21 +792,26 @@ EH3D-PHOENIX-PNP/
 │   ├── chip_0603.kicad_mod                      用于 package-kicad 的 0603 贴片 KiCad 封装
 │   ├── driver_klipper.cfg                       通过 Moonraker 使用 Klipper 的驱动配置档，每个键都有说明
 │   ├── driver_marlin.cfg                        串口 Marlin 的驱动配置档，每个键都有说明
+│   ├── equivalents.csv                          可以互相替代的元件分组（group,value,package）
 │   ├── failure_rules.csv                        failure-odds 按封装的重试次数
 │   ├── features.csv                             dfm-check 用的外形、焊盘、孔、基准点、连接片
 │   ├── feeder_measures.csv                      feeder-teach 用的料带与料盘测量位置
 │   ├── feeders.csv                              试用的示例
+│   ├── feeders_drag.csv                         含 2、3、4 mm 料带和一个托盘的供料器表，供 drag-plan 和 equivalents 使用
 │   ├── feeders_kinds.csv                        各种供料器：料带、料条、托盘和一个已关闭的
 │   ├── feeders_tubes.csv                        除料带外还含料管和散料供料器的供料器表
 │   ├── fid_design.csv                           四个基准点的设计位置
 │   ├── fid_measured.csv                         在机器上测得的同样四个基准点
 │   ├── firmware_new.txt                         换了新固件后的同一台机器：值不同，少一行，多一行
 │   ├── firmware_old.txt                         固件配置转储（M503 的回答），供 fw-config-diff 使用
+│   ├── height_grid.csv                          在 3×3 点网格上测得的板子高度，供 height-map 使用
 │   ├── hooks.csv                                simulate --hooks 的钩子规则：每条含一个事件和一个程序
 │   ├── job.recipe                               含全部步骤以及按封装、供料器和吸嘴规则的配方
 │   ├── job_basic.recipe                         最短的配方：准备、拾取和贴装
 │   ├── journal.csv                              sim-busy 用的日志：慢步骤、等待、故障
 │   ├── klipper_answers.txt                      手工记录的 Klipper 经连接返回的应答
+│   ├── klipper_new.cfg                          调整设置后的同一台 Klipper 机器，带保存的块和一个新宏
+│   ├── klipper_old.cfg                          使用 Klipper 控制器的贴片机配置，供 fw-config-diff 使用
 │   ├── lots.csv                                 lot-trace 用的各供料器批次与料盘
 │   ├── machine.cfg                              机器设置，每个键均有说明
 │   ├── marks.csv                                拼板基准点的实测位置

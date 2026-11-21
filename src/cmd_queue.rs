@@ -201,14 +201,15 @@ pub fn queue_confirm(mut args: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
-/// `queue-edit QUEUE NAME skip|reset|revoke|remove`: leaves an entry out, puts it back to the start, takes its confirmation back or takes it out of the queue.
+/// `queue-edit QUEUE NAME skip|reset|revoke|remove|up|down|top|bottom`: leaves an entry out, puts it back to the start, takes its confirmation back, takes it out of the queue or
+/// moves it in the order (what is running or made keeps its place).
 pub fn queue_edit(mut args: Vec<String>) -> Result<(), String> {
     let held = held_to(&mut args)?;
     let (lang, _) = language_and_config(&mut args)?;
     finish(&args, 3)?;
     let [path, name, action] = args.as_slice() else {
         return Err(
-            "queue-edit needs a queue file, the name of an entry and skip, reset, revoke or remove"
+            "queue-edit needs a queue file, the name of an entry and skip, reset, revoke, remove, up, down, top or bottom"
                 .into(),
         );
     };
@@ -219,7 +220,19 @@ pub fn queue_edit(mut args: Vec<String>) -> Result<(), String> {
         "reset" => q.reset(name).map_err(l)?,
         "revoke" => q.revoke(name).map_err(l)?,
         "remove" => q.remove(name).map_err(l)?,
-        other => return Err(format!("'{other}' is not skip, reset, revoke or remove")),
+        other => match eh3d_phoenix_pnp::queue::Move::parse(other) {
+            Some(to) => {
+                let place = q.move_entry(name, to).map_err(l)?;
+                store_held(path, &q, lang, held.as_deref())?;
+                println!("{action}: '{name}' is now number {}", place + 1);
+                return Ok(());
+            }
+            None => {
+                return Err(format!(
+                    "'{other}' is not skip, reset, revoke, remove, up, down, top or bottom"
+                ))
+            }
+        },
     }
     store_held(path, &q, lang, held.as_deref())?;
     println!("{action}: '{name}'");

@@ -331,3 +331,77 @@ fn a_wrong_option_is_a_command_that_could_not_be_run_for_all_of_them() {
         assert_eq!(code(args), 1, "{args:?}");
     }
 }
+
+#[test]
+fn the_fingerprint_height_equivalents_and_drag_commands_end_with_2_when_the_check_is_not_passed() {
+    let d = dir("round");
+    let zero = "0".repeat(64);
+    let profile = "examples/driver_marlin.cfg";
+    expect(
+        "toolpath-hash",
+        Some(&[
+            "toolpath-hash",
+            "examples/board.pos",
+            "examples/feeders.csv",
+            profile,
+        ]),
+        &[
+            "toolpath-hash",
+            "examples/board.pos",
+            "examples/feeders.csv",
+            profile,
+            "--expect",
+            &zero,
+        ],
+        &[
+            "toolpath-hash",
+            "examples/board.pos",
+            "no_such.csv",
+            profile,
+        ],
+    );
+    let bent = make(
+        &d,
+        "bent.csv",
+        "x_mm,y_mm,z_mm
+0,0,0
+10,0,2.5
+0,10,0
+10,10,0
+",
+    );
+    expect(
+        "height-map",
+        Some(&["height-map", "examples/height_grid.csv"]),
+        &["height-map", &bent],
+        &["height-map", "no_such.csv"],
+    );
+    let none = make(
+        &d,
+        "odd.pos",
+        "ref,val,package,x,y,rot,side
+L1,10u,L_0805,1,2,0,top
+",
+    );
+    let (feeders, groups) = ("examples/feeders_drag.csv", "examples/equivalents.csv");
+    expect(
+        "equivalents",
+        Some(&["equivalents", "examples/board_equiv.pos", feeders, groups]),
+        &["equivalents", &none, feeders, groups],
+        &["equivalents", "no_such.pos", feeders, groups],
+    );
+    let wide = make(
+        &d,
+        "wide.csv",
+        "id,value,package,x,y,count,kind,pitch
+F1,10k,R_0402,0,0,10,strip,3.5
+",
+    );
+    expect(
+        "drag-plan",
+        Some(&["drag-plan", feeders]),
+        &["drag-plan", &wide],
+        &["drag-plan", "no_such.csv"],
+    );
+    let _ = std::fs::remove_dir_all(&d);
+}

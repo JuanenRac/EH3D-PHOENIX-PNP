@@ -22,7 +22,7 @@ use eh3d_phoenix_pnp::parts::{parse, Side};
 use eh3d_phoenix_pnp::plan::{plan, Settings};
 use eh3d_phoenix_pnp::safety::{replay, replay_text, Level, Rules};
 
-fn load_profile(path: &str, lang: Lang) -> Result<DriverProfile, String> {
+pub fn load_profile(path: &str, lang: Lang) -> Result<DriverProfile, String> {
     let text = read_text(path, MAX_PROFILE_BYTES as u64)?;
     DriverProfile::parse(&text).map_err(|e| format!("{path}: {}", e.localized(lang)))
 }
@@ -284,16 +284,7 @@ pub fn driver_run(mut args: Vec<String>) -> Result<(), String> {
     };
     let planned = plan(&parts, &feeders, &assigned, &settings)?;
     // the lines of the whole job, before anything is sent: a step the profile cannot write stops the command here
-    let mut script: Vec<String> = Vec::new();
-    script.extend(profile.connect.clone());
-    script.push(profile.absolute_mode.clone());
-    script.extend(profile.home_lines());
-    for p in &planned.placements {
-        for op in profile.placement_ops(p)? {
-            script.extend(profile.lines(&op)?);
-        }
-    }
-    script.extend(profile.disable.clone());
+    let script = eh3d_phoenix_pnp::toolpath::script(&profile, &planned.placements)?;
     let inputs = vec![args[0].clone(), args[1].clone(), args[2].clone()];
     let result = match profile.transport {
         Transport::Serial => {

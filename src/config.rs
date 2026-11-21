@@ -21,7 +21,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 263] = [
+pub const KEYS: [&str; 266] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -285,6 +285,9 @@ pub const KEYS: [&str; 263] = [
     "spec_work_area",
     "spec_smallest_part",
     "spec_max_speed_mm_s",
+    "heightmap_max_warp_mm",
+    "drag_hole_pitch_mm",
+    "drag_max_picks_per_stroke",
 ];
 
 /// The order in which the places are visited.
@@ -860,6 +863,12 @@ pub struct MachineConfig {
     pub spec_work_area: String,
     pub spec_smallest_part: String,
     pub spec_max_speed_mm_s: f64,
+    /// height-map: how much a board may bend (the highest measured point less the lowest, mm) before the check is not passed.
+    pub heightmap_max_warp_mm: f64,
+    /// drag-plan: the distance between the sprocket holes of a tape (mm); a drag feeder moves a tape by a whole number of them. The standard of the tapes gives 4.
+    pub drag_hole_pitch_mm: f64,
+    /// drag-plan: the most picks that one stroke of a drag feeder may serve (a pocket pitch that needs more is refused).
+    pub drag_max_picks_per_stroke: u32,
 }
 
 /// The most retries of the link to the server.
@@ -1123,6 +1132,9 @@ impl Default for MachineConfig {
             spec_work_area: String::new(),
             spec_smallest_part: String::new(),
             spec_max_speed_mm_s: 0.0,
+            heightmap_max_warp_mm: 1.0,
+            drag_hole_pitch_mm: 4.0,
+            drag_max_picks_per_stroke: 4,
         }
     }
 }
@@ -1874,6 +1886,11 @@ impl MachineConfig {
             "spec_work_area" => self.spec_work_area = server_text(line, key, v, 80)?,
             "spec_smallest_part" => self.spec_smallest_part = server_text(line, key, v, 80)?,
             "spec_max_speed_mm_s" => self.spec_max_speed_mm_s = n(0.0, 100_000.0)?,
+            "heightmap_max_warp_mm" => self.heightmap_max_warp_mm = n(0.05, 20.0)?,
+            "drag_hole_pitch_mm" => self.drag_hole_pitch_mm = n(1.0, 16.0)?,
+            "drag_max_picks_per_stroke" => {
+                self.drag_max_picks_per_stroke = int(line, key, v, 1, 16)? as u32
+            }
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

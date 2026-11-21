@@ -1,0 +1,6 @@
+group,value,package
+resistor-10k,10k,R_0603
+resistor-10k,10.0k,R_0603
+resistor-10k,10k,R_0402
+capacitor-100n,100n,C_0603
+capacitor-100n,0.1u,C_0603

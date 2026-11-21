@@ -364,12 +364,15 @@ impl QueueTab {
         self.change(args, lang)
     }
 
-    /// Skips, resets, revokes the confirmation of or takes out the selected job (`action` is one of those four words of `queue-edit`).
+    /// Skips, resets, revokes the confirmation of, takes out or moves up or down the selected job (`action` is one of those words of `queue-edit`).
     pub fn edit(&mut self, action: &str, lang: Lang) -> bool {
         self.clear_messages();
         self.run_armed = false;
-        if !matches!(action, "skip" | "reset" | "revoke" | "remove") {
-            self.error = format!("'{action}' is not skip, reset, revoke or remove");
+        if !matches!(
+            action,
+            "skip" | "reset" | "revoke" | "remove" | "up" | "down"
+        ) {
+            self.error = format!("'{action}' is not skip, reset, revoke, remove, up or down");
             return false;
         }
         let (Some(file), Some(name)) = (self.file_path(lang), self.selected_name(lang)) else {

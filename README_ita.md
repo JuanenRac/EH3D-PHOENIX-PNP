@@ -18,7 +18,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 1876 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e, sebbene il programma acquisisca immagini della propria finestra (`--shot`), nessuna persona ha verificato il disegno su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 1915 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e, sebbene il programma acquisisca immagini della propria finestra (`--shot`), nessuna persona ha verificato il disegno su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versione | `0.1.3` |
 | Maturità | Impalcatura |
-| Test | 1876 |
+| Test | 1915 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -47,11 +47,11 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (priorità, vassoio, striscia), pianifica l'ordine di posizionamento per una testa fino a sei ugelli con ranghi, punte degli ugelli, limiti d'angolo e il tempo dei movimenti, pianifica pannelli e scrive il foglio di carico; provato su un computer con ingressi normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `phoenix-pnp` esegue le stesse funzioni della libreria (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) e stampa il risultato; ogni errore torna come messaggio con il suo codice `PHOENIX-PNP-NNN` e un codice di uscita diverso da zero. |
-| Test | 🟡 | 1876 test passano (`cargo test`), con casi normali, casi limite, ingressi danneggiati e piccoli casi generati. |
+| Test | 🟡 | 1915 test passano (`cargo test`), con casi normali, casi limite, ingressi danneggiati e piccoli casi generati. |
 | Configurazione della macchina | 🟡 | un file `chiave = valore` con versione, un validatore che nomina la riga e i limiti di sicurezza (corsa di Z, limiti di X e Y, nuovi tentativi, angoli dell'ugello); i valori non sono stati confrontati con una macchina reale. |
 | Simulatore e lavoro | 🟡 | un orologio virtuale, guasti iniettati a caso (con un seme) o in un punto scelto, nuovi tentativi, le politiche allerta e rinvio, alimentatori che si spengono dopo guasti ripetuti, pausa, passo dopo passo e uno stato salvato da cui riprendere; simula soltanto, nulla ha mosso una macchina. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
-| Finestra | 🟠 | Una finestra egui (si compila con `--features gui`; `phoenix-pnp` senza comando la apre): schede di lavoro, parti, package, alimentatori, foglio di carico, macchina, strumenti, problemi e registro, una mappa del tavolo di lavoro con il percorso della testa, marche di polarità e la parte successiva, una guida in cinque passi, problemi con correzioni che si possono annullare, un lavoro simulato che si può mettere in pausa, riprendere e avanzare passo dopo passo, e le otto lingue. La sua logica è testata senza schermo; il disegno non è coperto da test: il programma acquisisce immagini della propria finestra (`--shot`), ma nessuna persona ha verificato il disegno su uno schermo. Ha inoltre schede di pannelli (con i fiduciali e l'adattamento che sposta le parti) e di schede elettroniche, un selettore di file, tabelle di alimentatori e package modificabili con annulla, larghezze delle colonne memorizzate e un programma a sé (`phoenix-pnp-gui`) che si apre senza console su Windows. Le schede sono ora pannelli del telaio dei pannelli della suite (`eh3d-dock`): si possono spostare, far fluttuare, ripiegare e salvare in tre disposizioni, c'è una barra dei menu e undici comandi hanno un pannello; questo è stato compilato ed eseguito senza finestra, non visto su uno schermo. |
+| Finestra | 🟠 | Una finestra egui (si compila con `--features gui`; `phoenix-pnp` senza comando la apre): schede di lavoro, parti, package, alimentatori, foglio di carico, macchina, strumenti, problemi e registro, una mappa del tavolo di lavoro con il percorso della testa, marche di polarità e la parte successiva, una guida in cinque passi, problemi con correzioni che si possono annullare, un lavoro simulato che si può mettere in pausa, riprendere e avanzare passo dopo passo, e le otto lingue. La sua logica è testata senza schermo; il disegno non è coperto da test: il programma acquisisce immagini della propria finestra (`--shot`), ma nessuna persona ha verificato il disegno su uno schermo. Ha inoltre schede di pannelli (con i fiduciali e l'adattamento che sposta le parti) e di schede elettroniche, un selettore di file, tabelle di alimentatori e package modificabili con annulla, larghezze delle colonne memorizzate e un programma a sé (`phoenix-pnp-gui`) che si apre senza console su Windows. Le schede sono ora pannelli del telaio dei pannelli della suite (`eh3d-dock`): si possono spostare, far fluttuare, ripiegare e salvare in tre disposizioni, c'è una barra dei menu e quindici comandi hanno un pannello; questo è stato compilato ed eseguito senza finestra, non visto su uno schermo. |
 | Hardware reale | 🔴 | Non provato: nulla di questo è stato eseguito su una macchina. |
 | Documentazione | 🟡 | README in otto lingue, il changelog e le due immagini disegnate da `docs/`. |
 
@@ -178,6 +178,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Hook mentre il lavoro procede e cosa fa ogni ugello** (`src/hooks.rs`, `src/journal.rs`, `src/commands.rs`): oltre agli eventi di fine lavoro, una regola può nominare `nozzle-before-pick`, `nozzle-after-pick`, `nozzle-before-place`, `nozzle-after-place` e `placement-complete`, che `simulate --hooks` comunica a ogni passo mentre il lavoro procede (lo stesso seme dà lo stesso elenco; i limiti degli hook valgono per tutto il lavoro). `{nozzle}`, `{step}` e `{nozzle_state}` si aggiungono ai dati degli argomenti, e gli stessi dati arrivano al programma come una riga di JSON di al massimo 1024 byte sul suo ingresso. Il giornale ha una colonna `nozzle_state` (`idle`, `picking`, `carrying`, `placing`) che dice cosa fa l'ugello dopo ogni passo.
 * **Ordine, cablaggio e percorsi** (`src/placeorder.rs`, `src/wiring.rs`, `src/pathid.rs`): `placement_order = unit, height:desc, quantity:desc` ordina i posizionamenti con un elenco di chiavi (unità di un pannello, feeder, componente, altezza, area, quantità), ciascuna crescente o decrescente, al posto dell'unico `order`. `phoenix-pnp wiring-sheet PROFILO [--out F] [--svg F]` legge un profilo del driver e scrive cosa va a quale pin (gli assi, la pompa, la valvola di soffiaggio e se la riga che mette in sicurezza la macchina rilascia ciascuno) e un disegno della pneumatica; il codice di uscita è 2 se un pin non si può leggere, manca la pompa o la valvola o due attuatori condividono un pin. Un percorso è salvato in una coda con `/` tra i nomi, senza il prefisso di Windows e senza `..`, e due scritture di un file sono riconosciute come lo stesso. Ciò che questo programma chiede al client comune è in `docs/COMMON_REQUESTS.md`.
 * **Homing senza finecorsa, dump di firmware, scheda della macchina e stato di ogni ugello** (`src/gcodedriver.rs`, `src/fwdiff.rs`, `src/machsheet.rs`, `src/tower.rs`, `src/gui/jobtab.rs`, `examples/firmware_old.txt`): un profilo del driver dice `homing_mode = sensorless` con una sensibilità per X e una per Y (`homing_sensitivity_x` e `homing_sensitivity_y`, da -64 a 255) e la riga che la imposta; vanno prima delle righe di `home`, e `homing-repeat` le nomina e mostra quanto distanti atterra la macchina. `phoenix-pnp fw-config-diff FIRST SECOND` confronta due dump della configurazione di un firmware (la risposta a `M503`) valore per valore, considera uguali `80` e `80.00` e avvisa di reimpostare l'EEPROM quando il firmware non è lo stesso in entrambi (codice di uscita 2 se i valori differiscono). `phoenix-pnp machine-sheet` stampa il tavolo, la macchina, l'area di lavoro, la parte più piccola provata e la velocità massima date dalle cinque righe `spec_` delle impostazioni; ciò che nessuno ha scritto dice "non misurato" nelle otto lingue, nessuna cifra è inventata e il rapporto di un lavoro porta la scheda. La scheda Lavoro mostra cosa fa ogni ugello (libero o con una parte) e `sim-tower` nomina l'ugello e il suo stato accanto a ogni luce che non è verde. Tramite il client comune, il collegamento con un nodo dà il `why` di un rifiuto come l'ha scritto il nodo e mantiene un token fisso. Tutto è stato provato solo su simulatori.
+* **L'impronta di un lavoro, un file Klipper, una scheda imbarcata, componenti equivalenti, feeder a trascinamento e l'ordine della coda** (`src/toolpath.rs`, `src/heightmap.rs`, `src/equivalents.rs`, `src/drag.rs`, `src/cmd_extra.rs`, `src/fwdiff.rs`, `src/queue.rs`): `phoenix-pnp toolpath-hash PARTS FEEDERS PROFILE` scrive le righe che il profilo di driver dà per tutto il lavoro e ne stampa lo SHA-256 (lo stesso piano dà sempre la stessa, un punto spostato di un millesimo di millimetro ne dà un'altra) e `--expect HASH` esce con 2 quando le righe non sono quelle viste; non è l'impronta che calcola il server. `fw-config-diff` legge anche la configurazione di un controllore Klipper (righe `[sezione]` e `chiave: valore`, una macro come un solo valore, i valori salvati da `SAVE_CONFIG` prevalgono sul file sopra) e non la confronta mai con un dump Marlin. `phoenix-pnp height-map GRID --parts PARTS` legge altezze misurate su una griglia completa, dice quanto si imbarca la scheda (`heightmap_max_warp_mm`) e la variazione di altezza di ogni posizionamento per interpolazione bilineare; un punto fuori dalla griglia non ha correzione. `phoenix-pnp equivalents PARTS FEEDERS GROUPS` mette i componenti senza feeder sul feeder con un componente equivalente e più pezzi rimasti e dice quante bobine si risparmiano. `phoenix-pnp drag-plan FEEDERS` dà per ogni striscia la corsa più corta fatta di fori interi (`drag_hole_pitch_mm`) e tasche intere, i prelievi serviti (al massimo `drag_max_picks_per_stroke`) e le corse del nastro. `queue-edit CODA NOME up|down|top|bottom` sposta un lavoro nell'ordine mentre ciò che gira o è fatto conserva il posto, con due pulsanti nella finestra, e i quattro nuovi comandi hanno un pannello ciascuno (quindici in tutto). Provato su file scritti a mano e su un controllore simulato, mai su una macchina.
 
 ## 🧩 Ruolo in EH3D
 
@@ -251,7 +252,7 @@ phoenix-pnp camera-pattern FILE [--pitch MM]             la dimensione di un pix
 phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS          mette un lavoro (schede o un pannello) in fondo a una coda di lavori
 phoenix-pnp queue-status QUEUE [--check]                 i lavori della coda e che cosa ne è stato di ciascuno; --check pianifica quelli ancora da fare
 phoenix-pnp queue-confirm QUEUE NAME                     registra che il piano di un lavoro, così com'è ora, può essere eseguito
-phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove   salta un lavoro, lo ricomincia, ne revoca la conferma o lo toglie
+phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove|up|down|top|bottom   salta un lavoro, lo ricomincia, ne revoca la conferma, lo toglie o lo sposta nell'ordine
 phoenix-pnp queue-run QUEUE [--only NAME]                esegue i lavori confermati scheda per scheda sulla macchina simulata
 phoenix-pnp camera-combined FILE [--pitch MM] [--origin X,Y] [--touch]   la telecamera, la rotazione del foglio e la distorsione dell'obiettivo con un motivo fissato al piano mentre la testa si sposta (richiede camera_combined = on)
 phoenix-pnp vision-readings PARTS --sizes F [--seed N]   le letture che la telecamera simulata dà dei componenti, nel file che legge part-inspect
@@ -265,6 +266,10 @@ phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] che cos
 phoenix-pnp config-diff FIRST SECOND                       le impostazioni che due file di configurazione danno in modo diverso nel significato (yes e on, 5 e 5.0 sono uguali; esce con 2 se le macchine differiscono)
 phoenix-pnp fw-config-diff FIRST SECOND                    i valori che due dump della configurazione di un firmware (risposta a M503) danno in modo diverso; avvisa di reimpostare l'EEPROM se il firmware è cambiato (esce con 2 se i valori differiscono)
 phoenix-pnp machine-sheet [--config F]                     la scheda della macchina dalle impostazioni; ciò che nessuno ha misurato lo dice
+phoenix-pnp toolpath-hash PARTS FEEDERS PROFILE [--expect HASH] lo SHA-256 delle righe che un profilo di driver scrive per tutto il lavoro; con --expect esce con 2 se non sono le righe viste
+phoenix-pnp height-map GRID [--parts PARTS] [--zero X,Y] [--out F] quanto si imbarca una scheda da una griglia di altezze misurate e la variazione di altezza di ogni posizionamento (esce con 2 se si imbarca troppo o un componente è fuori griglia)
+phoenix-pnp equivalents PARTS FEEDERS GROUPS [--out F]     i componenti senza feeder, messi su un feeder con un componente equivalente e pezzi rimasti, e le bobine risparmiate (esce con 2 se un componente non ha feeder)
+phoenix-pnp drag-plan FEEDERS [--out F]                    la corsa di un feeder a trascinamento per ogni striscia: fori e tasche interi, i prelievi serviti, le corse di un nastro (esce con 2 se una non si può trascinare)
 phoenix-pnp board-stats PARTS [--near MM] [--limit N]      che cosa contiene una tabella di parti (lati, tipi, package, il riquadro dei centri) e, con --near, le coppie di parti più vicine di MM (esce con 2 se ne trova)
 phoenix-pnp queue-stock QUEUE [--out F]                    se i feeder bastano per tutti i lavori di una coda ancora da fare, e in quale lavoro finisce ogni bobina (esce con 2 se una non basta)
 phoenix-pnp feeder-deplete FEEDERS --state F [--out F]     la tabella dei feeder dopo il lavoro di uno stato salvato: le parti rimaste e il posto successivo delle strisce (esce con 2 se un feeder è basso o vuoto)
@@ -443,7 +448,7 @@ L'ultima riga apre la finestra; lo fa anche `phoenix-pnp` senza comando se è st
 
 ## 🧪 Test
 
-La suite ha 1876 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli ingressi danneggiati: file vuoti, spazzatura e file tagliati non provocano mai un panic. Piccoli casi generati (da un seme fisso, quindi con gli stessi numeri a ogni esecuzione) verificano che il piano non dipenda dall'ordine dei file, che un percorso non si allunghi mai, che un lavoro salvato e ripreso in qualsiasi punto finisca come quello che non si è mai fermato, e che lunghezze e angoli si convertano avanti e indietro. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 1915 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli ingressi danneggiati: file vuoti, spazzatura e file tagliati non provocano mai un panic. Piccoli casi generati (da un seme fisso, quindi con gli stessi numeri a ogni esecuzione) verificano che il piano non dipenda dall'ordine dei file, che un percorso non si allunghi mai, che un lavoro salvato e ripreso in qualsiasi punto finisca come quello che non si è mai fermato, e che lunghezze e angoli si convertano avanti e indietro. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -478,6 +483,7 @@ EH3D-PHOENIX-PNP/
 │   ├── clearance.rs                             lo spazio tra i corpi delle parti di una scheda: coppie troppo vicine o sovrapposte
 │   ├── cli_args.rs                              gli argomenti della riga di comando, rigorosi: un'opzione sconosciuta è un errore
 │   ├── cmd_drive.rs                             i comandi del driver G-code: driver-check, driver-test, driver-run, bringup
+│   ├── cmd_extra.rs                             i comandi toolpath-hash, height-map, equivalents e drag-plan
 │   ├── cmd_fab.rs                               i comandi dei file di assemblaggio, dei controlli, dello stencil e delle viste del diario
 │   ├── cmd_flow.rs                              comandi del flusso senza macchina: lotti, ripartizione, rischi, altezze, fiduciali, import, liste
 │   ├── cmd_import.rs                            i comandi import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen
@@ -497,8 +503,10 @@ EH3D-PHOENIX-PNP/
 │   ├── deplete.rs                               la tabella dei feeder dopo un lavoro: le parti rimaste e il posto successivo delle strisce
 │   ├── designators.rs                           l'ordine naturale dei designatori (R2 prima di R10) e la loro scrittura in elenchi
 │   ├── dfm.rs                                   i controlli di una scheda per l'assemblaggio, limiti nelle impostazioni, in otto lingue
+│   ├── drag.rs                                  un feeder che trascina il nastro dai fori: la corsa, i prelievi serviti e le corse di un nastro
 │   ├── driver.rs                                una sessione del driver: tempi, tentativi, un arresto sicuro, più lento dopo i problemi
 │   ├── drivertest.rs                            risposte registrate di un controllore, provate contro i modelli di un profilo
+│   ├── equivalents.rs                           componenti che un altro già su un feeder può sostituire, con le bobine che si risparmiano
 │   ├── error.rs                                 i codici di errore PHOENIX-PNP-NNN e il loro significato in otto lingue
 │   ├── exchange.rs                              un lavoro in un file JSON per altri programmi: il piano e lo stato di ogni parte
 │   ├── export.rs                                il rapporto, l'elenco di ciò che manca e il G-code dei movimenti
@@ -517,7 +525,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui.rs                                   la finestra: moduli senza schermo e il disegno in window.rs
 │   ├── gui/app.rs                               lo stato della finestra: carica, pianifica, avvia, pausa, passo, correggi, salva
 │   ├── gui/browse.rs                            il selettore di file: cartelle e file, su, percorsi digitati
-│   ├── gui/cmdpanel.rs                          i pannelli degli undici comandi di driver e assistenti: esegui, limite, output
+│   ├── gui/cmdpanel.rs                          i pannelli dei quindici comandi di driver e assistenti: esegui, limite, output
 │   ├── gui/docking.rs                           i pannelli, le tre disposizioni e la barra dei menu date al telaio dei pannelli
 │   ├── gui/jobtab.rs                            la scheda Lavoro senza finestra: stati, filtri, avanzamento, finestra d'errore
 │   ├── gui/log.rs                               il registro con livelli e il testo della diagnostica da copiare
@@ -541,6 +549,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui_main.rs                              la finestra come programma a sé, senza console su Windows
 │   ├── heads.rs                                 più teste: raggio d'azione, ripartizione dei componenti, attese di un alimentatore
 │   ├── headsplit.rs                             più teste su una scheda e una fila di alimentatori: fasce o alimentatori interi, attese
+│   ├── heightmap.rs                             l'altezza di una scheda imbarcata da una griglia di punti misurati, e la variazione di altezza di ogni posizionamento
 │   ├── hooks.rs                                 programmi eseguiti per gli eventi di un lavoro, spenti per impostazione predefinita, con elenco e tempo limitati
 │   ├── hotspots.rs                              quali alimentatori danno problemi in molte esecuzioni simulate: prelievi falliti, spenti
 │   ├── import.rs                                l'importazione di posizioni: CSV di centroidi con mappa delle colonne, testo di EAGLE, .pos di KiCad
@@ -615,6 +624,7 @@ EH3D-PHOENIX-PNP/
 │   ├── testboard.rs                             schede inventate da un seme: griglia, mix su due lati, densa, con i loro alimentatori
 │   ├── textmatch.rs                             un piccolo motore di modelli con tempo limitato per le righe di un controllore
 │   ├── tips.rs                                  le punte che un package accetta e la scelta di una per ogni tipo di componente
+│   ├── toolpath.rs                              le righe che un profilo di driver scrive per un lavoro e la loro impronta SHA-256
 │   ├── toolvalues.rs                            i valori dei moduli degli strumenti come impostazioni del file, e il loro salvataggio
 │   ├── tower.rs                                 la torretta di segnalazione di un lavoro simulato: la luce a ogni secondo, dal diario
 │   ├── units.rs                                 lunghezze e posizioni che portano la loro unità
@@ -646,9 +656,11 @@ EH3D-PHOENIX-PNP/
 │   ├── deplete.rs                               test della tabella dei feeder dopo un lavoro: conteggi, striscia, vassoio, comando
 │   ├── dfm.rs                                   test dei controlli di assemblaggio e dello stencil per pasta: ogni regola, otto lingue
 │   ├── docking.rs                               test del telaio dei pannelli: pannelli, disposizioni, menu, disposizione salvata, scorciatoie
+│   ├── drag.rs                                  test del feeder a trascinamento: la corsa, i prelievi di una corsa, passi rifiutati, passi da un seme fisso, il comando
 │   ├── driver.rs                                test del driver: profilo, righe, risposte, Moonraker, controllore simulato, sessione
 │   ├── drivercli.rs                             test di driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup
 │   ├── encoding.rs                              test della codifica dei file: UTF-8, UTF-16 e Latin-1
+│   ├── equivalent.rs                            test dei componenti equivalenti: gli scambi, i pezzi rimasti, l'ordine dei feeder, tabelle rifiutate, il comando
 │   ├── exchange.rs                              test del file di scambio di un lavoro: scrittura, lettura, ogni rifiuto, i comandi
 │   ├── exitcodes.rs                             test del codice di uscita 2 per un controllo non superato, comando per comando
 │   ├── fab.rs                                   test dei file per i fornitori di assemblaggio e della conversione dei file di posizioni
@@ -665,6 +677,7 @@ EH3D-PHOENIX-PNP/
 │   ├── fwdiff.rs                                test della differenza tra dump di firmware e dell'avviso EEPROM
 │   ├── gui.rs                                   test della finestra senza schermo: stato, piano, lavoro, mappa, tabelle e guida
 │   ├── heads.rs                                 test delle teste: righe della configurazione, raggio d'azione, ripartizione, l'orologio e schedule
+│   ├── heightmap.rs                             test dell'altezza di una scheda imbarcata: altezze bilineari, un piano su seme fisso, punti fuori, griglie rifiutate, il comando
 │   ├── helpdemo.rs                              test che eseguono ogni esempio dell'aiuto e verificano i codici di uscita
 │   ├── homingmode.rs                            test dell'homing senza finecorsa: la modalità, le sensibilità, l'ordine delle righe
 │   ├── hooks.rs                                 test degli hook: spenti per impostazione predefinita, regole, eventi, chiamate, esecuzione, simulate --hooks
@@ -681,6 +694,7 @@ EH3D-PHOENIX-PNP/
 │   ├── journal.rs                               test del diario di un lavoro: una riga per passo, l'errore che lo ferma, il comando
 │   ├── keys.rs                                  test di ogni chiave delle impostazioni: l'elenco, l'esempio, i controlli, i duplicati
 │   ├── kicadmod.rs                              test delle impronte di KiCad: il corpo, l'area di ingombro, file danneggiati, la riga, il comando
+│   ├── klippercfg.rs                            test del confronto della configurazione di un controllore Klipper: sezioni, il blocco salvato, macro, un dump Marlin a parte
 │   ├── learn.rs                                 test degli scostamenti appresi: misure, anomali, limite, file, lavoro, comando
 │   ├── loadsheet.rs                             test del foglio di carico e delle esportazioni
 │   ├── lookmove.rs                              test di guarda, muovi, guarda ancora: convergenza, tetto, solo passi minori, impostazioni
@@ -713,6 +727,7 @@ EH3D-PHOENIX-PNP/
 │   ├── preview.rs                               test dell'immagine del piano: le parti, la protezione, la dimensione e --svg
 │   ├── process.rs                               test del processo: fasi, ordine, carico, stato salvato e percorso della modalità guidata
 │   ├── queue.rs                                 test della coda di lavori: il file, la somma di controllo, il cancello, i comandi e lo strumento
+│   ├── queuemove.rs                             test dell'ordine della coda: su, giù, primo, ultimo, ciò che è fisso resta al suo posto, spostamenti su seme fisso, il comando
 │   ├── queuestock.rs                            test dei feeder rispetto a una coda: totale progressivo, dove finisce una bobina, comando
 │   ├── readme.rs                                test che il README sia eseguibile e completo
 │   ├── recipe.rs                                test della ricetta: il file, i limiti, i passi, le regole nel lavoro e lo stato salvato
@@ -747,6 +762,7 @@ EH3D-PHOENIX-PNP/
 │   ├── toolflow.rs                              test dei pannelli di bobine, nozzle, punti critici e cambi, e del salvataggio dei valori dei moduli
 │   ├── toolmore.rs                              test dei pannelli di confronto e conteggio della scheda degli strumenti: ognuno rispetto al suo comando, i rifiuti, i file
 │   ├── toolpanels.rs                            test dei pannelli per bobine, parti a mano, differenze dei lavori, posti dei feeder e molte esecuzioni, e delle parole della scheda
+│   ├── toolpath.rs                              test dell'impronta delle righe di un lavoro: un valore noto, --expect, un punto spostato, schede su seme fisso
 │   ├── toolshop.rs                              i sei nuovi pannelli della scheda Strumenti: ciò che dice il comando, le parole, le tabelle
 │   ├── toolvalues.rs                            test dei valori dei moduli come impostazioni: intervalli, predefiniti, comandi, salvataggio nel file
 │   ├── vacuum.rs                                test del vuoto, degli attuatori e della finestra dei guasti di un alimentatore
@@ -762,6 +778,7 @@ EH3D-PHOENIX-PNP/
 │   ├── board.mnt                                le posizioni di una scheda come le ha il testo di EAGLE
 │   ├── board.pos                                un esempio per provare il programma
 │   ├── board_dnp.csv                            una scheda con una colonna dnp: due delle sue parti non vanno montate
+│   ├── board_equiv.pos                          una piccola scheda i cui componenti non hanno un feeder proprio, per equivalents
 │   ├── board_marks.pos                          la scheda di esempio con due fiduciali, per panel-fids
 │   ├── bom.csv                                  una distinta base che coincide con board.pos
 │   ├── bom_b.csv                                la distinta base di una seconda scheda, per bom-merge
@@ -775,21 +792,26 @@ EH3D-PHOENIX-PNP/
 │   ├── chip_0603.kicad_mod                      un'impronta di KiCad di un chip 0603, per package-kicad
 │   ├── driver_klipper.cfg                       un profilo del driver per Klipper tramite Moonraker, ogni chiave spiegata
 │   ├── driver_marlin.cfg                        un profilo del driver per Marlin su linea seriale, ogni chiave spiegata
+│   ├── equivalents.csv                          gruppi di componenti che possono sostituirsi a vicenda (group,value,package)
 │   ├── failure_rules.csv                        tentativi per package per failure-odds
 │   ├── features.csv                             contorno, pad, foro, fiduciali, foro di riferimento e linguetta, per dfm-check e stencil-apertures
 │   ├── feeder_measures.csv                      posizioni misurate di una striscia e di un vassoio per feeder-teach
 │   ├── feeders.csv                              un esempio per provare il programma
+│   ├── feeders_drag.csv                         una tabella di feeder con strisce da 2, 3 e 4 mm e un vassoio, per drag-plan e equivalents
 │   ├── feeders_kinds.csv                        alimentatori di ogni tipo: nastro, striscia, vassoio e uno spento
 │   ├── feeders_tubes.csv                        una tabella di alimentatori con una stecca e uno alla rinfusa oltre a un nastro
 │   ├── fid_design.csv                           le posizioni di progetto di quattro fiduciali
 │   ├── fid_measured.csv                         gli stessi quattro fiduciali misurati sulla macchina
 │   ├── firmware_new.txt                         la stessa macchina dopo un nuovo firmware: altri valori, una riga in meno, una in più
 │   ├── firmware_old.txt                         un dump della configurazione di un firmware (risposta a M503), per fw-config-diff
+│   ├── height_grid.csv                          altezze di una scheda misurate su una griglia di tre per tre punti, per height-map
 │   ├── hooks.csv                                regole degli hook per simulate --hooks: un evento e un programma ciascuna
 │   ├── job.recipe                               una ricetta con tutti i passi e regole per package, alimentatore e punta
 │   ├── job_basic.recipe                         la ricetta più breve: preparare, prelevare e posizionare
 │   ├── journal.csv                              il diario di un lavoro simulato con un passo lento, un'attesa e un guasto, per sim-busy
 │   ├── klipper_answers.txt                      risposte di Klipper tramite il collegamento, scritte a mano
+│   ├── klipper_new.cfg                          la stessa macchina Klipper dopo la messa a punto dei valori, con un blocco salvato e una nuova macro
+│   ├── klipper_old.cfg                          la configurazione di una macchina pick and place con un controllore Klipper, per fw-config-diff
 │   ├── lots.csv                                 il lotto e la bobina di ogni alimentatore, per lot-trace
 │   ├── machine.cfg                              le impostazioni della macchina, ogni chiave spiegata
 │   ├── marks.csv                                le posizioni misurate dei fiduciali del pannello

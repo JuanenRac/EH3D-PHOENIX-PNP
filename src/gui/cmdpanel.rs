@@ -1,11 +1,11 @@
 // EH3D-PHOENIX-PNP - the panels of the driver and the assistants, without the window.
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
-//! Eleven commands of the program (`driver-check`, `driver-test`, `driver-run`, `safety-replay`, `homing-repeat`, `bringup`, `import-openpnp`, `assist`, `align-iterate`,
-//! `vacuum-calibrate` and `test-board-gen`) have a panel each in the window. A panel does not repeat what its command does: it runs the command-line program that sits beside the window,
+//! Fifteen commands of the program (`driver-check`, `driver-test`, `driver-run`, `safety-replay`, `homing-repeat`, `bringup`, `import-openpnp`, `assist`, `align-iterate`,
+//! `vacuum-calibrate`, `test-board-gen`, `toolpath-hash`, `height-map`, `equivalents` and `drag-plan`) have a panel each in the window. A panel does not repeat what its command does: it runs the command-line program that sits beside the window,
 //! with the arguments typed in the panel, and shows what the program printed. So the panel and the command cannot disagree, and everything the command refuses (a file that exists is
 //! never written over, a file that is read is never written to, the only controller is a simulated one) is refused here too.
 //!
-//! What makes it safe: the command is one of the eleven (never a word the person typed), the arguments go to the program one by one (no shell reads them), a quote groups words and
+//! What makes it safe: the command is one of the fifteen (never a word the person typed), the arguments go to the program one by one (no shell reads them), a quote groups words and
 //! nothing else is special, the number and the length of the arguments are bounded, the program runs without a console window and without anything to read from the keyboard, it is
 //! stopped when it takes longer than the time in the settings, and what it prints is cut at a limit.
 
@@ -40,10 +40,14 @@ pub enum Command {
     AlignIterate,
     VacuumCalibrate,
     TestBoardGen,
+    ToolpathHash,
+    HeightMap,
+    Equivalents,
+    DragPlan,
 }
 
 impl Command {
-    pub const ALL: [Command; 11] = [
+    pub const ALL: [Command; 15] = [
         Command::DriverCheck,
         Command::DriverTest,
         Command::DriverRun,
@@ -55,6 +59,10 @@ impl Command {
         Command::AlignIterate,
         Command::VacuumCalibrate,
         Command::TestBoardGen,
+        Command::ToolpathHash,
+        Command::HeightMap,
+        Command::Equivalents,
+        Command::DragPlan,
     ];
 
     /// The word of the command on the command line.
@@ -71,6 +79,10 @@ impl Command {
             Command::AlignIterate => "align-iterate",
             Command::VacuumCalibrate => "vacuum-calibrate",
             Command::TestBoardGen => "test-board-gen",
+            Command::ToolpathHash => "toolpath-hash",
+            Command::HeightMap => "height-map",
+            Command::Equivalents => "equivalents",
+            Command::DragPlan => "drag-plan",
         }
     }
 
@@ -88,6 +100,10 @@ impl Command {
             Command::AlignIterate => "cmd_align_iterate",
             Command::VacuumCalibrate => "cmd_vacuum_calibrate",
             Command::TestBoardGen => "cmd_test_board_gen",
+            Command::ToolpathHash => "cmd_toolpath_hash",
+            Command::HeightMap => "cmd_height_map",
+            Command::Equivalents => "cmd_equivalents",
+            Command::DragPlan => "cmd_drag_plan",
         }
     }
 
@@ -110,6 +126,10 @@ impl Command {
             Command::AlignIterate => Text::CmdTitleAlignIterate,
             Command::VacuumCalibrate => Text::CmdTitleVacuumCalibrate,
             Command::TestBoardGen => Text::CmdTitleTestBoardGen,
+            Command::ToolpathHash => Text::CmdTitleToolpathHash,
+            Command::HeightMap => Text::CmdTitleHeightMap,
+            Command::Equivalents => Text::CmdTitleEquivalents,
+            Command::DragPlan => Text::CmdTitleDragPlan,
         }
     }
 
@@ -127,6 +147,10 @@ impl Command {
             Command::AlignIterate => Text::CmdHintAlignIterate,
             Command::VacuumCalibrate => Text::CmdHintVacuumCalibrate,
             Command::TestBoardGen => Text::CmdHintTestBoardGen,
+            Command::ToolpathHash => Text::CmdHintToolpathHash,
+            Command::HeightMap => Text::CmdHintHeightMap,
+            Command::Equivalents => Text::CmdHintEquivalents,
+            Command::DragPlan => Text::CmdHintDragPlan,
         }
     }
 
@@ -154,6 +178,12 @@ impl Command {
             Command::TestBoardGen => {
                 "grid|mixed|dense PARTS_OUT FEEDERS_OUT [--seed 1] [--count 40] [--pitch 2]"
             }
+            Command::ToolpathHash => {
+                "PARTS FEEDERS PROFILE [--side top|bottom] [--expect HASH] [--script-out FILE]"
+            }
+            Command::HeightMap => "GRID [--parts FILE] [--zero 0,0] [--out FILE]",
+            Command::Equivalents => "PARTS FEEDERS GROUPS [--out FILE]",
+            Command::DragPlan => "FEEDERS [--out FILE]",
         }
     }
 }
@@ -431,7 +461,7 @@ impl CmdPanel {
     }
 }
 
-/// The eleven panels.
+/// The fifteen panels.
 #[derive(Debug)]
 pub struct CommandBox {
     pub panels: Vec<CmdPanel>,

@@ -31,15 +31,15 @@ fn temp(name: &str) -> PathBuf {
 }
 
 #[test]
-fn the_eleven_commands_have_a_name_a_panel_a_title_and_a_hint_each() {
+fn the_fifteen_commands_have_a_name_a_panel_a_title_and_a_hint_each() {
     let mut names: Vec<&str> = Command::ALL.iter().map(|c| c.name()).collect();
     names.sort_unstable();
     names.dedup();
-    assert_eq!(names.len(), 11);
+    assert_eq!(names.len(), 15);
     let mut panels: Vec<&str> = Command::ALL.iter().map(|c| c.panel_id()).collect();
     panels.sort_unstable();
     panels.dedup();
-    assert_eq!(panels.len(), 11);
+    assert_eq!(panels.len(), 15);
     for c in Command::ALL {
         assert_eq!(Command::from_panel(c.panel_id()), Some(c));
         assert!(c.panel_id().starts_with("cmd_"));
@@ -50,7 +50,7 @@ fn the_eleven_commands_have_a_name_a_panel_a_title_and_a_hint_each() {
         }
     }
     assert_eq!(Command::from_panel("parts"), None);
-    // the eleven words are the ones the command line has (a command that is not there would say so)
+    // the fifteen words are the ones the command line has (a command that is not there would say so)
     for c in Command::ALL {
         let out = run_blocking(&program(), c, Lang::En, &[], LIMIT);
         assert!(out.failed_to_start.is_none());
@@ -380,7 +380,7 @@ fn a_panel_with_wrong_arguments_does_not_start_and_says_why() {
 #[test]
 fn the_box_holds_a_panel_for_each_command() {
     let mut b = CommandBox::default();
-    assert_eq!(b.panels.len(), 11);
+    assert_eq!(b.panels.len(), 15);
     assert!(!b.any_running());
     assert!(!b.poll());
     for c in Command::ALL {

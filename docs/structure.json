@@ -249,6 +249,19 @@
           }
         },
         {
+          "name": "cmd_extra.rs",
+          "desc": {
+            "en": "the commands toolpath-hash, height-map, equivalents and drag-plan",
+            "es": "los comandos toolpath-hash, height-map, equivalents y drag-plan",
+            "de": "die Befehle toolpath-hash, height-map, equivalents und drag-plan",
+            "fr": "les commandes toolpath-hash, height-map, equivalents et drag-plan",
+            "it": "i comandi toolpath-hash, height-map, equivalents e drag-plan",
+            "ja": "コマンド toolpath-hash、height-map、equivalents、drag-plan",
+            "zh": "命令 toolpath-hash、height-map、equivalents、drag-plan",
+            "pt": "os comandos toolpath-hash, height-map, equivalents e drag-plan"
+          }
+        },
+        {
           "name": "cmd_fab.rs",
           "desc": {
             "en": "the commands of the files for assembly, the checks, the stencil and the views of a journal",
@@ -496,6 +509,19 @@
           }
         },
         {
+          "name": "drag.rs",
+          "desc": {
+            "en": "a feeder that drags the tape by its holes: the stroke and the picks it serves",
+            "es": "un alimentador que arrastra la cinta por sus agujeros: la pasada, las recogidas que sirve y las pasadas de una cinta",
+            "de": "eine Zuführung, die den Gurt an den Transportlöchern zieht: der Hub, die bedienten Aufnahmen und die Hübe eines Gurts",
+            "fr": "un alimentateur qui tire la bande par ses trous : la course, les prises servies et les courses d'une bande",
+            "it": "un feeder che trascina il nastro dai fori: la corsa, i prelievi serviti e le corse di un nastro",
+            "ja": "スプロケット穴でテープを引くフィーダー：ストローク、1回で足りるピック数、テープのストローク数",
+            "zh": "通过料孔拖动料带的供料器：行程、一次行程可供的取料次数、整盘料带的行程数",
+            "pt": "um alimentador que arrasta a fita pelos furos: o curso, as recolhas que serve e os cursos de uma fita"
+          }
+        },
+        {
           "name": "driver.rs",
           "desc": {
             "en": "a driver session: timeouts, retries, a stop that fails closed, slower after trouble",
@@ -519,6 +545,19 @@
             "ja": "コントローラの記録した応答をプロファイルのパターンで確認する",
             "zh": "把控制器的记录应答与配置档的模式对照",
             "pt": "respostas gravadas de um controlador, testadas contra os padrões de um perfil"
+          }
+        },
+        {
+          "name": "equivalents.rs",
+          "desc": {
+            "en": "parts that another part on a feeder can stand for, and the reels this saves",
+            "es": "piezas que otra pieza ya puesta en un alimentador puede sustituir, con las bobinas que se ahorran",
+            "de": "Teile, die ein anderes Teil auf einer Zuführung ersetzen kann, mit den eingesparten Rollen",
+            "fr": "des pièces qu'une autre déjà sur un alimentateur peut remplacer, avec les bobines ainsi évitées",
+            "it": "componenti che un altro già su un feeder può sostituire, con le bobine che si risparmiano",
+            "ja": "すでにフィーダーにある別の部品で代用できる部品と、節約できるリール",
+            "zh": "可由已在供料器上的另一元件代替的元件，以及由此省下的料卷",
+            "pt": "peças que outra já num alimentador pode substituir, com as bobinas que isso poupa"
           }
         },
         {
@@ -758,14 +797,14 @@
         {
           "name": "gui/cmdpanel.rs",
           "desc": {
-            "en": "the panels of the eleven driver and assistant commands: run, limit, output",
-            "es": "los paneles de los once comandos de driver y asistentes: ejecutar, límite, salida",
-            "de": "die Bereiche der elf Treiber- und Assistentenbefehle: ausführen, Grenze, Ausgabe",
-            "fr": "les panneaux des onze commandes de pilote et d'assistants : lancer, limite, sortie",
-            "it": "i pannelli degli undici comandi di driver e assistenti: esegui, limite, output",
-            "ja": "ドライバとアシスタントの11コマンドのパネル：実行、制限、出力",
-            "zh": "十一个驱动与助手命令的面板：运行、限制、输出",
-            "pt": "os painéis dos onze comandos de controlador e assistentes: executar, limite, saída"
+            "en": "the panels of the fifteen driver and assistant commands: run, limit, output",
+            "es": "los paneles de los quince comandos de driver y asistentes: ejecutar, límite, salida",
+            "de": "die Bereiche der fünfzehn Treiber- und Assistentenbefehle: ausführen, Grenze, Ausgabe",
+            "fr": "les panneaux des quinze commandes de pilote et d'assistants : lancer, limite, sortie",
+            "it": "i pannelli dei quindici comandi di driver e assistenti: esegui, limite, output",
+            "ja": "ドライバとアシスタントの15コマンドのパネル：実行、制限、出力",
+            "zh": "十五个驱动与助手命令的面板：运行、限制、输出",
+            "pt": "os painéis dos quinze comandos de controlador e assistentes: executar, limite, saída"
           }
         },
         {
@@ -1065,6 +1104,19 @@
             "ja": "1枚の基板と1列のフィーダーに複数ヘッド：帯分割かフィーダー単位か、待ち時間",
             "zh": "多个贴装头共用一排供料器：按带分区或按整个供料器，含等待时间",
             "pt": "várias cabeças numa placa e numa fila de alimentadores: faixas ou alimentadores inteiros, esperas"
+          }
+        },
+        {
+          "name": "heightmap.rs",
+          "desc": {
+            "en": "the height of a bent board from a grid of measured points",
+            "es": "la altura de una placa alabeada a partir de una cuadrícula de puntos medidos, y el cambio de altura de cada colocación",
+            "de": "die Höhe einer verzogenen Platine aus einem Raster gemessener Punkte und die Höhenänderung jeder Bestückung",
+            "fr": "la hauteur d'une carte déformée à partir d'une grille de points mesurés, et le changement de hauteur de chaque placement",
+            "it": "l'altezza di una scheda imbarcata da una griglia di punti misurati, e la variazione di altezza di ogni posizionamento",
+            "ja": "測定点のグリッドから求めた反った基板の高さと、各実装の高さの変化",
+            "zh": "由实测点网格得出的翘曲板高度，以及每个贴装的高度变化",
+            "pt": "a altura de uma placa empenada a partir de uma grelha de pontos medidos, e a variação de altura de cada colocação"
           }
         },
         {
@@ -2030,6 +2082,19 @@
           }
         },
         {
+          "name": "toolpath.rs",
+          "desc": {
+            "en": "the lines of a job and their SHA-256 fingerprint",
+            "es": "las líneas que un perfil de driver escribe para un trabajo, y su huella SHA-256",
+            "de": "die Zeilen, die ein Treiberprofil für einen Auftrag schreibt, und ihr SHA-256-Fingerabdruck",
+            "fr": "les lignes qu'un profil de pilote écrit pour un travail, et leur empreinte SHA-256",
+            "it": "le righe che un profilo di driver scrive per un lavoro e la loro impronta SHA-256",
+            "ja": "ドライバプロファイルがジョブ用に書き出す行と、その SHA-256 フィンガープリント",
+            "zh": "驱动配置文件为作业写出的行及其 SHA-256 指纹",
+            "pt": "as linhas que um perfil de controlador escreve para um trabalho e a sua impressão SHA-256"
+          }
+        },
+        {
           "name": "toolvalues.rs",
           "desc": {
             "en": "the values of the tool forms as settings of the machine file, and keeping them there",
@@ -2427,6 +2492,19 @@
           }
         },
         {
+          "name": "drag.rs",
+          "desc": {
+            "en": "tests of the drag feeder: the stroke, the picks, refused pitches, the command",
+            "es": "pruebas del alimentador de arrastre: la pasada, las recogidas de una pasada, pasos rechazados, pasos de una semilla fija, el comando",
+            "de": "Tests der Schleppzuführung: Hub, Aufnahmen eines Hubs, abgelehnte Teilungen, Teilungen aus festem Seed, der Befehl",
+            "fr": "tests de l'alimentateur à traînage : la course, les prises d'une course, pas refusés, pas d'une graine fixe, la commande",
+            "it": "test del feeder a trascinamento: la corsa, i prelievi di una corsa, passi rifiutati, passi da un seme fisso, il comando",
+            "ja": "ドラッグフィーダーのテスト：ストローク、1回のピック、拒否されるピッチ、固定シードのピッチ、コマンド",
+            "zh": "拖动供料器的测试：行程、一次行程的取料、被拒绝的间距、固定种子的间距、命令",
+            "pt": "testes do alimentador de arrasto: o curso, as recolhas de um curso, passos recusados, passos de uma semente fixa, o comando"
+          }
+        },
+        {
           "name": "driver.rs",
           "desc": {
             "en": "tests of the driver: profile, lines, answers, Moonraker, simulated controller, session",
@@ -2463,6 +2541,19 @@
             "ja": "ファイルの文字コードのテスト：UTF-8、UTF-16、Latin-1",
             "zh": "文件编码的测试：UTF-8、UTF-16 和 Latin-1",
             "pt": "testes da codificação dos ficheiros: UTF-8, UTF-16 e Latin-1"
+          }
+        },
+        {
+          "name": "equivalent.rs",
+          "desc": {
+            "en": "tests of the equivalents: the swaps, what is left, refused tables, the command",
+            "es": "pruebas de las piezas equivalentes: los cambios, las piezas que quedan, el orden de los alimentadores, tablas rechazadas, el comando",
+            "de": "Tests der gleichwertigen Teile: die Tausche, die Restbestände, die Reihenfolge der Zuführungen, abgelehnte Tabellen, der Befehl",
+            "fr": "tests des pièces équivalentes : les échanges, les pièces restantes, l'ordre des alimentateurs, tables refusées, la commande",
+            "it": "test dei componenti equivalenti: gli scambi, i pezzi rimasti, l'ordine dei feeder, tabelle rifiutate, il comando",
+            "ja": "同等部品のテスト：入れ替え、残りの部品、フィーダーの順序、拒否される表、コマンド",
+            "zh": "等效元件的测试：替换、剩余数量、供料器顺序、被拒绝的表、命令",
+            "pt": "testes das peças equivalentes: as trocas, as peças que restam, a ordem dos alimentadores, tabelas recusadas, o comando"
           }
         },
         {
@@ -2674,6 +2765,19 @@
           }
         },
         {
+          "name": "heightmap.rs",
+          "desc": {
+            "en": "tests of the bent board: heights, outside places, refused grids, the command",
+            "es": "pruebas de la altura de una placa alabeada: alturas bilineales, un plano con semilla fija, lugares fuera, cuadrículas rechazadas, el comando",
+            "de": "Tests der Höhe einer verzogenen Platine: bilineare Höhen, eine Ebene mit festem Seed, Orte außerhalb, abgelehnte Raster, der Befehl",
+            "fr": "tests de la hauteur d'une carte déformée : hauteurs bilinéaires, un plan sur graine fixe, lieux extérieurs, grilles refusées, la commande",
+            "it": "test dell'altezza di una scheda imbarcata: altezze bilineari, un piano su seme fisso, punti fuori, griglie rifiutate, il comando",
+            "ja": "反った基板の高さのテスト：双線形補間、固定シードの平面、範囲外、拒否されるグリッド、コマンド",
+            "zh": "翘曲板高度的测试：双线性高度、固定种子的平面、范围之外的位置、被拒绝的网格、命令",
+            "pt": "testes da altura de uma placa empenada: alturas bilineares, um plano com semente fixa, lugares fora, grelhas recusadas, o comando"
+          }
+        },
+        {
           "name": "helpdemo.rs",
           "desc": {
             "en": "tests that run every example of the help and check the exit codes it promises",
@@ -2879,6 +2983,19 @@
             "ja": "KiCad フットプリントのテスト：本体、コートヤード、壊れたファイル、行、コマンド",
             "zh": "KiCad 封装测试：本体、占位区、损坏文件、行、命令",
             "pt": "testes das pegadas do KiCad: o corpo, a área de reserva, ficheiros danificados, a linha, o comando"
+          }
+        },
+        {
+          "name": "klippercfg.rs",
+          "desc": {
+            "en": "tests of the Klipper comparison: sections, the saved block, macros, a Marlin dump",
+            "es": "pruebas de la comparación de la configuración de un controlador Klipper: secciones, el bloque guardado, macros, un volcado de Marlin aparte",
+            "de": "Tests des Vergleichs der Konfiguration einer Klipper-Steuerung: Abschnitte, der gespeicherte Block, Makros, ein Marlin-Auszug getrennt",
+            "fr": "tests de la comparaison de la configuration d'un contrôleur Klipper : sections, le bloc enregistré, macros, un relevé Marlin à part",
+            "it": "test del confronto della configurazione di un controllore Klipper: sezioni, il blocco salvato, macro, un dump Marlin a parte",
+            "ja": "Klipper コントローラの設定比較のテスト：セクション、保存ブロック、マクロ、Marlin ダンプは別扱い",
+            "zh": "Klipper 控制器配置比较的测试：段、保存的块、宏，Marlin 转储另行处理",
+            "pt": "testes da comparação da configuração de um controlador Klipper: secções, o bloco guardado, macros, um despejo Marlin à parte"
           }
         },
         {
@@ -3295,6 +3412,19 @@
             "ja": "ジョブキューのテスト：ファイル、チェックサム、ゲート、コマンド、ツール",
             "zh": "作业队列的测试：文件、校验和、关卡、命令和工具",
             "pt": "testes da fila de trabalhos: o ficheiro, a soma de controlo, a porta, os comandos e a ferramenta"
+          }
+        },
+        {
+          "name": "queuemove.rs",
+          "desc": {
+            "en": "tests of the queue order: up, down, first, last, what is fixed, the command",
+            "es": "pruebas del orden de la cola: subir, bajar, primero, último, lo fijo conserva su sitio, movimientos con semilla fija, el comando",
+            "de": "Tests der Reihenfolge der Warteschlange: nach oben, unten, erster, letzter, Festes behält seinen Platz, Verschiebungen mit festem Seed, der Befehl",
+            "fr": "tests de l'ordre de la file : monter, descendre, premier, dernier, ce qui est fixe garde sa place, déplacements sur graine fixe, la commande",
+            "it": "test dell'ordine della coda: su, giù, primo, ultimo, ciò che è fisso resta al suo posto, spostamenti su seme fisso, il comando",
+            "ja": "キューの順序のテスト：上へ、下へ、先頭、末尾、固定されたものは動かない、固定シードの移動、コマンド",
+            "zh": "队列顺序的测试：上移、下移、首位、末位、固定的保持原位、固定种子的移动、命令",
+            "pt": "testes da ordem da fila: subir, descer, primeiro, último, o que está fixo mantém o lugar, movimentos com semente fixa, o comando"
           }
         },
         {
@@ -3740,6 +3870,19 @@
           }
         },
         {
+          "name": "toolpath.rs",
+          "desc": {
+            "en": "tests of the job fingerprint: a known value, --expect, a moved place, seeds",
+            "es": "pruebas de la huella de las líneas de un trabajo: un valor conocido, --expect, un lugar movido, placas con semilla fija",
+            "de": "Tests des Fingerabdrucks der Zeilen eines Auftrags: ein bekannter Wert, --expect, ein verschobener Ort, Platinen mit festem Seed",
+            "fr": "tests de l'empreinte des lignes d'un travail : une valeur connue, --expect, une place déplacée, cartes sur graine fixe",
+            "it": "test dell'impronta delle righe di un lavoro: un valore noto, --expect, un punto spostato, schede su seme fisso",
+            "ja": "ジョブの行のフィンガープリントのテスト：既知の値、--expect、動かした位置、固定シードの基板",
+            "zh": "作业行指纹的测试：已知值、--expect、移动的位置、固定种子的板子",
+            "pt": "testes da impressão das linhas de um trabalho: um valor conhecido, --expect, um lugar movido, placas com semente fixa"
+          }
+        },
+        {
           "name": "toolshop.rs",
           "desc": {
             "en": "the six new panels of the Tools tab: what the command says, the words, the saved tables",
@@ -3929,6 +4072,19 @@
           }
         },
         {
+          "name": "board_equiv.pos",
+          "desc": {
+            "en": "a small board whose parts have no feeder of their own, for equivalents",
+            "es": "una placa pequeña cuyas piezas no tienen alimentador propio, para equivalents",
+            "de": "eine kleine Platine, deren Teile keine eigene Zuführung haben, für equivalents",
+            "fr": "une petite carte dont les pièces n'ont pas d'alimentateur propre, pour equivalents",
+            "it": "una piccola scheda i cui componenti non hanno un feeder proprio, per equivalents",
+            "ja": "専用のフィーダーがない部品の小さな基板（equivalents 用）",
+            "zh": "元件没有专用供料器的小板子，供 equivalents 使用",
+            "pt": "uma placa pequena cujas peças não têm alimentador próprio, para equivalents"
+          }
+        },
+        {
           "name": "board_marks.pos",
           "desc": {
             "en": "the example board with two fiducial parts, for panel-fids",
@@ -4098,6 +4254,19 @@
           }
         },
         {
+          "name": "equivalents.csv",
+          "desc": {
+            "en": "groups of parts that may stand for each other (group,value,package)",
+            "es": "grupos de piezas que pueden sustituirse entre sí (group,value,package)",
+            "de": "Gruppen von Teilen, die einander ersetzen dürfen (group,value,package)",
+            "fr": "groupes de pièces qui peuvent se remplacer (group,value,package)",
+            "it": "gruppi di componenti che possono sostituirsi a vicenda (group,value,package)",
+            "ja": "互いに代用できる部品のグループ（group,value,package）",
+            "zh": "可以互相替代的元件分组（group,value,package）",
+            "pt": "grupos de peças que se podem substituir entre si (group,value,package)"
+          }
+        },
+        {
           "name": "failure_rules.csv",
           "desc": {
             "en": "retries by package for failure-odds",
@@ -4147,6 +4316,19 @@
             "ja": "試すためのサンプル",
             "zh": "试用的示例",
             "pt": "um exemplo para experimentar o programa"
+          }
+        },
+        {
+          "name": "feeders_drag.csv",
+          "desc": {
+            "en": "feeders with strips of 2, 3 and 4 mm and a tray, for drag-plan",
+            "es": "una tabla de alimentadores con tiras de 2, 3 y 4 mm y una bandeja, para drag-plan y equivalents",
+            "de": "eine Zuführungstabelle mit Streifen von 2, 3 und 4 mm und einem Tray, für drag-plan und equivalents",
+            "fr": "une table d'alimentateurs avec des bandes de 2, 3 et 4 mm et un plateau, pour drag-plan et equivalents",
+            "it": "una tabella di feeder con strisce da 2, 3 e 4 mm e un vassoio, per drag-plan e equivalents",
+            "ja": "2・3・4 mm のストリップとトレイを持つフィーダー表（drag-plan と equivalents 用）",
+            "zh": "含 2、3、4 mm 料带和一个托盘的供料器表，供 drag-plan 和 equivalents 使用",
+            "pt": "uma tabela de alimentadores com tiras de 2, 3 e 4 mm e um tabuleiro, para drag-plan e equivalents"
           }
         },
         {
@@ -4228,6 +4410,19 @@
           }
         },
         {
+          "name": "height_grid.csv",
+          "desc": {
+            "en": "heights of a board measured on a grid of three by three points, for height-map",
+            "es": "alturas de una placa medidas en una cuadrícula de tres por tres puntos, para height-map",
+            "de": "Höhen einer Platine, gemessen auf einem Raster von drei mal drei Punkten, für height-map",
+            "fr": "hauteurs d'une carte mesurées sur une grille de trois par trois points, pour height-map",
+            "it": "altezze di una scheda misurate su una griglia di tre per tre punti, per height-map",
+            "ja": "3×3 点のグリッドで測定した基板の高さ（height-map 用）",
+            "zh": "在 3×3 点网格上测得的板子高度，供 height-map 使用",
+            "pt": "alturas de uma placa medidas numa grelha de três por três pontos, para height-map"
+          }
+        },
+        {
           "name": "hooks.csv",
           "desc": {
             "en": "rules of the hooks for simulate --hooks: an event and a program for each",
@@ -4290,6 +4485,32 @@
             "ja": "接続越しの Klipper の応答を手で書き留めたもの",
             "zh": "手工记录的 Klipper 经连接返回的应答",
             "pt": "respostas do Klipper através da ligação, escritas à mão"
+          }
+        },
+        {
+          "name": "klipper_new.cfg",
+          "desc": {
+            "en": "the same Klipper machine after tuning, with a saved block and a new macro",
+            "es": "la misma máquina Klipper tras ajustar los valores, con un bloque guardado y una macro nueva",
+            "de": "dieselbe Klipper-Maschine nach dem Abstimmen der Werte, mit gespeichertem Block und neuem Makro",
+            "fr": "la même machine Klipper après réglage des valeurs, avec un bloc enregistré et une nouvelle macro",
+            "it": "la stessa macchina Klipper dopo la messa a punto dei valori, con un blocco salvato e una nuova macro",
+            "ja": "設定を調整した後の同じ Klipper マシン（保存ブロックと新しいマクロ付き）",
+            "zh": "调整设置后的同一台 Klipper 机器，带保存的块和一个新宏",
+            "pt": "a mesma máquina Klipper depois de afinados os valores, com um bloco guardado e uma macro nova"
+          }
+        },
+        {
+          "name": "klipper_old.cfg",
+          "desc": {
+            "en": "the configuration of a pick and place machine on Klipper, for fw-config-diff",
+            "es": "la configuración de una máquina pick and place con un controlador Klipper, para fw-config-diff",
+            "de": "die Konfiguration einer Bestückungsmaschine mit Klipper-Steuerung, für fw-config-diff",
+            "fr": "la configuration d'une machine de placement sur un contrôleur Klipper, pour fw-config-diff",
+            "it": "la configurazione di una macchina pick and place con un controllore Klipper, per fw-config-diff",
+            "ja": "Klipper コントローラを使うピックアンドプレース機の設定（fw-config-diff 用）",
+            "zh": "使用 Klipper 控制器的贴片机配置，供 fw-config-diff 使用",
+            "pt": "a configuração de uma máquina pick and place num controlador Klipper, para fw-config-diff"
           }
         },
         {

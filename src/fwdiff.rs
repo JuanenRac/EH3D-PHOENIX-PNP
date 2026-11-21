@@ -6,6 +6,10 @@
 //! and says which values differ, as `config-diff` does for the settings of this program: a value is a letter of a line (`M92 X`), `80` and `80.00` are the same, a line the other dump does
 //! not have shows as `-`. Commands that name a part (a motor, a heater) keep it in the key (`M906 I1 X`). When the two dumps come from different firmware, a warning says that the values
 //! stored by the old one stay in force until the EEPROM is reset. It reads text and changes nothing; nothing is sent to a controller.
+//!
+//! A Klipper controller keeps its settings in `printer.cfg`: `[section]` lines and `key: value` (or `key = value`) lines, with the values that `SAVE_CONFIG` wrote at the end of the file
+//! behind the marker `#*# <---- SAVE_CONFIG ---->`. Such a file is told by its section lines, and a value is `section key` (`stepper_x rotation_distance`); the saved block wins over the
+//! file above it, as it does in Klipper, and a value that continues on the lines under it (a macro) is read as one value.
 
 use std::collections::BTreeMap;
 
@@ -33,6 +37,8 @@ pub struct Dump {
     pub values: BTreeMap<String, String>,
     /// The lines that were not a command of G-code (comments, answers such as `ok`).
     pub ignored: usize,
+    /// The file is the configuration of a Klipper controller, not the answer of a Marlin one.
+    pub klipper: bool,
 }
 
 fn is_code(word: &str) -> bool {
@@ -42,10 +48,146 @@ fn is_code(word: &str) -> bool {
         && word[1..].chars().all(|c| c.is_ascii_digit() || c == '.')
 }
 
-/// Reads a dump. A dump with no value at all is not one.
+/// The marker that Klipper writes before the values that `SAVE_CONFIG` kept.
+pub const SAVE_MARKER: &str = "#*# <---- SAVE_CONFIG ---->";
+
+fn is_section(line: &str) -> bool {
+    line.len() > 2 && line.starts_with('[') && line.ends_with(']') && !line.contains(" = ")
+}
+
+/// Whether a text is the configuration of a Klipper controller: it has a line with a section in square brackets and no line of G-code.
+pub fn looks_like_klipper(text: &str) -> bool {
+    let mut section = false;
+    for raw in text.trim_start_matches('\u{feff}').lines().take(MAX_LINES) {
+        let line = raw.trim();
+        if is_section(line) {
+            section = true;
+        } else if !raw.starts_with([' ', '\t'])
+            && line
+                .split_whitespace()
+                .next()
+                .is_some_and(|w| is_code(&w.to_ascii_uppercase()))
+        {
+            return false;
+        }
+    }
+    section
+}
+
+/// The text of a value without a comment that follows it after a blank (`# ...` or `; ...`).
+fn without_comment(value: &str) -> &str {
+    let mut end = value.len();
+    for (i, c) in value.char_indices() {
+        if (c == '#' || c == ';') && value[..i].ends_with(char::is_whitespace) {
+            end = i;
+            break;
+        }
+    }
+    value[..end].trim()
+}
+
+/// Reads the configuration of a Klipper controller.
+fn parse_klipper(text: &str) -> Result<Dump, String> {
+    let mut dump = Dump {
+        klipper: true,
+        ..Dump::default()
+    };
+    let mut saved = false;
+    let mut section = String::new();
+    let mut last: Option<String> = None;
+    // the values saved under the marker, which win over the file above it
+    let mut over: Vec<(String, String)> = Vec::new();
+    for (n, raw) in text.trim_start_matches('\u{feff}').lines().enumerate() {
+        if n >= MAX_LINES {
+            return Err(format!("a dump is at most {MAX_LINES} lines"));
+        }
+        if raw.trim_end() == SAVE_MARKER {
+            saved = true;
+            section.clear();
+            last = None;
+            continue;
+        }
+        let mut line = raw;
+        if saved {
+            match raw.strip_prefix("#*#") {
+                Some(rest) => line = rest.strip_prefix(' ').unwrap_or(rest),
+                None => {
+                    dump.ignored += 1;
+                    continue;
+                }
+            }
+        }
+        let continued = line.starts_with([' ', '\t']) && !line.trim().is_empty();
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with(';') {
+            if trimmed.is_empty() {
+                last = None;
+            }
+            dump.ignored += 1;
+            continue;
+        }
+        if continued {
+            // a macro or a list goes on under its key: it is one value
+            if let Some(key) = &last {
+                let more = without_comment(trimmed);
+                let slot = if saved {
+                    over.iter_mut()
+                        .rev()
+                        .find(|(k, _)| k == key)
+                        .map(|(_, v)| v)
+                } else {
+                    dump.values.get_mut(key)
+                };
+                if let Some(v) = slot {
+                    if !more.is_empty() {
+                        if !v.is_empty() {
+                            v.push_str("; ");
+                        }
+                        v.push_str(more);
+                    }
+                }
+                continue;
+            }
+        }
+        if is_section(trimmed) {
+            section = trimmed[1..trimmed.len() - 1].trim().to_string();
+            last = None;
+            continue;
+        }
+        let split = trimmed
+            .find([':', '='])
+            .map(|i| (trimmed[..i].trim(), trimmed[i + 1..].trim()));
+        let Some((name, value)) = split.filter(|(k, _)| !k.is_empty() && !section.is_empty())
+        else {
+            dump.ignored += 1;
+            last = None;
+            continue;
+        };
+        let key = format!("{section} {}", name.to_ascii_lowercase());
+        let value = without_comment(value).to_string();
+        if saved {
+            over.push((key.clone(), value));
+        } else {
+            dump.values.insert(key.clone(), value);
+        }
+        last = Some(key);
+    }
+    for (key, value) in over {
+        dump.values.insert(key, value);
+    }
+    if dump.values.is_empty() {
+        return Err("the file has no section with a value in it".to_string());
+    }
+    Ok(dump)
+}
+
+/// Reads a dump. A dump with no value at all is not one. The configuration of a Klipper controller is read as such (`Dump::klipper`).
 pub fn parse(text: &str) -> Result<Dump, String> {
     if text.len() > MAX_DUMP_BYTES {
         return Err(format!("a dump is at most {MAX_DUMP_BYTES} bytes"));
+    }
+    if looks_like_klipper(text) {
+        return parse_klipper(text);
     }
     let mut dump = Dump::default();
     for (n, raw) in text.trim_start_matches('\u{feff}').lines().enumerate() {
@@ -133,6 +275,8 @@ pub struct FwDiff {
     pub same_meaning: usize,
     pub old_firmware: Option<String>,
     pub new_firmware: Option<String>,
+    /// Both dumps are the configuration of a Klipper controller.
+    pub klipper: bool,
 }
 
 fn same_value(a: &str, b: &str) -> bool {
@@ -150,6 +294,7 @@ pub fn diff(old: &Dump, new: &Dump) -> FwDiff {
     let mut out = FwDiff {
         old_firmware: old.firmware.clone(),
         new_firmware: new.firmware.clone(),
+        klipper: old.klipper && new.klipper,
         ..FwDiff::default()
     };
     for key in keys {

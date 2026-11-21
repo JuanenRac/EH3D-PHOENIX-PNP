@@ -18,7 +18,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 1876 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt, und obwohl das Programm Bilder seines eigenen Fensters aufnimmt (`--shot`), hat keine Person die Zeichnung auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 1915 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt, und obwohl das Programm Bilder seines eigenen Fensters aufnimmt (`--shot`), hat keine Person die Zeichnung auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.1.3` |
 | Reifegrad | Gerüst |
-| Tests | 1876 |
+| Tests | 1915 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -47,11 +47,11 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (Priorität, Tray, Streifen), plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen mit Rängen, Düsenspitzen, Winkelgrenzen und der Zeit der Bewegungen, plant Panels und schreibt die Ladeliste; auf einem Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `phoenix-pnp` führt dieselben Funktionen wie die Bibliothek aus (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit seinem Code `PHOENIX-PNP-NNN` und einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 1876 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen, beschädigten Eingaben und kleinen erzeugten Fällen. |
+| Tests | 🟡 | 1915 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen, beschädigten Eingaben und kleinen erzeugten Fällen. |
 | Maschinenkonfiguration | 🟡 | eine Datei `Schlüssel = Wert` mit Version, ein Prüfer, der die Zeile nennt, und die Sicherheitsgrenzen (Z-Weg, Grenzen von X und Y, Wiederholungen, Düsenwinkel); die Werte wurden nicht mit einer echten Maschine verglichen. |
 | Simulator und Auftrag | 🟡 | eine virtuelle Uhr, zufällig (mit Startwert) oder an gewählter Stelle eingespeiste Fehler, Wiederholungen, die Richtlinien Alarm und Aufschieben, Zuführer, die nach wiederholten Fehlern abschalten, Pause, Einzelschritte und ein gespeicherter Zustand zum Fortsetzen; es simuliert nur, nichts hat eine Maschine bewegt. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
-| Fenster | 🟠 | Ein egui-Fenster (mit `--features gui` bauen; `phoenix-pnp` ohne Befehl öffnet es): Reiter für Auftrag, Teile, Gehäuse, Zuführungen, Bestückungsliste, Maschine, Werkzeuge, Probleme und Protokoll, eine Karte des Arbeitstisches mit dem Weg des Kopfes, Polaritätsmarken und dem nächsten Teil, ein Assistent in fünf Schritten, Probleme mit rückgängig machbaren Lösungen, ein simulierter Auftrag mit Pause, Fortsetzen und Einzelschritt und die acht Sprachen. Die Logik wird ohne Bildschirm getestet; die Zeichnung ist nicht durch Tests abgedeckt: Das Programm nimmt Bilder seines eigenen Fensters auf (`--shot`), aber keine Person hat die Zeichnung auf einem Bildschirm geprüft. Dazu kommen Reiter für Nutzen (mit den Passmarken und der Anpassung, die die Teile verschiebt) und Platinen, eine Dateiauswahl, Tabellen der Zuführer und Gehäuse, die sich mit Rückgängig bearbeiten lassen, gemerkte Spaltenbreiten und ein eigenes Programm (`phoenix-pnp-gui`), das unter Windows ohne Konsole startet. Die Register sind jetzt Bereiche des Andock-Rahmens der Suite (`eh3d-dock`): Sie lassen sich verschieben, schweben lassen, einklappen und in drei Anordnungen speichern, es gibt eine Menüleiste, und elf Befehle haben einen Bereich; das wurde ohne Fenster übersetzt und ausgeführt, nicht auf einem Bildschirm gesehen. |
+| Fenster | 🟠 | Ein egui-Fenster (mit `--features gui` bauen; `phoenix-pnp` ohne Befehl öffnet es): Reiter für Auftrag, Teile, Gehäuse, Zuführungen, Bestückungsliste, Maschine, Werkzeuge, Probleme und Protokoll, eine Karte des Arbeitstisches mit dem Weg des Kopfes, Polaritätsmarken und dem nächsten Teil, ein Assistent in fünf Schritten, Probleme mit rückgängig machbaren Lösungen, ein simulierter Auftrag mit Pause, Fortsetzen und Einzelschritt und die acht Sprachen. Die Logik wird ohne Bildschirm getestet; die Zeichnung ist nicht durch Tests abgedeckt: Das Programm nimmt Bilder seines eigenen Fensters auf (`--shot`), aber keine Person hat die Zeichnung auf einem Bildschirm geprüft. Dazu kommen Reiter für Nutzen (mit den Passmarken und der Anpassung, die die Teile verschiebt) und Platinen, eine Dateiauswahl, Tabellen der Zuführer und Gehäuse, die sich mit Rückgängig bearbeiten lassen, gemerkte Spaltenbreiten und ein eigenes Programm (`phoenix-pnp-gui`), das unter Windows ohne Konsole startet. Die Register sind jetzt Bereiche des Andock-Rahmens der Suite (`eh3d-dock`): Sie lassen sich verschieben, schweben lassen, einklappen und in drei Anordnungen speichern, es gibt eine Menüleiste, und fünfzehn Befehle haben einen Bereich; das wurde ohne Fenster übersetzt und ausgeführt, nicht auf einem Bildschirm gesehen. |
 | Echte Hardware | 🔴 | Nicht erprobt: nichts davon wurde an einer Maschine ausgeführt. |
 | Dokumentation | 🟡 | README in acht Sprachen, das Changelog und die zwei aus `docs/` gezeichneten Bilder. |
 
@@ -178,6 +178,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 * **Hooks während des Auftrags und was jede Düse tut** (`src/hooks.rs`, `src/journal.rs`, `src/commands.rs`): Zusätzlich zu den Ereignissen am Ende eines Auftrags kann eine Regel `nozzle-before-pick`, `nozzle-after-pick`, `nozzle-before-place`, `nozzle-after-place` und `placement-complete` nennen, die `simulate --hooks` bei jedem Schritt meldet, während der Auftrag läuft (derselbe Seed ergibt dieselbe Liste; die Grenzen der Hooks gelten für den ganzen Auftrag). `{nozzle}`, `{step}` und `{nozzle_state}` kommen zu den Daten der Argumente hinzu, und dieselben Daten gehen als eine JSON-Zeile von höchstens 1024 Bytes an die Eingabe des Programms. Das Journal hat eine Spalte `nozzle_state` (`idle`, `picking`, `carrying`, `placing`), die sagt, was die Düse nach jedem Schritt tut.
 * **Reihenfolge, Verdrahtung und Pfade** (`src/placeorder.rs`, `src/wiring.rs`, `src/pathid.rs`): `placement_order = unit, height:desc, quantity:desc` ordnet die Bestückung nach einer Liste von Schlüsseln (Einheit eines Nutzens, Feeder, Teil, Höhe, Fläche, Menge), jeweils auf- oder absteigend, anstelle des einzelnen `order`. `phoenix-pnp wiring-sheet PROFIL [--out F] [--svg F]` liest ein Treiberprofil und schreibt, was an welchen Pin gehört (die Achsen, die Pumpe, das Abblasventil und ob die Zeile, die die Maschine sicher macht, jedes freigibt), sowie eine Zeichnung der Pneumatik; der Exit-Code ist 2, wenn ein Pin nicht gelesen werden kann, die Pumpe oder das Ventil fehlt oder zwei Aktoren einen Pin teilen. Ein Pfad wird in einer Warteschlange mit `/` zwischen den Namen gespeichert, ohne das Präfix von Windows und ohne `..`, und zwei Schreibweisen einer Datei gelten als dieselbe. Was dieses Programm vom gemeinsamen Client verlangt, steht in `docs/COMMON_REQUESTS.md`.
 * **Referenzfahrt ohne Endschalter, Firmware-Auszüge, das Datenblatt der Maschine und der Zustand jeder Düse** (`src/gcodedriver.rs`, `src/fwdiff.rs`, `src/machsheet.rs`, `src/tower.rs`, `src/gui/jobtab.rs`, `examples/firmware_old.txt`): Ein Treiberprofil sagt `homing_mode = sensorless` mit einer Empfindlichkeit für X und einer für Y (`homing_sensitivity_x` und `homing_sensitivity_y`, von -64 bis 255) und die Zeile, die sie setzt; sie gehen den Zeilen von `home` voraus, und `homing-repeat` nennt sie und zeigt, wie weit auseinander die Maschine landet. `phoenix-pnp fw-config-diff FIRST SECOND` vergleicht zwei Auszüge der Firmware-Konfiguration (die Antwort auf `M503`) Wert für Wert, hält `80` und `80.00` für gleich und warnt vor dem Zurücksetzen des EEPROM, wenn die Firmware nicht in beiden dieselbe ist (Ausgangscode 2 bei Unterschieden). `phoenix-pnp machine-sheet` gibt Tisch, Maschine, Arbeitsbereich, kleinstes erprobtes Teil und Höchstgeschwindigkeit aus, die die fünf `spec_`-Zeilen der Einstellungen liefern; was niemand eintrug, heißt in den acht Sprachen "nicht gemessen", keine Zahl wird erfunden, und der Bericht eines Auftrags trägt das Datenblatt. Der Reiter Auftrag zeigt, was jede Düse tut (frei oder mit einem Teil), und `sim-tower` nennt die Düse und ihren Zustand neben jedem Licht, das nicht grün ist. Über den gemeinsamen Client liefert die Verbindung zu einem Knoten das `why` einer Ablehnung, wie der Knoten es schrieb, und behält ein festes Token. Alles wurde nur an Simulatoren erprobt.
+* **Der Fingerabdruck eines Auftrags, eine Klipper-Datei, eine verzogene Platine, gleichwertige Teile, Schleppzuführungen und die Reihenfolge der Warteschlange** (`src/toolpath.rs`, `src/heightmap.rs`, `src/equivalents.rs`, `src/drag.rs`, `src/cmd_extra.rs`, `src/fwdiff.rs`, `src/queue.rs`): `phoenix-pnp toolpath-hash PARTS FEEDERS PROFILE` schreibt die Zeilen, die das Treiberprofil für den ganzen Auftrag ergibt, und gibt ihr SHA-256 aus (derselbe Plan ergibt immer denselben, ein um ein Tausendstel Millimeter verschobener Ort einen anderen); `--expect HASH` endet mit 2, wenn die Zeilen nicht die gesehenen sind. Es ist nicht der Fingerabdruck, den der Server bildet. `fw-config-diff` liest auch die Konfiguration einer Klipper-Steuerung (`[Abschnitt]`- und `Schlüssel: Wert`-Zeilen, ein Makro als ein Wert, die von `SAVE_CONFIG` gespeicherten Werte gelten vor der Datei darüber) und vergleicht sie nie mit einem Marlin-Auszug. `phoenix-pnp height-map GRID --parts PARTS` liest auf einem vollständigen Raster gemessene Höhen, sagt, wie stark sich die Platine wölbt (`heightmap_max_warp_mm`), und die Höhenänderung jeder Bestückung durch bilineare Interpolation; ein Ort außerhalb des Rasters hat keine Korrektur. `phoenix-pnp equivalents PARTS FEEDERS GROUPS` legt Teile ohne Zuführung auf die Zuführung mit gleichwertigem Teil und dem größten Restbestand und sagt, wie viele Rollen das spart. `phoenix-pnp drag-plan FEEDERS` gibt je Streifen den kürzesten Hub aus ganzen Transportlöchern (`drag_hole_pitch_mm`) und ganzen Taschen, die bedienten Aufnahmen (höchstens `drag_max_picks_per_stroke`) und die Hübe des Gurts. `queue-edit WARTESCHLANGE NAME up|down|top|bottom` verschiebt einen Auftrag, während Laufendes und Fertiges seinen Platz behält, mit zwei Knöpfen im Fenster; die vier neuen Befehle haben je einen Bereich (insgesamt fünfzehn). Erprobt an von Hand geschriebenen Dateien und an einer simulierten Steuerung, nie an einer Maschine.
 
 ## 🧩 Rolle in EH3D
 
@@ -251,7 +252,7 @@ phoenix-pnp camera-pattern FILE [--pitch MM]             die Pixelgröße und di
 phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS          hängt einen Auftrag (Platinen oder einen Nutzen) an eine Warteschlange an
 phoenix-pnp queue-status QUEUE [--check]                 die Aufträge der Warteschlange und was aus jedem wurde; --check plant die noch offenen
 phoenix-pnp queue-confirm QUEUE NAME                     hält fest, dass der Plan eines Auftrags, so wie er jetzt ist, laufen darf
-phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove   lässt einen Auftrag aus, startet ihn neu, widerruft seine Bestätigung oder entfernt ihn
+phoenix-pnp queue-edit QUEUE NAME skip|reset|revoke|remove|up|down|top|bottom   lässt einen Auftrag aus, startet ihn neu, widerruft seine Bestätigung, entfernt ihn oder verschiebt ihn in der Reihenfolge
 phoenix-pnp queue-run QUEUE [--only NAME]                fertigt die bestätigten Aufträge Platine für Platine auf der simulierten Maschine
 phoenix-pnp camera-combined FILE [--pitch MM] [--origin X,Y] [--touch]   die Kamera, die Drehung des Blattes und die Verzeichnung des Objektivs mit einem am Tisch befestigten Muster, während der Kopf fährt (braucht camera_combined = on)
 phoenix-pnp vision-readings PARTS --sizes F [--seed N]   die Messwerte, die die simulierte Kamera von den Teilen gibt, in der Datei, die part-inspect liest
@@ -265,6 +266,10 @@ phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] was sic
 phoenix-pnp config-diff FIRST SECOND                       die Einstellungen, die zwei Konfigurationsdateien in ihrer Bedeutung verschieden festlegen (yes und on, 5 und 5.0 sind gleich; Exit 2, wenn die Maschinen sich unterscheiden)
 phoenix-pnp fw-config-diff FIRST SECOND                    die Werte, die zwei Auszüge der Firmware-Konfiguration (Antwort auf M503) verschieden festlegen; warnt vor dem EEPROM-Reset, wenn die Firmware wechselte (Ausgang 2 bei Unterschieden)
 phoenix-pnp machine-sheet [--config F]                     das Datenblatt der Maschine aus den Einstellungen; Nicht Gemessenes wird so genannt
+phoenix-pnp toolpath-hash PARTS FEEDERS PROFILE [--expect HASH] das SHA-256 der Zeilen, die ein Treiberprofil für den ganzen Auftrag schreibt; mit --expect Exit 2, wenn es nicht die gesehenen Zeilen sind
+phoenix-pnp height-map GRID [--parts PARTS] [--zero X,Y] [--out F] wie stark sich eine Platine aus einem Raster gemessener Höhen wölbt und die Höhenänderung jeder Bestückung (Exit 2, wenn sie sich zu stark wölbt oder ein Teil außerhalb liegt)
+phoenix-pnp equivalents PARTS FEEDERS GROUPS [--out F]     die Teile ohne Zuführung, auf eine Zuführung mit gleichwertigem Teil und Restbestand gelegt, und die eingesparten Rollen (Exit 2, wenn ein Teil keine Zuführung hat)
+phoenix-pnp drag-plan FEEDERS [--out F]                    der Hub einer Schleppzuführung je Streifen: ganze Transportlöcher und Taschen, die bedienten Aufnahmen, die Hübe eines Gurts (Exit 2, wenn einer nicht gezogen werden kann)
 phoenix-pnp board-stats PARTS [--near MM] [--limit N]      was eine Bauteiltabelle enthält (Seiten, Sorten, Gehäuse, der Kasten der Mittelpunkte) und mit --near die Paare, die näher als MM liegen (Exit 2, wenn es eines findet)
 phoenix-pnp queue-stock QUEUE [--out F]                    ob die Zuführungen für alle noch offenen Aufträge einer Warteschlange reichen und in welchem Auftrag jede Rolle ausgeht (Exit 2, wenn eine nicht reicht)
 phoenix-pnp feeder-deplete FEEDERS --state F [--out F]     die Zuführungstabelle nach dem Auftrag eines gespeicherten Zustands: die restlichen Teile und der nächste Platz der Streifen (Exit 2, wenn eine knapp oder leer ist)
@@ -443,7 +448,7 @@ Die letzte Zeile öffnet das Fenster; das tut auch `phoenix-pnp` ohne Befehl, we
 
 ## 🧪 Tests
 
-Die Suite hat 1876 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt). Sie prüfen die Normalfälle, die Grenzfälle und beschädigte Eingaben: leere Dateien, Müll und abgeschnittene Dateien führen nie zu einer Panik. Kleine erzeugte Fälle (aus einem festen Startwert, also mit denselben Zahlen bei jedem Lauf) prüfen, dass der Plan nicht von der Reihenfolge der Dateien abhängt, dass ein Weg nie länger wird, dass ein irgendwo gespeicherter und fortgesetzter Auftrag genauso endet wie einer, der nie angehalten wurde, und dass sich Längen und Winkel hin und zurück umrechnen lassen. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 1915 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt). Sie prüfen die Normalfälle, die Grenzfälle und beschädigte Eingaben: leere Dateien, Müll und abgeschnittene Dateien führen nie zu einer Panik. Kleine erzeugte Fälle (aus einem festen Startwert, also mit denselben Zahlen bei jedem Lauf) prüfen, dass der Plan nicht von der Reihenfolge der Dateien abhängt, dass ein Weg nie länger wird, dass ein irgendwo gespeicherter und fortgesetzter Auftrag genauso endet wie einer, der nie angehalten wurde, und dass sich Längen und Winkel hin und zurück umrechnen lassen. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 
@@ -478,6 +483,7 @@ EH3D-PHOENIX-PNP/
 │   ├── clearance.rs                             der Abstand zwischen den Körpern der Teile einer Platine: zu nahe oder überlappende Paare
 │   ├── cli_args.rs                              die Argumente der Kommandozeile, streng: eine unbekannte Option ist ein Fehler
 │   ├── cmd_drive.rs                             die Befehle des G-Code-Treibers: driver-check, driver-test, driver-run, bringup
+│   ├── cmd_extra.rs                             die Befehle toolpath-hash, height-map, equivalents und drag-plan
 │   ├── cmd_fab.rs                               die Befehle der Montagedateien, der Prüfungen, der Schablone und der Journalansichten
 │   ├── cmd_flow.rs                              Ablaufbefehle ohne Maschine: Chargen, Aufteilung, Risiko, Düsenhöhen, Marken, Import, Listen
 │   ├── cmd_import.rs                            die Befehle import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen
@@ -497,8 +503,10 @@ EH3D-PHOENIX-PNP/
 │   ├── deplete.rs                               die Zuführungstabelle nach einem Auftrag: die restlichen Teile und der nächste Platz der Streifen
 │   ├── designators.rs                           die natürliche Reihenfolge der Bezeichner (R2 vor R10) und ihre Schreibweise als Listen
 │   ├── dfm.rs                                   die Montageprüfungen einer Platine mit den Grenzen in den Einstellungen, in acht Sprachen
+│   ├── drag.rs                                  eine Zuführung, die den Gurt an den Transportlöchern zieht: der Hub, die bedienten Aufnahmen und die Hübe eines Gurts
 │   ├── driver.rs                                eine Treibersitzung: Zeitgrenzen, Wiederholungen, ein sicherer Stopp, langsamer nach Störungen
 │   ├── drivertest.rs                            aufgezeichnete Antworten einer Steuerung, gegen die Muster eines Profils gespielt
+│   ├── equivalents.rs                           Teile, die ein anderes Teil auf einer Zuführung ersetzen kann, mit den eingesparten Rollen
 │   ├── error.rs                                 die Fehlercodes PHOENIX-PNP-NNN und ihre Bedeutung in acht Sprachen
 │   ├── exchange.rs                              ein Auftrag in einer JSON-Datei für andere Programme: Plan und Zustand jedes Teils
 │   ├── export.rs                                der Bericht, die Liste des Fehlenden und der G-Code der Bewegungen
@@ -517,7 +525,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui.rs                                   das Fenster: Module ohne Bildschirm und die Zeichnung in window.rs
 │   ├── gui/app.rs                               der Zustand des Fensters: laden, planen, starten, pausieren, Schritt, beheben, speichern
 │   ├── gui/browse.rs                            die Dateiauswahl: Ordner und Dateien, hinauf, eingetippte Pfade
-│   ├── gui/cmdpanel.rs                          die Bereiche der elf Treiber- und Assistentenbefehle: ausführen, Grenze, Ausgabe
+│   ├── gui/cmdpanel.rs                          die Bereiche der fünfzehn Treiber- und Assistentenbefehle: ausführen, Grenze, Ausgabe
 │   ├── gui/docking.rs                           die Bereiche, die drei Anordnungen und die Menüleiste für den Andock-Rahmen
 │   ├── gui/jobtab.rs                            der Reiter Auftrag ohne Fenster: Zustände, Filter, Fortschritt, Fehlerdialog
 │   ├── gui/log.rs                               das Protokoll mit Stufen und der Text der kopierbaren Diagnose
@@ -541,6 +549,7 @@ EH3D-PHOENIX-PNP/
 │   ├── gui_main.rs                              das Fenster als eigenes Programm, unter Windows ohne Konsole
 │   ├── heads.rs                                 mehrere Köpfe: Reichweite, Verteilung der Teile, Warten auf eine Zuführung
 │   ├── headsplit.rs                             mehrere Köpfe an einer Platine mit einer Feederreihe: Bänder oder ganze Feeder, Wartezeiten
+│   ├── heightmap.rs                             die Höhe einer verzogenen Platine aus einem Raster gemessener Punkte und die Höhenänderung jeder Bestückung
 │   ├── hooks.rs                                 bei Ereignissen eines Auftrags ausgeführte Programme, standardmäßig aus, mit begrenzter Liste und Zeit
 │   ├── hotspots.rs                              welche Zuführungen in vielen simulierten Läufen Probleme machen: Fehlgriffe, abgeschaltet
 │   ├── import.rs                                der Import von Positionsdateien: Centroid-CSV mit Spaltenzuordnung, EAGLE-Text, KiCad-.pos
@@ -615,6 +624,7 @@ EH3D-PHOENIX-PNP/
 │   ├── testboard.rs                             aus einem Startwert erzeugte Platinen: Raster, Mischung beidseitig, dicht, mit Zuführern
 │   ├── textmatch.rs                             ein kleiner Mustervergleicher mit begrenzter Zeit für die Zeilen einer Steuerung
 │   ├── tips.rs                                  die Düsenspitzen, die ein Gehäuse akzeptiert, und die Wahl einer für jede Teileart
+│   ├── toolpath.rs                              die Zeilen, die ein Treiberprofil für einen Auftrag schreibt, und ihr SHA-256-Fingerabdruck
 │   ├── toolvalues.rs                            die Werte der Formulare der Werkzeuge als Einstellungen der Datei und ihr Speichern dort
 │   ├── tower.rs                                 die Signalleuchte eines simulierten Auftrags: das Licht je Sekunde, aus dem Journal
 │   ├── units.rs                                 Längen und Orte, die ihre Einheit tragen
@@ -646,9 +656,11 @@ EH3D-PHOENIX-PNP/
 │   ├── deplete.rs                               Tests der Zuführungstabelle nach einem Auftrag: Bestände, Streifen, Tray, Befehl
 │   ├── dfm.rs                                   Tests der Montageprüfungen und der Pastenschablone: jede Regel, acht Sprachen
 │   ├── docking.rs                               Tests des Andock-Rahmens: Bereiche, Anordnungen, Menüs, gespeicherte Anordnung, Kürzel
+│   ├── drag.rs                                  Tests der Schleppzuführung: Hub, Aufnahmen eines Hubs, abgelehnte Teilungen, Teilungen aus festem Seed, der Befehl
 │   ├── driver.rs                                Tests des Treibers: Profil, Zeilen, Antworten, Moonraker, simulierte Steuerung, Sitzung
 │   ├── drivercli.rs                             Tests von driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup
 │   ├── encoding.rs                              Tests der Kodierung der Dateien: UTF-8, UTF-16 und Latin-1
+│   ├── equivalent.rs                            Tests der gleichwertigen Teile: die Tausche, die Restbestände, die Reihenfolge der Zuführungen, abgelehnte Tabellen, der Befehl
 │   ├── exchange.rs                              Tests der Austauschdatei eines Auftrags: Schreiben, Lesen, jede Ablehnung, die Befehle
 │   ├── exitcodes.rs                             Tests des Exit-Codes 2 für eine nicht bestandene Prüfung, Befehl für Befehl
 │   ├── fab.rs                                   Tests der Dateien für Bestücker und der Umwandlung von Positionsdateien
@@ -665,6 +677,7 @@ EH3D-PHOENIX-PNP/
 │   ├── fwdiff.rs                                Tests des Unterschieds zweier Firmware-Auszüge und der EEPROM-Warnung
 │   ├── gui.rs                                   Tests des Fensters ohne Bildschirm: Zustand, Plan, Auftrag, Karte, Tabellen und Assistent
 │   ├── heads.rs                                 Tests der Köpfe: Zeilen der Konfiguration, Reichweite, Verteilung, die Uhr und schedule
+│   ├── heightmap.rs                             Tests der Höhe einer verzogenen Platine: bilineare Höhen, eine Ebene mit festem Seed, Orte außerhalb, abgelehnte Raster, der Befehl
 │   ├── helpdemo.rs                              Tests, die jedes Beispiel der Hilfe ausführen und die Exit-Codes prüfen
 │   ├── homingmode.rs                            Tests der Referenzfahrt ohne Endschalter: Modus, Empfindlichkeiten, Reihenfolge der Zeilen
 │   ├── hooks.rs                                 Tests der Hooks: standardmäßig aus, Regeln, Ereignisse, Aufrufe, Ausführung, simulate --hooks
@@ -681,6 +694,7 @@ EH3D-PHOENIX-PNP/
 │   ├── journal.rs                               Tests des Journals eines Auftrags: eine Zeile je Schritt, der stoppende Fehler, der Befehl
 │   ├── keys.rs                                  Tests jedes Schlüssels der Einstellungen: Liste, Beispiel, Prüfungen, Doppelte
 │   ├── kicadmod.rs                              Tests der KiCad-Footprints: Gehäuse, Courtyard, beschädigte Dateien, die Zeile, der Befehl
+│   ├── klippercfg.rs                            Tests des Vergleichs der Konfiguration einer Klipper-Steuerung: Abschnitte, der gespeicherte Block, Makros, ein Marlin-Auszug getrennt
 │   ├── learn.rs                                 Tests der gelernten Versätze: Messwerte, Ausreißer, Grenze, Datei, Auftrag, Befehl
 │   ├── loadsheet.rs                             Tests der Ladeliste und der Exporte
 │   ├── lookmove.rs                              Tests von schauen, bewegen, wieder schauen: Konvergenz, Grenze, nur kleinere Schritte
@@ -713,6 +727,7 @@ EH3D-PHOENIX-PNP/
 │   ├── preview.rs                               Tests des Plan-Bildes: Teile, Maskierung, Größe und --svg
 │   ├── process.rs                               Tests des Ablaufs: Phasen, Reihenfolge, Bestückung, gespeicherter Zustand, geführter Modus
 │   ├── queue.rs                                 Tests der Auftragswarteschlange: Datei, Prüfsumme, Schranke, Befehle und Werkzeug
+│   ├── queuemove.rs                             Tests der Reihenfolge der Warteschlange: nach oben, unten, erster, letzter, Festes behält seinen Platz, Verschiebungen mit festem Seed, der Befehl
 │   ├── queuestock.rs                            Tests der Zuführungen gegen eine Warteschlange: laufende Summe, wo eine Rolle ausgeht, Befehl
 │   ├── readme.rs                                Tests, dass die README ausführbar und vollständig ist
 │   ├── recipe.rs                                Tests des Rezepts: die Datei, die Grenzen, die Schritte, die Regeln im Auftrag und der gespeicherte Zustand
@@ -747,6 +762,7 @@ EH3D-PHOENIX-PNP/
 │   ├── toolflow.rs                              Tests der Felder für Rollen, Düsen, Problemstellen und Wechsel und des Speicherns der Formularwerte
 │   ├── toolmore.rs                              Tests der Vergleichs- und Zählfelder des Werkzeug-Reiters: jedes gegen seinen Befehl, die Ablehnungen, die Dateien
 │   ├── toolpanels.rs                            Tests der Felder für Rollen, Teile von Hand, Auftragsvergleich, Zuführungsplätze und viele Läufe sowie der Wörter des Reiters
+│   ├── toolpath.rs                              Tests des Fingerabdrucks der Zeilen eines Auftrags: ein bekannter Wert, --expect, ein verschobener Ort, Platinen mit festem Seed
 │   ├── toolshop.rs                              die sechs neuen Panels des Werkzeug-Tabs: was der Befehl sagt, die Wörter, die Tabellen
 │   ├── toolvalues.rs                            Tests der Formularwerte als Einstellungen: Bereiche, Standardwerte, Befehle, Speichern in der Datei
 │   ├── vacuum.rs                                Tests des Vakuums, der Aktoren und des Fehlerfensters einer Zuführung
@@ -762,6 +778,7 @@ EH3D-PHOENIX-PNP/
 │   ├── board.mnt                                die Positionen einer Platine, wie der Text von EAGLE sie hat
 │   ├── board.pos                                ein Beispiel zum Ausprobieren
 │   ├── board_dnp.csv                            eine Platine mit einer dnp-Spalte: zwei ihrer Teile werden nicht bestückt
+│   ├── board_equiv.pos                          eine kleine Platine, deren Teile keine eigene Zuführung haben, für equivalents
 │   ├── board_marks.pos                          die Beispielplatine mit zwei Fiducial-Teilen, für panel-fids
 │   ├── bom.csv                                  eine Stückliste, die zu board.pos passt
 │   ├── bom_b.csv                                die Stückliste einer zweiten Platine, für bom-merge
@@ -775,21 +792,26 @@ EH3D-PHOENIX-PNP/
 │   ├── chip_0603.kicad_mod                      ein KiCad-Footprint eines 0603-Chips, für package-kicad
 │   ├── driver_klipper.cfg                       ein Treiberprofil für Klipper über Moonraker, jeder Schlüssel erklärt
 │   ├── driver_marlin.cfg                        ein Treiberprofil für Marlin an einer seriellen Leitung, jeder Schlüssel erklärt
+│   ├── equivalents.csv                          Gruppen von Teilen, die einander ersetzen dürfen (group,value,package)
 │   ├── failure_rules.csv                        Wiederholungen je Gehäuse für failure-odds
 │   ├── features.csv                             Umriss, Pads, Loch, Passmarken, Werkzeugloch und Steg, für dfm-check und stencil-apertures
 │   ├── feeder_measures.csv                      gemessene Orte eines Gurts und eines Trays für feeder-teach
 │   ├── feeders.csv                              ein Beispiel zum Ausprobieren
+│   ├── feeders_drag.csv                         eine Zuführungstabelle mit Streifen von 2, 3 und 4 mm und einem Tray, für drag-plan und equivalents
 │   ├── feeders_kinds.csv                        Zuführer jeder Art: Gurt, Streifen, Tray und einer ausgeschaltet
 │   ├── feeders_tubes.csv                        eine Zuführungstabelle mit einer Stange und einer Schüttgut-Zuführung neben einem Gurt
 │   ├── fid_design.csv                           die Entwurfsorte von vier Fiducials
 │   ├── fid_measured.csv                         dieselben vier Fiducials, an der Maschine gemessen
 │   ├── firmware_new.txt                         dieselbe Maschine nach neuer Firmware: andere Werte, eine Zeile weniger, eine mehr
 │   ├── firmware_old.txt                         ein Auszug der Firmware-Konfiguration (Antwort auf M503) für fw-config-diff
+│   ├── height_grid.csv                          Höhen einer Platine, gemessen auf einem Raster von drei mal drei Punkten, für height-map
 │   ├── hooks.csv                                Regeln der Hooks für simulate --hooks: je ein Ereignis und ein Programm
 │   ├── job.recipe                               ein Rezept mit allen Schritten und Regeln je Gehäuse, Zuführung und Spitze
 │   ├── job_basic.recipe                         das kürzeste Rezept: vorbereiten, aufnehmen und bestücken
 │   ├── journal.csv                              das Journal eines simulierten Auftrags mit langsamem Schritt, Wartezeit und Fehler, für sim-busy
 │   ├── klipper_answers.txt                      Antworten von Klipper über die Verbindung, von Hand notiert
+│   ├── klipper_new.cfg                          dieselbe Klipper-Maschine nach dem Abstimmen der Werte, mit gespeichertem Block und neuem Makro
+│   ├── klipper_old.cfg                          die Konfiguration einer Bestückungsmaschine mit Klipper-Steuerung, für fw-config-diff
 │   ├── lots.csv                                 Charge und Rolle in jeder Zuführung, für lot-trace
 │   ├── machine.cfg                              die Maschineneinstellungen, jeder Schlüssel erklärt
 │   ├── marks.csv                                die gemessenen Lagen der Passmarken des Nutzens

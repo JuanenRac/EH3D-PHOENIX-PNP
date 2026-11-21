@@ -80,7 +80,7 @@ pub fn panel_tab(panel: &str) -> Option<Tab> {
     Tab::ALL.into_iter().find(|t| tab_panel(*t) == panel)
 }
 
-/// The panels of the program: the seven of the sector, then the ones the program adds, then one for each of the eleven commands.
+/// The panels of the program: the seven of the sector, then the ones the program adds, then one for each of the fifteen commands.
 pub fn panel_defs() -> Vec<PanelDef> {
     let mut defs = Sector::Pnp.panels();
     let mut add = |id: &str, word: Text, icon: &'static str, w: f32, h: f32| {

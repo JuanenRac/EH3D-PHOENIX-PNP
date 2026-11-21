@@ -77,6 +77,31 @@ impl State {
     }
 }
 
+/// Where an entry goes in the order of the queue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Move {
+    /// One place earlier.
+    Up,
+    /// One place later.
+    Down,
+    /// The first place it may take.
+    Top,
+    /// The last place.
+    Bottom,
+}
+
+impl Move {
+    pub fn parse(text: &str) -> Option<Move> {
+        match text.trim().to_ascii_lowercase().as_str() {
+            "up" => Some(Move::Up),
+            "down" => Some(Move::Down),
+            "top" => Some(Move::Top),
+            "bottom" => Some(Move::Bottom),
+            _ => None,
+        }
+    }
+}
+
 /// Whether the source of an entry is a table of parts or a panel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Kind {
@@ -446,6 +471,51 @@ impl Queue {
         }
         self.entries.remove(i);
         Ok(())
+    }
+
+    /// Moves an entry in the order of the queue. What is running or done stays where it is, so the order of what was made never changes: an entry only moves among the others, between
+    /// the fixed entries that stand before and after it. The new place (from 0) is given back; an entry that cannot move at all is an error.
+    pub fn move_entry(&mut self, name: &str, to: Move) -> Result<usize, PnpError> {
+        let fixed = |e: &Entry| matches!(e.state, State::Running | State::Done);
+        let from = self
+            .entries
+            .iter()
+            .position(|e| e.name == name)
+            .ok_or_else(|| bad(format!("there is no entry '{name}'")))?;
+        if fixed(&self.entries[from]) {
+            return Err(bad(format!(
+                "'{name}' is {}: what is running or made keeps its place",
+                self.entries[from].state.name()
+            )));
+        }
+        // the first and the last place that the entry may take: between the fixed entries that stand before and after it
+        let low = self.entries[..from]
+            .iter()
+            .rposition(fixed)
+            .map_or(0, |i| i + 1);
+        let high = self.entries[from + 1..]
+            .iter()
+            .position(fixed)
+            .map_or(self.entries.len() - 1, |i| from + i);
+        let target = match to {
+            Move::Up => from.saturating_sub(1).max(low),
+            Move::Down => (from + 1).min(high),
+            Move::Top => low,
+            Move::Bottom => high,
+        };
+        if target == from {
+            return Err(bad(format!(
+                "'{name}' is already {} of the entries that can move",
+                if matches!(to, Move::Up | Move::Top) {
+                    "the first"
+                } else {
+                    "the last"
+                }
+            )));
+        }
+        let e = self.entries.remove(from);
+        self.entries.insert(target, e);
+        Ok(target)
     }
 
     /// Records that the person confirmed the plan `plan_hash` for the entry. An entry that is done or skipped is not confirmed.
