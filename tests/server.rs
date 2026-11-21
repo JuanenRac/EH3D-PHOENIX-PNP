@@ -2064,7 +2064,7 @@ mod hunt_round4 {
     fn a_calibration_of_a_nozzle_or_a_camera_names_it_with_up_to_sixty_four_characters() {
         assert!(calibrate_request(Calibrate::Nozzle, &"n".repeat(64), (0.0, 0.0)).is_ok());
         assert!(calibrate_request(Calibrate::Nozzle, &"n".repeat(65), (0.0, 0.0)).is_err());
-        for bad in ["", "   ", "a b", "a;b", "\u{e9}", "a\n"] {
+        for bad in ["", "   ", "a b", "a;b", "\u{e9}", "a\nb"] {
             assert!(
                 calibrate_request(Calibrate::Nozzle, bad, (0.0, 0.0)).is_err(),
                 "{bad:?}"
