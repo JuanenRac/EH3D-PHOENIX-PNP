@@ -18,7 +18,7 @@
 
 ---
 
-**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`phoenix-pnp`) con 1844 pruebas que se ejecutan en un ordenador: lee el fichero de posiciones de una placa, da a cada componente su alimentador (con prioridades, bandejas y tiras), lee los ajustes de la máquina de un fichero, planifica el orden de colocación para un cabezal de hasta seis boquillas (rangos, puntas de boquilla, límites de ángulo, tiempo de los movimientos, paneles), escribe una hoja de carga y, en una máquina simulada, ejecuta el plan paso a paso con fallos inyectados. También tiene una ventana (se compila con `--features gui`) cuya lógica se prueba sin pantalla; el dibujo en sí no está cubierto por pruebas y, aunque el programa hace capturas de su propia ventana (`--shot`), ninguna persona ha revisado el dibujo en una pantalla. No controla ninguna máquina: no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
+**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`phoenix-pnp`) con 1877 pruebas que se ejecutan en un ordenador: lee el fichero de posiciones de una placa, da a cada componente su alimentador (con prioridades, bandejas y tiras), lee los ajustes de la máquina de un fichero, planifica el orden de colocación para un cabezal de hasta seis boquillas (rangos, puntas de boquilla, límites de ángulo, tiempo de los movimientos, paneles), escribe una hoja de carga y, en una máquina simulada, ejecuta el plan paso a paso con fallos inyectados. También tiene una ventana (se compila con `--features gui`) cuya lógica se prueba sin pantalla; el dibujo en sí no está cubierto por pruebas y, aunque el programa hace capturas de su propia ventana (`--shot`), ninguna persona ha revisado el dibujo en una pantalla. No controla ninguna máquina: no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versión | `0.1.3` |
 | Madurez | Andamiaje |
-| Pruebas | 1844 |
+| Pruebas | 1877 |
 | Pila tecnológica | Rust |
 | En hardware real | No probado: nada de esto se ha ejecutado en una máquina |
 
@@ -47,7 +47,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 |---|---|---|
 | Núcleo | 🟡 | lee el fichero de posiciones de una placa, da a cada componente su alimentador (prioridad, bandeja, tira), planifica el orden de colocación para un cabezal de hasta seis boquillas con rangos, puntas de boquilla, límites de ángulo y el tiempo de los movimientos, planifica paneles y escribe la hoja de carga; probado en un ordenador con entradas normales y dañadas, no con una colección de ficheros reales. |
 | Línea de comandos | 🟡 | `phoenix-pnp` ejecuta las mismas funciones que la biblioteca (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) e imprime el resultado; cada error vuelve como un mensaje con su código `PHOENIX-PNP-NNN` y un código de salida distinto de cero. |
-| Pruebas | 🟡 | 1844 pruebas pasan (`cargo test`), con casos normales, casos límite, entradas dañadas y pequeños casos generados. |
+| Pruebas | 🟡 | 1877 pruebas pasan (`cargo test`), con casos normales, casos límite, entradas dañadas y pequeños casos generados. |
 | Configuración de la máquina | 🟡 | un fichero `clave = valor` con versión, un validador que nombra la línea y los límites de seguridad (recorrido de Z, límites de X e Y, reintentos, ángulos de boquilla); los valores no se han comparado con una máquina real. |
 | Simulador y trabajo | 🟡 | un reloj virtual, fallos inyectados al azar (con semilla) o en un lugar elegido, reintentos, las políticas alerta y aplazar, alimentadores que se apagan tras fallos repetidos, pausa, paso a paso y un estado guardado para reanudar; solo simula, nada ha movido una máquina. |
 | Seguridad | 🟡 | Rust seguro y simple (`forbid(unsafe_code)`): nada entra en pánico con los ficheros recibidos y un valor malo es un error con su motivo; sin revisión independiente. |
@@ -177,6 +177,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 * **Códigos de salida y escrituras sujetas a una revisión** (`tests/exitcodes.rs`, `src/cmd_nodes.rs`, `src/revision.rs`): todo comando que comprueba algo termina con 0 si todo va bien, con 2 si no se supera su comprobación (los alimentadores no cubren la placa, una tabla o un plan no es válido, dos ficheros difieren, algo no alcanza) y con 1 si no se pudo ejecutar (un fichero que no existe, una opción errónea); la ayuda dice los tres códigos y una prueba ejecuta cada comando para verlos. `--revision TOKEN` (el token que da `table-revision`) deja que `slot-bank --event ID=EVENTO --out FICHERO`, `import-centroid --out FICHERO`, `queue-add`, `queue-confirm` y `queue-edit` reemplacen el fichero que leyeron, pero solo mientras siga como se leyó; la ventana hace lo mismo cuando lee una tabla de bancos de un fichero (se suelta sobre la ventana), deja cambiar el estado de un alimentador y la guarda de vuelta.
 * **Ganchos mientras corre el trabajo y qué hace cada boquilla** (`src/hooks.rs`, `src/journal.rs`, `src/commands.rs`): además de los eventos del final de un trabajo, una regla puede nombrar `nozzle-before-pick`, `nozzle-after-pick`, `nozzle-before-place`, `nozzle-after-place` y `placement-complete`, que `simulate --hooks` comunica en cada paso mientras el trabajo avanza (la misma semilla da la misma lista; los límites de los ganchos cuentan para todo el trabajo). `{nozzle}`, `{step}` y `{nozzle_state}` se suman a los datos de los argumentos, y los mismos datos llegan al programa como una línea de JSON de como máximo 1024 bytes en su entrada. El diario tiene una columna `nozzle_state` (`idle`, `picking`, `carrying`, `placing`) que dice qué hace la boquilla después de cada paso.
 * **Orden, cableado y rutas** (`src/placeorder.rs`, `src/wiring.rs`, `src/pathid.rs`): `placement_order = unit, height:desc, quantity:desc` ordena las colocaciones por una lista de claves (unidad de un panel, alimentador, pieza, altura, área, cantidad), cada una ascendente o descendente, en lugar del único `order`. `phoenix-pnp wiring-sheet PERFIL [--out F] [--svg F]` lee un perfil de driver y escribe qué va a qué pin (los ejes, la bomba, la válvula de soplado y si la línea que deja la máquina segura suelta cada uno) y un dibujo de la neumática; el código de salida es 2 si no se puede leer un pin, falta la bomba o la válvula o dos actuadores comparten un pin. Una ruta se guarda en una cola con `/` entre los nombres, sin el prefijo de Windows y sin `..`, y se sabe que dos escrituras de un fichero son el mismo. Lo que este programa pide al cliente común está en `docs/COMMON_REQUESTS.md`.
+* **Referenciado sin finales de carrera, volcados de firmware, la ficha de la máquina y el estado de cada boquilla** (`src/gcodedriver.rs`, `src/fwdiff.rs`, `src/machsheet.rs`, `src/tower.rs`, `src/gui/jobtab.rs`, `examples/firmware_old.txt`): un perfil de driver dice `homing_mode = sensorless` con una sensibilidad para X y otra para Y (`homing_sensitivity_x` y `homing_sensitivity_y`, de -64 a 255) y la línea que la fija; van antes de las líneas de `home`, y `homing-repeat` las nombra y muestra cuán separados cae la máquina. `phoenix-pnp fw-config-diff FIRST SECOND` compara dos volcados de la configuración de un firmware (la respuesta a `M503`) valor por valor, da por iguales `80` y `80.00` y avisa de restablecer la EEPROM cuando el firmware no es el mismo en ambos (sale con 2 si los valores difieren). `phoenix-pnp machine-sheet` muestra la mesa, la máquina, el área de trabajo, la pieza más pequeña probada y la velocidad máxima que dan las cinco líneas `spec_` de los ajustes; lo que nadie escribió dice "sin medir" en los ocho idiomas, no se inventa ninguna cifra y el informe de un trabajo lleva la ficha. La pestaña Trabajo muestra qué hace cada boquilla (libre o con una pieza) y `sim-tower` nombra la boquilla y su estado junto a cada luz que no es verde. Con la característica `common-refusal` (apagada hasta fijar la compilación a la próxima versión del cliente común) el enlace con un nodo da el `why` de una negativa tal como lo escribió el nodo y conserva un token fijo. Todo se probó solo en simuladores.
 
 ## 🧩 Papel en EH3D
 
@@ -262,6 +263,8 @@ phoenix-pnp job-export PARTS FEEDERS OUT [--state F]       el plan y el estado d
 phoenix-pnp job-import FILE [--csv F]                      lee y comprueba un fichero así, dice qué contiene y puede escribir las colocaciones con su estado como tabla
 phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] qué cambió entre dos tablas de piezas, pieza a pieza: añadida, quitada, movida, girada, valor, encapsulado, cara (sale con 2 si difieren)
 phoenix-pnp config-diff FIRST SECOND                       los ajustes que dos ficheros de configuración dan distinto en lo que significan (yes y on, 5 y 5.0 son lo mismo; sale con 2 si las máquinas difieren)
+phoenix-pnp fw-config-diff FIRST SECOND                    los valores que dos volcados de la configuración de un firmware (la respuesta a M503) dan distinto; avisa de restablecer la EEPROM si el firmware cambió (sale con 2 si los valores difieren)
+phoenix-pnp machine-sheet [--config F]                     la ficha de especificaciones de la máquina según los ajustes; lo que nadie midió lo dice
 phoenix-pnp board-stats PARTS [--near MM] [--limit N]      qué contiene una tabla de piezas (caras, tipos, encapsulados, la caja de los centros) y, con --near, los pares de piezas más cerca que MM (sale con 2 si encuentra alguno)
 phoenix-pnp queue-stock QUEUE [--out F]                    si los alimentadores alcanzan para todos los trabajos de una cola que faltan, y en qué trabajo se acaba cada carrete (sale con 2 si alguno se queda corto)
 phoenix-pnp feeder-deplete FEEDERS --state F [--out F]     la tabla de alimentadores tras el trabajo de un estado guardado: las piezas que quedan y el siguiente lugar de las tiras (sale con 2 si un alimentador está bajo o vacío)
@@ -440,7 +443,7 @@ La última línea abre la ventana; también lo hace `phoenix-pnp` sin orden cuan
 
 ## 🧪 Pruebas
 
-La suite tiene 1844 pruebas (`cargo test`, que se ejecutan en Windows y Linux en la CI). Comprueban los casos normales, los casos límite y las entradas dañadas: los ficheros vacíos, la basura y los ficheros cortados nunca provocan un pánico. Pequeños casos generados (desde una semilla fija, así que dan los mismos números en cada ejecución) comprueban que el plan no depende del orden de los ficheros, que un recorrido nunca se alarga, que un trabajo guardado y reanudado en cualquier punto acaba igual que el que nunca se detuvo, y que las longitudes y los ángulos se convierten de ida y vuelta. La CI también ejecuta `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
+La suite tiene 1877 pruebas (`cargo test`, que se ejecutan en Windows y Linux en la CI). Comprueban los casos normales, los casos límite y las entradas dañadas: los ficheros vacíos, la basura y los ficheros cortados nunca provocan un pánico. Pequeños casos generados (desde una semilla fija, así que dan los mismos números en cada ejecución) comprueban que el plan no depende del orden de los ficheros, que un recorrido nunca se alarga, que un trabajo guardado y reanudado en cualquier punto acaba igual que el que nunca se detuvo, y que las longitudes y los ángulos se convierten de ida y vuelta. La CI también ejecuta `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilación y publicación
 
@@ -508,6 +511,7 @@ EH3D-PHOENIX-PNP/
 │   ├── fiducial.rs                              fiduciales de un panel: el ajuste de las marcas medidas y la corrección de las piezas
 │   ├── footcheck.rs                             los encapsulados de una placa frente a la tabla de encapsulados: conocido, alias, generado, parecido
 │   ├── fpsearch.rs                              los nombres de huellas llevados a una forma y una búsqueda en una biblioteca
+│   ├── fwdiff.rs                                lo que dos volcados de la configuración de un firmware dan distinto
 │   ├── gcodedriver.rs                           el perfil de un driver de G-code en un fichero: líneas, patrones, tiempos, Moonraker
 │   ├── gcodesim.rs                              un controlador Marlin y Klipper simulado con fallos, y los enlaces con él
 │   ├── gui.rs                                   la ventana: módulos que no necesitan pantalla y el dibujo en window.rs
@@ -554,6 +558,7 @@ EH3D-PHOENIX-PNP/
 │   ├── lookmove.rs                              mira, mueve, vuelve a mirar: pasos con tope hacia una marca, solo más pequeños tras empeorar
 │   ├── lotage.rs                                la antigüedad del lote de cada carrete, por su código de fecha, frente a una semana y un límite
 │   ├── lottrace.rs                              el lote y el carrete de donde salió cada pieza colocada, y lo que falta
+│   ├── machsheet.rs                             la ficha de especificaciones de la máquina; lo que no se midió lo dice
 │   ├── main.rs                                  la línea de comandos y la entrada de la ventana cuando se ejecuta sin orden
 │   ├── marks.rs                                 marcas de dos niveles: las piezas que son marcas, el ajuste de un panel y de cada placa
 │   ├── model.rs                                 las partes de una máquina como traits: máquina, boquilla, alimentador, actuador, cámara, controlador
@@ -657,9 +662,11 @@ EH3D-PHOENIX-PNP/
 │   ├── flow2.rs                                 pruebas de boquillas, marcas de panel, cintas, turno, ficheros de ensambladores y listas
 │   ├── flow3.rs                                 azar con semilla fija para los lectores nuevos, registros, turnos, cuerpos, costes y rechazos
 │   ├── fuzz.rs                                  pruebas con azar de semilla fija: los archivos dañados no provocan pánico, lo escrito se lee de vuelta
+│   ├── fwdiff.rs                                pruebas de la diferencia entre volcados de firmware y del aviso de la EEPROM
 │   ├── gui.rs                                   pruebas de la ventana sin pantalla: estado, plan, trabajo, mapa, tablas y asistente
 │   ├── heads.rs                                 pruebas de las cabezas: líneas de la configuración, alcance, reparto, el reloj y schedule
 │   ├── helpdemo.rs                              pruebas que ejecutan cada ejemplo de la ayuda y comprueban los códigos de salida
+│   ├── homingmode.rs                            pruebas del referenciado sin finales de carrera: modo, sensibilidades, orden
 │   ├── hooks.rs                                 pruebas de los ganchos: apagados por defecto, reglas, eventos, llamadas, ejecución, simulate --hooks
 │   ├── hotspots.rs                              pruebas de los puntos conflictivos de las ejecuciones: recogidas, fallos, apagados, apartadas, orden, comando
 │   ├── import.rs                                pruebas de la importación: formatos, unidades, cara inferior, DNP, rangos, errores con su línea
@@ -679,14 +686,17 @@ EH3D-PHOENIX-PNP/
 │   ├── lookmove.rs                              pruebas de mira, mueve, vuelve a mirar: convergencia, tope, solo pasos menores, ajustes
 │   ├── looks.rs                                 pruebas de las miradas extra de la cámara y de las miradas contadas por alimentador en el informe
 │   ├── lottrace.rs                              pruebas de la trazabilidad por lote: el lote de cada pieza, lo que falta, la tabla de lotes, comando
+│   ├── machsheet.rs                             pruebas de la ficha de la máquina: lo dado, lo sin medir en ocho idiomas, en el informe
 │   ├── marks.rs                                 pruebas de las placas marcadas como malas, las piezas que son marcas y las marcas de dos niveles
 │   ├── model.rs                                 pruebas del modelo de datos: códigos, longitudes, configuración y tablas
 │   ├── more.rs                                  más pruebas de la biblioteca y la línea de comandos
 │   ├── names.rs                                 pruebas de los nombres de los ficheros: ninguno que solo difiera en mayúsculas, ninguno que Windows no admita
 │   ├── nodedock.rs                              pruebas de los paneles de ranuras y nodos: en el marco, ocultos, disposiciones, el banco
 │   ├── nodelink.rs                              pruebas del enlace con los nodos: órdenes, rechazos, silencio, retenciones, fallos, bloqueo
+│   ├── nodereason.rs                            pruebas del motivo de una negativa y del token fijo (característica common-refusal)
 │   ├── nozzlelife.rs                            pruebas del uso de las puntas de boquilla: el archivo, lo que añade un trabajo, los comandos
 │   ├── nozzles.rs                               pruebas de la comparación de boquillas: las filas, la más rápida, la ganancia, los cabezales, el comando
+│   ├── nozzleview.rs                            pruebas del estado de cada boquilla en el diario, la torre de señal y la pestaña Trabajo
 │   ├── openpnp.rs                               pruebas del lector XML y de la importación de OpenPnP: límites, unidades, avisos, ficheros dañados
 │   ├── panel.rs                                 pruebas de los paneles y de sus fiduciales
 │   ├── panelcomp.rs                             pruebas de la composición de un panel: railes, solapes, distancias, fichero estable, comando
@@ -773,6 +783,8 @@ EH3D-PHOENIX-PNP/
 │   ├── feeders_tubes.csv                        una tabla de alimentadores con una varilla y uno a granel además de una cinta
 │   ├── fid_design.csv                           los lugares de diseño de cuatro fiduciales
 │   ├── fid_measured.csv                         los mismos cuatro fiduciales medidos en la máquina
+│   ├── firmware_new.txt                         la misma máquina tras otro firmware: otros valores, una línea menos, una más
+│   ├── firmware_old.txt                         un volcado de la configuración de un firmware (la respuesta a M503), para fw-config-diff
 │   ├── hooks.csv                                reglas de los ganchos para simulate --hooks: un evento y un programa en cada una
 │   ├── job.recipe                               una receta con todos los pasos y reglas por encapsulado, alimentador y punta
 │   ├── job_basic.recipe                         la receta más corta: preparar, recoger y colocar

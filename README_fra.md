@@ -18,7 +18,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 1844 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il a aussi une fenêtre (construite avec `--features gui`) dont la logique est testée sans écran ; le dessin lui-même n'est pas couvert par des tests et, bien que le programme prenne des captures de sa propre fenêtre (`--shot`), aucune personne n'a vérifié le dessin sur un écran. Il ne pilote aucune machine : il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`phoenix-pnp`) avec 1877 tests qui s'exécutent sur un ordinateur : lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (avec des priorités, des plateaux et des bandes), lit les réglages de la machine dans un fichier, planifie l'ordre de pose pour une tête de jusqu'à six buses (rangs, pointes de buse, limites d'angle, temps des déplacements, panneaux), écrit une feuille de chargement et, sur une machine simulée, exécute le plan pas à pas avec des pannes injectées. Il a aussi une fenêtre (construite avec `--features gui`) dont la logique est testée sans écran ; le dessin lui-même n'est pas couvert par des tests et, bien que le programme prenne des captures de sa propre fenêtre (`--shot`), aucune personne n'a vérifié le dessin sur un écran. Il ne pilote aucune machine : il n'a pas été essayé sur une machine et il n'a pas été vérifié avec une collection de fichiers réels.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.1.3` |
 | Maturité | Échafaudage |
-| Tests | 1844 |
+| Tests | 1877 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -47,7 +47,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 |---|---|---|
 | Cœur | 🟡 | lit le fichier de positions d'une carte, donne à chaque composant son alimentateur (priorité, plateau, bande), planifie l'ordre de pose pour une tête de jusqu'à six buses avec des rangs, des pointes de buse, des limites d'angle et le temps des déplacements, planifie des panneaux et écrit la feuille de chargement ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
 | Ligne de commande | 🟡 | `phoenix-pnp` exécute les mêmes fonctions que la bibliothèque (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) et affiche le résultat ; chaque erreur revient comme un message avec son code `PHOENIX-PNP-NNN` et un code de sortie non nul. |
-| Tests | 🟡 | 1844 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
+| Tests | 🟡 | 1877 tests passent (`cargo test`), avec des cas normaux, des cas limites, des entrées abîmées et de petits cas générés. |
 | Configuration de la machine | 🟡 | un fichier `clé = valeur` avec une version, un validateur qui nomme la ligne et les limites de sécurité (course de Z, limites de X et Y, nouvelles tentatives, angles de buse) ; les valeurs n'ont pas été comparées à une machine réelle. |
 | Simulateur et travail | 🟡 | une horloge virtuelle, des pannes injectées au hasard (avec une graine) ou à un endroit choisi, des nouvelles tentatives, les politiques alerte et report, des alimentateurs qui s'éteignent après des pannes répétées, pause, pas à pas et un état enregistré pour reprendre ; il ne fait que simuler, rien n'a piloté une machine. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
@@ -177,6 +177,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 * **Codes de sortie et écritures liées à une révision** (`tests/exitcodes.rs`, `src/cmd_nodes.rs`, `src/revision.rs`) : toute commande qui vérifie quelque chose se termine par 0 quand tout va bien, par 2 quand sa vérification n'est pas réussie (les chargeurs ne couvrent pas la carte, une table ou un plan n'est pas valide, deux fichiers diffèrent, quelque chose manque) et par 1 quand elle n'a pas pu être exécutée (un fichier absent, une option fausse) ; l'aide dit les trois codes et un test exécute chaque commande pour les voir. `--revision TOKEN` (le jeton que donne `table-revision`) permet à `slot-bank --event ID=ÉVÉNEMENT --out FICHIER`, `import-centroid --out FICHIER`, `queue-add`, `queue-confirm` et `queue-edit` de remplacer le fichier lu, mais seulement tant qu'il est tel qu'il a été lu ; la fenêtre fait de même quand elle lit une table des bancs depuis un fichier (à déposer sur la fenêtre), laisse changer l'état d'un chargeur et l'enregistre de nouveau.
 * **Crochets pendant le travail et ce que fait chaque buse** (`src/hooks.rs`, `src/journal.rs`, `src/commands.rs`) : en plus des événements de fin de travail, une règle peut nommer `nozzle-before-pick`, `nozzle-after-pick`, `nozzle-before-place`, `nozzle-after-place` et `placement-complete`, que `simulate --hooks` annonce à chaque étape pendant que le travail avance (la même graine donne la même liste ; les limites des crochets valent pour tout le travail). `{nozzle}`, `{step}` et `{nozzle_state}` s'ajoutent aux données des arguments, et les mêmes données arrivent au programme sous la forme d'une ligne de JSON d'au plus 1024 octets sur son entrée. Le journal a une colonne `nozzle_state` (`idle`, `picking`, `carrying`, `placing`) qui dit ce que fait la buse après chaque étape.
 * **Ordre, câblage et chemins** (`src/placeorder.rs`, `src/wiring.rs`, `src/pathid.rs`) : `placement_order = unit, height:desc, quantity:desc` ordonne les poses selon une liste de clés (unité d'un panneau, chargeur, pièce, hauteur, surface, quantité), chacune croissante ou décroissante, à la place de l'unique `order`. `phoenix-pnp wiring-sheet PROFIL [--out F] [--svg F]` lit un profil de pilote et écrit ce qui va sur quelle broche (les axes, la pompe, la vanne de soufflage et si la ligne qui met la machine en sécurité relâche chacun) ainsi qu'un dessin de la pneumatique ; le code de sortie est 2 quand une broche ne peut pas être lue, que la pompe ou la vanne manque ou que deux actionneurs partagent une broche. Un chemin est gardé dans une file avec `/` entre les noms, sans le préfixe de Windows et sans `..`, et deux écritures d'un fichier sont reconnues comme le même. Ce que ce programme demande au client commun est dans `docs/COMMON_REQUESTS.md`.
+* **Prise d'origine sans fins de course, relevés de firmware, fiche de la machine et état de chaque buse** (`src/gcodedriver.rs`, `src/fwdiff.rs`, `src/machsheet.rs`, `src/tower.rs`, `src/gui/jobtab.rs`, `examples/firmware_old.txt`) : un profil de pilote dit `homing_mode = sensorless` avec une sensibilité pour X et une pour Y (`homing_sensitivity_x` et `homing_sensitivity_y`, de -64 à 255) et la ligne qui la règle ; elles précèdent les lignes de `home`, et `homing-repeat` les nomme et montre l'écart où la machine se pose. `phoenix-pnp fw-config-diff FIRST SECOND` compare deux relevés de la configuration d'un firmware (la réponse à `M503`) valeur par valeur, tient `80` et `80.00` pour égaux et avertit de réinitialiser l'EEPROM quand le firmware n'est pas le même dans les deux (code de sortie 2 si les valeurs diffèrent). `phoenix-pnp machine-sheet` affiche la table, la machine, la zone de travail, la plus petite pièce essayée et la vitesse maximale que donnent les cinq lignes `spec_` des réglages ; ce que personne n'a écrit dit « non mesuré » dans les huit langues, aucun chiffre n'est inventé et le rapport d'un travail porte la fiche. L'onglet Travail montre ce que fait chaque buse (libre ou avec une pièce) et `sim-tower` nomme la buse et son état à côté de chaque feu qui n'est pas vert. Avec la fonction `common-refusal` (éteinte tant que la compilation n'est pas fixée à la prochaine version du client commun) la liaison avec un nœud donne le `why` d'un refus tel que le nœud l'a écrit et garde un jeton fixe. Tout n'a été essayé que sur des simulateurs.
 
 ## 🧩 Rôle dans EH3D
 
@@ -262,6 +263,8 @@ phoenix-pnp job-export PARTS FEEDERS OUT [--state F]       le plan et l'état de
 phoenix-pnp job-import FILE [--csv F]                      lit et vérifie un tel fichier, dit ce qu'il contient et peut écrire les placements avec leur état sous forme de tableau
 phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] ce qui a changé entre deux tables de pièces, pièce par pièce : ajoutée, retirée, déplacée, tournée, valeur, boîtier, face (sortie 2 si elles diffèrent)
 phoenix-pnp config-diff FIRST SECOND                       les réglages que deux fichiers de configuration donnent différemment dans leur sens (yes et on, 5 et 5.0 sont les mêmes ; sortie 2 si les machines diffèrent)
+phoenix-pnp fw-config-diff FIRST SECOND                    les valeurs que deux relevés de la configuration d'un firmware (réponse à M503) donnent différemment ; avertit de réinitialiser l'EEPROM si le firmware a changé (sort avec 2 si les valeurs diffèrent)
+phoenix-pnp machine-sheet [--config F]                     la fiche de la machine d'après les réglages ; ce que personne n'a mesuré le dit
 phoenix-pnp board-stats PARTS [--near MM] [--limit N]      ce que contient une table de pièces (faces, types, boîtiers, la boîte des centres) et, avec --near, les paires de pièces plus proches que MM (sortie 2 s'il en trouve)
 phoenix-pnp queue-stock QUEUE [--out F]                    si les alimentateurs suffisent pour tous les travaux encore à faire d'une file, et dans quel travail chaque bobine s'épuise (sortie 2 si l'une ne suffit pas)
 phoenix-pnp feeder-deplete FEEDERS --state F [--out F]     la table des alimentateurs après le travail d'un état enregistré : les pièces restantes et la prochaine place des bandes (sortie 2 si un alimentateur est bas ou vide)
@@ -440,7 +443,7 @@ La dernière ligne ouvre la fenêtre ; `phoenix-pnp` sans commande le fait aussi
 
 ## 🧪 Tests
 
-La suite compte 1844 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
+La suite compte 1877 tests (`cargo test`, exécutés sous Windows et Linux dans la CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : les fichiers vides, le bruit et les fichiers coupés ne provoquent jamais de panique. De petits cas générés (à partir d'une graine fixe, donc avec les mêmes nombres à chaque exécution) vérifient que le plan ne dépend pas de l'ordre des fichiers, qu'un parcours n'est jamais allongé, qu'un travail enregistré puis repris n'importe où se termine comme celui qui ne s'est jamais arrêté, et que les longueurs et les angles se convertissent dans les deux sens. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
@@ -508,6 +511,7 @@ EH3D-PHOENIX-PNP/
 │   ├── fiducial.rs                              repères d'un panneau : l'ajustement des repères mesurés et la correction des pièces
 │   ├── footcheck.rs                             les boîtiers d'une carte face à la table des boîtiers : connu, alias, généré, proche
 │   ├── fpsearch.rs                              les noms d'empreintes ramenés à une forme et une recherche dans une bibliothèque
+│   ├── fwdiff.rs                                ce que deux relevés de la configuration d'un firmware donnent différemment
 │   ├── gcodedriver.rs                           le profil d'un pilote G-code dans un fichier : lignes, motifs, délais, requêtes Moonraker
 │   ├── gcodesim.rs                              un contrôleur Marlin et Klipper simulé avec des pannes, et les liaisons vers lui
 │   ├── gui.rs                                   la fenêtre : des modules sans écran et le dessin dans window.rs
@@ -554,6 +558,7 @@ EH3D-PHOENIX-PNP/
 │   ├── lookmove.rs                              regarder, bouger, regarder encore : pas plafonnés vers un repère, plus petits seulement si pire
 │   ├── lotage.rs                                l'âge du lot de chaque bobine, d'après son code de date, face à une semaine et une limite
 │   ├── lottrace.rs                              le lot et la bobine d'où vient chaque pièce posée, et ce qui manque
+│   ├── machsheet.rs                             la fiche de la machine ; ce qui n'est pas mesuré le dit
 │   ├── main.rs                                  la ligne de commande et l'entrée de la fenêtre quand il s'exécute sans commande
 │   ├── marks.rs                                 repères à deux niveaux : les pièces qui sont des repères, l'ajustement du panneau et de chaque carte
 │   ├── model.rs                                 les parties d'une machine en traits : machine, buse, alimentateur, actionneur, caméra, pilote
@@ -657,9 +662,11 @@ EH3D-PHOENIX-PNP/
 │   ├── flow2.rs                                 tests des hauteurs de buses, repères de panneau, bandes, équipe, fichiers d'assembleurs, listes
 │   ├── flow3.rs                                 du hasard à graine fixe pour les nouveaux lecteurs, fiches, postes, corps, coûts et rebuts
 │   ├── fuzz.rs                                  tests avec hasard à graine fixe : les fichiers abîmés ne paniquent jamais, ce qui est écrit se relit
+│   ├── fwdiff.rs                                tests de la différence entre relevés de firmware et de l'avertissement EEPROM
 │   ├── gui.rs                                   tests de la fenêtre sans écran : état, plan, travail, carte, tableaux et assistant
 │   ├── heads.rs                                 tests des têtes : lignes de la configuration, portée, répartition, l'horloge et schedule
 │   ├── helpdemo.rs                              tests qui exécutent chaque exemple de l'aide et vérifient les codes de sortie
+│   ├── homingmode.rs                            tests de la prise d'origine sans fins de course : mode, sensibilités, ordre
 │   ├── hooks.rs                                 tests des hooks : désactivés par défaut, règles, événements, appels, exécution, simulate --hooks
 │   ├── hotspots.rs                              tests des points sensibles des exécutions : prises, échecs, désactivés, mises de côté, ordre, commande
 │   ├── import.rs                                tests de l'import : formats, unités, face inférieure, DNP, plages, erreurs avec leur ligne
@@ -679,14 +686,17 @@ EH3D-PHOENIX-PNP/
 │   ├── lookmove.rs                              tests de regarder, bouger, regarder encore : convergence, plafond, pas plus petits, réglages
 │   ├── looks.rs                                 tests des regards en plus de la caméra et des regards comptés par alimentateur dans le rapport
 │   ├── lottrace.rs                              tests de la traçabilité par lot : le lot de chaque pièce, les manques, la table des lots, commande
+│   ├── machsheet.rs                             tests de la fiche de la machine : le donné, le non mesuré en huit langues, dans le rapport
 │   ├── marks.rs                                 tests des cartes marquées comme mauvaises, des pièces qui sont des repères et des repères à deux niveaux
 │   ├── model.rs                                 tests du modèle de données : codes, longueurs, configuration et tables
 │   ├── more.rs                                  d'autres tests de la bibliothèque et de la ligne de commande
 │   ├── names.rs                                 tests des noms de fichiers : aucun qui ne diffère que par la casse, aucun que Windows refuse
 │   ├── nodedock.rs                              tests des panneaux d'emplacements et de nœuds : dans le cadre, cachés, dispositions, banc
 │   ├── nodelink.rs                              tests de la liaison aux nœuds : ordres, refus, silence, blocages, pannes, verrouillage
+│   ├── nodereason.rs                            tests du motif d'un refus et du jeton fixe (fonction common-refusal)
 │   ├── nozzlelife.rs                            tests de l'usage des pointes de buse : le fichier, ce qu'ajoute un travail, les commandes
 │   ├── nozzles.rs                               tests de la comparaison des buses : les lignes, la plus rapide, le gain, les têtes laissées, la commande
+│   ├── nozzleview.rs                            tests de l'état de chaque buse dans le journal, la colonne lumineuse et l'onglet Travail
 │   ├── openpnp.rs                               tests du lecteur XML et de l'import OpenPnP : limites, unités, remarques, fichiers abîmés
 │   ├── panel.rs                                 tests des panneaux et de leurs repères
 │   ├── panelcomp.rs                             tests de la composition d'un panneau : rails, chevauchements, distances, fichier stable
@@ -773,6 +783,8 @@ EH3D-PHOENIX-PNP/
 │   ├── feeders_tubes.csv                        une table d'alimentateurs avec un tube et un alimentateur en vrac en plus d'une bande
 │   ├── fid_design.csv                           les places de conception de quatre fiduciaux
 │   ├── fid_measured.csv                         les mêmes quatre fiduciaux mesurés sur la machine
+│   ├── firmware_new.txt                         la même machine après un autre firmware : autres valeurs, une ligne en moins, une en plus
+│   ├── firmware_old.txt                         un relevé de la configuration d'un firmware (réponse à M503), pour fw-config-diff
 │   ├── hooks.csv                                règles des hooks pour simulate --hooks : un événement et un programme chacune
 │   ├── job.recipe                               une recette avec toutes les étapes et des règles par boîtier, alimentateur et embout
 │   ├── job_basic.recipe                         la recette la plus courte : préparer, prendre et poser

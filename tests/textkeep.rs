@@ -97,3 +97,49 @@ fn the_table_of_the_banks_gives_the_names_back_as_it_took_them() {
     }
     assert_eq!(Layout::from_csv(&out, geo).unwrap().to_csv(), out);
 }
+
+#[test]
+fn the_catalog_the_prices_and_the_lots_keep_what_was_written() {
+    use eh3d_phoenix_pnp::bomcost::parse_prices;
+    use eh3d_phoenix_pnp::catalog::Catalog;
+    use eh3d_phoenix_pnp::lottrace::parse_lots;
+    for v in LOOKS_NUMERIC {
+        // the name of a package is shown as it was written, in the table that is given back as well
+        let mut catalog = Catalog::new();
+        catalog
+            .add_packages(&format!("package,nozzle_tip\n{v},N45\n"))
+            .unwrap();
+        assert_eq!(catalog.package_names(), [v.to_string()], "{v}");
+        assert!(
+            catalog.packages_csv().contains(&format!("\n{v},")),
+            "{v}: {}",
+            catalog.packages_csv()
+        );
+        // a part number, and the package of a price
+        let prices = parse_prices(&format!(
+            "part_number,value,package,qty_from,price\n{v},,{v},1,0.10\n"
+        ))
+        .unwrap();
+        assert_eq!(
+            (prices[0].part_number.as_str(), prices[0].package.as_str()),
+            (v, v),
+            "{v}"
+        );
+        // the lot, the reel and the date code of a reel
+        let lots = parse_lots(&format!(
+            "feeder,lot,reel,date_code,supplier\n{v},{v},{v},{v},{v}\n"
+        ))
+        .unwrap();
+        let l = &lots[0];
+        assert_eq!(
+            (
+                l.feeder.as_str(),
+                l.lot.as_str(),
+                l.reel.as_str(),
+                l.date_code.as_str()
+            ),
+            (v, v, v, v),
+            "{v}"
+        );
+    }
+}

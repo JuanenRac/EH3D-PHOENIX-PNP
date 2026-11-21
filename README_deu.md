@@ -18,7 +18,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 1844 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt, und obwohl das Programm Bilder seines eigenen Fensters aufnimmt (`--shot`), hat keine Person die Zeichnung auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 1877 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt, und obwohl das Programm Bilder seines eigenen Fensters aufnimmt (`--shot`), hat keine Person die Zeichnung auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.1.3` |
 | Reifegrad | Gerüst |
-| Tests | 1844 |
+| Tests | 1877 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -47,7 +47,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (Priorität, Tray, Streifen), plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen mit Rängen, Düsenspitzen, Winkelgrenzen und der Zeit der Bewegungen, plant Panels und schreibt die Ladeliste; auf einem Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `phoenix-pnp` führt dieselben Funktionen wie die Bibliothek aus (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit seinem Code `PHOENIX-PNP-NNN` und einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 1844 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen, beschädigten Eingaben und kleinen erzeugten Fällen. |
+| Tests | 🟡 | 1877 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen, beschädigten Eingaben und kleinen erzeugten Fällen. |
 | Maschinenkonfiguration | 🟡 | eine Datei `Schlüssel = Wert` mit Version, ein Prüfer, der die Zeile nennt, und die Sicherheitsgrenzen (Z-Weg, Grenzen von X und Y, Wiederholungen, Düsenwinkel); die Werte wurden nicht mit einer echten Maschine verglichen. |
 | Simulator und Auftrag | 🟡 | eine virtuelle Uhr, zufällig (mit Startwert) oder an gewählter Stelle eingespeiste Fehler, Wiederholungen, die Richtlinien Alarm und Aufschieben, Zuführer, die nach wiederholten Fehlern abschalten, Pause, Einzelschritte und ein gespeicherter Zustand zum Fortsetzen; es simuliert nur, nichts hat eine Maschine bewegt. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
@@ -177,6 +177,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 * **Exit-Codes und an eine Revision gebundene Schreibvorgänge** (`tests/exitcodes.rs`, `src/cmd_nodes.rs`, `src/revision.rs`): Jeder Befehl, der etwas prüft, endet mit 0, wenn alles gut ist, mit 2, wenn seine Prüfung nicht bestanden wird (die Zuführungen decken die Platine nicht ab, eine Tabelle oder ein Plan ist ungültig, zwei Dateien unterscheiden sich, etwas reicht nicht), und mit 1, wenn er nicht ausgeführt werden konnte (eine Datei fehlt, eine Option ist falsch); die Hilfe nennt die drei Codes, und ein Test führt jeden Befehl aus, um sie zu sehen. Mit `--revision TOKEN` (das Token von `table-revision`) dürfen `slot-bank --event ID=EREIGNIS --out DATEI`, `import-centroid --out DATEI`, `queue-add`, `queue-confirm` und `queue-edit` die gelesene Datei ersetzen, aber nur solange sie so ist, wie sie gelesen wurde; das Fenster tut dasselbe, wenn es eine Banktabelle aus einer Datei liest (auf das Fenster ziehen), den Zustand einer Zuführung ändern lässt und sie zurückspeichert.
 * **Hooks während des Auftrags und was jede Düse tut** (`src/hooks.rs`, `src/journal.rs`, `src/commands.rs`): Zusätzlich zu den Ereignissen am Ende eines Auftrags kann eine Regel `nozzle-before-pick`, `nozzle-after-pick`, `nozzle-before-place`, `nozzle-after-place` und `placement-complete` nennen, die `simulate --hooks` bei jedem Schritt meldet, während der Auftrag läuft (derselbe Seed ergibt dieselbe Liste; die Grenzen der Hooks gelten für den ganzen Auftrag). `{nozzle}`, `{step}` und `{nozzle_state}` kommen zu den Daten der Argumente hinzu, und dieselben Daten gehen als eine JSON-Zeile von höchstens 1024 Bytes an die Eingabe des Programms. Das Journal hat eine Spalte `nozzle_state` (`idle`, `picking`, `carrying`, `placing`), die sagt, was die Düse nach jedem Schritt tut.
 * **Reihenfolge, Verdrahtung und Pfade** (`src/placeorder.rs`, `src/wiring.rs`, `src/pathid.rs`): `placement_order = unit, height:desc, quantity:desc` ordnet die Bestückung nach einer Liste von Schlüsseln (Einheit eines Nutzens, Feeder, Teil, Höhe, Fläche, Menge), jeweils auf- oder absteigend, anstelle des einzelnen `order`. `phoenix-pnp wiring-sheet PROFIL [--out F] [--svg F]` liest ein Treiberprofil und schreibt, was an welchen Pin gehört (die Achsen, die Pumpe, das Abblasventil und ob die Zeile, die die Maschine sicher macht, jedes freigibt), sowie eine Zeichnung der Pneumatik; der Exit-Code ist 2, wenn ein Pin nicht gelesen werden kann, die Pumpe oder das Ventil fehlt oder zwei Aktoren einen Pin teilen. Ein Pfad wird in einer Warteschlange mit `/` zwischen den Namen gespeichert, ohne das Präfix von Windows und ohne `..`, und zwei Schreibweisen einer Datei gelten als dieselbe. Was dieses Programm vom gemeinsamen Client verlangt, steht in `docs/COMMON_REQUESTS.md`.
+* **Referenzfahrt ohne Endschalter, Firmware-Auszüge, das Datenblatt der Maschine und der Zustand jeder Düse** (`src/gcodedriver.rs`, `src/fwdiff.rs`, `src/machsheet.rs`, `src/tower.rs`, `src/gui/jobtab.rs`, `examples/firmware_old.txt`): Ein Treiberprofil sagt `homing_mode = sensorless` mit einer Empfindlichkeit für X und einer für Y (`homing_sensitivity_x` und `homing_sensitivity_y`, von -64 bis 255) und die Zeile, die sie setzt; sie gehen den Zeilen von `home` voraus, und `homing-repeat` nennt sie und zeigt, wie weit auseinander die Maschine landet. `phoenix-pnp fw-config-diff FIRST SECOND` vergleicht zwei Auszüge der Firmware-Konfiguration (die Antwort auf `M503`) Wert für Wert, hält `80` und `80.00` für gleich und warnt vor dem Zurücksetzen des EEPROM, wenn die Firmware nicht in beiden dieselbe ist (Ausgangscode 2 bei Unterschieden). `phoenix-pnp machine-sheet` gibt Tisch, Maschine, Arbeitsbereich, kleinstes erprobtes Teil und Höchstgeschwindigkeit aus, die die fünf `spec_`-Zeilen der Einstellungen liefern; was niemand eintrug, heißt in den acht Sprachen "nicht gemessen", keine Zahl wird erfunden, und der Bericht eines Auftrags trägt das Datenblatt. Der Reiter Auftrag zeigt, was jede Düse tut (frei oder mit einem Teil), und `sim-tower` nennt die Düse und ihren Zustand neben jedem Licht, das nicht grün ist. Mit dem Feature `common-refusal` (aus, bis der Build auf die nächste Version des gemeinsamen Clients festgelegt ist) liefert die Verbindung zu einem Knoten das `why` einer Ablehnung, wie der Knoten es schrieb, und behält ein festes Token. Alles wurde nur an Simulatoren erprobt.
 
 ## 🧩 Rolle in EH3D
 
@@ -262,6 +263,8 @@ phoenix-pnp job-export PARTS FEEDERS OUT [--state F]       der Plan und der Zust
 phoenix-pnp job-import FILE [--csv F]                      liest und prüft eine solche Datei, sagt, was sie enthält, und kann die Bestückungen mit ihrem Zustand als Tabelle schreiben
 phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] was sich zwischen zwei Bauteiltabellen geändert hat, Bauteil für Bauteil: neu, weg, verschoben, gedreht, Wert, Gehäuse, Seite (Exit 2, wenn sie sich unterscheiden)
 phoenix-pnp config-diff FIRST SECOND                       die Einstellungen, die zwei Konfigurationsdateien in ihrer Bedeutung verschieden festlegen (yes und on, 5 und 5.0 sind gleich; Exit 2, wenn die Maschinen sich unterscheiden)
+phoenix-pnp fw-config-diff FIRST SECOND                    die Werte, die zwei Auszüge der Firmware-Konfiguration (Antwort auf M503) verschieden festlegen; warnt vor dem EEPROM-Reset, wenn die Firmware wechselte (Ausgang 2 bei Unterschieden)
+phoenix-pnp machine-sheet [--config F]                     das Datenblatt der Maschine aus den Einstellungen; Nicht Gemessenes wird so genannt
 phoenix-pnp board-stats PARTS [--near MM] [--limit N]      was eine Bauteiltabelle enthält (Seiten, Sorten, Gehäuse, der Kasten der Mittelpunkte) und mit --near die Paare, die näher als MM liegen (Exit 2, wenn es eines findet)
 phoenix-pnp queue-stock QUEUE [--out F]                    ob die Zuführungen für alle noch offenen Aufträge einer Warteschlange reichen und in welchem Auftrag jede Rolle ausgeht (Exit 2, wenn eine nicht reicht)
 phoenix-pnp feeder-deplete FEEDERS --state F [--out F]     die Zuführungstabelle nach dem Auftrag eines gespeicherten Zustands: die restlichen Teile und der nächste Platz der Streifen (Exit 2, wenn eine knapp oder leer ist)
@@ -440,7 +443,7 @@ Die letzte Zeile öffnet das Fenster; das tut auch `phoenix-pnp` ohne Befehl, we
 
 ## 🧪 Tests
 
-Die Suite hat 1844 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt). Sie prüfen die Normalfälle, die Grenzfälle und beschädigte Eingaben: leere Dateien, Müll und abgeschnittene Dateien führen nie zu einer Panik. Kleine erzeugte Fälle (aus einem festen Startwert, also mit denselben Zahlen bei jedem Lauf) prüfen, dass der Plan nicht von der Reihenfolge der Dateien abhängt, dass ein Weg nie länger wird, dass ein irgendwo gespeicherter und fortgesetzter Auftrag genauso endet wie einer, der nie angehalten wurde, und dass sich Längen und Winkel hin und zurück umrechnen lassen. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 1877 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt). Sie prüfen die Normalfälle, die Grenzfälle und beschädigte Eingaben: leere Dateien, Müll und abgeschnittene Dateien führen nie zu einer Panik. Kleine erzeugte Fälle (aus einem festen Startwert, also mit denselben Zahlen bei jedem Lauf) prüfen, dass der Plan nicht von der Reihenfolge der Dateien abhängt, dass ein Weg nie länger wird, dass ein irgendwo gespeicherter und fortgesetzter Auftrag genauso endet wie einer, der nie angehalten wurde, und dass sich Längen und Winkel hin und zurück umrechnen lassen. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 
@@ -508,6 +511,7 @@ EH3D-PHOENIX-PNP/
 │   ├── fiducial.rs                              Passmarken eines Nutzens: die Anpassung der gemessenen Marken und die Korrektur der Teile
 │   ├── footcheck.rs                             die Gehäuse einer Platine gegen die Gehäusetabelle: bekannt, Alias, erzeugt, ähnlich
 │   ├── fpsearch.rs                              die Namen von Footprints in eine Form gebracht und eine Suche in einer Bibliothek
+│   ├── fwdiff.rs                                was zwei Auszüge der Firmware-Konfiguration verschieden festlegen
 │   ├── gcodedriver.rs                           das Profil eines G-Code-Treibers in einer Datei: Zeilen, Muster, Zeiten, Moonraker
 │   ├── gcodesim.rs                              eine simulierte Marlin- und Klipper-Steuerung mit Fehlern und die Verbindungen dazu
 │   ├── gui.rs                                   das Fenster: Module ohne Bildschirm und die Zeichnung in window.rs
@@ -554,6 +558,7 @@ EH3D-PHOENIX-PNP/
 │   ├── lookmove.rs                              schauen, bewegen, wieder schauen: begrenzte Schritte zu einer Marke, nur kleiner nach Verschlechterung
 │   ├── lotage.rs                                das Alter des Loses jeder Rolle aus dem Datumscode, gegen eine Woche und eine Grenze
 │   ├── lottrace.rs                              Charge und Rolle, aus der jedes bestückte Teil stammt, und was fehlt
+│   ├── machsheet.rs                             das Datenblatt der Maschine; Nicht Gemessenes wird so genannt
 │   ├── main.rs                                  die Kommandozeile und der Einstieg des Fensters, wenn es ohne Befehl läuft
 │   ├── marks.rs                                 Marken auf zwei Ebenen: Bauteile, die Marken sind, und die Anpassung von Nutzen und Platine
 │   ├── model.rs                                 die Teile einer Maschine als Traits: Maschine, Düse, Zuführer, Aktor, Kamera, Treiber
@@ -657,9 +662,11 @@ EH3D-PHOENIX-PNP/
 │   ├── flow2.rs                                 Tests zu Düsenhöhen, Nutzenmarken, Gurten, Schicht, Bestücker-Dateien und Stücklisten
 │   ├── flow3.rs                                 Zufall mit festem Startwert für die neuen Leser, Protokolle, Schichten, Körper, Kosten und Ausschuss
 │   ├── fuzz.rs                                  Tests mit Zufall und festem Startwert: beschädigte Dateien lösen keine Panik aus, Geschriebenes wird gelesen
+│   ├── fwdiff.rs                                Tests des Unterschieds zweier Firmware-Auszüge und der EEPROM-Warnung
 │   ├── gui.rs                                   Tests des Fensters ohne Bildschirm: Zustand, Plan, Auftrag, Karte, Tabellen und Assistent
 │   ├── heads.rs                                 Tests der Köpfe: Zeilen der Konfiguration, Reichweite, Verteilung, die Uhr und schedule
 │   ├── helpdemo.rs                              Tests, die jedes Beispiel der Hilfe ausführen und die Exit-Codes prüfen
+│   ├── homingmode.rs                            Tests der Referenzfahrt ohne Endschalter: Modus, Empfindlichkeiten, Reihenfolge der Zeilen
 │   ├── hooks.rs                                 Tests der Hooks: standardmäßig aus, Regeln, Ereignisse, Aufrufe, Ausführung, simulate --hooks
 │   ├── hotspots.rs                              Tests der Problemstellen der Läufe: Aufnahmen, Fehler, abgeschaltet, beiseitegelegt, Reihenfolge, Befehl
 │   ├── import.rs                                Tests des Imports: Formate, Einheiten, Unterseite, DNP, Bereiche, Fehler mit Zeile
@@ -679,14 +686,17 @@ EH3D-PHOENIX-PNP/
 │   ├── lookmove.rs                              Tests von schauen, bewegen, wieder schauen: Konvergenz, Grenze, nur kleinere Schritte
 │   ├── looks.rs                                 Tests der zusätzlichen Kamerablicke und der je Zuführung gezählten Blicke im Bericht
 │   ├── lottrace.rs                              Tests der Chargenverfolgung: Charge je Teil, was fehlt, Chargentabelle, Befehl
+│   ├── machsheet.rs                             Tests des Maschinendatenblatts: Angegebenes, Nicht-Gemessenes in acht Sprachen, im Bericht
 │   ├── marks.rs                                 Tests der als schlecht markierten Platinen, der Bauteile, die Marken sind, und der Marken auf zwei Ebenen
 │   ├── model.rs                                 Tests des Datenmodells: Codes, Längen, Konfiguration und Tabellen
 │   ├── more.rs                                  weitere Tests von Bibliothek und Kommandozeile
 │   ├── names.rs                                 Tests der Dateinamen: keine, die sich nur in der Groß-/Kleinschreibung unterscheiden, keine, die Windows nicht kann
 │   ├── nodedock.rs                              Tests der Slot- und Knoten-Panels: im Rahmen, versteckt, gespeicherte Anordnungen, Prüfstand
 │   ├── nodelink.rs                              Tests der Knotenverbindung: Befehle, Ablehnungen, Stille, Sperren, Seed-Fehler, Verriegelung
+│   ├── nodereason.rs                            Tests des Ablehnungsgrunds und des festen Tokens (Feature common-refusal)
 │   ├── nozzlelife.rs                            Tests der Nutzung der Düsenspitzen: die Datei, was ein Auftrag hinzufügt, die Befehle
 │   ├── nozzles.rs                               Tests des Düsenvergleichs: die Zeilen, die schnellste, der Gewinn, ausgelassene Köpfe, der Befehl
+│   ├── nozzleview.rs                            Tests des Zustands jeder Düse im Journal, in der Signalleuchte und im Reiter Auftrag
 │   ├── openpnp.rs                               Tests des XML-Lesers und des OpenPnP-Imports: Grenzen, Einheiten, Hinweise, beschädigte Dateien
 │   ├── panel.rs                                 Tests der Panels und ihrer Passmarken
 │   ├── panelcomp.rs                             Tests der Panelzusammenstellung: Schienen, Überlappung, Abstände, stabile Datei, Befehl
@@ -773,6 +783,8 @@ EH3D-PHOENIX-PNP/
 │   ├── feeders_tubes.csv                        eine Zuführungstabelle mit einer Stange und einer Schüttgut-Zuführung neben einem Gurt
 │   ├── fid_design.csv                           die Entwurfsorte von vier Fiducials
 │   ├── fid_measured.csv                         dieselben vier Fiducials, an der Maschine gemessen
+│   ├── firmware_new.txt                         dieselbe Maschine nach neuer Firmware: andere Werte, eine Zeile weniger, eine mehr
+│   ├── firmware_old.txt                         ein Auszug der Firmware-Konfiguration (Antwort auf M503) für fw-config-diff
 │   ├── hooks.csv                                Regeln der Hooks für simulate --hooks: je ein Ereignis und ein Programm
 │   ├── job.recipe                               ein Rezept mit allen Schritten und Regeln je Gehäuse, Zuführung und Spitze
 │   ├── job_basic.recipe                         das kürzeste Rezept: vorbereiten, aufnehmen und bestücken

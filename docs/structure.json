@@ -678,6 +678,19 @@
           }
         },
         {
+          "name": "fwdiff.rs",
+          "desc": {
+            "en": "what two dumps of the configuration of a firmware give differently",
+            "es": "lo que dos volcados de la configuración de un firmware dan distinto",
+            "de": "was zwei Auszüge der Firmware-Konfiguration verschieden festlegen",
+            "fr": "ce que deux relevés de la configuration d'un firmware donnent différemment",
+            "it": "ciò che due dump della configurazione di un firmware danno in modo diverso",
+            "ja": "2つのファームウェア設定ダンプで異なる値",
+            "zh": "两份固件配置转储的差异",
+            "pt": "o que dois despejos da configuração de um firmware dão de forma diferente"
+          }
+        },
+        {
           "name": "gcodedriver.rs",
           "desc": {
             "en": "the profile of a G-code driver in a file: lines, patterns, times, Moonraker requests",
@@ -1273,6 +1286,19 @@
             "ja": "配置した各部品のロットとリール、不足しているもの",
             "zh": "每个已贴装元件所来自的批次和料盘，以及缺少的信息",
             "pt": "o lote e a bobina de onde veio cada peça colocada, e o que falta"
+          }
+        },
+        {
+          "name": "machsheet.rs",
+          "desc": {
+            "en": "the specification sheet of the machine; what is not measured says so",
+            "es": "la ficha de especificaciones de la máquina; lo que no se midió lo dice",
+            "de": "das Datenblatt der Maschine; Nicht Gemessenes wird so genannt",
+            "fr": "la fiche de la machine ; ce qui n'est pas mesuré le dit",
+            "it": "la scheda della macchina; ciò che non è misurato lo dice",
+            "ja": "マシンの仕様シート。未測定の項目はそう表示",
+            "zh": "机器规格表；未测量的项目会注明",
+            "pt": "a ficha da máquina; o que não foi medido di-lo"
           }
         },
         {
@@ -2609,6 +2635,19 @@
           }
         },
         {
+          "name": "fwdiff.rs",
+          "desc": {
+            "en": "tests of the difference of two firmware dumps and the EEPROM warning",
+            "es": "pruebas de la diferencia entre volcados de firmware y del aviso de la EEPROM",
+            "de": "Tests des Unterschieds zweier Firmware-Auszüge und der EEPROM-Warnung",
+            "fr": "tests de la différence entre relevés de firmware et de l'avertissement EEPROM",
+            "it": "test della differenza tra dump di firmware e dell'avviso EEPROM",
+            "ja": "ファームウェアダンプの差分、EEPROM 警告、固定シードのノイズのテスト",
+            "zh": "固件转储差异、EEPROM 警告和固定种子噪声的测试",
+            "pt": "testes da diferença entre despejos de firmware e do aviso da EEPROM"
+          }
+        },
+        {
           "name": "gui.rs",
           "desc": {
             "en": "tests of the window without a screen: state, plan, job, map, tables and guide",
@@ -2645,6 +2684,19 @@
             "ja": "ヘルプの各例を実行し、約束した終了コードを確認するテスト",
             "zh": "运行帮助中每个示例并检查所承诺退出码的测试",
             "pt": "testes que executam cada exemplo da ajuda e verificam os códigos de saída"
+          }
+        },
+        {
+          "name": "homingmode.rs",
+          "desc": {
+            "en": "tests of homing without end switches: the mode, the sensitivities, the order",
+            "es": "pruebas del referenciado sin finales de carrera: modo, sensibilidades, orden",
+            "de": "Tests der Referenzfahrt ohne Endschalter: Modus, Empfindlichkeiten, Reihenfolge der Zeilen",
+            "fr": "tests de la prise d'origine sans fins de course : mode, sensibilités, ordre",
+            "it": "test dell'homing senza finecorsa: la modalità, le sensibilità, l'ordine delle righe",
+            "ja": "リミットスイッチなし原点復帰のテスト：モード、感度、行の順序",
+            "zh": "无限位开关回零的测试：模式、灵敏度、行的顺序",
+            "pt": "testes do homing sem fins de curso: o modo, as sensibilidades, a ordem das linhas"
           }
         },
         {
@@ -2895,6 +2947,19 @@
           }
         },
         {
+          "name": "machsheet.rs",
+          "desc": {
+            "en": "tests of the sheet of the machine: given, not measured in eight languages, in the report",
+            "es": "pruebas de la ficha de la máquina: lo dado, lo sin medir en ocho idiomas, en el informe",
+            "de": "Tests des Maschinendatenblatts: Angegebenes, Nicht-Gemessenes in acht Sprachen, im Bericht",
+            "fr": "tests de la fiche de la machine : le donné, le non mesuré en huit langues, dans le rapport",
+            "it": "test della scheda della macchina: il dato, il non misurato in otto lingue, nel rapporto",
+            "ja": "マシンシートのテスト：設定値、8言語の未測定表示、レポート",
+            "zh": "机器规格表的测试：已给出项、八种语言的未测量、报告",
+            "pt": "testes da ficha da máquina: o dado, o por medir em oito línguas, no relatório"
+          }
+        },
+        {
           "name": "marks.rs",
           "desc": {
             "en": "tests of the boards marked as bad, the parts that are marks and the marks of two levels",
@@ -2973,6 +3038,19 @@
           }
         },
         {
+          "name": "nodereason.rs",
+          "desc": {
+            "en": "tests of the reason of a refusal and the fixed token (feature common-refusal)",
+            "es": "pruebas del motivo de una negativa y del token fijo (característica common-refusal)",
+            "de": "Tests des Ablehnungsgrunds und des festen Tokens (Feature common-refusal)",
+            "fr": "tests du motif d'un refus et du jeton fixe (fonction common-refusal)",
+            "it": "test del motivo di un rifiuto e del token fisso (feature common-refusal)",
+            "ja": "拒否の理由と固定トークンのテスト（common-refusal 機能）",
+            "zh": "拒绝原因和固定令牌的测试（common-refusal 特性）",
+            "pt": "testes do motivo de uma recusa e do token fixo (funcionalidade common-refusal)"
+          }
+        },
+        {
           "name": "nozzlelife.rs",
           "desc": {
             "en": "tests of the use of the nozzle tips: the file, what a job adds, the commands",
@@ -2996,6 +3074,19 @@
             "ja": "ノズル比較のテスト：行、最速、短縮時間、除外されるヘッド、コマンド",
             "zh": "吸嘴比较的测试：各行、最快者、节省时间、被排除的头部、命令",
             "pt": "testes da comparação de bocais: as linhas, o mais rápido, o ganho, as cabeças de fora, o comando"
+          }
+        },
+        {
+          "name": "nozzleview.rs",
+          "desc": {
+            "en": "tests of the state of each nozzle in the journal, the signal tower and the Job tab",
+            "es": "pruebas del estado de cada boquilla en el diario, la torre de señal y la pestaña Trabajo",
+            "de": "Tests des Zustands jeder Düse im Journal, in der Signalleuchte und im Reiter Auftrag",
+            "fr": "tests de l'état de chaque buse dans le journal, la colonne lumineuse et l'onglet Travail",
+            "it": "test dello stato di ogni ugello nel registro, nella torretta e nella scheda Lavoro",
+            "ja": "ジャーナル、シグナルタワー、ジョブタブのノズル状態のテスト",
+            "zh": "日志、信号灯塔和作业选项卡中喷嘴状态的测试",
+            "pt": "testes do estado de cada bico no diário, na torre de sinal e no separador Trabalho"
           }
         },
         {
@@ -4108,6 +4199,32 @@
             "ja": "機械で測定した同じ4つのフィデューシャル",
             "zh": "在机器上测得的同样四个基准点",
             "pt": "os mesmos quatro fiduciais medidos na máquina"
+          }
+        },
+        {
+          "name": "firmware_new.txt",
+          "desc": {
+            "en": "the same machine after a new firmware: other values, one line less, one more",
+            "es": "la misma máquina tras otro firmware: otros valores, una línea menos, una más",
+            "de": "dieselbe Maschine nach neuer Firmware: andere Werte, eine Zeile weniger, eine mehr",
+            "fr": "la même machine après un autre firmware : autres valeurs, une ligne en moins, une en plus",
+            "it": "la stessa macchina dopo un nuovo firmware: altri valori, una riga in meno, una in più",
+            "ja": "新しいファームウェア後の同じマシン：値の変更、1行減、1行増",
+            "zh": "换了新固件后的同一台机器：值不同，少一行，多一行",
+            "pt": "a mesma máquina depois de outro firmware: outros valores, uma linha a menos, uma a mais"
+          }
+        },
+        {
+          "name": "firmware_old.txt",
+          "desc": {
+            "en": "a dump of the configuration of a firmware (the answer to M503), for fw-config-diff",
+            "es": "un volcado de la configuración de un firmware (la respuesta a M503), para fw-config-diff",
+            "de": "ein Auszug der Firmware-Konfiguration (Antwort auf M503) für fw-config-diff",
+            "fr": "un relevé de la configuration d'un firmware (réponse à M503), pour fw-config-diff",
+            "it": "un dump della configurazione di un firmware (risposta a M503), per fw-config-diff",
+            "ja": "fw-config-diff 用のファームウェア設定ダンプ（M503 の応答）",
+            "zh": "固件配置转储（M503 的回答），供 fw-config-diff 使用",
+            "pt": "um despejo da configuração de um firmware (a resposta a M503), para fw-config-diff"
           }
         },
         {
