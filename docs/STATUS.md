@@ -10,11 +10,11 @@ The window is built on the docking frame of the suite (`eh3d-dock`, in EH3D-COMM
 
 ## Banks, nodes and panels
 
-The slots of the left and right banks of feeders are modelled (how many slots a tape takes, that none overlaps, the reach of the head, and the states free, occupied, depleted and jammed). The head node and the feeder node of the suite are asked over HTTP through the common client, with a hold on a node that cannot be heard and an interlock of the axes that reads whether the head is clear; both are tried only against nodes on a computer. The window has a panel for the slots and one for the nodes, hidden at the start. A panel of boards is composed and checked from a file (`panel-compose`).
+The slots of the left and right banks of feeders are modelled (how many slots a tape takes, that none overlaps, the reach of the head, and the states free, occupied, depleted and jammed). The head node and the feeder node of the suite are asked over HTTP through the common client, with a hold on a node that cannot be heard and an interlock of the axes that reads whether the head is clear; both are tried only against nodes on a computer. The window has a panel for the slots and one for the nodes, hidden at the start. A panel of boards is composed and checked from a file (`panel-compose`). The window reads a table of the banks from a file, lets the state of a feeder be changed and saves the table back to the file it came from only while the file is as it was read; every command that checks something ends with the code 2 when the check is not passed and with 1 when it could not be run. The hooks are told while a job goes, for every pick and place, and the journal says what each nozzle is doing.
 
 ## Capabilities
 
-The official state of each capability is in `REQUIREMENTS.md`. The register has 140 requirements: 86 implemented, 32 prototype, 22 planned and 0 validated. By progress: 86 done, 32 partial, 16 pending and 6 blocked. This page never states a state that `REQUIREMENTS.md` does not.
+The official state of each capability is in `REQUIREMENTS.md`. The register has 148 requirements: 93 implemented, 33 prototype, 22 planned and 0 validated. By progress: 93 done, 33 partial, 16 pending and 6 blocked. This page never states a state that `REQUIREMENTS.md` does not.
 
 ## Open questions
 
@@ -31,7 +31,7 @@ The official state of each capability is in `REQUIREMENTS.md`. The register has 
 ## Known technical debt and omitted tests
 
 * The machine parts are separate pieces but not formal traits (see the first requirement of the register).
-* The common client keeps only the `error` and `detail` of a refusal, so the reason (`why`) of an order that a node refuses with 409 is not seen through it.
+* The common client keeps only the `error` and `detail` of a refusal and forgets a token after a `401`, so the reason (`why`) of an order that a node refuses with 409 is not seen through it; the change asked of the client is in `COMMON_REQUESTS.md`.
 * The answers of the controllers in the examples are written by hand, not captured; the import of the files of OpenPnP and the readers of the position files have not been tried with real files.
 * The drawing of the window is not covered by tests; the pictures of the README are taken by the program itself.
 * Tests that need a machine, a camera or a screen are not written: the register names each as `planned:` with the test that will show it.

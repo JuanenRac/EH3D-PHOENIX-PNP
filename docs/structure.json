@@ -1484,6 +1484,19 @@
           }
         },
         {
+          "name": "pathid.rs",
+          "desc": {
+            "en": "portable paths: how a path is saved and how two paths are told to be one file",
+            "es": "rutas portables: cómo se guarda una ruta y cómo se sabe que dos son el mismo fichero",
+            "de": "portable Pfade: wie ein Pfad gespeichert wird und wann zwei Pfade dieselbe Datei sind",
+            "fr": "chemins portables : comment un chemin est enregistré et quand deux sont le même fichier",
+            "it": "percorsi portabili: come si salva un percorso e quando due sono lo stesso file",
+            "ja": "ポータブルなパス：パスの保存方法と、2つのパスが同じファイルかの判定",
+            "zh": "可移植路径：路径如何保存，以及如何判断两个路径是同一文件",
+            "pt": "caminhos portáteis: como se guarda um caminho e quando dois são o mesmo ficheiro"
+          }
+        },
+        {
           "name": "pattern.rs",
           "desc": {
             "en": "the calibration of the camera from a pattern: pixel size, lens bending, residual",
@@ -1507,6 +1520,19 @@
             "ja": "一般的なパッケージの名前からの寸法",
             "zh": "根据名称得到常用封装的尺寸",
             "pt": "os tamanhos dos encapsulamentos comuns a partir dos seus nomes"
+          }
+        },
+        {
+          "name": "placeorder.rs",
+          "desc": {
+            "en": "the composite order of the places: a list of keys, each ascending or descending",
+            "es": "el orden compuesto de las colocaciones: una lista de claves, cada una ascendente o descendente",
+            "de": "die zusammengesetzte Bestückungsreihenfolge: eine Liste von Schlüsseln, auf- oder absteigend",
+            "fr": "l'ordre composé des poses : une liste de clés, chacune croissante ou décroissante",
+            "it": "l'ordine composto dei posizionamenti: un elenco di chiavi, crescenti o decrescenti",
+            "ja": "配置の複合順序：昇順・降順を持つキーのリスト",
+            "zh": "贴装的复合顺序：由升序或降序的键组成的列表",
+            "pt": "a ordem composta das colocações: uma lista de chaves, ascendentes ou descendentes"
           }
         },
         {
@@ -2056,6 +2082,19 @@
           }
         },
         {
+          "name": "wiring.rs",
+          "desc": {
+            "en": "the wiring sheet and the pneumatic drawing, read from a driver profile",
+            "es": "la hoja de cableado y el dibujo neumático, leídos de un perfil de driver",
+            "de": "das Verdrahtungsblatt und die Pneumatikzeichnung aus einem Treiberprofil",
+            "fr": "la feuille de câblage et le dessin pneumatique, lus d'un profil de pilote",
+            "it": "il foglio di cablaggio e il disegno pneumatico, letti da un profilo del driver",
+            "ja": "ドライバープロファイルから読む配線シートと空圧図",
+            "zh": "从驱动配置读取的接线表和气路图",
+            "pt": "a folha de cablagem e o desenho pneumático, lidos de um perfil de driver"
+          }
+        },
+        {
           "name": "xmlmini.rs",
           "desc": {
             "en": "a bounded reader of XML for the files of other programs: limits, no entities",
@@ -2411,6 +2450,19 @@
             "ja": "ジョブ交換ファイルのテスト：書き出し、読み込み、各拒否、コマンド",
             "zh": "作业交换文件测试：写入、读取、各种拒绝、命令",
             "pt": "testes do ficheiro de troca de um trabalho: escrita, leitura, cada recusa, os comandos"
+          }
+        },
+        {
+          "name": "exitcodes.rs",
+          "desc": {
+            "en": "tests of the exit code 2 for a check that is not passed, command by command",
+            "es": "pruebas del código de salida 2 de una verificación no superada, comando por comando",
+            "de": "Tests des Exit-Codes 2 für eine nicht bestandene Prüfung, Befehl für Befehl",
+            "fr": "tests du code de sortie 2 pour une vérification non réussie, commande par commande",
+            "it": "test del codice di uscita 2 per un controllo non superato, comando per comando",
+            "ja": "未達成のチェックの終了コード 2 をコマンドごとに確認するテスト",
+            "zh": "逐个命令测试未通过检查时的退出码 2",
+            "pt": "testes do código de saída 2 de uma verificação não superada, comando a comando"
           }
         },
         {
@@ -3012,6 +3064,19 @@
           }
         },
         {
+          "name": "pathid.rs",
+          "desc": {
+            "en": "tests of portable paths and of the identity of two paths",
+            "es": "pruebas de las rutas portables y de la identidad de dos rutas",
+            "de": "Tests portabler Pfade und der Identität zweier Pfade",
+            "fr": "tests des chemins portables et de l'identité de deux chemins",
+            "it": "test dei percorsi portabili e dell'identità di due percorsi",
+            "ja": "ポータブルなパスと2つのパスの同一性のテスト",
+            "zh": "可移植路径及两个路径同一性的测试",
+            "pt": "testes dos caminhos portáteis e da identidade de dois caminhos"
+          }
+        },
+        {
           "name": "pattern.rs",
           "desc": {
             "en": "tests of the calibration from a pattern: the file, the fit, the limit, the command and the tool",
@@ -3035,6 +3100,19 @@
             "ja": "パッケージ寸法のテスト：種類、エラー、表、コマンド",
             "zh": "封装尺寸的测试：各类、错误、表、命令",
             "pt": "testes dos tamanhos dos encapsulamentos: as famílias, os erros, a tabela, o comando"
+          }
+        },
+        {
+          "name": "placeorder.rs",
+          "desc": {
+            "en": "tests of the composite order of the places and of its setting",
+            "es": "pruebas del orden compuesto de las colocaciones y de su ajuste",
+            "de": "Tests der zusammengesetzten Bestückungsreihenfolge und ihrer Einstellung",
+            "fr": "tests de l'ordre composé des poses et de son réglage",
+            "it": "test dell'ordine composto dei posizionamenti e della sua impostazione",
+            "ja": "配置の複合順序とその設定のテスト",
+            "zh": "贴装复合顺序及其设置的测试",
+            "pt": "testes da ordem composta das colocações e da sua definição"
           }
         },
         {
@@ -3672,6 +3750,19 @@
             "ja": "劣化カメラと、2 つのチェックへの読み取り値のテスト",
             "zh": "变差的相机及其给两项检查的读数的测试",
             "pt": "testes da câmara pior e das leituras que dá às duas verificações"
+          }
+        },
+        {
+          "name": "wiring.rs",
+          "desc": {
+            "en": "tests of the wiring sheet and of the drawing of the pneumatics",
+            "es": "pruebas de la hoja de cableado y del dibujo neumático",
+            "de": "Tests des Verdrahtungsblatts und der Pneumatikzeichnung",
+            "fr": "tests de la feuille de câblage et du dessin pneumatique",
+            "it": "test del foglio di cablaggio e del disegno pneumatico",
+            "ja": "配線シートと空圧図のテスト",
+            "zh": "接线表和气路图的测试",
+            "pt": "testes da folha de cablagem e do desenho pneumático"
           }
         }
       ]
@@ -4440,6 +4531,19 @@
             "ja": "アーキテクチャ図のデータ",
             "zh": "架构图数据",
             "pt": "dados da imagem de Arquitetura"
+          }
+        },
+        {
+          "name": "COMMON_REQUESTS.md",
+          "desc": {
+            "en": "what this program asks of the common client, with the exact change",
+            "es": "lo que este programa pide al cliente común, con el cambio exacto",
+            "de": "was dieses Programm vom gemeinsamen Client verlangt, mit der genauen Änderung",
+            "fr": "ce que ce programme demande au client commun, avec le changement exact",
+            "it": "ciò che questo programma chiede al client comune, con la modifica esatta",
+            "ja": "共通クライアントへの要望と、その具体的な変更内容",
+            "zh": "本程序对公共客户端的请求，附确切的修改",
+            "pt": "o que este programa pede ao cliente comum, com a alteração exata"
           }
         },
         {
