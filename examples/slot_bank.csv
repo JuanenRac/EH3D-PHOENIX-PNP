@@ -1,0 +1,7 @@
+id,bank,first_slot,tape_mm,state,chain
+F1,left,1,8,occupied,1
+F2,left,4,8,occupied,2
+F3,left,7,12,occupied,3
+F4,left,11,8,occupied,4
+F5,right,1,16,occupied,5
+F6,right,6,8,occupied,6

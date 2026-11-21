@@ -21,7 +21,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 250] = [
+pub const KEYS: [&str; 257] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -272,6 +272,13 @@ pub const KEYS: [&str; 250] = [
     "vacuum_min_readings",
     "testboard_pitch_mm",
     "testboard_count",
+    "slot_pitch_mm",
+    "slot_gap_mm",
+    "slot_bank_slots",
+    "slot_reach_mm",
+    "node_silence_limit",
+    "node_timeout_s",
+    "panel_clearance_mm",
 ];
 
 /// The order in which the places are visited.
@@ -827,6 +834,17 @@ pub struct MachineConfig {
     pub testboard_pitch_mm: f64,
     /// test-board-gen: how many parts a made-up board has.
     pub testboard_count: u32,
+    /// slot-bank: how wide one slot of a bank of feeders is (millimetres), the gap a feeder needs beside its tape (millimetres), how many slots a bank has, and how far from the inner edge of
+    /// the bank the head can pick (millimetres).
+    pub slot_pitch_mm: f64,
+    pub slot_gap_mm: f64,
+    pub slot_bank_slots: u32,
+    pub slot_reach_mm: f64,
+    /// The nodes of the feeders and of the head: how many questions in a row may go unanswered before the link is told to be silent and the machine is held, and how long one question may take.
+    pub node_silence_limit: u32,
+    pub node_timeout_s: u64,
+    /// panel-compose: the least distance between the outlines of two boards of a panel (millimetres).
+    pub panel_clearance_mm: f64,
 }
 
 /// The most retries of the link to the server.
@@ -1077,6 +1095,13 @@ impl Default for MachineConfig {
             vacuum_min_readings: 5,
             testboard_pitch_mm: 2.0,
             testboard_count: 40,
+            slot_pitch_mm: 4.0,
+            slot_gap_mm: 4.0,
+            slot_bank_slots: 60,
+            slot_reach_mm: 240.0,
+            node_silence_limit: 3,
+            node_timeout_s: 2,
+            panel_clearance_mm: 1.0,
         }
     }
 }
@@ -1812,6 +1837,13 @@ impl MachineConfig {
             "vacuum_min_readings" => self.vacuum_min_readings = int(line, key, v, 1, 1000)? as u32,
             "testboard_pitch_mm" => self.testboard_pitch_mm = n(0.2, 100.0)?,
             "testboard_count" => self.testboard_count = int(line, key, v, 1, 5000)? as u32,
+            "slot_pitch_mm" => self.slot_pitch_mm = n(0.5, 50.0)?,
+            "slot_gap_mm" => self.slot_gap_mm = n(0.0, 50.0)?,
+            "slot_bank_slots" => self.slot_bank_slots = int(line, key, v, 1, 256)? as u32,
+            "slot_reach_mm" => self.slot_reach_mm = n(1.0, 5000.0)?,
+            "node_silence_limit" => self.node_silence_limit = int(line, key, v, 1, 100)? as u32,
+            "node_timeout_s" => self.node_timeout_s = int(line, key, v, 1, 120)? as u64,
+            "panel_clearance_mm" => self.panel_clearance_mm = n(0.0, 50.0)?,
             "backlash_x_mm" => self.backlash_x_mm = n(0.0, 2.0)?,
             "backlash_y_mm" => self.backlash_y_mm = n(0.0, 2.0)?,
             "backlash_mode" => {

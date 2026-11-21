@@ -8,6 +8,7 @@ mod cmd_fab;
 mod cmd_flow;
 mod cmd_import;
 mod cmd_more;
+mod cmd_nodes;
 mod cmd_queue;
 mod cmd_server;
 mod cmd_shop;
@@ -115,7 +116,8 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp board-stats PARTS [--near MM] [--limit N] [--config F] [--lang CODE]   what a table of parts holds (the sides, the kinds, each package, the box of the centres) and, with --near, the pairs of parts of one side whose centres are closer than MM; exits with 1 when it finds a pair
   phoenix-pnp queue-stock QUEUE [--out F] [--config F] [--lang CODE]   whether the feeders hold enough parts for all the jobs of the queue that are still to be made, one after the other, and the job in which each reel that falls short runs out; exits with 1 when one does
   phoenix-pnp feeder-deplete FEEDERS --state F [--out F] [--config F] [--lang CODE]   the table of feeders as it stands after the job of a saved state: what is left in each feeder and the next place of each strip; exits with 1 when a feeder is low or empty
-  phoenix-pnp feeder-refill FEEDERS REFILLS [--out F] [--config F] [--lang CODE]   the table of feeders after reels were changed: REFILLS is a table id,count[,x,y] with a row for each feeder that got a new reel (the count of the new reel and, for a strip, where its first part is); everything else in the table is kept
+  phoenix-pnp table-revision FILE [--config F]   the revision of a table (16 hexadecimal digits of its content, whatever its line ends): a write that carries it, as feeder-refill --out F --revision TOKEN, replaces the file only if the file still has that revision
+  phoenix-pnp feeder-refill FEEDERS REFILLS [--out F] [--revision TOKEN] [--config F] [--lang CODE]   the table of feeders after reels were changed: REFILLS is a table id,count[,x,y] with a row for each feeder that got a new reel (the count of the new reel and, for a strip, where its first part is); everything else in the table is kept
   phoenix-pnp queue-add QUEUE NAME SOURCE FEEDERS [--panel] [--boards N] [--side top|bottom] [--config F] [--packages F] [--catalog F] [--relative]   puts a job (a table of parts, or a panel with --panel) at the end of a queue of jobs
   phoenix-pnp queue-status QUEUE [--check] [--config F]   the jobs of the queue and what became of each; --check plans the ones still to be made and exits with 1 when one cannot run now
   phoenix-pnp queue-confirm QUEUE NAME   records that the plan of the job, as it is now, was looked at and may be run (void when the files change)
@@ -127,6 +129,9 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
   phoenix-pnp nozzle-life FILE [--warn N] [--reset TIP] [--config F] [--lang CODE]   the parts each nozzle tip has placed (a file kept beside the configuration); exits with 1 when a tip is at or over the warning level
   phoenix-pnp feeder-teach strip|tray [places and counts] | --measures FILE [--lang CODE]   the pitch and the angle of a strip or a tray from places measured on the machine
   phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--rotation DEG] [--fiducials MM] [--board-size W,H] [--x-out P2,P5] [--out F] [--lang CODE]   a panel file for a grid of copies of one board
+  phoenix-pnp slot-bank TABLE [--tape MM] [--out F] [--config F] [--lang CODE]   the banks of feeders: the slots each feeder takes, which are free, depleted or jammed, and where a tape of MM millimetres fits; exits with 2 when a feeder is depleted or jammed
+  phoenix-pnp panel-compose SPEC [--clearance MM] [--out F] [--config F] [--lang CODE]   checks a panel of boards put and turned on a sheet with rails (inside the rails, no overlap, a least distance) and writes the panel file; exits with 2 and writes nothing when it does not fit
+  phoenix-pnp node-sim [--steps N] [--seed S] [--silence PM] [--unauthorized PM] [--interlock PM] [--config F]   a job on a head node and a feeder node that are made up, with faults drawn from the seed (per thousand requests); exits with 2 when the link was held
   phoenix-pnp part-inspect READINGS [--sizes F] [--packages F] [--out F] [--config F] [--lang CODE]   the parts on the nozzle (ref,package,long_mm,short_mm,dx_mm,dy_mm,rot_deg) against the sizes of their packages (a table of sizes, or the columns body_long_mm and body_short_mm of a table of packages)
   phoenix-pnp fiducial-check DESIGN MEASURED [--config F] [--lang CODE]   the turn, scale, shear and shift that the measured marks (id,x,y) put on the panel, against the limits
   phoenix-pnp vision-readings PARTS [--sizes F] [--packages F] [--vision F] [--seed N] [--spread MM] [--turn DEG] [--wrong-every N] [--out F] [--config F] [--lang CODE]   the readings that a simulated camera (with the noise, blur and failures of the vision settings) gives of the parts of a position file, in the file that part-inspect reads
@@ -144,7 +149,16 @@ simulate runs the plan on a simulated machine; --journal FILE writes one row for
 import-centroid reads a centroid CSV (--map FILE names its columns, see examples/centroid.map), the text of positions of EAGLE or the .pos of KiCad (--format auto tells them apart) and writes the table of parts ref,val,package,x,y,rot,side,dnp in millimetres to --out (a file that exists is never written over) or to the standard output; --dnp marks references and ranges (R1-R5) as not to be mounted. The settings import_unit and import_bottom_mirror_width_mm of the configuration say what a file that gives no unit holds and whether the X of the bottom side is mirrored.
 
 FEEDERS is a CSV with the header id,value,package,x,y,count. plan refuses to write when a part has no feeder or a feeder runs out, unless --partial is given
-(then only the parts that can be placed are in the plan). The bottom side needs --board-width to be mirrored, about the middle of a board that starts at X 0 (--origin-x MM says where its left edge is).";
+(then only the parts that can be placed are in the plan). The bottom side needs --board-width to be mirrored, about the middle of a board that starts at X 0 (--origin-x MM says where its left edge is).
+
+Examples (each one is run by a test, from the folder of the repository):
+  example: phoenix-pnp parts examples/board.pos
+  example: phoenix-pnp check examples/board.pos examples/feeders.csv
+  example: phoenix-pnp board-stats examples/board.pos
+  example: phoenix-pnp slot-bank examples/slot_bank.csv --tape 8
+  example: phoenix-pnp panel-compose examples/panel_compose.json
+  example: phoenix-pnp node-sim --seed 7 --steps 10
+Exit codes: 0 when all is well, 1 when an argument or a file is wrong or the result differs, 2 when a check of the command is not passed.";
 
 fn read(path: &str) -> Result<String, String> {
     commands::read_text(path, MachineConfig::default().max_file_bytes)
@@ -385,6 +399,10 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "vision-marks" => cmd_vis::vision_marks(args),
         "feeder-check" => cmd_vis::feeder_check(args),
         "vision-test" => commands::vision_test(args),
+        "table-revision" => cmd_nodes::table_revision(args),
+        "slot-bank" => cmd_nodes::slot_bank(args),
+        "panel-compose" => cmd_nodes::panel_compose(args),
+        "node-sim" => cmd_nodes::node_sim(args),
         other => Err(format!("{other}: unknown command (see help)")),
     }
 }
@@ -404,7 +422,7 @@ fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("error: {e}");
-            ExitCode::from(1)
+            ExitCode::from(cmd_nodes::exit_code())
         }
     }
 }

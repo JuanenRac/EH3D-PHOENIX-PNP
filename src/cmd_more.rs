@@ -9,6 +9,7 @@ use crate::commands::{read_text, refuse_same_file};
 use eh3d_phoenix_pnp::config::MAX_CONFIG_BYTES;
 use eh3d_phoenix_pnp::error::{Lang, PnpError};
 use eh3d_phoenix_pnp::parts::parse_all;
+use eh3d_phoenix_pnp::revision;
 use eh3d_phoenix_pnp::{
     boardstats, changeover, configdiff, deplete, exchange, jobdiff, partsdiff, queuestock, refill,
     report,
@@ -176,6 +177,7 @@ pub fn feeder_deplete(mut args: Vec<String>) -> Result<(), String> {
 pub fn feeder_refill(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let out = flag(&mut args, "--out")?;
+    let held_to = flag(&mut args, "--revision")?;
     finish(&args, 2)?;
     let (feeders, refills) = match (args.first(), args.get(1)) {
         (Some(a), Some(b)) => (a.clone(), b.clone()),
@@ -185,10 +187,22 @@ pub fn feeder_refill(mut args: Vec<String>) -> Result<(), String> {
     let rows = refill::parse_refills(&read_text(&refills, cfg.max_file_bytes)?).map_err(l)?;
     let result = refill::refill(&read_text(&feeders, cfg.max_file_bytes)?, &rows).map_err(l)?;
     print!("{}", result.text());
-    if let Some(o) = &out {
-        refuse_same_file(&[feeders, refills], o)?;
-        report::write_new(o, &result.csv).map_err(l)?;
-        println!("written to {o}");
+    match (&out, &held_to) {
+        (Some(o), Some(token)) => {
+            // with a revision the file named may be replaced, the table that was read included, but only if it is still as it was when the revision was taken
+            refuse_same_file(std::slice::from_ref(&refills), o)?;
+            let new = revision::replace(o, token, &result.csv, cfg.max_file_bytes).map_err(l)?;
+            println!("written to {o} (revision {new})");
+        }
+        (Some(o), None) => {
+            refuse_same_file(&[feeders, refills], o)?;
+            report::write_new(o, &result.csv).map_err(l)?;
+            println!("written to {o}");
+        }
+        (None, Some(_)) => {
+            return Err("--revision needs --out: it holds the file that is replaced".into())
+        }
+        (None, None) => {}
     }
     Ok(())
 }

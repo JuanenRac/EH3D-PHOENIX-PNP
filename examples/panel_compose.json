@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "panel": { "width": 120, "height": 100, "rails": { "left": 5, "right": 5, "top": 5, "bottom": 5 } },
+  "boards": {
+    "main": { "file": "board.pos", "width": 40, "height": 30 },
+    "small": { "file": "board_b.pos", "width": 20, "height": 20 }
+  },
+  "units": [
+    { "id": "A", "board": "main", "x": 8, "y": 8, "rotation": 0 },
+    { "id": "B", "board": "main", "x": 112, "y": 8, "rotation": 90 },
+    { "id": "C", "board": "small", "x": 8, "y": 45, "rotation": 0 },
+    { "id": "D", "board": "small", "x": 40, "y": 70, "rotation": 270 }
+  ],
+  "fiducials": [
+    { "id": "f1", "x": 2, "y": 2 },
+    { "id": "f2", "x": 118, "y": 2 }
+  ]
+}
