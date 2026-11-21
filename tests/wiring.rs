@@ -61,6 +61,7 @@ fn a_klipper_profile_names_its_pins_and_a_profile_with_a_shared_pin_is_a_problem
     assert_eq!(pins, ["pump", "blow"]);
     // two actuators on one pin
     let shared = MARLIN
+        .replace("\r\n", "\n")
         .replace("M42 P6 S255", "M42 P5 S255")
         .replace("M42 P6 S0", "M42 P5 S0");
     let sheet = build(&DriverProfile::parse(&shared).unwrap());
@@ -135,7 +136,9 @@ fn the_command_prints_writes_never_over_a_file_and_ends_with_2_for_a_problem() {
     ]);
     assert_eq!(code, 1);
     // no pump: the sheet is not whole
-    let no_pump = MARLIN.replace("release = blow\n", "release = none\n");
+    let no_pump = MARLIN
+        .replace("\r\n", "\n")
+        .replace("release = blow\n", "release = none\n");
     let p = dir.join("no_pump.cfg");
     std::fs::write(&p, no_pump).unwrap();
     let (code, out) = run(&["wiring-sheet", p.to_str().unwrap()]);
