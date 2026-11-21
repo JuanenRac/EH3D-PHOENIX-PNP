@@ -18,7 +18,7 @@ A driver profile says whether the machine homes with end switches or without the
 
 ## Capabilities
 
-The official state of each capability is in `REQUIREMENTS.md`. The register has 153 requirements: 97 implemented, 34 prototype, 22 planned and 0 validated. By progress: 97 done, 34 partial, 16 pending and 6 blocked. This page never states a state that `REQUIREMENTS.md` does not.
+The official state of each capability is in `REQUIREMENTS.md`. The register has 153 requirements: 99 implemented, 32 prototype, 22 planned and 0 validated. By progress: 99 done, 32 partial, 16 pending and 6 blocked. This page never states a state that `REQUIREMENTS.md` does not.
 
 ## Open questions
 
@@ -29,13 +29,13 @@ The official state of each capability is in `REQUIREMENTS.md`. The register has 
 
 ## What it needs from other repositories
 
-* `EH3D-COMMON`: the client of the server, the panel of the settings of the server and the docking frame, as a sibling folder at version 0.2.7.
+* `EH3D-COMMON`: the client of the server, the panel of the settings of the server and the docking frame, as a sibling folder at version 0.3.0.
 * The vision program of the suite for a live camera; the nodes of the feeders and of the head, whose contracts this program follows, for anything that is not simulated: no real node has been asked.
 
 ## Known technical debt and omitted tests
 
 * The machine parts are separate pieces but not formal traits (see the first requirement of the register).
-* The release of the common client that the build is pinned to keeps only the `error` and `detail` of a refusal and forgets a token after a `401`, so the reason (`why`) of an order that a node refuses with 409 is not seen through it. The next release of the client has both; the code for it is behind the feature `common-refusal`, off until the build is pinned to that release (`COMMON_REQUESTS.md`).
+* The reason (`why`) of an order that a node refuses with 409 and the token that stays after a `401` come from the common client at release 0.3.0 (`COMMON_REQUESTS.md`); they were tried only against nodes on a computer.
 * The answers of the controllers in the examples are written by hand, not captured; the import of the files of OpenPnP and the readers of the position files have not been tried with real files.
 * The drawing of the window is not covered by tests; the pictures of the README are taken by the program itself.
 * Tests that need a machine, a camera or a screen are not written: the register names each as `planned:` with the test that will show it.

@@ -3040,14 +3040,14 @@
         {
           "name": "nodereason.rs",
           "desc": {
-            "en": "tests of the reason of a refusal and the fixed token (feature common-refusal)",
-            "es": "pruebas del motivo de una negativa y del token fijo (característica common-refusal)",
-            "de": "Tests des Ablehnungsgrunds und des festen Tokens (Feature common-refusal)",
-            "fr": "tests du motif d'un refus et du jeton fixe (fonction common-refusal)",
-            "it": "test del motivo di un rifiuto e del token fisso (feature common-refusal)",
-            "ja": "拒否の理由と固定トークンのテスト（common-refusal 機能）",
-            "zh": "拒绝原因和固定令牌的测试（common-refusal 特性）",
-            "pt": "testes do motivo de uma recusa e do token fixo (funcionalidade common-refusal)"
+            "en": "tests of the reason of a refusal and the fixed token",
+            "es": "pruebas del motivo de una negativa y del token fijo",
+            "de": "Tests des Ablehnungsgrunds und des festen Tokens",
+            "fr": "tests du motif d'un refus et du jeton fixe",
+            "it": "test del motivo di un rifiuto e del token fisso",
+            "ja": "拒否の理由と固定トークンのテスト",
+            "zh": "拒绝原因和固定令牌的测试",
+            "pt": "testes do motivo de uma recusa e do token fixo"
           }
         },
         {
@@ -4653,14 +4653,14 @@
         {
           "name": "COMMON_REQUESTS.md",
           "desc": {
-            "en": "what this program asks of the common client, with the exact change",
-            "es": "lo que este programa pide al cliente común, con el cambio exacto",
-            "de": "was dieses Programm vom gemeinsamen Client verlangt, mit der genauen Änderung",
-            "fr": "ce que ce programme demande au client commun, avec le changement exact",
-            "it": "ciò che questo programma chiede al client comune, con la modifica esatta",
-            "ja": "共通クライアントへの要望と、その具体的な変更内容",
-            "zh": "本程序对公共客户端的请求，附确切的修改",
-            "pt": "o que este programa pede ao cliente comum, com a alteração exata"
+            "en": "what this program asked of the common client and where it stands now",
+            "es": "lo que este programa pidió al cliente común y en qué punto está",
+            "de": "was dieses Programm vom gemeinsamen Client verlangte und wo es jetzt steht",
+            "fr": "ce que ce programme a demandé au client commun et où cela en est",
+            "it": "ciò che questo programma ha chiesto al client comune e a che punto è",
+            "ja": "共通クライアントへ求めたことと、その現在の状況",
+            "zh": "本程序向公共客户端提出的请求及其现状",
+            "pt": "o que este programa pediu ao cliente comum e em que ponto está"
           }
         },
         {

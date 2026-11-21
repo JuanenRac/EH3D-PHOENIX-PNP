@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 1877 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 1876 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.1.3` |
 | 成熟度 | 脚手架 |
-| 测试 | 1877 |
+| 测试 | 1876 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
 | 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 1877 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 测试 | 🟡 | 1876 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -89,7 +89,7 @@
 * **窗口**（`src/gui.rs`、`src/gui/`）：窗口除绘制之外的工作都不需要屏幕（已载入的文件、规划及其问题与修复、模拟作业、地图的几何、共享选择的表格、五步向导和八种语言的文字），并经过测试；只有用 `--features gui` 构建的 `src/gui/window.rs` 用 egui 绘制。模拟速度、主题以及为未知封装的零件绘制的大小是 `machine.cfg` 的键（`gui_steps_per_s`、`gui_theme`、`gui_part_size_mm`）。
 * **轴的互锁**（`src/interlock.rs`、`src/driver.rs`、`src/gcodedriver.rs`、`examples/driver_marlin.cfg`）：驱动配置档中的一行 `interlock = 信号 | on|off | xy|z|rot|all` 表示所列的轴只有在信号处于指定状态时才能移动（示例在吹气阀打开时让滑架在 X 和 Y 方向保持不动）。信号是配置档中执行器的名称（会话根据最后一次切换得知其状态），以及用 `Session::set_signal` 给传感器起的名称（门、吸嘴抬起）；没有人报告过的信号是未知的，不满足任何规则，因此移动被拒绝。被拒绝的移动与超出限位的移动一样是安全故障：会发送 `safe_stop` 的各行，安全规则使机器减速，在新会话之前不再发送任何内容。拒绝的原因以八种语言说明。这一切都是对名称和数字的计算，用固定种子随机生成的移动在模拟控制器上试验，会话与计算必须一致；没有读取过真实机器的任何传感器。
 * **电路板的流程和按阶段的引导手工模式**（`src/process.rs`、`src/cmd_import.rs`）：流程是阶段列表（`phase = 名称 | 任务, 任务`，任务有 `load`、`place top`、`place bottom by hand`、`reflow`、`solder by hand`、`glue`、`through-hole` 和 `inspect`），或两个预设之一：`pnp`（机器贴装每一面）和 `manual`（人工贴装每一面）；只有前面的阶段都完成且没有阶段在进行时，一个阶段才能开始；只有进行中的阶段才能结束；其装料（为它装好的供料器）只能在待办时更改；状态可以保存并重新读入。`phoenix-pnp assist 元件 --process pnp|manual|文件` 会按此流程走：手工贴装的一面逐个询问元件，其他任务用用户的语言说明并等待 `done`，由机器贴装的一面会被说明，没有元件的一面其阶段会被省略。拒绝的原因以八种语言说明。不会移动任何东西：工作由人完成。
-* **基于套件停靠框架的窗口**（`src/gui/docking.rs`、`src/gui/cmdpanel.rs`、`src/gui/window.rs`、`Cargo.toml`）：窗口的标签页是 EH3D-COMMON 的 `eh3d-dock` 面板（构建以 0.2.7 版获取 `EH3D-COMMON`）：每个面板都可以移除、从“视图”菜单放回、把标签拖到另一组的中间或一侧来移动、浮动在窗口之上、折叠到边缘、最大化和锁定。窗口以三种布局之一启动：配置、运行和紧凑，含贴片领域的电路板视图、元件、供料器、作业、相机、机器和控制台，以及向导、封装、拼板、电路板、装料表、工具和问题；菜单栏有文件（含示例和最近文件）、编辑、视图、工具（规划、开始、暂停、单步、重置以及各命令的面板）、窗口（各布局以及用户按名称保存的布局）和帮助，带有 F5 到 F8 和常用快捷键，不可用的菜单项其快捷键也无效。用户的布局保存在 `window.cfg` 的 `dock.` 键下，下次启动时恢复；损坏或来自其他版本的布局会被出厂布局替换，并给出提示。十一个命令（`driver-check`、`driver-test`、`driver-run`、`safety-replay`、`homing-repeat`、`bringup`、`import-openpnp`、`assist`、`align-iterate`、`vacuum-calibrate` 和 `test-board-gen`）各有一个面板，起初隐藏（视图和工具菜单可显示）：面板用其中输入的参数（以空格和引号分隔、有数量限制、不经任何 shell 读取）在窗口旁运行 `phoenix-pnp`，不开控制台窗口、不从键盘读取，最长 `command_timeout_s` 秒（5 到 600，默认 60，在 `window.cfg` 中），并显示其输出，因此面板与命令不会不一致。面板和菜单都是数据，无需屏幕即可测试；用该框架绘制的界面只在没有窗口的环境中编译并运行过，没有人在真实屏幕上看过这些布局。
+* **基于套件停靠框架的窗口**（`src/gui/docking.rs`、`src/gui/cmdpanel.rs`、`src/gui/window.rs`、`Cargo.toml`）：窗口的标签页是 EH3D-COMMON 的 `eh3d-dock` 面板（构建以 0.3.0 版获取 `EH3D-COMMON`）：每个面板都可以移除、从“视图”菜单放回、把标签拖到另一组的中间或一侧来移动、浮动在窗口之上、折叠到边缘、最大化和锁定。窗口以三种布局之一启动：配置、运行和紧凑，含贴片领域的电路板视图、元件、供料器、作业、相机、机器和控制台，以及向导、封装、拼板、电路板、装料表、工具和问题；菜单栏有文件（含示例和最近文件）、编辑、视图、工具（规划、开始、暂停、单步、重置以及各命令的面板）、窗口（各布局以及用户按名称保存的布局）和帮助，带有 F5 到 F8 和常用快捷键，不可用的菜单项其快捷键也无效。用户的布局保存在 `window.cfg` 的 `dock.` 键下，下次启动时恢复；损坏或来自其他版本的布局会被出厂布局替换，并给出提示。十一个命令（`driver-check`、`driver-test`、`driver-run`、`safety-replay`、`homing-repeat`、`bringup`、`import-openpnp`、`assist`、`align-iterate`、`vacuum-calibrate` 和 `test-board-gen`）各有一个面板，起初隐藏（视图和工具菜单可显示）：面板用其中输入的参数（以空格和引号分隔、有数量限制、不经任何 shell 读取）在窗口旁运行 `phoenix-pnp`，不开控制台窗口、不从键盘读取，最长 `command_timeout_s` 秒（5 到 600，默认 60，在 `window.cfg` 中），并显示其输出，因此面板与命令不会不一致。面板和菜单都是数据，无需屏幕即可测试；用该框架绘制的界面只在没有窗口的环境中编译并运行过，没有人在真实屏幕上看过这些布局。
 * **检查吸嘴上的元件**（`src/inspect.rs`、`src/cmd_vis.rs`）：`phoenix-pnp part-inspect 读数 --sizes 尺寸表`（或 `--packages 封装表`）把相机测得的每个元件（两条边、偏离轴心的位置和旋转量）与其封装尺寸比较，并给出被拒绝的原因（`part_size_tol_mm`、`part_angle_tol_deg`、`part_offset_max_mm`）；尺寸来自尺寸表，或来自封装表的 `body_long_mm` 与 `body_short_mm` 列（`examples/packages_bodies.csv`），只要有元件被拒绝或没有尺寸，命令就以 2 退出。
 * **料管与散料供料器**（`src/feeding.rs`、`src/feedlib.rs`）：除料带、托盘和条带外，供料器表的 `kind` 列还接受 `tube`（零件滑向挡块的料管或导轨）和 `bulk`（盛在料盒或料碗中、方向不固定的散料）；两者都像料带一样从唯一位置 `x`、`y` 取料，零件角度取自 `rotation`，按数量耗尽，并由 `feeder-check` 检查；窗口的供料器标签页以八种语言提供全部五种类型（`examples/feeders_tubes.csv`）。
 * **按供料器统计的贴装数与用时**（`src/job.rs`、`src/feedrep.rs`、`src/report.rs`）：作业会记下每个吸嘴从哪个供料器取到零件（同类的另一个供料器接替时也一样），并把该零件算作从该供料器贴装，同时累计从每个供料器取料的各步骤（前往、送料、取料和查看）所用时间；作业报告、其 JSON 以及 `simulate --report-feeders`（末尾新增的 `placed` 和 `busy_s` 列）都会显示，已保存的作业也会保留。
@@ -177,7 +177,7 @@
 * **退出码，以及绑定修订版本的写入**（`tests/exitcodes.rs`, `src/cmd_nodes.rs`, `src/revision.rs`）：每个做检查的命令，一切正常时以 0 结束，检查未通过时以 2 结束（供料器盖不住整块板、表或计划无效、两个文件不同、某项不足），无法运行时以 1 结束（文件不存在、选项错误）；帮助列出这三个码，并有测试逐个运行命令来验证。`--revision TOKEN`（`table-revision` 给出的令牌）让 `slot-bank --event ID=EVENT --out FILE`、`import-centroid --out FILE`、`queue-add`、`queue-confirm` 和 `queue-edit` 替换所读的文件，但仅当文件仍是读取时的样子；窗口在从文件读取料架表（拖到窗口上）、允许更改供料器状态并保存回去时也是如此。
 * **作业进行中的钩子，以及每个吸嘴在做什么**（`src/hooks.rs`, `src/journal.rs`, `src/commands.rs`）：除了作业结束时的事件，规则还可以写 `nozzle-before-pick`、`nozzle-after-pick`、`nozzle-before-place`、`nozzle-after-place` 和 `placement-complete`，`simulate --hooks` 在作业进行时的每一步都会通知（相同的种子给出相同的列表；钩子的限制对整个作业计数）。参数的数据中增加了 `{nozzle}`、`{step}` 和 `{nozzle_state}`，同样的数据还会以最多 1024 字节的一行 JSON 送到程序的输入。日志有一列 `nozzle_state`（`idle`、`picking`、`carrying`、`placing`），说明每一步之后吸嘴在做什么。
 * **顺序、接线与路径**（`src/placeorder.rs`, `src/wiring.rs`, `src/pathid.rs`）：`placement_order = unit, height:desc, quantity:desc` 用一个键列表（拼板单元、供料器、元件、高度、面积、数量，各自升序或降序）来排列贴装，取代单一的 `order`。`phoenix-pnp wiring-sheet PROFILE [--out F] [--svg F]` 读取驱动配置，写出什么接到哪个引脚（各轴、泵、吹气阀，以及使机器进入安全状态的那一行是否释放每一项）和气路图；无法读出引脚、缺泵或缺阀、两个执行器共用一个引脚时，退出码为 2。队列中的路径以 `/` 分隔名称保存，不带 Windows 前缀和 `..`，同一文件的两种写法视为同一个。本程序对公共客户端的请求写在 `docs/COMMON_REQUESTS.md`。
-* **无限位开关回零、固件转储、机器规格表和每个喷嘴的状态**（`src/gcodedriver.rs`, `src/fwdiff.rs`, `src/machsheet.rs`, `src/tower.rs`, `src/gui/jobtab.rs`, `examples/firmware_old.txt`）：驱动配置档可写 `homing_mode = sensorless`，并给出 X 和 Y 各一个灵敏度（`homing_sensitivity_x` 和 `homing_sensitivity_y`，-64 到 255）以及设置它的行；它们先于 `home` 的各行发出，`homing-repeat` 会列出它们并显示机器每次落点相差多远。`phoenix-pnp fw-config-diff FIRST SECOND` 逐值比较两份固件配置转储（`M503` 的回答），把 `80` 和 `80.00` 视为相同，并在两者固件不同时提醒重置 EEPROM（值不同则退出码为 2）。`phoenix-pnp machine-sheet` 输出设置中五行 `spec_` 给出的工作台、机器、工作区域、已试过的最小零件和最高速度；无人填写的项目在八种语言中都写“未测量”，不会编造数值，作业报告也带有这张表。作业选项卡显示每个喷嘴在做什么（空闲或持有零件），`sim-tower` 在每个非绿色的灯旁标出喷嘴及其状态。启用特性 `common-refusal`（在构建固定到公共客户端的下一个版本之前保持关闭）后，与节点的连接会按节点所写给出拒绝的 `why`，并保留固定令牌。以上全部只在模拟器上试过。
+* **无限位开关回零、固件转储、机器规格表和每个喷嘴的状态**（`src/gcodedriver.rs`, `src/fwdiff.rs`, `src/machsheet.rs`, `src/tower.rs`, `src/gui/jobtab.rs`, `examples/firmware_old.txt`）：驱动配置档可写 `homing_mode = sensorless`，并给出 X 和 Y 各一个灵敏度（`homing_sensitivity_x` 和 `homing_sensitivity_y`，-64 到 255）以及设置它的行；它们先于 `home` 的各行发出，`homing-repeat` 会列出它们并显示机器每次落点相差多远。`phoenix-pnp fw-config-diff FIRST SECOND` 逐值比较两份固件配置转储（`M503` 的回答），把 `80` 和 `80.00` 视为相同，并在两者固件不同时提醒重置 EEPROM（值不同则退出码为 2）。`phoenix-pnp machine-sheet` 输出设置中五行 `spec_` 给出的工作台、机器、工作区域、已试过的最小零件和最高速度；无人填写的项目在八种语言中都写“未测量”，不会编造数值，作业报告也带有这张表。作业选项卡显示每个喷嘴在做什么（空闲或持有零件），`sim-tower` 在每个非绿色的灯旁标出喷嘴及其状态。通过公共客户端，与节点的连接会按节点所写给出拒绝的 `why`，并保留固定令牌。以上全部只在模拟器上试过。
 
 ## 🧩 在 EH3D 中的角色
 
@@ -443,7 +443,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 1877 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 1876 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -693,7 +693,7 @@ EH3D-PHOENIX-PNP/
 │   ├── names.rs                                 文件名测试：没有仅大小写不同的名称，也没有 Windows 无法使用的名称
 │   ├── nodedock.rs                              槽位与节点面板测试：在框架中、隐藏、已保存布局、试验台
 │   ├── nodelink.rs                              节点链路测试：命令、拒绝、无响应、保持、种子故障、互锁
-│   ├── nodereason.rs                            拒绝原因和固定令牌的测试（common-refusal 特性）
+│   ├── nodereason.rs                            拒绝原因和固定令牌的测试
 │   ├── nozzlelife.rs                            吸嘴头使用情况的测试：文件、作业新增的内容和命令
 │   ├── nozzles.rs                               吸嘴比较的测试：各行、最快者、节省时间、被排除的头部、命令
 │   ├── nozzleview.rs                            日志、信号灯塔和作业选项卡中喷嘴状态的测试
@@ -818,7 +818,7 @@ EH3D-PHOENIX-PNP/
 │   └── z_probe.csv                              两个吸嘴的探测记录，供 nozzle-zcal 使用
 ├── docs/
 │   ├── architecture.json                        架构图数据
-│   ├── COMMON_REQUESTS.md                       本程序对公共客户端的请求，附确切的修改
+│   ├── COMMON_REQUESTS.md                       本程序向公共客户端提出的请求及其现状
 │   ├── NOT_YET.md                               本版本暂不包含的好想法及其原因和时机
 │   ├── REQUIREMENTS.md                          需求登记表：每项的状态、证据和测试
 │   ├── SCOPE.md                                 用途、不做什么以及永远不由它决定的事

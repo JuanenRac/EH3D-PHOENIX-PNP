@@ -1,6 +1,4 @@
-//! The link to a node over the common client with the feature `common-refusal`: the `why` of a refusal as the node gave it, a token that stays after a `401` and a piece of the body of a
-//! refusal with the secrets masked. The feature is off until the build is pinned to a release of the common client that has these; without it this file is empty.
-#![cfg(feature = "common-refusal")]
+//! The link to a node over the common client: the `why` of a refusal as the node gave it, a token that stays after a `401` and a piece of the body of a refusal with the secrets masked.
 
 use eh3d_phoenix_pnp::nodelink::{LinkError, NodeLink, ScNodeLink};
 use eh3d_serverclient::{Reply, Request, Transport, TransportError};
