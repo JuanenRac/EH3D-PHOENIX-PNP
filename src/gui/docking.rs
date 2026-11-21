@@ -35,9 +35,14 @@ pub const BOARDS: &str = "boards";
 pub const LOAD_SHEET: &str = "load_sheet";
 pub const TOOLS: &str = "tools";
 pub const PROBLEMS: &str = "problems";
+/// The panels of the slots of the banks of feeders and of the nodes of the feeders and of the head. They start hidden in every arrangement.
+pub const SLOTS: &str = "slots";
+pub const NODES: &str = "nodes";
 
 /// The panels the program adds to the sector's seven, in the order they are listed.
-pub const EXTRA_PANELS: [&str; 7] = [GUIDE, PACKAGES, PANELS, BOARDS, LOAD_SHEET, TOOLS, PROBLEMS];
+pub const EXTRA_PANELS: [&str; 9] = [
+    GUIDE, PACKAGES, PANELS, BOARDS, LOAD_SHEET, TOOLS, PROBLEMS, SLOTS, NODES,
+];
 
 /// A word of the window in the eight languages of the frame (English, Spanish, Italian, German, French, Portuguese of Portugal, Chinese, Japanese).
 pub fn text8(word: Text) -> Text8 {
@@ -88,6 +93,8 @@ pub fn panel_defs() -> Vec<PanelDef> {
     add(LOAD_SHEET, Text::TabLoadSheet, "S", 240.0, 140.0);
     add(TOOLS, Text::TabTools, "T", 280.0, 200.0);
     add(PROBLEMS, Text::TabProblems, "!", 240.0, 120.0);
+    add(SLOTS, Text::SlotsPanel, "F", 280.0, 160.0);
+    add(NODES, Text::NodesPanel, "H", 240.0, 160.0);
     for c in Command::ALL {
         add(c.panel_id(), c.title(), "", 280.0, 200.0);
     }
@@ -210,6 +217,17 @@ pub fn menu_bar() -> MenuBar<Cmd> {
         .entry(
             Entry::app("tools.reset", own(Text::Reset), Cmd::Reset).key(Shortcut::ctrl_shift("R")),
         )
+        .sep()
+        .entry(Entry::dock(
+            "tools.slots",
+            own(Text::SlotsPanel),
+            DockAction::ShowPanel(SLOTS.to_string()),
+        ))
+        .entry(Entry::dock(
+            "tools.nodes",
+            own(Text::NodesPanel),
+            DockAction::ShowPanel(NODES.to_string()),
+        ))
         .sep()
         .submenu(commands);
 

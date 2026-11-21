@@ -9,6 +9,7 @@ use super::cmdpanel::{self, Command};
 use super::docking::{self, Cmd, MenuFacts, SampleKind};
 use super::jobtab::{self, PlaceState};
 use super::log::diagnostics;
+use super::nodeview::{self, Light};
 use super::problems::Fix;
 use super::samples;
 use super::serverui::view_lang;
@@ -605,6 +606,8 @@ impl PnpApp {
             docking::PROBLEMS => self.problems_tab(ui),
             docking::CONSOLE => self.log_tab(ui),
             docking::GUIDE => self.guide_panel(ui),
+            docking::SLOTS => self.slots_panel(ui),
+            docking::NODES => self.nodes_panel(ui),
             docking::CAMERA => self.camera_panel(ui),
             docking::MACHINE => {
                 egui::ScrollArea::vertical()
@@ -617,6 +620,146 @@ impl PnpApp {
                     self.command_panel(command, ui);
                 }
             }
+        }
+    }
+
+    /// The colour of a slot by its state.
+    fn slot_colour(state: crate::slotbank::State, pal: &Palette) -> Color32 {
+        use crate::slotbank::State;
+        match state {
+            State::Free => alpha(col(pal.dim), 70),
+            State::Occupied => col(pal.ok),
+            State::Depleted => col(pal.warn),
+            State::Jammed => col(pal.danger),
+        }
+    }
+
+    /// The banks of feeders: a square for each slot, coloured by its state, and a line for each feeder.
+    fn slots_panel(&mut self, ui: &mut egui::Ui) {
+        use crate::slotbank::Bank;
+        let pal = self.s.ui.theme.palette();
+        let lang = self.s.lang();
+        ui.label(RichText::new(tr(Text::SlotsHint, lang)).color(col(pal.dim)));
+        ui.label(RichText::new(tr(Text::NodeSimOnly, lang)).color(col(pal.dim)));
+        ui.horizontal_wrapped(|ui| {
+            if ui.button(tr(Text::SlotsExample, lang)).clicked() {
+                let cfg = self.s.ws.cfg.clone();
+                self.s.bench.load_table(nodeview::EXAMPLE_TABLE, &cfg);
+            }
+            if ui.button(tr(Text::SlotsRead, lang)).clicked() {
+                self.s.bench.ask();
+            }
+            let mut jam = self.s.bench.feeder_jammed;
+            if ui.checkbox(&mut jam, tr(Text::NodeJam, lang)).changed() {
+                self.s.bench.jam_feeder(jam);
+            }
+        });
+        if let Some(m) = &self.s.bench.message {
+            ui.label(RichText::new(m).color(col(pal.danger)));
+        }
+        egui::ScrollArea::vertical()
+            .id_salt("slots_scroll")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                for bank in Bank::ALL {
+                    let cells = self.s.bench.cells(bank);
+                    ui.label(
+                        RichText::new(format!(
+                            "{} - {} {}",
+                            tr(nodeview::bank_text(bank), lang),
+                            self.s.bench.layout.free_slots(bank),
+                            tr(Text::SlotFree, lang)
+                        ))
+                        .strong(),
+                    );
+                    let gap = 1.5;
+                    let side =
+                        ((ui.available_width() / cells.len().max(1) as f32) - gap).clamp(3.0, 12.0);
+                    let (rect, _) = ui.allocate_exact_size(
+                        egui::vec2((side + gap) * cells.len() as f32, side),
+                        egui::Sense::hover(),
+                    );
+                    let painter = ui.painter_at(rect);
+                    for (i, c) in cells.iter().enumerate() {
+                        let x = rect.left() + (side + gap) * i as f32;
+                        painter.rect_filled(
+                            egui::Rect::from_min_size(
+                                egui::pos2(x, rect.top()),
+                                egui::vec2(side, side),
+                            ),
+                            1.0,
+                            PnpApp::slot_colour(c.state, &pal),
+                        );
+                    }
+                }
+                ui.add_space(6.0);
+                let mut rows: Vec<_> = self.s.bench.layout.entries().iter().collect();
+                rows.sort_by_key(|a| (a.bank, a.first));
+                for e in rows {
+                    ui.label(
+                        RichText::new(format!(
+                            "{}  {} {}-{}  {} mm  {}",
+                            e.id,
+                            tr(nodeview::bank_text(e.bank), lang),
+                            e.first,
+                            e.last(),
+                            e.tape_mm,
+                            tr(nodeview::state_text(e.state), lang)
+                        ))
+                        .color(PnpApp::slot_colour(e.state, &pal)),
+                    );
+                }
+            });
+    }
+
+    /// The head node and the feeder node: whether each answers, whether the machine may move, and what holds them.
+    fn nodes_panel(&mut self, ui: &mut egui::Ui) {
+        let pal = self.s.ui.theme.palette();
+        let lang = self.s.lang();
+        ui.label(RichText::new(tr(Text::NodeSimOnly, lang)).color(col(pal.dim)));
+        let light = |l: Light| match l {
+            Light::Answers => col(pal.ok),
+            Light::Unknown => col(pal.dim),
+            Light::Silent | Light::Held => col(pal.warn),
+            Light::Denied => col(pal.danger),
+        };
+        for (name, l) in [
+            (Text::NodeHead, self.s.bench.head_light),
+            (Text::NodeFeeders, self.s.bench.feeders_light),
+        ] {
+            ui.horizontal(|ui| {
+                ui.label(RichText::new(tr(name, lang)).strong());
+                ui.label(RichText::new(tr(l.text(), lang)).color(light(l)));
+            });
+        }
+        let (word, colour) = if self.s.bench.xy_clear {
+            (Text::NodeXyClear, col(pal.ok))
+        } else {
+            (Text::NodeXyBlocked, col(pal.warn))
+        };
+        ui.label(RichText::new(tr(word, lang)).color(colour));
+        ui.horizontal_wrapped(|ui| {
+            if ui.button(tr(Text::NodeAsk, lang)).clicked() {
+                self.s.bench.ask();
+            }
+            let held = self.s.bench.held();
+            if ui
+                .add_enabled(held, egui::Button::new(tr(Text::NodeAcknowledge, lang)))
+                .clicked()
+            {
+                self.s.bench.acknowledge();
+            }
+        });
+        let mut down = self.s.bench.nozzle_down;
+        if ui
+            .checkbox(&mut down, tr(Text::NodeNozzleDown, lang))
+            .changed()
+        {
+            self.s.bench.lower_nozzle(down);
+        }
+        let mut cut = self.s.bench.head_cut;
+        if ui.checkbox(&mut cut, tr(Text::NodeCut, lang)).changed() {
+            self.s.bench.cut_head(cut);
         }
     }
 

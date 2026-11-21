@@ -11,6 +11,7 @@ pub mod cmdpanel;
 pub mod docking;
 pub mod jobtab;
 pub mod log;
+pub mod nodeview;
 pub mod problems;
 pub mod queuetab;
 pub mod samples;

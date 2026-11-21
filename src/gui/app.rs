@@ -7,6 +7,7 @@ use super::browse::{self, Browser, Purpose};
 use super::cmdpanel::CommandBox;
 use super::jobtab::JobFilter;
 use super::log::{Level, Log};
+use super::nodeview::Bench;
 use super::problems::{self, Fix, Problem};
 use super::samples::SampleFile;
 use super::serverui::ServerUi;
@@ -174,6 +175,8 @@ pub struct AppState {
     pub server: ServerUi,
     /// The panels of the driver and the assistants: the arguments typed and what each command printed.
     pub commands: CommandBox,
+    /// The panels of the slots and of the nodes: the banks of feeders, a head node and a feeder node that are made up, and the holds on them.
+    pub bench: Bench,
     /// The files loaded since the window last took them, for the list of recent files of the File menu.
     pub recent_opened: Vec<PathBuf>,
     /// The paths of the files that were loaded, to keep an output from landing on an input.
@@ -215,6 +218,7 @@ impl AppState {
             tools: Toolbox::new(&crate::config::MachineConfig::default()),
             server: ServerUi::new(&crate::config::MachineConfig::default()),
             commands: CommandBox::default(),
+            bench: Bench::new(&crate::config::MachineConfig::default()),
             recent_opened: Vec::new(),
             paths: Vec::new(),
             config_path: None,
