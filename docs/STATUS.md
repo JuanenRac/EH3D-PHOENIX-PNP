@@ -35,13 +35,13 @@ The official state of each capability is in `REQUIREMENTS.md`. The register has 
 
 ## What it needs from other repositories
 
-* `EH3D-COMMON`: the client of the server, the panel of the settings of the server, the docking frame and the project container, as a sibling folder. The CI takes its main branch until the release that holds what a program does with its branch; the workflows are then pinned to that release.
+* `EH3D-COMMON`: the client of the server, the panel of the settings of the server, the docking frame and the project container, as a sibling folder. The workflows take its tag v0.3.4.
 * The vision program of the suite for a live camera; the nodes of the feeders and of the head, whose contracts this program follows, for anything that is not simulated: no real node has been asked.
 
 ## Known technical debt and omitted tests
 
 * The machine parts are separate pieces but not formal traits (see the first requirement of the register).
-* The reason (`why`) of an order that a node refuses with 409 and the token that stays after a `401` come from the common client at release 0.3.0 (`COMMON_REQUESTS.md`); they were tried only against nodes on a computer.
+* The reason (`why`) of an order that a node refuses with 409 and the token that stays after a `401` came with release 0.3.0 of the common client (`COMMON_REQUESTS.md`); they were tried only against nodes on a computer.
 * The answers of the controllers in the examples are written by hand, not captured; the import of the files of OpenPnP and the readers of the position files have not been tried with real files.
 * The drawing of the window is not covered by tests; the pictures of the README are taken by the program itself.
 * Tests that need a machine, a camera or a screen are not written: the register names each as `planned:` with the test that will show it.

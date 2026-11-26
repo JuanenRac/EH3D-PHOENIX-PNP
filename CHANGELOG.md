@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The shared repository is taken at its tag v0.3.4 and the pictures of the window are new:** the workflows build against the tag v0.3.4 of EH3D-COMMON; a manual workflow (Window pictures) takes the pictures of the README.
 - **The CI runs the tests of the window** (`cargo test --features gui`) on Linux and Windows.
 - **The panel «Attachments» reads its limits and takes dropped files:** `attachments.max_mb` and `viewer.max_*_mb` are read from `window.cfg` and kept when it is written, a file can be dropped on the panel while the files the window reads are still read, and the SHA-256 of a large file no longer stops the window.
 - **The register of requirements and the status page name the panel of the attachments.**
