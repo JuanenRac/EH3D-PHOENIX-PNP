@@ -316,11 +316,18 @@ pub struct PnpApp {
 
 impl PnpApp {
     pub fn new(ui: UiSettings, paths: &[PathBuf]) -> PnpApp {
+        let panel_limits = ui.panel_limits();
         let saved = ui.clone();
         let mut s = AppState::new(ui);
         if !paths.is_empty() {
             s.load_paths(paths);
         }
+        let mut attachments = AttachPanel::new(Program::new(
+            crate::eh3dfile::BRANCH,
+            env!("CARGO_PKG_VERSION"),
+        ))
+        .opens_projects();
+        attachments.set_limits(panel_limits);
         PnpApp {
             s,
             visuals_for: None,
@@ -334,11 +341,7 @@ impl PnpApp {
                 notice: String::new(),
                 made_by: None,
             },
-            attachments: AttachPanel::new(Program::new(
-                crate::eh3dfile::BRANCH,
-                env!("CARGO_PKG_VERSION"),
-            ))
-            .opens_projects(),
+            attachments,
         }
     }
 
@@ -3529,14 +3532,10 @@ impl PnpApp {
             apply_visuals(ctx, &theme.palette());
             self.visuals_for = Some(theme);
         }
-        let dropped: Vec<PathBuf> = ctx.input(|i| {
-            i.raw
-                .dropped_files
-                .iter()
-                .map(|f| f.path().to_path_buf())
-                .filter(|p| !p.as_os_str().is_empty())
-                .collect()
-        });
+        // a file dropped on the panel of the attachments is attached there
+        let dropped = self
+            .attachments
+            .take_drop(ctx, super::browse::opens_file);
         if !dropped.is_empty() {
             self.s.load_paths(&dropped);
         }

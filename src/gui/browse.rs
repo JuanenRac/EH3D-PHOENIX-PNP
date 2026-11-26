@@ -30,6 +30,14 @@ pub enum Purpose {
     Folder,
 }
 
+/// Whether a file is one the window reads when it is dropped on it: the panel of the attachments leaves those to the window.
+pub fn opens_file(path: &std::path::Path) -> bool {
+    path.file_name().is_some_and(|name| {
+        let name = name.to_string_lossy();
+        matches_extension(&name, &FILE_EXTENSIONS) || matches_extension(&name, &["mnt"])
+    })
+}
+
 /// Whether a file name ends in one of the extensions, without regard to case; with no extensions every name matches. A name that is only an extension (`.csv`) has none.
 pub fn matches_extension(name: &str, extensions: &[&str]) -> bool {
     if extensions.is_empty() {
