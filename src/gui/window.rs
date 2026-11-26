@@ -3627,6 +3627,13 @@ impl PnpApp {
     }
 }
 
+/// Brings the panel of a tab to the front of its group.
+fn show_tab(dock: &mut Dock, tab: Tab) {
+    let panel = docking::tab_panel(tab);
+    let _ = dock.apply(DockAction::ShowPanel(panel.to_string()));
+    docking::bring_forward(dock.core_mut().layout_mut(), panel);
+}
+
 /// The window: the state, the frame of panels that draws it and the menu bar.
 pub struct PnpWindow {
     app: Rc<RefCell<PnpApp>>,
@@ -3698,9 +3705,7 @@ impl eframe::App for PnpWindow {
             // the guide moves to the panel of a step, and a tab named on the command line comes forward
             if app.s.tab != self.seen_tab {
                 self.seen_tab = app.s.tab;
-                let panel = docking::tab_panel(app.s.tab);
-                let _ = self.dock.apply(DockAction::ShowPanel(panel.to_string()));
-                docking::bring_forward(self.dock.core_mut().layout_mut(), panel);
+                show_tab(&mut self.dock, app.s.tab);
             }
             for path in std::mem::take(&mut app.s.recent_opened) {
                 self.dock
@@ -3919,7 +3924,12 @@ pub fn run_shot(
                 frame: 0,
                 outcome: outcome_for_app,
             });
-            Ok(Box::new(PnpWindow::from_app(app)))
+            let mut window = PnpWindow::from_app(app);
+            // the window starts on the tab the state names, so a tab asked for has to be brought forward here
+            if let Some(tab) = view.0 {
+                show_tab(&mut window.dock, tab);
+            }
+            Ok(Box::new(window))
         }),
     )
     .map_err(|e| e.to_string())?;
@@ -3956,5 +3966,20 @@ pub fn take_picture(args: &[String]) -> u8 {
             eprintln!("error: the picture could not be taken: {e}");
             1
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A tab asked for comes to the front even when it is the one the state starts on, whose panel lies behind another one.
+    #[test]
+    fn a_tab_asked_for_comes_to_the_front_of_its_group() {
+        let mut window = PnpWindow::from_app(PnpApp::new(UiSettings::default(), &[]));
+        let job = docking::tab_panel(Tab::Job);
+        assert_ne!(window.dock.core().layout().active_of(job), Some(job));
+        show_tab(&mut window.dock, Tab::Job);
+        assert_eq!(window.dock.core().layout().active_of(job), Some(job));
     }
 }

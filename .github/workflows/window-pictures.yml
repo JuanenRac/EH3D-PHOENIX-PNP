@@ -54,7 +54,7 @@ jobs:
           out="$GITHUB_WORKSPACE/window-pictures"
           export HOME=/tmp/pictures/home XDG_CONFIG_HOME=/tmp/pictures/config
           mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$out"
-          shot() { xvfb-run -a -s "-screen 0 1920x1080x24" timeout 120 "$exe" gui "$@" --theme phoenix --wait 20 examples/board.pos examples/feeders.csv examples/machine.cfg; }
+          shot() { xvfb-run -a -s "-screen 0 1920x1080x24" timeout 120 "$exe" gui "$@" --theme phoenix --size 1400x900 --wait 20 examples/board.pos examples/feeders.csv examples/machine.cfg; }
           for lang in en es de fr it ja zh pt; do
             shot --shot "$out/job_$lang.png" --window job --steps 9 --lang "$lang"
             shot --shot "$out/machine_$lang.png" --window machine --lang "$lang"
