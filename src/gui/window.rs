@@ -3755,7 +3755,10 @@ pub fn run(paths: &[PathBuf]) -> eframe::Result {
         options,
         Box::new(move |cc| {
             install_fonts(&cc.egui_ctx);
-            Ok(Box::new(PnpWindow::new(ui_settings, &paths)))
+            let mut window = PnpWindow::new(ui_settings, &paths);
+            // the list of recent projects lives in the folder of the user
+            window.dock.keep_user_recent(eh3d_dock::about::Phoenix::Pnp);
+            Ok(Box::new(window))
         }),
     )
 }
