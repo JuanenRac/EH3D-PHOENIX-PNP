@@ -757,8 +757,7 @@ fn the_settings_are_written_and_read_back() {
             .collect(),
         dock: "dock.version = 1\ndock.current = 1\n".to_string(),
         command_timeout_s: 90,
-        panel: "attachments.max_mb = 8
-".to_string(),
+        panel: "attachments.max_mb = 8\n".to_string(),
     };
     assert_eq!(UiSettings::parse(&s.to_text()), s);
 }
