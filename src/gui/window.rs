@@ -440,7 +440,9 @@ impl PnpApp {
     fn path_bar(&mut self, ui: &mut egui::Ui) {
         let lang = self.s.lang();
         egui::Panel::top("paths").show(ui, |ui| {
-            ui.horizontal(|ui| {
+            // what does not fit goes to a further row, whole: no button is cut at the edge of the window
+            ui.horizontal_wrapped(|ui| {
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                 ui.label(tr(Text::Load, lang));
                 let width = (ui.available_width() - 640.0).max(120.0);
                 let r = ui.add(
@@ -3972,6 +3974,59 @@ pub fn take_picture(args: &[String]) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Draws in a screen of this size, with no window, and gives every text that was painted with its place and the part of the screen it could use.
+    fn painted(size: Vec2, mut draw: impl FnMut(&mut egui::Ui)) -> Vec<(String, Rect, Rect)> {
+        let ctx = egui::Context::default();
+        let screen = Rect::from_min_size(Pos2::ZERO, size);
+        let input = || egui::RawInput {
+            screen_rect: Some(screen),
+            ..Default::default()
+        };
+        // the first frames only measure
+        for _ in 0..3 {
+            ctx.run_ui(input(), &mut draw)
+                .drop_without_applying_deltas();
+        }
+        let out = ctx.run_ui(input(), &mut draw);
+        let texts = out
+            .shapes
+            .iter()
+            .filter_map(|c| match &c.shape {
+                egui::Shape::Text(t) => Some((
+                    t.galley.text().to_string(),
+                    c.shape.visual_bounding_rect(),
+                    c.clip_rect.intersect(screen),
+                )),
+                _ => None,
+            })
+            .collect();
+        out.drop_without_applying_deltas();
+        texts
+    }
+
+    /// The bar of the paths takes as many rows as it needs: its buttons are whole at every width and in every language.
+    #[test]
+    fn the_bar_of_the_paths_cuts_no_button_at_any_width() {
+        for lang in Lang::ALL {
+            let mut app = PnpApp::new(UiSettings::default(), &[]);
+            app.s.set_lang(lang);
+            for width in [700.0, 1000.0, 1280.0, 1400.0, 1520.0, 1640.0, 1920.0] {
+                let texts = painted(Vec2::new(width, 600.0), |ui| app.path_bar(ui));
+                for word in [Text::Browse, Text::Load, Text::OutFolder, Text::SaveFiles] {
+                    let label = tr(word, lang);
+                    let found: Vec<_> = texts.iter().filter(|t| t.0 == label).collect();
+                    assert!(!found.is_empty(), "{lang:?} {width}: {label} is not drawn");
+                    for (_, place, room) in found {
+                        assert!(
+                            room.expand(0.5).contains_rect(*place),
+                            "{lang:?} {width}: {label} is cut: {place:?} in {room:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     /// A tab asked for comes to the front even when it is the one the state starts on, whose panel lies behind another one.
     #[test]
