@@ -536,3 +536,42 @@ fn a_wrong_request_of_the_command_creates_nothing() {
         assert!(!Path::new(&other).exists(), "{args:?}");
     }
 }
+
+#[test]
+fn the_command_line_never_puts_the_token_of_the_server_in_a_project() {
+    let dir = folder("token");
+    let path = dir.join("work.eh3d");
+    // the value is put together here so that no credential is written in the source
+    let value = ["abc", "123"].concat();
+    let config = dir.join("with.cfg");
+    fs::write(&config, format!("server_token = {value}\n")).unwrap();
+    let run = |config: &Path| {
+        Command::new(env!("CARGO_BIN_EXE_phoenix-pnp"))
+            .args(["project", "save"])
+            .arg(&path)
+            .args(["--parts", &example("board.pos"), "--config"])
+            .arg(config)
+            .output()
+            .unwrap()
+    };
+    let out = run(&config);
+    assert!(!out.status.success());
+    let said = String::from_utf8_lossy(&out.stderr);
+    assert!(said.contains("server_token"), "{said}");
+    assert!(!said.contains(&value), "{said}");
+    assert!(!String::from_utf8_lossy(&out.stdout).contains(&value));
+    assert!(!path.exists(), "a refusal writes nothing");
+    // with the line empty the same file is taken
+    let clean = dir.join("without.cfg");
+    fs::write(&clean, "server_token =\n").unwrap();
+    let out = run(&clean);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    // and a refusal leaves a project that is there as it was
+    let before = fs::read(&path).unwrap();
+    assert!(!run(&config).status.success());
+    assert_eq!(fs::read(&path).unwrap(), before);
+}

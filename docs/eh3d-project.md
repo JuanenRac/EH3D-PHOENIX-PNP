@@ -13,6 +13,8 @@ An `.eh3d` file is the project of the EH3D Fabrication Suite: one ZIP file with 
 | `project open FILE.eh3d [--into DIR] [--config F]` | reads and checks `pnp/` (with the configuration kept in it, else the one given) and says what it holds; with `--into` writes its files |
 | `project extract FILE.eh3d BRANCH DIR` | writes the files of any branch, byte for byte |
 
+`save` refuses a settings file of `--config` that gives a value to `server_token` and writes nothing: a project is passed on and the token must not travel in it. Take the line out or save without `--config`. A project saved before with such a file should be looked at and the token changed.
+
 The exit code is 0 when all is well, 2 when something is out of date or wrong (`list` and `open`), and 1 when the command could not be run. A file that is there is never written over by `open` or `extract`. The project is replaced in one step (a temporary file, then a rename).
 
 Writing the branch removes a signature of the project, and a signature of `pnp/` when there is one; the command says so. These commands neither sign nor check signatures: `eh3d-project` of EH3D-COMMON does.
