@@ -568,3 +568,31 @@ fn the_files_that_are_loaded_are_listed_as_recent_files_in_the_file_menu() {
     again.load_config(&lines);
     assert_eq!(again.recent().items().len(), 2);
 }
+
+#[test]
+fn the_limits_of_the_attachments_are_kept_in_the_settings_of_the_window() {
+    let s = UiSettings::parse(
+        "attachments.max_mb = 16\nlanguage = es\nviewer.max_pdf_mb = 8\nviewer.max_text_mb = no\n",
+    );
+    let limits = s.panel_limits();
+    assert_eq!(limits.attachments.max_attachment_bytes, 16 << 20);
+    assert_eq!(limits.viewer.max_pdf_bytes, 8 << 20);
+    let back = UiSettings::parse(&s.to_text());
+    assert_eq!(back.panel, s.panel);
+    assert_eq!(back.panel_limits(), limits);
+    assert_eq!(UiSettings::default().panel_limits(), Default::default());
+}
+
+#[test]
+fn the_files_the_window_reads_are_told_apart_from_the_ones_of_the_attachments() {
+    use eh3d_phoenix_pnp::gui::browse::opens_file;
+    use std::path::Path;
+    for own in [
+        "a.pos", "a.CSV", "a.txt", "a.cfg", "a.json", "a.tsv", "a.mnt",
+    ] {
+        assert!(opens_file(Path::new(own)), "{own}");
+    }
+    for other in ["sheet.pdf", "photo.png", "a.eh3d", "noextension"] {
+        assert!(!opens_file(Path::new(other)), "{other}");
+    }
+}

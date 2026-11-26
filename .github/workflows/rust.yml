@@ -90,3 +90,7 @@ jobs:
       - name: Tests
         run: cargo test --all-targets
         working-directory: EH3D-PHOENIX-PNP
+      # the tests of the window draw it with no screen
+      - name: Tests of the window
+        run: cargo test --all-targets --features gui
+        working-directory: EH3D-PHOENIX-PNP

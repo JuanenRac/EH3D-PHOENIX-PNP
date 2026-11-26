@@ -43,6 +43,8 @@ pub struct UiSettings {
     pub col_widths: BTreeMap<String, u16>,
     /// The lines of the frame of panels (`dock.` keys: the workspaces, where each panel is, the shortcuts and the recent files), kept as the frame wrote them.
     pub dock: String,
+    /// The lines of the limits of the panel «Attachments» (`attachments.max_mb`, `viewer.max_*_mb`), kept as they were written.
+    pub panel: String,
     /// The seconds a command of the panels of the driver and the assistants may run before it is stopped.
     pub command_timeout_s: u16,
 }
@@ -51,6 +53,8 @@ pub struct UiSettings {
 pub const MAX_LINES: usize = 2000;
 /// The most bytes of the lines of the frame of panels that are kept.
 pub const MAX_DOCK_BYTES: usize = 262_144;
+/// The most bytes of the lines of the limits of the attachments that are kept.
+pub const MAX_PANEL_BYTES: usize = 4096;
 /// The shortest and the longest time a command may be given, and the one it starts with.
 pub const MIN_COMMAND_SECONDS: u16 = 5;
 pub const MAX_COMMAND_SECONDS: u16 = 600;
@@ -73,6 +77,7 @@ impl Default for UiSettings {
             browse_dir: String::new(),
             col_widths: BTreeMap::new(),
             dock: String::new(),
+            panel: String::new(),
             command_timeout_s: DEFAULT_COMMAND_SECONDS,
         }
     }
@@ -129,6 +134,13 @@ impl UiSettings {
                 continue;
             };
             let (k, v) = (k.trim().to_ascii_lowercase(), v.trim());
+            if eh3d_attachpanel::PanelLimits::is_key(&k) {
+                if s.panel.len() + t.len() < MAX_PANEL_BYTES && !t.chars().any(char::is_control) {
+                    s.panel.push_str(t);
+                    s.panel.push('\n');
+                }
+                continue;
+            }
             match k.as_str() {
                 "language" => {
                     if let Some(l) = Lang::from_code(v) {
@@ -178,6 +190,11 @@ impl UiSettings {
         s
     }
 
+    /// The limits of the panel of the attachments that the file gives; a value that is not valid keeps the default.
+    pub fn panel_limits(&self) -> eh3d_attachpanel::PanelLimits {
+        eh3d_attachpanel::PanelLimits::from_text(&self.panel)
+    }
+
     /// The widths of the columns of a table: the ones the person chose, and the default for those that were never changed.
     pub fn column_widths(&self, table: &str, defaults: &[f32]) -> Vec<f32> {
         defaults
@@ -211,7 +228,7 @@ impl UiSettings {
             widths.push_str(&format!("col_{k} = {w}\n"));
         }
         format!(
-            "# EH3D-PHOENIX-PNP window settings\nlanguage = {}\ntheme = {}\nlayer_parts = {}\nlayer_feeders = {}\nlayer_path = {}\nlayer_polarity = {}\nout_dir = {}\nguide_seen = {}\nbrowse_dir = {}\ncommand_timeout_s = {}\n{widths}{}",
+            "# EH3D-PHOENIX-PNP window settings\nlanguage = {}\ntheme = {}\nlayer_parts = {}\nlayer_feeders = {}\nlayer_path = {}\nlayer_polarity = {}\nout_dir = {}\nguide_seen = {}\nbrowse_dir = {}\ncommand_timeout_s = {}\n{widths}{}{}",
             self.lang.code(),
             self.theme.key(),
             word(self.layers.parts),
@@ -223,6 +240,7 @@ impl UiSettings {
             self.browse_dir,
             self.command_timeout_s,
             self.dock,
+            self.panel,
         )
     }
 }

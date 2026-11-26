@@ -24,7 +24,7 @@ A driver profile says whether the machine homes with end switches or without the
 
 ## Capabilities
 
-The official state of each capability is in `REQUIREMENTS.md`. The register has 171 requirements: 116 implemented, 33 prototype, 22 planned and 0 validated. By progress: 116 done, 33 partial, 16 pending and 6 blocked. This page never states a state that `REQUIREMENTS.md` does not.
+The official state of each capability is in `REQUIREMENTS.md`. The register has 173 requirements: 118 implemented, 33 prototype, 22 planned and 0 validated. By progress: 118 done, 33 partial, 16 pending and 6 blocked. This page never states a state that `REQUIREMENTS.md` does not.
 
 ## Open questions
 
