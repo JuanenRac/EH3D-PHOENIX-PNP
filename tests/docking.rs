@@ -587,7 +587,9 @@ fn the_limits_of_the_attachments_are_kept_in_the_settings_of_the_window() {
 fn the_files_the_window_reads_are_told_apart_from_the_ones_of_the_attachments() {
     use eh3d_phoenix_pnp::gui::browse::opens_file;
     use std::path::Path;
-    for own in ["a.pos", "a.CSV", "a.txt", "a.cfg", "a.json", "a.tsv", "a.mnt"] {
+    for own in [
+        "a.pos", "a.CSV", "a.txt", "a.cfg", "a.json", "a.tsv", "a.mnt",
+    ] {
         assert!(opens_file(Path::new(own)), "{own}");
     }
     for other in ["sheet.pdf", "photo.png", "a.eh3d", "noextension"] {

@@ -3533,9 +3533,7 @@ impl PnpApp {
             self.visuals_for = Some(theme);
         }
         // a file dropped on the panel of the attachments is attached there
-        let dropped = self
-            .attachments
-            .take_drop(ctx, super::browse::opens_file);
+        let dropped = self.attachments.take_drop(ctx, super::browse::opens_file);
         if !dropped.is_empty() {
             self.s.load_paths(&dropped);
         }
