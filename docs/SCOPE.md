@@ -33,7 +33,7 @@ It is for the assembly of boards and of their components. It is not a program fo
 * **It reads:** position files and tables on disk, its own settings file (`machine.cfg`), driver profiles, recipes and process files; and, when asked, the files of OpenPnP.
 * **It writes:** a plan (JSON), a load sheet, a report (text, HTML, CSV and JSON), the files for assembly houses and the state of a job; never over a file it was made from.
 * **It is read by:** the pick and place task of the EH3D server and the other programs of the suite through those files; programs exchange work through files or through the server, never by depending on each other.
-* **It depends on:** `EH3D-COMMON` for the client of the server, the panel of the settings of the server and the docking frame of the windows, built next to it as a sibling folder at version 0.3.4.
+* **It depends on:** `EH3D-COMMON` for the client of the server, the panel of the settings of the server and the docking frame of the windows, built next to it as a sibling folder at version 0.3.6.
 
 ## What it never decides
 

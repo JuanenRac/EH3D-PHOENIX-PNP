@@ -4,8 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **What the tag v0.3.6 of EH3D-COMMON brings to the window:** tabs that do not fit go to further rows with their whole name, the window About reads on the light theme, and saving a project keeps the compressed bytes of what did not change and checks the new file before it replaces the old one.
 - **A picture of a tab shows that tab:** `--shot` with `--window` brings the panel of the tab to the front of its group; the Job tab stayed behind the Machine panel since the window is made of panels.
-- **The shared repository is taken at its tag v0.3.4 and the pictures of the window are new:** the workflows build against the tag v0.3.4 of EH3D-COMMON; a manual workflow (Window pictures) takes the pictures of the README.
+- **The shared repository is taken at its tag v0.3.6 and the pictures of the window are new:** the workflows build against the tag v0.3.6 of EH3D-COMMON; a manual workflow (Window pictures) takes the pictures of the README.
 - **The CI runs the tests of the window** (`cargo test --features gui`) on Linux and Windows.
 - **The panel «Attachments» reads its limits and takes dropped files:** `attachments.max_mb` and `viewer.max_*_mb` are read from `window.cfg` and kept when it is written, a file can be dropped on the panel while the files the window reads are still read, and the SHA-256 of a large file no longer stops the window.
 - **The register of requirements and the status page name the panel of the attachments.**

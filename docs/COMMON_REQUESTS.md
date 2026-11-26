@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PNP: requests to the common client
 
-The link to the head node and to the feeder node goes through the common client of the suite (`eh3d-serverclient`, in `EH3D-COMMON`). This program does not change that crate. Two things that the earlier release did not give were asked for; both came with the release 0.3.0, and the program uses them as they are. The build and the CI are pinned to the tag v0.3.4 (`SIBLING_REFS` of the workflows).
+The link to the head node and to the feeder node goes through the common client of the suite (`eh3d-serverclient`, in `EH3D-COMMON`). This program does not change that crate. Two things that the earlier release did not give were asked for; both came with the release 0.3.0, and the program uses them as they are. The build and the CI are pinned to the tag v0.3.6 (`SIBLING_REFS` of the workflows).
 
 ## 1. The reason (`why`) of a refusal
 
