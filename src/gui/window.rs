@@ -38,6 +38,7 @@ use eframe::egui::{
     self, Align2, Color32, FontData, FontDefinitions, FontFamily, FontId, Pos2, Rect, RichText,
     Sense, Stroke, StrokeKind, Vec2,
 };
+use eh3d_attachpanel::{AttachPanel, Program};
 use eh3d_dock::gui::Dock;
 use eh3d_dock::menu::{Chosen, DockAction, MenuBar, StdAction};
 use std::cell::RefCell;
@@ -309,6 +310,8 @@ pub struct PnpApp {
     shot: Option<ShotState>,
     /// The tool and the result of the camera panel.
     camera_slot: ToolSlot,
+    /// The panel of the attachments of a project of the suite; the window has no project of its own, so the panel opens one.
+    attachments: AttachPanel,
 }
 
 impl PnpApp {
@@ -331,6 +334,11 @@ impl PnpApp {
                 notice: String::new(),
                 made_by: None,
             },
+            attachments: AttachPanel::new(Program::new(
+                crate::eh3dfile::BRANCH,
+                env!("CARGO_PKG_VERSION"),
+            ))
+            .opens_projects(),
         }
     }
 
@@ -609,6 +617,11 @@ impl PnpApp {
             docking::SLOTS => self.slots_panel(ui),
             docking::NODES => self.nodes_panel(ui),
             docking::CAMERA => self.camera_panel(ui),
+            docking::ATTACHMENTS => {
+                let code = self.s.lang().code();
+                // the window keeps nothing of the project, so nothing is read again after a write
+                self.attachments.show(ui, None, code);
+            }
             docking::MACHINE => {
                 egui::ScrollArea::vertical()
                     .id_salt("machine_scroll")
@@ -3590,6 +3603,10 @@ impl PnpApp {
                     SampleKind::Files => self.s.load_sample(&samples::examples()),
                     SampleKind::Large => self.s.load_sample(&samples::large(400)),
                 };
+            }
+            Cmd::SuiteOpen => {
+                self.attachments.choose_project();
+                return Some(docking::ATTACHMENTS);
             }
             Cmd::Plan => {
                 if self.s.ws.can_plan() {
