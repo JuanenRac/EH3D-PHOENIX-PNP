@@ -35,7 +35,7 @@ The official state of each capability is in `REQUIREMENTS.md`. The register has 
 
 ## What it needs from other repositories
 
-* `EH3D-COMMON`: the client of the server, the panel of the settings of the server, the docking frame and the project container, as a sibling folder. The workflows take its tag v0.3.4.
+* `EH3D-COMMON`: the client of the server, the panel of the settings of the server, the docking frame and the project container, as a sibling folder. The workflows take its tag v0.3.6.
 * The vision program of the suite for a live camera; the nodes of the feeders and of the head, whose contracts this program follows, for anything that is not simulated: no real node has been asked.
 
 ## Known technical debt and omitted tests
