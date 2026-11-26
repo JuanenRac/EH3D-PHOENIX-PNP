@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The register of requirements and the status page name the panel of the attachments.**
 - **A project of the suite in the window, for its attachments:** *File > Suite project (.eh3d)* opens a project and the new panel «Attachments» lists, attaches, links to a part, extracts and removes its data sheets, manuals and other files, with the viewer beside the list; dangerous and unknown files ask first and a settings file with `server_token` is not attached. The packages carry the PDF library (PDFium) and its licences.
 - **`project save --config` no longer puts the token of the server into a project (security):** a settings file that gives a value to `server_token` is refused, nothing is written and the value is not printed. A project is a file that is passed on; one saved before with such a file should be looked at and the token changed.
 - **The accents of the window are emerald, the colour of the program:** the selection, the active tab, links, coloured outlines and main buttons take it from the frame of the suite, with text that reads on every ground; panels and bars stay as they were.
