@@ -18,7 +18,7 @@
 
 ---
 
-**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 1955 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、プログラム自身が自分のウィンドウの画像（`--shot`）を撮りますが、人が画面で描画を確認してはいません。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
+**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 1965 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、プログラム自身が自分のウィンドウの画像（`--shot`）を撮りますが、人が画面で描画を確認してはいません。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | バージョン | `0.1.4` |
 | 成熟度 | 足場 |
-| テスト | 1955 |
+| テスト | 1965 |
 | 技術スタック | Rust |
 | 実機での動作 | 未試験：ここにあるものは機械で動かしたことがありません |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | コア | 🟡 | 基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップ）、最大6本のノズルを持つヘッドの配置順をランク、ノズルチップ、角度の制限、移動時間とともに計画し、パネルを計画し、搭載シートを書き出します。通常の入力と壊れた入力でコンピューター上でテスト済みですが、実際のファイル群ではありません。 |
 | コマンドライン | 🟡 | `phoenix-pnp` はライブラリと同じ関数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）を実行して結果を表示します。エラーはすべて `PHOENIX-PNP-NNN` のコード付きメッセージと0以外の終了コードで返ります。 |
-| テスト | 🟡 | 1955 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
+| テスト | 🟡 | 1965 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
 | 機械の設定 | 🟡 | バージョン付きの `キー = 値` ファイル、行を示す検証、安全限界（Z の行程、X と Y の限界、再試行、ノズルの角度）。値は実機とは比較していません。 |
 | シミュレーターとジョブ | 🟡 | 仮想時計、確率（シード付き）または指定した場所で注入する故障、再試行、警告と保留の方針、故障が続くと止まるフィーダー、一時停止、一手ずつの実行、再開用に保存する状態。模擬のみで、実機は動かしていません。 |
 | セキュリティ | 🟡 | 安全な Rust のみ（`forbid(unsafe_code)`）。受け取ったファイルでパニックせず、不正な値は理由付きのエラーになります。独立したレビューはありません。 |
@@ -160,6 +160,7 @@
 * **機械を安全な側にしか動かさない規則** (`src/safety.rs`, `examples/safety_events.txt`): 再試行、タイムアウト、拒否された移動の後は送り速度が下がり（`safety_careful_speed_pct`、次に `safety_slow_speed_pct`）、その後は機械が保持されます。求めた位置と違う位置や真空の喪失はすぐに保持し、コントローラのエラーは停止させます。良い応答では何も戻らず、保持された機械を戻せるのは人だけで、戻る先は低速までで通常には戻りません。`phoenix-pnp safety-replay EVENTS` はイベントのファイルを再生し、機械が保持または停止で終わると 2 で終了します。テストは 5 個までのすべてのイベント列と、乱数による 500 回の長い実行を試し、変更によって不具合後に加速するようになると失敗します。
 * **見て・動かし・また見る、真空、仮想基板** (`src/lookmove.rs`, `src/vacuumcal.rs`, `src/testboard.rs`, `src/cmd_import.rs`, `examples/vacuum_readings.csv`): `phoenix-pnp align-iterate` は仮想のカメラを相手に、小さな歩みでヘッドをマークへ運びます（`lml_max_step_mm` を超える歩みはなし。悪化した確認は歩みとゲインを恒久的に半分にし、2 回続くと停止、読めない確認は動かさずに停止）。`phoenix-pnp vacuum-calibrate READINGS` は部品あり・なしの測定値の差の内側に余裕を取って `vacuum_pick_min_kpa` と `vacuum_release_max_kpa` を提案し、重なる場合はそう伝えます。`phoenix-pnp test-board-gen grid|mixed|dense` はシードから作った基板とそのフィーダを書き出し、機械や設定の比較に使えます。
 * **他のプログラムのファイルの取り込み** (`src/xmlmini.rs`, `src/openpnp.rs`, `src/cmd_import.rs`, `examples/openpnp_machine.xml`, `examples/openpnp_package.xml`, `examples/openpnp_parts.xml`): `phoenix-pnp import-openpnp [--machine F] [--packages F] [--parts F] [--out-dir D]` は OpenPnP のパッケージ・部品・フィーダを、元ファイルには一切書き込まずに、単位をミリメートルにしてパッケージ表・部品表・フィーダ表へ読み込みます。XML リーダには上限があり（8 MiB、32 段、200000 要素。文書型は展開されないよう拒否）、パニックしません。対応できないもの（不明な単位、数値でない値、欠けた項目、重複した名前、ヘッド・カメラ・アクチュエータ）はファイル名と行番号付きで 8 言語で知らされ、使えない行は除外されます。例のファイルはテスト用に作ったものです。
+* **スイートのプロジェクト**（`src/eh3dfile.rs`、`src/cmd_project.rs`、`docs/eh3d-project.md`、`tests/eh3dfile.rs`）：`phoenix-pnp project list|save|import|open|take|extract` は、プログラムごとにブランチを持つ 1 つのファイルである `.eh3d` プロジェクトの `pnp/` ブランチに作業を保管します。`save` は部品表、BOM、フィーダー表、設定を格納し、`import` は座標ファイル、BOM、フィーダー表をバイト単位でそのまま保持して、読めた内容の報告を付けます。`take` は `pcb/` などの別ブランチからファイルをコピーし、元のハッシュと形式を記録するので、`list` と `open` は古くなったことを知らせます（終了コード 2）。書き込むのは `pnp/` だけで、他のブランチは未知のものも含めてバイトが変わりません。試したのは架空のプロジェクトのみです。
 * **案内付きの手作業モード** (`src/assist.rs`, `src/cmd_import.rs`, `examples/assist_answers.txt`): `phoenix-pnp assist PARTS [--feeders F] [--order reel|reference] [--out F] [--resume F]` は機械なしで基板を案内します。リールごとに、上面の次に下面、各部品のリール・位置・回転・向きの有無を示し、置いたら部品番号を入力し、正しいときだけ次へ進みます（`skip`、`back`、`quit` はその名の通りで、チェックリストは保存して読み直せます）。
 * **ドライバと取り込みのテスト** (`tests/textmatch.rs`, `tests/driver.rs`, `tests/safety.rs`, `tests/drivercli.rs`, `tests/lookmove.rs`, `tests/vacuumcal.rs`, `tests/openpnp.rs`, `tests/assist.rs`, `tests/importcli.rs`, `tests/textvalues.rs`): プロファイルとそのエラー（8 言語）、書き出す行、読み取る応答、すべての故障を入れたセッション、あらゆる短いイベント列に対する安全規則、あらゆる位置で切って固定シードで壊した取り込み、人が実行する通りの各新コマンド、そして数値に見える値がどの表でも文字のままであること。
 * **部品ごとの不良とリトライ** (`src/rejects.rs`, `src/retrypolicy.rs`, `src/cmd_shop.rs`, `examples/rejects.csv`, `examples/retry_rules.csv`)：`phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT]` はロットの不良部品を、理由（パレート図の順）、パッケージ、フィーダー、リファレンス別に示します。`phoenix-pnp retry-policy PARTS FEEDERS RULES` は、リファレンス・値・パッケージ・フィーダーに最初に合う規則のリトライを各部品に与え、良品基板になる確率を計算し、何にも合わない規則や働かない規則を知らせます。
@@ -449,7 +450,7 @@ cargo run --release --features gui
 
 ## 🧪 テスト
 
-テストは 1955 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
+テストは 1965 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
 
 ## 🏗️ ビルドとリリース
 
@@ -490,6 +491,7 @@ EH3D-PHOENIX-PNP/
 │   ├── cmd_import.rs                            コマンド import-openpnp、assist、align-iterate、vacuum-calibrate、test-board-gen
 │   ├── cmd_more.rs                              コマンド parts-diff、config-diff、board-stats、queue-stock、feeder-deplete、feeder-refill、job-diff
 │   ├── cmd_nodes.rs                             コマンド slot-bank、panel-compose、node-sim、table-revision（終了コード 2）
+│   ├── cmd_project.rs                           コマンド project：.eh3d プロジェクト内の作業
 │   ├── cmd_queue.rs                             ジョブキューのコマンド：追加、状態、確認、編集、実行
 │   ├── cmd_server.rs                            EH3Dサーバーと通信するコマンド：送信、リクエスト、状態、ジョブ、フィーダー、校正
 │   ├── cmd_shop.rs                              現場向けコマンド：記録、シフト、ヘッド、フットプリント、不良、費用、ロット
@@ -507,6 +509,7 @@ EH3D-PHOENIX-PNP/
 │   ├── drag.rs                                  スプロケット穴でテープを引くフィーダー：ストローク、1回で足りるピック数、テープのストローク数
 │   ├── driver.rs                                ドライバのセッション：タイムアウト、再試行、安全側の停止、不具合後は低速
 │   ├── drivertest.rs                            コントローラの記録した応答をプロファイルのパターンで確認する
+│   ├── eh3dfile.rs                              .eh3d プロジェクトの pnp ブランチ：保存、取り込み、取得、開く
 │   ├── equivalents.rs                           すでにフィーダーにある別の部品で代用できる部品と、節約できるリール
 │   ├── error.rs                                 エラーコード PHOENIX-PNP-NNN と8言語での意味
 │   ├── exchange.rs                              他のプログラム向けのジョブ JSON ファイル：計画と各部品の状態
@@ -662,6 +665,7 @@ EH3D-PHOENIX-PNP/
 │   ├── driver.rs                                ドライバのテスト：プロファイル、行、応答、Moonraker、模擬コントローラ、セッション
 │   ├── drivercli.rs                             driver-check、driver-test、driver-run、safety-replay、homing-repeat、bringup のテスト
 │   ├── encoding.rs                              ファイルの文字コードのテスト：UTF-8、UTF-16、Latin-1
+│   ├── eh3dfile.rs                              pnp ブランチのテスト：バイト保持、期限切れ、取り込み、破損
 │   ├── equivalent.rs                            同等部品のテスト：入れ替え、残りの部品、フィーダーの順序、拒否される表、コマンド
 │   ├── exchange.rs                              ジョブ交換ファイルのテスト：書き出し、読み込み、各拒否、コマンド
 │   ├── exitcodes.rs                             未達成のチェックの終了コード 2 をコマンドごとに確認するテスト
@@ -848,6 +852,7 @@ EH3D-PHOENIX-PNP/
 │   ├── SCOPE.md                                 目的、行わないこと、決して判断しないこと
 │   ├── STATUS.md                                存在するもの、足りないもの、未決のこと
 │   ├── structure.json                           構成図のデータ
+│   ├── eh3d-project.md                          .eh3d プロジェクトと pnp ブランチ
 │   └── windows-console.md                       Windows でウィンドウが独立したプログラムである理由
 ├── tools/                                       CI と README のチェック、図のツール
 ├── images/                                      バナー、アーキテクチャ・構成の図、ウィンドウの画像

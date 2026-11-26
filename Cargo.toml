@@ -35,6 +35,8 @@ eh3d-serverclient = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/serverc
 eh3d-view = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/view", default-features = false }
 # the frame of professional windows: panels that dock, float and fold, named workspaces and the menu bar (its drawing needs the feature gui)
 eh3d-dock = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/dock", default-features = false }
+# the `.eh3d` project of the suite, one file with a branch for each program: this program writes only `pnp/`
+eh3d-project = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/project" }
 serde_json = "1"
 eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts", "clipboard"], optional = true }
 # only to read the icon of the window
@@ -51,6 +53,10 @@ lto = true
 [profile.dev]
 # a lighter debug build: the file and line of a panic stay, the full debug symbols (the bulk of the target folder) do not
 debug = "line-tables-only"
+
+# only the tests build projects of other programs with the container itself
+[dev-dependencies]
+eh3d-container = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/container" }
 
 # the icon and the version information of the Windows executable (build.rs; nothing on other systems)
 [target.'cfg(windows)'.build-dependencies]

@@ -30,6 +30,7 @@ pub mod dfm;
 pub mod drag;
 pub mod driver;
 pub mod drivertest;
+pub mod eh3dfile;
 pub mod equivalents;
 pub mod error;
 pub mod exchange;

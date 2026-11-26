@@ -10,6 +10,7 @@ mod cmd_flow;
 mod cmd_import;
 mod cmd_more;
 mod cmd_nodes;
+mod cmd_project;
 mod cmd_queue;
 mod cmd_server;
 mod cmd_shop;
@@ -30,6 +31,7 @@ const HELP: &str = "phoenix-pnp: pick and place assembly
 
   phoenix-pnp [gui [FILES...]]                 the window, with the files loaded (built with --features gui; run with no command it opens too)
   phoenix-pnp gui [FILES...] --shot OUT.png [--size WxH] [--theme phoenix|light|contrast] [--wait N] [--lang CODE] [--window TAB] [--steps N] [--open FILE] [--replace]   a picture of the window with the files loaded, on the tab TAB (job, parts, packages, feeders, panels, boards, loadsheet, machine, problems or log) after N steps of the simulated job (built with --features gui)
+  phoenix-pnp project list|save|import|open|take|extract FILE.eh3d ...   the work kept in the branch pnp of an .eh3d project: save [--parts F] [--bom F] [--feeders F] [--config F]; import SOURCE --kind parts|bom|feeders [--format F] [--map M]; take BRANCH NAME [--kind K]; list [--json]; open [--into DIR]; extract BRANCH DIR; exits with 2 when something is out of date or wrong
   phoenix-pnp parts PARTS                      the parts of a position file (KiCad .pos or CSV) in millimetres
   phoenix-pnp check PARTS FEEDERS              which parts have no feeder and which feeders will run out
   phoenix-pnp plan PARTS FEEDERS OUT.json [--nozzles 2] [--side top|bottom] [--board-width MM] [--origin-x MM] [--speed MM_S] [--partial]
@@ -426,6 +428,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         "slot-bank" => cmd_nodes::slot_bank(args),
         "panel-compose" => cmd_nodes::panel_compose(args),
         "node-sim" => cmd_nodes::node_sim(args),
+        "project" => cmd_project::project(args),
         other => Err(format!("{other}: unknown command (see help)")),
     }
 }
