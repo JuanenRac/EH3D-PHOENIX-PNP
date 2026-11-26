@@ -3633,6 +3633,7 @@ impl PnpWindow {
         let shared = Rc::new(RefCell::new(app));
         let mut dock = Dock::new(docking::panel_defs(), docking::workspaces());
         dock.set_about(docking::about());
+        dock.set_brand(docking::about_brand());
         dock.load_config(&saved_layout);
         let ids: Vec<String> = docking::panel_defs().into_iter().map(|d| d.id).collect();
         for id in ids {
