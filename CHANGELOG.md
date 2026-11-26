@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The tables of a narrow panel cut no column in half:** the columns narrow down to the names in their heads; when they still do not fit, the first ones fill the panel and the rest are reached by moving the table sideways with the bar under it. Before, a column such as «X (mm)» of the parts or the feeder of the job was cut at the edge of a side panel and the ones past it could not be seen at all.
+- **The filter of the job and the bars of the narrow panels take further rows:** the filter field, the boxes and the buttons of the Job panel, and the bars of the parts, feeders and packages, are no longer cut.
+- **A field and its button stay on one row:** the folder of the results and its «Browse» button were parted when the bar of the paths took a second row; the group now moves down whole.
+- **The widths set for the columns of the packages are remembered:** the name under which they were kept was refused, so they were lost at every start.
 - **The bar of the paths takes a second row instead of cutting a button:** the button that saves the plan, the report and the load sheet was cut at the right edge in windows of about 1400 to 1640 points wide; what does not fit now goes to a further row, and a test draws the bar with no screen at several widths in the eight languages.
 
 ## [0.1.5] - Attached documents, the shared project and the program colour

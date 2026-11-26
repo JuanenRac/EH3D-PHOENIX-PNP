@@ -208,6 +208,11 @@ impl UiSettings {
             .collect()
     }
 
+    /// Whether the person has set the width of a column: such a column is not narrowed to make a table fit.
+    pub fn column_is_set(&self, table: &str, index: usize) -> bool {
+        self.col_widths.contains_key(&format!("{table}_{index}"))
+    }
+
     /// Remembers the width of a column, kept between `MIN_COLUMN` and `MAX_COLUMN`.
     pub fn set_column_width(&mut self, table: &str, index: usize, width: f32) {
         if !width.is_finite() {
