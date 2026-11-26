@@ -19,6 +19,7 @@ use eh3d_dock::shortcuts::Shortcut;
 use eh3d_dock::stdmenus::{edit_menu, file_menu, help_menu, view_menu, window_menu, HelpOptions};
 use eh3d_dock::texts::{DockText, Text8};
 use eh3d_dock::workspaces::Workspace;
+use eh3d_project::suitetext::S;
 
 /// The look of the window «About»: which program of the family this is and its own picture, drawn in a ring of its colour.
 pub fn about_brand() -> AboutBrand {
@@ -48,9 +49,21 @@ pub const PROBLEMS: &str = "problems";
 pub const SLOTS: &str = "slots";
 pub const NODES: &str = "nodes";
 
+/// The attachments of a project of the suite: data sheets, manuals and other files, with their viewer.
+pub const ATTACHMENTS: &str = eh3d_attachpanel::PANEL_ID;
+
 /// The panels the program adds to the sector's seven, in the order they are listed.
-pub const EXTRA_PANELS: [&str; 9] = [
-    GUIDE, PACKAGES, PANELS, BOARDS, LOAD_SHEET, TOOLS, PROBLEMS, SLOTS, NODES,
+pub const EXTRA_PANELS: [&str; 10] = [
+    GUIDE,
+    PACKAGES,
+    PANELS,
+    BOARDS,
+    LOAD_SHEET,
+    TOOLS,
+    PROBLEMS,
+    SLOTS,
+    NODES,
+    ATTACHMENTS,
 ];
 
 /// A word of the window in the eight languages of the frame (English, Spanish, Italian, German, French, Portuguese of Portugal, Chinese, Japanese).
@@ -104,6 +117,10 @@ pub fn panel_defs() -> Vec<PanelDef> {
     add(PROBLEMS, Text::TabProblems, "!", 240.0, 120.0);
     add(SLOTS, Text::SlotsPanel, "F", 280.0, 160.0);
     add(NODES, Text::NodesPanel, "H", 240.0, 160.0);
+    defs.push(eh3d_attachpanel::panel_def());
+    let mut add = |id: &str, word: Text, icon: &'static str, w: f32, h: f32| {
+        defs.push(PanelDef::new(id, text8(word)).icon(icon).min(w, h));
+    };
     for c in Command::ALL {
         add(c.panel_id(), c.title(), "", 280.0, 200.0);
     }
@@ -118,7 +135,15 @@ pub fn workspaces() -> Vec<Workspace> {
         Node::column(
             0.3,
             t(&[GUIDE]),
-            t(&[PARTS, FEEDERS, PACKAGES, PANELS, BOARDS, LOAD_SHEET]),
+            t(&[
+                PARTS,
+                FEEDERS,
+                PACKAGES,
+                PANELS,
+                BOARDS,
+                LOAD_SHEET,
+                ATTACHMENTS,
+            ]),
         ),
         Node::row(
             0.74,
@@ -167,6 +192,8 @@ pub enum SampleKind {
 pub enum Cmd {
     Std(StdAction),
     Sample(SampleKind),
+    /// Open a project file of the suite (`.eh3d`) to see its attachments.
+    SuiteOpen,
     Plan,
     Start,
     Pause,
@@ -182,6 +209,13 @@ impl From<StdAction> for Cmd {
 
 fn own(word: Text) -> Label {
     Label::Own(text8(word))
+}
+
+/// A word of the project of the suite as the text of the frame (English, Spanish, Italian, German, French, Portuguese, Chinese,
+/// Japanese).
+fn suite_word(word: S) -> Label {
+    let [en, es, de, fr, it, ja, zh, pt] = word.words();
+    Label::Own(Text8([en, es, it, de, fr, pt, zh, ja]))
 }
 
 /// The menu bar: File (with the samples), Edit, View (one entry for each panel), Tools (plan and run, and the panels of the driver and the assistants), Window (the workspaces) and Help.
@@ -209,6 +243,18 @@ pub fn menu_bar() -> MenuBar<Cmd> {
         .position(|i| matches!(i, Item::Generated(Gen::Recent)))
         .map_or(file.items.len(), |p| p + 1);
     file.items.insert(at, Item::Submenu(samples));
+    let suite = Menu::new("file.suite", suite_word(S::Menu))
+        .entry(Entry::app(
+            "file.suite.open",
+            suite_word(S::MenuOpen),
+            Cmd::SuiteOpen,
+        ))
+        .entry(Entry::dock(
+            "file.suite.attachments",
+            Label::Own(eh3d_attachpanel::panel_title()),
+            DockAction::ShowPanel(ATTACHMENTS.to_string()),
+        ));
+    file.items.insert(at + 1, Item::Submenu(suite));
 
     let mut commands = Menu::new("tools.commands", own(Text::CommandsMenu));
     for c in Command::ALL {

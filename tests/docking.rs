@@ -296,6 +296,32 @@ fn the_file_menu_holds_the_three_samples_and_the_actions_come_back_as_the_progra
 }
 
 #[test]
+fn the_file_menu_opens_a_project_of_the_suite_and_shows_its_attachments() {
+    let bar = menu_bar();
+    let c = core();
+    let built = bar.resolve(&c.menu_context());
+    let file = items(&built, "file");
+    let suite = file
+        .iter()
+        .find_map(|i| match &i.kind {
+            Kind::Submenu(sub) if i.id == "file.suite" => Some(sub),
+            _ => None,
+        })
+        .expect("the project of the suite");
+    let got: Vec<Option<&Chosen<Cmd>>> = suite.iter().map(|i| i.activate()).collect();
+    assert_eq!(
+        got,
+        [
+            Some(&Chosen::App(Cmd::SuiteOpen)),
+            Some(&Chosen::Dock(DockAction::ShowPanel(
+                "attachments".to_string()
+            ))),
+        ]
+    );
+    assert!(workspaces()[0].layout.is_shown("attachments"));
+}
+
+#[test]
 fn an_entry_that_is_off_gives_nothing_even_to_its_shortcut() {
     let bar = menu_bar();
     let c = core();

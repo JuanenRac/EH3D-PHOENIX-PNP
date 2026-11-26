@@ -11,7 +11,7 @@ readme = "README.md"
 [features]
 default = []
 # the window (egui through eframe); without it the program is the command line only
-gui = ["dep:eframe", "dep:png", "eh3d-view/gui", "eh3d-dock/gui"]
+gui = ["dep:eframe", "dep:png", "eh3d-view/gui", "eh3d-dock/gui", "eh3d-attachpanel/gui"]
 # the resolver of the common client for `_eh3d._tcp` on the local network (UDP, no more dependencies); with it off, `server-discover` says so and asks nothing of the network
 mdns = ["eh3d-serverclient/mdns"]
 [lib]
@@ -38,6 +38,8 @@ eh3d-dock = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/dock", default-
 # the `.eh3d` project of the suite, one file with a branch for each program: this program writes only `pnp/`
 eh3d-project = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/project" }
 serde_json = "1"
+# the panel of the attachments of a project, shared by the programs: list, attach, link to a part, extract with a question and the viewer beside
+eh3d-attachpanel = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/attachpanel" }
 eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts", "clipboard"], optional = true }
 # only to read the icon of the window
 png = { version = "0.17", optional = true }
