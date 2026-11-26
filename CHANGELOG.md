@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The bar of the paths takes a second row instead of cutting a button:** the button that saves the plan, the report and the load sheet was cut at the right edge in windows of about 1400 to 1640 points wide; what does not fit now goes to a further row, and a test draws the bar with no screen at several widths in the eight languages.
+
 ## [0.1.5] - Attached documents, the shared project and the program colour
 
 - **What the tag v0.3.6 of EH3D-COMMON brings to the window:** tabs that do not fit go to further rows with their whole name, the window About reads on the light theme, and saving a project keeps the compressed bytes of what did not change and checks the new file before it replaces the old one.
