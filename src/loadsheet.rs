@@ -182,11 +182,7 @@ pub fn assign_slots(needs: &[Need], slots: &[Slot], middle: (f64, f64)) -> LoadS
 }
 
 fn field(s: &str) -> String {
-    if s.contains([',', '"', '\n', '\r', ';']) {
-        format!("\"{}\"", s.replace('"', "\"\""))
-    } else {
-        s.to_string()
-    }
+    crate::parts::csv_field(s)
 }
 
 impl LoadSheet {

@@ -18,7 +18,7 @@
 
 ---
 
-**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 1942 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、プログラム自身が自分のウィンドウの画像（`--shot`）を撮りますが、人が画面で描画を確認してはいません。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
+**正直さの確認 - 現在実際に動くもの：** Rust のライブラリとコマンドラインプログラム（`phoenix-pnp`）で、コンピューター上で動く 1955 個のテストがあります。基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップに対応）、機械の設定をファイルから読み、最大6本のノズルを持つヘッドの配置順を計画し（ランク、ノズルチップ、角度の制限、移動時間、パネル）、搭載シートを書き出し、模擬機械で故障を注入しながら計画を一手ずつ実行します。ウィンドウ（`--features gui` でビルド）もあり、そのロジックは画面なしでテストされていますが、描画そのものはテストの対象外で、プログラム自身が自分のウィンドウの画像（`--shot`）を撮りますが、人が画面で描画を確認してはいません。機械は制御しません。実機では試しておらず、実際のファイル群での確認もしていません。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | バージョン | `0.1.4` |
 | 成熟度 | 足場 |
-| テスト | 1942 |
+| テスト | 1955 |
 | 技術スタック | Rust |
 | 実機での動作 | 未試験：ここにあるものは機械で動かしたことがありません |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | コア | 🟡 | 基板の位置ファイルを読み、各部品にフィーダーを割り当て（優先度、トレイ、ストリップ）、最大6本のノズルを持つヘッドの配置順をランク、ノズルチップ、角度の制限、移動時間とともに計画し、パネルを計画し、搭載シートを書き出します。通常の入力と壊れた入力でコンピューター上でテスト済みですが、実際のファイル群ではありません。 |
 | コマンドライン | 🟡 | `phoenix-pnp` はライブラリと同じ関数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）を実行して結果を表示します。エラーはすべて `PHOENIX-PNP-NNN` のコード付きメッセージと0以外の終了コードで返ります。 |
-| テスト | 🟡 | 1942 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
+| テスト | 🟡 | 1955 個のテストが通ります（`cargo test`）。通常のケース、境界のケース、壊れた入力、小さな生成ケースを含みます。 |
 | 機械の設定 | 🟡 | バージョン付きの `キー = 値` ファイル、行を示す検証、安全限界（Z の行程、X と Y の限界、再試行、ノズルの角度）。値は実機とは比較していません。 |
 | シミュレーターとジョブ | 🟡 | 仮想時計、確率（シード付き）または指定した場所で注入する故障、再試行、警告と保留の方針、故障が続くと止まるフィーダー、一時停止、一手ずつの実行、再開用に保存する状態。模擬のみで、実機は動かしていません。 |
 | セキュリティ | 🟡 | 安全な Rust のみ（`forbid(unsafe_code)`）。受け取ったファイルでパニックせず、不正な値は理由付きのエラーになります。独立したレビューはありません。 |
@@ -129,8 +129,9 @@
 * **新しいコマンドをツールタブのパネルに** (`src/gui/toolmore.rs`, `src/gui/toolbox.rs`)：部品の差分、設定の差分、基板の統計、キューの在庫、ジョブ後のフィーダー、ジョブの記録、リール交換、手作業の部品、ジョブの差分、フィーダーの配置、多数回の実行は、`parts-diff`、`config-diff`、`board-stats`、`queue-stock`、`feeder-deplete`、`simulate --journal`、`feeder-refill`、`aside-sheet`、`job-diff`、`feeder-slots`、`simulate-runs` と同じライブラリ関数を、8言語で、同じ拒否と同じエラーコードで使います。2つのテキストを別々のファイルから読むものがあり、保存状態が必要なツールは指定がなければジョブタブで進行中のジョブの状態を使い、結果はそれぞれ固有の名前（`parts_diff.csv`、`journal.csv`、`runs.csv` など）で出力フォルダに書き、既存のファイルや読み込んだファイルを上書きすることはありません。
 * **ツールタブのパネルを4つ追加** (`src/gui/toolmore.rs`, `src/gui/toolbox.rs`)：リールの持ち枚数、ノズル数の比較、問題のあるフィーダー、キューの段取り替えは、`reel-runway`、`nozzle-compare`、`simulate-hotspots`、`queue-changeover` と同じライブラリ関数を、8言語で、同じ拒否と同じエラーコードで使います。1つ目は必要な枚数を入力し（それより少ないリールに印）、2つ目は最大ノズル数、3つ目は実行回数パネルの回数と最初のシード、4つ目はキューのツールのキューファイルを使い、結果はそれぞれ固有の名前（`reel_runway.csv`、`nozzle_compare.csv`、`hotspots.csv`、`queue_changeover.csv`）で書き、既存のファイルや読み込んだファイルを上書きすることはありません。
 * **フォームの値は設定です** (`src/toolvalues.rs`, `src/config.rs`, `examples/machine.cfg`)：`parts-diff` の許容差（`parts_diff_tol_mm`：0〜100、`parts_diff_rot_tol_deg`：0〜180）、`board-stats` の距離と組数（`board_stats_near_mm`：0.01〜50、0 なら探索しない、`board_stats_limit`：1〜1000）、`feeder-slots` の計画数の上限（`feeder_slots_max_plans`：1〜1000000）、`simulate-runs` と `simulate-hotspots` の実行回数（`simulate_runs_count`：1〜10000）、記録パネルのステップ数（`journal_steps`：0〜1000000、0 ならジョブを最後まで実行）は `machine.cfg` のキーで、それぞれに範囲があり（範囲外の値は `PHOENIX-PNP-006` で拒否されます）、既定値はこれまでプログラムが持っていた値です。コマンドはオプションが無いときにこれらを使い、オプションのほうが優先されます。ツールタブのパネルはこれらの値で始まり、入力した値を最後に読み込んだファイルに保存するボタンがあります。変わるのはこれらのキーの行だけ（なければ末尾に追加）で、コメント、ほかの行、改行はそのまま、ファイルは隣に書いてから所定の場所へ移され、ファイルが拒否する値のときはファイルに触れません。
-* **EH3D サーバー** (`src/server.rs`, `src/cmd_server.rs`, `examples/machine.cfg`)：設定に `mode = server` と `server_address`、`server_token`、`server_machine` を書く（`server_timeout_s` 0.5〜120、`server_poll_ms` 50〜60000、`server_attempts` 1〜10。`mode` の既定は `local` で、そのときはサーバーと一切通信しません）と、`phoenix-pnp server-send PARTS FEEDERS` がフィーダー表と配置を EH3D サーバーの `pnp` 機械へそのキューのジョブとして送ります。`--start` でジョブを開始し、`--follow` で終わるまで追います。`server-status` は機械とそのフィーダーを表示し、`server-job ID --pause|--resume|--cancel` でジョブを保留・停止し、`server-request` は2つのリクエストを他のプログラム用の JSON ファイルとして書き出します。`--sim` はプラグインの規則を守るメモリ上のサーバーに対して実行し、トークンは決して表示されません（`config-diff` は `(set)` と表示）。試したのはそのサーバーとテスト内の小さなサーバーであり、実機ではありません：機械、フィーダー、ヘッドはサーバー側のものです。
+* **EH3D サーバー** (`src/server.rs`, `src/cmd_server.rs`, `examples/machine.cfg`)：設定に `mode = server` と `server_address`、`server_token`、`server_machine` を書く（`server_timeout_s` 0.5〜120、`server_poll_ms` 50〜60000、`server_attempts` 1〜10。`mode` の既定は `local` で、そのときはサーバーと一切通信しません）と、`phoenix-pnp server-send PARTS FEEDERS` がフィーダー表と配置を EH3D サーバーの `pnp` 機械へそのキューのジョブとして送ります。`--start` でジョブを開始し、`--follow` で終わるまで追います。`server-status` は機械とそのフィーダーを表示し、`server-job ID --pause|--resume|--cancel` でジョブを保留・停止し、`server-request` は2つのリクエストを他のプログラム用の JSON ファイルとして書き出します。`--sim` はプラグインの規則を守るメモリ上のサーバーに対して実行し、トークンは決して表示されません（`config-diff` は `(set)` と表示）。試したのはそのサーバーとテスト内の小さなサーバーであり、実機ではありません：機械、フィーダー、ヘッドはサーバー側のものです。サーバーのジョブは、サーバー自身が作ったハッシュで承認します。`server-status JOB` は `toolpath_sha256` と承認の有無を表示し、`server-job JOB --authorize HASH` はジョブを取得し直して、まだ同じジョブのときだけ承認します（違えば `stale_authorization`）。`server-job JOB --start --hash HASH` は開始時にそのハッシュを指定します。サーバーで `work_require_authorization` が有効な間は、承認のない開始は拒否され（`authorization_required`）、メッセージに使うコマンドが示されます。フィーダーの読み込みや校正も同様です。トークンには `jobs:authorize` の権限が必要で、`phoenix` テンプレートのプログラム用トークンは持てません。ウィンドウからの承認はまだできず、実際のサーバーに対しては試していません。
 * **共通クライアント経由の EH3D サーバー** (`src/server.rs`, `src/cmd_server.rs`, `Cargo.toml`)：接続は EH3D-COMMON の `eh3d-serverclient` です（ビルドには隣のフォルダーが必要）。ネットワークで失敗した要求は間隔を延ばして再試行し（`server_retries`、0〜5、既定は2。`POST` は二度送りません）、サーバーの拒否はコマンドの言語でそのコードどおりに伝え、`server_mdns`（オフ）だけがネットワークでサーバーを探すことを許します。`phoenix-pnp server-feeders [list | set SLOT PART COUNT | clear SLOT] [--sim] [--out F]` はジョブなしでサーバーのマシンのフィーダーを読み、変更します。`server-calibrate feeder|nozzle|camera TARGET [--offset X,Y]` はキャリブレーションのジョブを作ります（各軸5 mmまで。サーバーのマシンは今は何も測りません）。`server-send --dry-run` は、フィーダーから部品を取らずにジョブを通すようサーバーに頼みます。ツールタブの「サーバーのマシン」パネルも同じことを1行に1つずつ行います（`list`、`set`、`clear`、`calibrate`、`load`、`dry-run`）。メモリ上のサーバーとテスト内の小さなサーバーで試したもので、実機では試していません。
+* **書き出した表と表計算ソフト** (`src/parts.rs`, `tests/csvguard.rs`)：プログラムが書き出す CSV の表では、`=`、`+`、`-`、`@`、タブ、復帰で始まる文字列の先頭に引用符 `'` を付け、表計算ソフトが実行せず表示するようにします。負の数を含め、数値は変えません。プログラムが表を読み直すときに引用符を外すので、文字列は元のまま戻ります。ほかのプログラムがその表を読むと、引用符は文字列の一部に見えます。
 * **架空のカメラで試すカメラ校正** (`src/calibsim.rs`, `src/cmd_flow.rs`)：`phoenix-pnp camera-selftest [--points N] [--noise PX] [--field PX] [--seed S] [--tol MM] [--out F]` は設定のカメラ（`camera_*` キー）を仮想的に作り、シードから無作為に選んだ位置でマークを観測し、読み取りのノイズを加え、`camera-calibrate` と同じ方法でカメラをフィットして、見つかったカメラが作ったカメラから画像の格子上でどれだけずれているかを示します。機械がなくても、校正にどれだけの観測数とどれだけ小さいノイズが要るかが分かります。`--out` は `camera-calibrate` 用の観測を書き出します。誤差が `--tol`（既定 0.05 mm）を超えると終了コード 2 です。試すのはシミュレートしたカメラへのフィットで、実機ではありません。
 * **設定の出発点** (`src/template.rs`, `src/cmd_flow.rs`)：`phoenix-pnp machine-template [NAME] [--out F]` は、出発点となる短い設定ファイル（`desktop-1`、`desktop-2`、`dual-head`、`production-4`、`simulation`、`server`、そして文書化された `examples/machine.cfg` である `full`）を一覧・表示・書き出しします。どれも既定値と違う点だけを理由のコメント付きで示します。他の設定ファイルと同じリーダーで読み込まれ（テストが全部を読みます）、数値は実測ではなく、機械で調整するための出発点です。既存のファイルは上書きしません。
 * **各部品がどのロットから来たか** (`src/lottrace.rs`, `src/cmd_flow.rs`)：`phoenix-pnp lot-trace PARTS FEEDERS LOTS [--serial S] [--out F]` は、各部品を取るフィーダーと、フィーダーの中身を示す表 `feeder,lot[,reel][,date_code][,supplier]`（`examples/lots.csv`）を結び付けます。ロットごとに部品を並べた行、部品ごとの行を持つ CSV（先頭列に基板のシリアル）、部品を出すのにロットがないフィーダー、フィーダーを持たない部品、表にないフィーダーを挙げるロットを示します。部品にフィーダーがない、または部品を出すフィーダーにロットがないと終了コード 2 です。リールを読み取るわけではなく、表は作業者が入れたものを示します。
@@ -178,7 +179,7 @@
 * **ジョブ中のフックと、各ノズルの状態**（`src/hooks.rs`, `src/journal.rs`, `src/commands.rs`）：ジョブ終了時のイベントに加えて、ルールは `nozzle-before-pick`、`nozzle-after-pick`、`nozzle-before-place`、`nozzle-after-place`、`placement-complete` を指定でき、`simulate --hooks` はジョブの進行中に各ステップで通知します（同じシードなら同じ一覧、フックの上限はジョブ全体で数えます）。引数のデータに `{nozzle}`、`{step}`、`{nozzle_state}` が加わり、同じデータが最大 1024 バイトの JSON 1 行としてプログラムの入力に渡されます。ジャーナルには各ステップ後のノズルの状態を示す列 `nozzle_state`（`idle`、`picking`、`carrying`、`placing`）があります。
 * **順序、配線、パス**（`src/placeorder.rs`, `src/wiring.rs`, `src/pathid.rs`）：`placement_order = unit, height:desc, quantity:desc` は、単一の `order` の代わりに、キーのリスト（パネルのユニット、フィーダー、部品、高さ、面積、数量。それぞれ昇順または降順）で配置を並べます。`phoenix-pnp wiring-sheet PROFILE [--out F] [--svg F]` はドライバープロファイルを読み、何をどのピンにつなぐか（軸、ポンプ、ブロー弁、機械を安全にする行がそれぞれを解放するか）と空圧の図を書きます。ピンが読めない、ポンプまたは弁がない、2 つのアクチュエーターが同じピンを使う場合、終了コードは 2 です。キュー内のパスは名前の間を `/` で区切り、Windows の接頭辞と `..` を除いて保存され、同じファイルの 2 つの書き方は同一とみなされます。このプログラムが共通クライアントに求める内容は `docs/COMMON_REQUESTS.md` にあります。
 * **リミットスイッチなしの原点復帰、ファームウェアのダンプ、マシンの仕様シート、各ノズルの状態**（`src/gcodedriver.rs`, `src/fwdiff.rs`, `src/machsheet.rs`, `src/tower.rs`, `src/gui/jobtab.rs`, `examples/firmware_old.txt`）：ドライバープロファイルに `homing_mode = sensorless` と、X 用・Y 用の感度（`homing_sensitivity_x` と `homing_sensitivity_y`、-64〜255）、それを設定する行を書きます。これらは `home` の行より前に送られ、`homing-repeat` が感度を示して着地位置のばらつきを表示します。`phoenix-pnp fw-config-diff FIRST SECOND` は、2つのファームウェア設定ダンプ（`M503` の応答）を値ごとに比べ、`80` と `80.00` を同じとみなし、両方でファームウェアが違えば EEPROM のリセットを警告します（値が異なれば終了コード 2）。`phoenix-pnp machine-sheet` は、設定の5つの `spec_` 行が与えるテーブル、マシン、作業範囲、試した最小の部品、最高速度を表示します。誰も書いていない項目は8言語で「未測定」と表示され、数値は作りません。ジョブのレポートにもこのシートが載ります。ジョブタブは各ノズルの状態（待機中または部品を保持）を示し、`sim-tower` は緑でない各ライトの横にノズルとその状態を示します。共通クライアントを通して、ノードへのリンクは拒否の `why` をノードが書いたとおりに返し、固定トークンを保持します。すべてシミュレーターでのみ試しています。
-* **ジョブのフィンガープリント、Klipper のファイル、反った基板、同等部品、ドラッグフィーダー、キューの順序**（`src/toolpath.rs`, `src/heightmap.rs`, `src/equivalents.rs`, `src/drag.rs`, `src/cmd_extra.rs`, `src/fwdiff.rs`, `src/queue.rs`）：`phoenix-pnp toolpath-hash PARTS FEEDERS PROFILE` はドライバプロファイルがジョブ全体に出す行を書き出して SHA-256 を表示します（同じ計画なら常に同じ値、位置を1000分の1ミリ動かすと別の値）。`--expect HASH` は行が見たものと違えば 2 で終了します。サーバーが作るフィンガープリントではありません。`fw-config-diff` は Klipper コントローラの設定（`[セクション]` と `キー: 値` の行、マクロは1つの値、`SAVE_CONFIG` が保存した値は上のファイルより優先）も読み、Marlin のダンプとは比較しません。`phoenix-pnp height-map GRID --parts PARTS` は完全なグリッドで測った高さを読み、基板の反り（`heightmap_max_warp_mm`）と各実装の高さの変化を双線形補間で示します。グリッド外の位置には補正がありません。`phoenix-pnp equivalents PARTS FEEDERS GROUPS` はフィーダーのない部品を、同等の部品を持ち残りが最も多いフィーダーに回し、節約できるリール数を示します。`phoenix-pnp drag-plan FEEDERS` は各ストリップについて、穴（`drag_hole_pitch_mm`）とポケットの整数倍になる最短のストローク、それで足りるピック数（最大 `drag_max_picks_per_stroke`）、テープのストローク数を示します。`queue-edit キュー 名前 up|down|top|bottom` は実行中・完了済みの位置を保ったままジョブの順序を動かし、ウィンドウにも2つのボタンがあります。新しい4つのコマンドにはそれぞれパネルがあります（合計15）。手書きのファイルとシミュレートされたコントローラで試したもので、実機では試していません。
+* **ジョブのフィンガープリント、Klipper のファイル、反った基板、同等部品、ドラッグフィーダー、キューの順序**（`src/toolpath.rs`, `src/heightmap.rs`, `src/equivalents.rs`, `src/drag.rs`, `src/cmd_extra.rs`, `src/fwdiff.rs`, `src/queue.rs`）：`phoenix-pnp toolpath-hash PARTS FEEDERS PROFILE` はドライバプロファイルがジョブ全体に出す行を書き出して SHA-256 を表示します（同じ計画なら常に同じ値、位置を1000分の1ミリ動かすと別の値）。`--expect HASH` は行が見たものと違えば 2 で終了します。これは `lines_sha256` を表示するローカルな確認にすぎず、サーバーのジョブを承認することはありません。`fw-config-diff` は Klipper コントローラの設定（`[セクション]` と `キー: 値` の行、マクロは1つの値、`SAVE_CONFIG` が保存した値は上のファイルより優先）も読み、Marlin のダンプとは比較しません。`phoenix-pnp height-map GRID --parts PARTS` は完全なグリッドで測った高さを読み、基板の反り（`heightmap_max_warp_mm`）と各実装の高さの変化を双線形補間で示します。グリッド外の位置には補正がありません。`phoenix-pnp equivalents PARTS FEEDERS GROUPS` はフィーダーのない部品を、同等の部品を持ち残りが最も多いフィーダーに回し、節約できるリール数を示します。`phoenix-pnp drag-plan FEEDERS` は各ストリップについて、穴（`drag_hole_pitch_mm`）とポケットの整数倍になる最短のストローク、それで足りるピック数（最大 `drag_max_picks_per_stroke`）、テープのストローク数を示します。`queue-edit キュー 名前 up|down|top|bottom` は実行中・完了済みの位置を保ったままジョブの順序を動かし、ウィンドウにも2つのボタンがあります。新しい4つのコマンドにはそれぞれパネルがあります（合計15）。手書きのファイルとシミュレートされたコントローラで試したもので、実機では試していません。
 
 ## 🧩 EH3D での役割
 
@@ -266,7 +267,7 @@ phoenix-pnp parts-diff FIRST SECOND [--tol MM] [--rot-tol DEG] [--out F] 2つの
 phoenix-pnp config-diff FIRST SECOND                       2つの設定ファイルで意味が異なる項目（yes と on、5 と 5.0 は同じ。機械が異なれば 2 で終了）
 phoenix-pnp fw-config-diff FIRST SECOND                    2つのファームウェア設定ダンプ（M503 の応答）で異なる値。ファームウェアが変わったら EEPROM のリセットを警告（値が異なれば 2 で終了）
 phoenix-pnp machine-sheet [--config F]                     設定から作るマシンの仕様シート。誰も測っていない項目はそう表示
-phoenix-pnp toolpath-hash PARTS FEEDERS PROFILE [--expect HASH] ドライバプロファイルがジョブ全体に書き出す行の SHA-256。--expect で、見た行と違えば 2 で終了
+phoenix-pnp toolpath-hash PARTS FEEDERS PROFILE [--expect HASH] ドライバプロファイルがジョブ全体に書き出す行の SHA-256（lines_sha256）。何も承認しないローカルな確認。--expect で、見た行と違えば 2 で終了
 phoenix-pnp height-map GRID [--parts PARTS] [--zero X,Y] [--out F] 測定した高さのグリッドから基板の反りと各実装の高さの変化を出す（反りが大きい、または部品がグリッド外なら 2 で終了）
 phoenix-pnp equivalents PARTS FEEDERS GROUPS [--out F]     フィーダーのない部品を、同等の部品を持ち残りのあるフィーダーに回し、節約できるリールを示す（フィーダーのない部品が残れば 2 で終了）
 phoenix-pnp drag-plan FEEDERS [--out F]                    各ストリップのドラッグフィーダーのストローク（穴とポケットの整数倍）、1回のピック数、テープのストローク数（引けないものがあれば 2 で終了）
@@ -283,8 +284,8 @@ phoenix-pnp nozzle-compare PARTS FEEDERS [--max N] [--out F]  ヘッドのノズ
 phoenix-pnp simulate-hotspots PARTS FEEDERS [--runs N] [--seed S] [--out F]  多数回のシミュレーションで問題を起こすフィーダー：ピック失敗、停止、取り置き（あれば終了コード 2）
 phoenix-pnp queue-changeover QUEUE [--out F]  キューのジョブの間でフィーダーに必要な変更：交換、装着、そのままのリール（交換が必要なら終了コード 2）
 phoenix-pnp server-send PARTS FEEDERS [--start] [--follow] [--dry-run] [--sim]  mode = server のとき、フィーダーと配置をジョブとして EH3D サーバーに送ります。--follow でジョブを追います（完了しなければ終了コード 2）
-phoenix-pnp server-status [JOB]  サーバー上の機械（状態と保持しているフィーダー）、またはジョブの進み具合
-phoenix-pnp server-job ID --start|--pause|--resume|--cancel  サーバーのジョブに操作を指示し、その状態を表示
+phoenix-pnp server-status [JOB]  サーバー上の機械（状態と保持しているフィーダー）、またはジョブの進み具合、ハッシュと承認の有無
+phoenix-pnp server-job ID --authorize HASH|--start [--hash HASH]|--pause|--resume|--cancel  サーバーのハッシュでジョブを承認するか操作を指示し、その状態を表示
 phoenix-pnp server-feeders [list | set SLOT PART COUNT | clear SLOT]  サーバーのマシンのフィーダー、またはスロット1つの登録・補充・空にする操作（部品のないフィーダーがあると終了コード 2）
 phoenix-pnp server-calibrate feeder|nozzle|camera TARGET [--offset X,Y]  サーバーのマシンでキャリブレーションのジョブを開始して追跡（正常に終わらないと終了コード 2）
 phoenix-pnp server-request PARTS FEEDERS --out DIR  server-send が送る2つのリクエスト（feeders.json、place.json）を他のプログラム用に書き出す
@@ -448,7 +449,7 @@ cargo run --release --features gui
 
 ## 🧪 テスト
 
-テストは 1942 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
+テストは 1955 個あります（`cargo test`、CI の Windows と Linux で実行）。通常のケース、境界のケース、壊れた入力を確認します。空のファイル、ゴミ、途中で切れたファイルでパニックは起きません。固定シードから作る小さな生成ケース（実行のたびに同じ数値になります）で、計画がファイルの順序に依存しないこと、経路が決して長くならないこと、どこで保存して再開してもまったく止まらなかったジョブと同じ結果になること、長さと角度が行き来して変換できることを確認します。CI は `cargo fmt --check`、警告をエラーとする `cargo clippy`、`python -I tools/ci_validate.py` も実行します。
 
 ## 🏗️ ビルドとリリース
 
@@ -654,6 +655,7 @@ EH3D-PHOENIX-PNP/
 │   ├── compare.rs                               順序比較のテスト：最速、テキスト、助言、コマンド
 │   ├── configdiff.rs                            設定の差分のテスト：同じ意味、既定値、リスト
 │   ├── deplete.rs                               ジョブ後のフィーダー表のテスト：個数、ストリップ、トレイ、コマンド
+│   ├── csvguard.rs                              数式対策をした書き出し表のテスト：危険な文字列の往復、数値は不変
 │   ├── dfm.rs                                   組立チェックとステンシルのテスト：各ルール、8言語
 │   ├── docking.rs                               ドッキングフレームのテスト：パネル、配置、メニュー、保存した配置、ショートカット
 │   ├── drag.rs                                  ドラッグフィーダーのテスト：ストローク、1回のピック、拒否されるピッチ、固定シードのピッチ、コマンド

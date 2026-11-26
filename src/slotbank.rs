@@ -446,7 +446,7 @@ impl Layout {
         for e in rows {
             out.push_str(&format!(
                 "{},{},{},{},{},{}\n",
-                e.id,
+                crate::parts::csv_field(&e.id),
                 e.bank.name(),
                 e.first,
                 e.tape_mm,

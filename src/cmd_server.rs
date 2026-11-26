@@ -140,6 +140,7 @@ pub fn server_send(mut args: Vec<String>) -> Result<(), String> {
         .file_stem()
         .map_or_else(|| "board".to_string(), |s| s.to_string_lossy().into_owned());
     let job = r.create(&name, &made.request)?;
+    let hash_line = job.authorization_text(r.lang);
     println!(
         "job {} prepared: {} placements on {}{}",
         job.id,
@@ -151,6 +152,7 @@ pub fn server_send(mut args: Vec<String>) -> Result<(), String> {
             ""
         }
     );
+    println!("{hash_line}");
     if !start {
         println!(
             "it waits, queued, until it is started (server-job {} --start)",
@@ -266,7 +268,9 @@ pub fn server_status(mut args: Vec<String>) -> Result<(), String> {
     let t = target(&cfg, false)?;
     let mut r = remote(&t, false, lang)?;
     if let Some(id) = args.first() {
-        println!("{}", r.job(id)?.line());
+        let job = r.job(id)?;
+        println!("{}", job.line());
+        println!("{}", job.authorization_text(r.lang));
         return Ok(());
     }
     let m = r.machine()?;
@@ -283,9 +287,13 @@ pub fn server_status(mut args: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
-/// `server-job ID --start | --pause | --resume | --cancel`: tells a job of the server what to do and prints how it stands.
+/// `server-job ID --authorize HASH | --start [--hash HASH] | --pause | --resume | --cancel`: tells a job of the server what to do and prints how it stands. `--authorize` takes the hash of
+/// the server that `server-status ID` shows (never the one of `toolpath-hash`): the job is asked for again and nothing is authorised when it is no longer that one. `--start --hash`
+/// names the hash with the start.
 pub fn server_job(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
+    let authorize = flag(&mut args, "--authorize")?;
+    let named = flag(&mut args, "--hash")?;
     let mut orders = Vec::new();
     for (word, order) in [
         ("--start", Order::Start),
@@ -299,12 +307,29 @@ pub fn server_job(mut args: Vec<String>) -> Result<(), String> {
     }
     finish(&args, 1)?;
     let id = args.first().ok_or("server-job needs the id of a job")?;
-    let [order] = orders.as_slice() else {
-        return Err("say one of --start, --pause, --resume or --cancel".into());
+    let order = match (authorize.is_some(), orders.as_slice()) {
+        (true, []) => None,
+        (false, [order]) => Some(*order),
+        _ => {
+            return Err(
+                "say one of --authorize HASH, --start, --pause, --resume or --cancel".into(),
+            )
+        }
     };
+    if named.is_some() && order != Some(Order::Start) {
+        return Err("--hash goes with --start".into());
+    }
     let t = target(&cfg, false)?;
     let mut r = remote(&t, false, lang)?;
-    println!("{}", r.order(id, *order)?.line());
+    let job = match order {
+        None => r.authorize(id, authorize.as_deref().unwrap_or(""))?,
+        Some(Order::Start) => r.start(id, named.as_deref())?,
+        Some(other) => r.order(id, other)?,
+    };
+    println!("{}", job.line());
+    if order.is_none() {
+        println!("{}", job.authorization_text(r.lang));
+    }
     Ok(())
 }
 

@@ -2466,6 +2466,19 @@
           }
         },
         {
+          "name": "csvguard.rs",
+          "desc": {
+            "en": "tests of the exported tables against formulas: hostile texts there and back, numbers untouched",
+            "es": "pruebas de las tablas exportadas frente a las fórmulas: textos hostiles de ida y vuelta, números intactos",
+            "de": "Tests der exportierten Tabellen gegen Formeln: feindliche Texte hin und zurück, Zahlen unverändert",
+            "fr": "tests des tables exportées face aux formules : textes hostiles aller et retour, nombres intacts",
+            "it": "test delle tabelle esportate contro le formule: testi ostili andata e ritorno, numeri intatti",
+            "ja": "数式対策をした書き出し表のテスト：危険な文字列の往復、数値は不変",
+            "zh": "针对公式的导出表格测试：恶意文本往返，数字不变",
+            "pt": "testes das tabelas exportadas contra fórmulas: textos hostis de ida e volta, números intactos"
+          }
+        },
+        {
           "name": "dfm.rs",
           "desc": {
             "en": "tests of the checks for assembly and of the paste stencil: every rule, eight languages",

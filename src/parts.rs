@@ -1,6 +1,7 @@
 //! The position file of a board: KiCad `.pos` (text with columns) or a CSV table from any CAD program. Positions come out in millimetres.
 
 use crate::error::{Code, PnpError};
+use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
@@ -157,12 +158,63 @@ pub fn bottom_table(parts: &[Part], current: BottomRotation) -> String {
     out
 }
 
-/// A field of a CSV as it is written: in quotes, with the quotes doubled, when it holds a delimiter, a quote or a line break.
+/// Whether a text is only numbers: one number (`-5`, `+3.3`, `1e-3`) or several with commas between them (a place, `-3.000,2.000`). A spreadsheet reads these as figures and has nothing
+/// to run in them.
+fn only_numbers(text: &str) -> bool {
+    fn digits(s: &str) -> bool {
+        !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
+    }
+    fn number(s: &str) -> bool {
+        let s = s.strip_prefix(['+', '-']).unwrap_or(s);
+        let (mantissa, exponent) = match s.split_once(['e', 'E']) {
+            Some((m, e)) => (m, Some(e.strip_prefix(['+', '-']).unwrap_or(e))),
+            None => (s, None),
+        };
+        let (whole, part) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+        (digits(whole) || (whole.is_empty() && digits(part)))
+            && (part.is_empty() || digits(part))
+            && exponent.is_none_or(digits)
+    }
+    text.split(',')
+        .enumerate()
+        .all(|(i, s)| number(if i == 0 { s } else { s.trim_start_matches(' ') }))
+}
+
+/// Whether a spreadsheet could take a text cell for a formula: past any single quotes in front, it starts with `=`, `+`, `-`, `@`, a tab or a return and is more than blank space and
+/// more than numbers.
+fn starts_like_a_formula(text: &str) -> bool {
+    let core = text.trim_start_matches('\'');
+    core.starts_with(['=', '+', '-', '@', '\t', '\r'])
+        && !core.trim().is_empty()
+        && !only_numbers(core.trim_end())
+}
+
+/// A text as a cell of an exported table: one that a spreadsheet could take for a formula gets a single quote in front, so that it is shown and not run. Numbers, negative ones too, stay
+/// as they are. `formula_unguard` takes the quote off again, whatever the text was.
+pub fn formula_guard(text: &str) -> Cow<'_, str> {
+    if starts_like_a_formula(text) {
+        Cow::Owned(format!("'{text}"))
+    } else {
+        Cow::Borrowed(text)
+    }
+}
+
+/// A cell of a table that is read back: the quote that `formula_guard` put in front is taken off; any other text is left as it is.
+pub fn formula_unguard(cell: &str) -> &str {
+    match cell.strip_prefix('\'') {
+        Some(rest) if starts_like_a_formula(rest) => rest,
+        _ => cell,
+    }
+}
+
+/// A text field of a CSV as it is written: guarded against being taken for a formula (see `formula_guard`) and in quotes, with the quotes doubled, when it holds a delimiter, a quote or
+/// a line break.
 pub fn csv_field(text: &str) -> String {
+    let text = formula_guard(text);
     if text.contains([',', ';', '"', '\n', '\r']) {
         format!("\"{}\"", text.replace('"', "\"\""))
     } else {
-        text.to_string()
+        text.into_owned()
     }
 }
 
@@ -205,8 +257,14 @@ pub fn detect_delimiter(head_line: &str) -> char {
     }
 }
 
+/// A field as it was read, ready to be kept.
+fn cell_of(raw: &str) -> String {
+    formula_unguard(raw.trim()).to_string()
+}
+
 /// The records of a table, one reader for the parts and for the feeders: fields split by `delim`, a field in double quotes may hold the delimiter, a doubled quote and a line break,
-/// an empty row is left out, and every field is trimmed. A quote that is opened and never closed is an error.
+/// an empty row is left out, every field is trimmed and the quote that an export put in front of a text that starts like a formula is taken off (see `formula_unguard`). A quote that is opened
+/// and never closed is an error.
 pub fn read_records(text: &str, delim: char) -> Result<Vec<Vec<String>>, String> {
     read_records_numbered(text, delim)
         .map(|rows| rows.into_iter().map(|(_, record)| record).collect())
@@ -239,9 +297,9 @@ pub fn read_records_numbered(text: &str, delim: char) -> Result<NumberedRecords,
         } else if c == '"' && field.is_empty() {
             quoted = true;
         } else if c == delim {
-            record.push(std::mem::take(&mut field).trim().to_string());
+            record.push(cell_of(&std::mem::take(&mut field)));
         } else if c == '\n' {
-            record.push(std::mem::take(&mut field).trim().to_string());
+            record.push(cell_of(&std::mem::take(&mut field)));
             let row = std::mem::take(&mut record);
             if !(row.len() == 1 && row[0].is_empty()) {
                 records.push((start, row));
@@ -255,7 +313,7 @@ pub fn read_records_numbered(text: &str, delim: char) -> Result<NumberedRecords,
         return Err((start, "a quote is opened and never closed".into()));
     }
     if !field.is_empty() || !record.is_empty() {
-        record.push(field.trim().to_string());
+        record.push(cell_of(&field));
         if !(record.len() == 1 && record[0].is_empty()) {
             records.push((start, record));
         }

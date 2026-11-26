@@ -304,6 +304,7 @@ pub fn parse_measured(text: &str) -> Result<Vec<(String, f64, f64)>, PnpError> {
 pub fn measured_csv(marks: &[(String, f64, f64)]) -> String {
     let mut out = String::from("id,x,y\n");
     for (id, x, y) in marks {
+        let id = crate::parts::csv_field(id);
         out.push_str(&format!("{id},{x},{y}\n"));
     }
     out

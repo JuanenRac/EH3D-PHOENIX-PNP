@@ -9,6 +9,10 @@
 //! server by their code in eight languages, a token that is never printed), and [`SimServer`] is a server in memory that keeps the same rules for the requests (the slots, the names, the
 //! stock, the bed, the dry run, the calibrations) so that everything can be tried without a network. What the real plugin does with a job on a real machine has not been tried: the
 //! requests follow its documented contract and the simulated server follows the requests.
+//!
+//! A job is authorised with the hash that the server made of it (`toolpath_sha256` of the job, from the plugin, the machine and the request as the server holds it): this program asks
+//! the server for it, shows it, and authorises and starts with that very text. It never works it out itself, and the fingerprint of the lines of `toolpath` is another number that is
+//! never sent here.
 
 use crate::config::MachineConfig;
 use crate::feeding::FeederSpec;
@@ -373,6 +377,48 @@ pub fn error_text(status: u16, body: &Value) -> String {
     }
 }
 
+/// The place of a language in a row of eight texts (en, es, de, fr, it, ja, zh, pt).
+fn lang_index(lang: sc::Lang) -> usize {
+    match lang {
+        sc::Lang::En => 0,
+        sc::Lang::Es => 1,
+        sc::Lang::De => 2,
+        sc::Lang::Fr => 3,
+        sc::Lang::It => 4,
+        sc::Lang::Ja => 5,
+        sc::Lang::Zh => 6,
+        sc::Lang::Pt => 7,
+    }
+}
+
+/// The text of the refusals of the authorization of a job, for the codes `stale_authorization` and `authorization_required`.
+pub fn authorization_refusal(code: &str, lang: sc::Lang) -> Option<&'static str> {
+    let row: [&'static str; 8] = match code {
+        "stale_authorization" => [
+            "the job of the server is not the one that was shown: look at it again before authorising it",
+            "el trabajo del servidor no es el que se mostró: vuelve a mirarlo antes de autorizarlo",
+            "der Auftrag auf dem Server ist nicht der gezeigte: vor dem Genehmigen erneut ansehen",
+            "le travail du serveur n'est pas celui qui a été montré : regardez-le de nouveau avant de l'autoriser",
+            "il lavoro del server non è quello mostrato: riguardarlo prima di autorizzarlo",
+            "サーバーのジョブは表示されたものと違います。承認する前にもう一度確認してください",
+            "服务器上的作业与所显示的不一致：授权前请重新查看",
+            "o trabalho do servidor não é o que foi mostrado: volte a vê-lo antes de o autorizar",
+        ],
+        "authorization_required" => [
+            "the server wants the job authorised before it starts",
+            "el servidor quiere que el trabajo se autorice antes de arrancar",
+            "der Server verlangt vor dem Start die Genehmigung des Auftrags",
+            "le serveur exige que le travail soit autorisé avant de démarrer",
+            "il server vuole che il lavoro sia autorizzato prima di partire",
+            "サーバーは開始前にジョブの承認を求めています",
+            "服务器要求作业启动前先授权",
+            "o servidor exige que o trabalho seja autorizado antes de arrancar",
+        ],
+        _ => return None,
+    };
+    Some(row[lang_index(lang)])
+}
+
 /// A name for the server: the characters it allows (letters, digits and `extra`), the others turned into `_`, at most `max` long.
 pub fn label(text: &str, max: usize, extra: &str) -> String {
     let mut out: String = text
@@ -533,6 +579,23 @@ pub struct JobInfo {
     pub done: u64,
     pub total: u64,
     pub message: String,
+    /// The hash the server made of what the job will do (64 lower case hexadecimal digits); empty when the server gives none or gives something else.
+    pub toolpath_sha256: String,
+    /// The hash that somebody authorised, and who; empty while nobody has.
+    pub authorized_sha256: String,
+    pub authorized_by: String,
+}
+
+/// Whether a text is a hash as the server writes it or a person types it: 64 hexadecimal digits.
+pub fn is_server_hash(text: &str) -> bool {
+    text.len() == 64 && text.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+/// A hash of an answer of the server, in lower case; empty when it is not one.
+fn server_hash(v: &Value) -> String {
+    v.as_str()
+        .filter(|h| is_server_hash(h))
+        .map_or_else(String::new, str::to_ascii_lowercase)
 }
 
 impl JobInfo {
@@ -543,7 +606,66 @@ impl JobInfo {
             done: v["done"].as_u64().unwrap_or(0),
             total: v["total"].as_u64().unwrap_or(0),
             message: v["message"].as_str().unwrap_or("").to_string(),
+            toolpath_sha256: server_hash(&v["toolpath_sha256"]),
+            authorized_sha256: server_hash(&v["authorization"]["toolpath_sha256"]),
+            authorized_by: v["authorization"]["by"]
+                .as_str()
+                .unwrap_or("")
+                .chars()
+                .filter(|c| !c.is_control())
+                .take(80)
+                .collect(),
         }
+    }
+
+    /// Whether the job has an authorization of the hash it has now.
+    pub fn authorized(&self) -> bool {
+        !self.toolpath_sha256.is_empty() && self.authorized_sha256 == self.toolpath_sha256
+    }
+
+    /// The hash of the server and who authorised it, in the language of the command.
+    pub fn authorization_text(&self, lang: sc::Lang) -> String {
+        if self.toolpath_sha256.is_empty() {
+            let none: [&str; 8] = [
+                "the server gives no hash for this job, so it cannot be authorised",
+                "el servidor no da huella de este trabajo, así que no se puede autorizar",
+                "der Server nennt keinen Hash dieses Auftrags, er kann nicht genehmigt werden",
+                "le serveur ne donne pas d'empreinte pour ce travail : il ne peut pas être autorisé",
+                "il server non dà l'impronta di questo lavoro: non si può autorizzare",
+                "サーバーがこのジョブのハッシュを返さないため、承認できません",
+                "服务器没有给出该作业的哈希，无法授权",
+                "o servidor não dá a impressão deste trabalho, por isso não pode ser autorizado",
+            ];
+            return none[lang_index(lang)].to_string();
+        }
+        let who: [&str; 8] = if self.authorized() {
+            [
+                "authorised by {by}",
+                "autorizado por {by}",
+                "genehmigt von {by}",
+                "autorisé par {by}",
+                "autorizzato da {by}",
+                "{by} が承認済み",
+                "已由 {by} 授权",
+                "autorizado por {by}",
+            ]
+        } else {
+            [
+                "not authorised",
+                "sin autorizar",
+                "nicht genehmigt",
+                "non autorisé",
+                "non autorizzato",
+                "未承認",
+                "未授权",
+                "não autorizado",
+            ]
+        };
+        format!(
+            "toolpath_sha256 (server): {}, {}",
+            self.toolpath_sha256,
+            who[lang_index(lang)].replace("{by}", &self.authorized_by)
+        )
     }
 
     pub fn finished(&self) -> bool {
@@ -656,15 +778,6 @@ fn whole_u32(v: &Value) -> u32 {
     v.as_u64().and_then(|n| u32::try_from(n).ok()).unwrap_or(0)
 }
 
-/// A text of the server as a cell of a spreadsheet: one that starts like a formula (`=`, `+`, `-`, `@`, a tab or a return) gets a quote in front, so that it is shown as text and not run.
-fn sheet_text(text: &str) -> String {
-    if text.starts_with(['=', '+', '-', '@', '\t', '\r']) {
-        format!("'{text}")
-    } else {
-        text.to_string()
-    }
-}
-
 impl FeederTable {
     pub fn from_json(v: &Value) -> FeederTable {
         let number = |f: &Value, k: &str| f[k].as_f64().unwrap_or(0.0);
@@ -743,7 +856,7 @@ impl FeederTable {
             out.push_str(&format!(
                 "{},{},{},{:.3},{:.3},{:.3},{:.3}\n",
                 f.slot,
-                crate::parts::csv_field(&sheet_text(&f.part)),
+                crate::parts::csv_field(&f.part),
                 f.count,
                 f.x_mm,
                 f.y_mm,
@@ -874,6 +987,12 @@ impl<T: Transport> Remote<T> {
     /// What a refusal says: the code and the detail of the server and, when the language is not English and the code is one the server has, the text of the code in that language first.
     pub fn refusal(&self, status: u16, body: &Value) -> String {
         let line = error_text(status, body);
+        if let Some(text) = body["error"]
+            .as_str()
+            .and_then(|c| authorization_refusal(c, self.lang))
+        {
+            return format!("{text} [{line}]");
+        }
         match body["error"].as_str() {
             Some(code) if self.lang != sc::Lang::En && sc::lookup(code).is_some() => {
                 format!("{} [{line}]", sc::text_for(code, self.lang))
@@ -978,9 +1097,67 @@ impl<T: Transport> Remote<T> {
     }
 
     pub fn order(&mut self, id: &str, what: Order) -> Result<JobInfo, String> {
+        if what == Order::Start {
+            return self.start(id, None);
+        }
         let id = checked_id(id)?;
         let path = format!("/api/v1/work/jobs/{id}/{}", what.word());
         Ok(JobInfo::from_json(&self.ok("POST", &path, None)?))
+    }
+
+    /// Starts a job. With `shown`, the hash of the server that the person saw goes with the start, and the server refuses it (`stale_authorization`) when the job is not that one. When the
+    /// server wants an authorization first, the refusal says how to give it and with which hash.
+    pub fn start(&mut self, id: &str, shown: Option<&str>) -> Result<JobInfo, String> {
+        let id = checked_id(id)?;
+        let body = match shown {
+            Some(h) => Some(json!({"toolpath_sha256": checked_hash(h)?})),
+            None => None,
+        };
+        let path = format!("/api/v1/work/jobs/{id}/start");
+        let mut last = String::new();
+        for _ in 0..self.attempts.max(1) {
+            match self.transport.call("POST", &path, body.as_ref()) {
+                Ok((200 | 201, v)) => return Ok(JobInfo::from_json(&v)),
+                Ok((status, v)) => {
+                    let mut why = self.refusal(status, &v);
+                    if v["error"].as_str() == Some("authorization_required") {
+                        if let Ok(job) = self.job(id) {
+                            why.push_str(&format!(
+                                "\n{}\nserver-job {id} --authorize {}\nserver-job {id} --start --hash {}",
+                                job.authorization_text(self.lang),
+                                job.toolpath_sha256,
+                                job.toolpath_sha256
+                            ));
+                        }
+                    }
+                    return Err(why);
+                }
+                Err(e) => last = e,
+            }
+        }
+        Err(last)
+    }
+
+    /// Authorises a queued job with the hash that was shown to the person. The job is asked for first: when the hash of the server is no longer the one shown, nothing is authorised; the
+    /// server checks it again, so a job that changes in between is refused there too. The text that is sent is the one that was shown, never one read after it.
+    pub fn authorize(&mut self, id: &str, shown: &str) -> Result<JobInfo, String> {
+        let shown = checked_hash(shown)?;
+        let now = self.job(id)?;
+        if now.toolpath_sha256 != shown {
+            let why = json!({"error": "stale_authorization"});
+            return Err(format!(
+                "{}\n{}",
+                self.refusal(409, &why),
+                now.authorization_text(self.lang)
+            ));
+        }
+        let id = checked_id(id)?;
+        let body = json!({"toolpath_sha256": shown});
+        Ok(JobInfo::from_json(&self.ok(
+            "POST",
+            &format!("/api/v1/work/jobs/{id}/authorize"),
+            Some(&body),
+        )?))
     }
 
     /// Asks for the job until it is over or `max_polls` answers were got; `seen` gets every answer and `wait` is called between two. Returns the last answer.
@@ -1001,6 +1178,15 @@ impl<T: Transport> Remote<T> {
             polls += 1;
         }
         Ok(last)
+    }
+}
+
+fn checked_hash(text: &str) -> Result<String, String> {
+    let text = text.trim();
+    if is_server_hash(text) {
+        Ok(text.to_ascii_lowercase())
+    } else {
+        Err("the hash of a job is the 64 hexadecimal digits that the server shows".into())
     }
 }
 
@@ -1047,6 +1233,15 @@ struct SimJob {
     total: u64,
     message: String,
     work: Work,
+    /// The hash of the job and the one somebody authorised.
+    hash: String,
+    authorized: Option<String>,
+}
+
+/// The hash the server in memory gives a job: SHA-256 of the plugin, the machine and the request with the keys of every object in order. It stands for the one of the server; this
+/// program only ever copies it from the answers.
+fn sim_hash(machine: &str, request: &Value) -> String {
+    crate::sha256::sha256_hex(format!("pnp\0{machine}\0{request}").as_bytes())
 }
 
 impl SimJob {
@@ -1057,6 +1252,8 @@ impl SimJob {
             "percent": JobInfo::from_json(&json!({"done": self.done, "total": self.total})).percent(),
             "message": self.message,
             "dry_run": matches!(self.work, Work::Place { dry: true, .. }),
+            "toolpath_sha256": self.hash,
+            "authorization": self.authorized.as_ref().map(|h| json!({"by": "sim", "at": 0, "toolpath_sha256": h})),
         })
     }
 }
@@ -1074,6 +1271,10 @@ pub struct SimServer {
     pub steps_per_read: u64,
     /// The requests that came in, `METHOD path`, in order.
     pub log: Vec<String>,
+    /// Whether a job starts only with an authorization of its hash (`work_require_authorization` of the server; off by default).
+    pub require_authorization: bool,
+    /// Whether the token of the program carries the scope `jobs:authorize` (a token of the template `phoenix` never does).
+    pub may_authorize: bool,
     refuse: Option<(u16, Value)>,
     drop_calls: u32,
 }
@@ -1091,9 +1292,69 @@ impl SimServer {
             next: 1,
             steps_per_read: 1,
             log: Vec::new(),
+            require_authorization: false,
+            may_authorize: true,
             refuse: None,
             drop_calls: 0,
         }
+    }
+
+    /// The job is changed behind the back of the program: it keeps its id and gets another hash, and an authorization of the old one is no longer of it. The real server makes the hash
+    /// once; this stands for a job that is not the one that was shown.
+    pub fn change_job(&mut self, id: &str) -> bool {
+        match self.find(id) {
+            Some(at) => {
+                let old = self.jobs[at].hash.clone();
+                self.jobs[at].hash = crate::sha256::sha256_hex(format!("changed {old}").as_bytes());
+                true
+            }
+            None => false,
+        }
+    }
+
+    fn authorize(&mut self, at: usize, body: Option<&Value>) -> Result<(u16, Value), String> {
+        if !self.may_authorize {
+            return Self::error(
+                403,
+                "forbidden_scope",
+                "the token does not carry the scope jobs:authorize",
+            );
+        }
+        let hash = body.and_then(|b| b["toolpath_sha256"].as_str());
+        let Some(hash) = hash.filter(|h| is_server_hash(h)) else {
+            return Self::error(
+                400,
+                "bad_request",
+                "toolpath_sha256 is 64 hexadecimal digits",
+            );
+        };
+        if self.jobs[at].state != "queued" {
+            return Self::error(409, "not_ready", "");
+        }
+        if !self.jobs[at].hash.eq_ignore_ascii_case(hash) {
+            return Self::error(409, "stale_authorization", "");
+        }
+        self.jobs[at].authorized = Some(self.jobs[at].hash.clone());
+        Ok((200, self.jobs[at].view()))
+    }
+
+    /// What stands in the way of a start: a hash named by the start that is not the one of the job, or the authorization that is wanted and not there.
+    fn start_refusal(&self, at: usize, body: Option<&Value>) -> Option<&'static str> {
+        let job = &self.jobs[at];
+        if job.state != "queued" {
+            return None;
+        }
+        if let Some(h) = body.and_then(|b| b["toolpath_sha256"].as_str()) {
+            if !job.hash.eq_ignore_ascii_case(h)
+                || job.authorized.as_ref().is_some_and(|a| *a != job.hash)
+            {
+                return Some("stale_authorization");
+            }
+        }
+        if self.require_authorization && job.authorized.as_ref() != Some(&job.hash) {
+            return Some("authorization_required");
+        }
+        None
     }
 
     /// The next request is answered with this status and body (a refusal such as 401).
@@ -1305,6 +1566,8 @@ impl SimServer {
             total,
             message: String::new(),
             work,
+            hash: sim_hash(machine, request),
+            authorized: None,
         };
         let view = job.view();
         self.jobs.push(job);
@@ -1524,7 +1787,11 @@ impl Transport for SimServer {
                     return Self::error(404, "unknown_job", id);
                 };
                 match *what {
-                    "start" => Ok(self.start(at)),
+                    "authorize" => self.authorize(at, body),
+                    "start" => match self.start_refusal(at, body) {
+                        Some(code) => Self::error(409, code, ""),
+                        None => Ok(self.start(at)),
+                    },
                     "pause" if self.jobs[at].state == "running" => {
                         self.jobs[at].state = "paused";
                         Ok((200, self.jobs[at].view()))
