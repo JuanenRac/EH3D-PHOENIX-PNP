@@ -19,6 +19,10 @@ The exit code is 0 when all is well, 2 when something is out of date or wrong (`
 
 Writing the branch removes a signature of the project, and a signature of `pnp/` when there is one; the command says so. These commands neither sign nor check signatures: `eh3d-project` of EH3D-COMMON does.
 
+## Attachments
+
+The panel «Attachments» of the window (View, or File > Suite project) is the shared panel `eh3d-attachpanel` of EH3D-COMMON (its guide is `docs/ATTACHMENTS_PANEL.md` there). The window has no other project menu: *File > Suite project (.eh3d) > Open suite project...* (or the button of the panel) chooses the project, and the window saves none of its work there; the commands `phoenix-pnp project` do that. It writes only the branch `attachments/`; the branch `pnp/` and the others keep their bytes. A write that removes a signature is asked about first. Dangerous files and kinds the suite does not know are extracted or opened only after a confirmation, programs and scripts are never opened, nothing is downloaded, and a settings file that holds `server_token` is not attached. PDF pages need the PDF library beside the program, which the packages carry with its licences; a build from source gets it with `python ../EH3D-COMMON/tools/fetch_pdfium.py --out target/release`.
+
 ## What is in the branch
 
 ```

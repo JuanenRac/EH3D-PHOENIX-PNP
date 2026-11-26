@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 1966 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 1967 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.1.4` |
 | 成熟度 | 脚手架 |
-| 测试 | 1966 |
+| 测试 | 1967 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
 | 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 1966 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 测试 | 🟡 | 1967 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -161,6 +161,7 @@
 * **看、移动、再看，真空与虚拟电路板** (`src/lookmove.rs`, `src/vacuumcal.rs`, `src/testboard.rs`, `src/cmd_import.rs`, `examples/vacuum_readings.csv`): `phoenix-pnp align-iterate` 对着虚拟相机，以小步把头部带到标记处（没有超过 `lml_max_step_mm` 的步；变差的一次查看会把步长和增益永久减半，连续两次则停止，读不出的查看则不移动就停止）；`phoenix-pnp vacuum-calibrate READINGS` 在有元件和无元件读数之间的间隔内留出余量，给出 `vacuum_pick_min_kpa` 和 `vacuum_release_max_kpa` 的建议，读数重叠时会说明；`phoenix-pnp test-board-gen grid|mixed|dense` 写出由种子生成的电路板及其供料器，用来比较机器和设置。
 * **导入其他程序的文件** (`src/xmlmini.rs`, `src/openpnp.rs`, `src/cmd_import.rs`, `examples/openpnp_machine.xml`, `examples/openpnp_package.xml`, `examples/openpnp_parts.xml`): `phoenix-pnp import-openpnp [--machine F] [--packages F] [--parts F] [--out-dir D]` 只读取、绝不写入 OpenPnP 的封装、元件和供料器，把它们转成封装表、元件表和供料器表，单位统一为毫米。XML 读取器有上限（8 MiB、32 层、200000 个元素；拒绝文档类型，以免展开任何内容），并且不会 panic；无法映射的内容（未知单位、不是数字的值、缺失的字段、重复的名称、头部、相机和执行器）会用八种语言带文件和行号说明，无法使用的行会被略过。示例文件是为测试编写的。
 * **套件工程**（`src/eh3dfile.rs`、`src/cmd_project.rs`、`docs/eh3d-project.md`、`tests/eh3dfile.rs`）：`phoenix-pnp project list|save|import|open|take|extract` 将工作保存在 `.eh3d` 工程的 `pnp/` 分支中（一个文件，每个程序一个分支）：`save` 放入元件表、物料清单、供料器表和配置；`import` 逐字节保留坐标文件、物料清单或供料器表，并附带已读取内容的报告；`take` 从其他分支（如 `pcb/`）复制文件，记录来源的哈希和格式，当来源变化时 `list` 和 `open` 会提示已过期（退出码 2）。只写入 `pnp/`：其他分支（无论是否认识）字节保持不变。目前只用虚构的工程测试过。
+* **项目附件**（“附件”面板，EH3D-COMMON 的 `eh3d-attachpanel` crate）：“文件 > 套件项目 (.eh3d)”（或面板中的按钮）打开项目；窗口不在其中保存工作，只写入附件。保存在 `.eh3d` 项目中的数据手册、说明书和任何其他文件可以列出、添加（文件或仅链接）、关联到元件、经询问后提取和移除，并在列表旁显示（PDF 页面、图片、文本以及办公文档的文字）。程序、脚本、含宏的文件、压缩包、HTML、SVG 和未知类型在离开项目前都会询问；程序和脚本绝不会被打开，不会下载任何内容，含服务器令牌的设置文件不会被添加。安装包带有 PDF 库（PDFium）及其许可证。尚无人在屏幕上试用过。
 * **引导式手工模式** (`src/assist.rs`, `src/cmd_import.rs`, `examples/assist_answers.txt`): `phoenix-pnp assist PARTS [--feeders F] [--order reel|reference] [--out F] [--resume F]` 在没有机器的情况下引导人走完一块板：一次一个料盘，先顶面后底面，每个元件显示料盘、位置、旋转和是否有方向；人放好后输入位号，只有位号正确才继续（`skip`、`back` 和 `quit` 如其名，清单可以保存并重新读取）。
 * **驱动与导入的测试** (`tests/textmatch.rs`, `tests/driver.rs`, `tests/safety.rs`, `tests/drivercli.rs`, `tests/lookmove.rs`, `tests/vacuumcal.rs`, `tests/openpnp.rs`, `tests/assist.rs`, `tests/importcli.rs`, `tests/textvalues.rs`): 配置档及其八种语言的错误、它写出的行、它读取的应答、带各种故障的会话、对每个短事件序列的安全规则、在每个位置截断并用固定种子破坏的导入、人实际运行的每个新命令，以及看起来像数字的值在每个表里仍是文本。
 * **按元件统计不良与重试** (`src/rejects.rs`, `src/retrypolicy.rs`, `src/cmd_shop.rs`, `examples/rejects.csv`, `examples/retry_rules.csv`)：`phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT]` 按原因（帕累托图顺序）、封装、供料器和位号给出一批的不良元件；`phoenix-pnp retry-policy PARTS FEEDERS RULES` 为每个元件取第一条匹配其位号、数值、封装或供料器的规则中的重试次数，计算得到良品板的概率，并指出不匹配任何元件或从不起作用的规则。
@@ -450,7 +451,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 1966 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 1967 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
