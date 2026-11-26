@@ -2,7 +2,7 @@
 
 This register is the single source of the state of each capability: `STATUS.md`, the README files and the capability matrix of the documentation hub cite it and never state a state that it does not. A state is one of `planned`, `prototype`, `implemented` and `validated`. `validated` means that a person has run the capability on a real machine and the evidence of the manifest says `bench` or `field`; nothing here is validated, because nothing of this program has moved a real machine.
 
-The register has 169 requirements: 114 implemented, 33 prototype, 22 planned and 0 validated. By progress: 114 done, 33 partial, 16 pending and 6 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
+The register has 170 requirements: 115 implemented, 33 prototype, 22 planned and 0 validated. By progress: 115 done, 33 partial, 16 pending and 6 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
 
 ## How to read the register
 
@@ -263,3 +263,4 @@ The check is `tests/reqs.rs`: it reads this table, finds each test and fails whe
 | PPNP-167 | A copy taken from another branch keeps the hash and the format of its source and is told as out of date when the source changes. | implemented | done | host-test | `eh3dfile::a_copy_taken_from_pcb_is_told_as_out_of_date_and_taken_again` | - |
 | PPNP-168 | A branch of a newer format or a sealed one is not written, with the code of the format, and the file stays as it was. | implemented | done | host-test | `eh3dfile::a_branch_of_a_newer_format_or_sealed_is_not_written` | - |
 | PPNP-169 | A damaged project is an error and never a crash, with damage made from a fixed seed. | implemented | done | host-test | `eh3dfile::damaged_projects_are_errors_and_never_a_crash` | - |
+| PPNP-170 | The command line never puts a settings file that holds the token of the server into a project: the save is refused and nothing is written. | implemented | done | host-test | `eh3dfile::the_command_line_never_puts_the_token_of_the_server_in_a_project` | - |

@@ -210,6 +210,12 @@ pub fn save(
     let config = match &inputs.config {
         Some(file) => {
             let (name, bytes) = read_file(Path::new(file), MAX_CONFIG_BYTES as u64)?;
+            // a project is a file that is passed on: the token of the server never goes into it
+            if eh3d_project::suiteview::sets_key(&bytes, "server_token") {
+                return Err(format!(
+                    "{name}: it holds server_token, the token of the server, so it is not put in the project (take the line out or leave the settings out)"
+                ));
+            }
             MachineConfig::parse(&text_of(&bytes)).map_err(|e| pnp_text(&name, e))?;
             Some(bytes)
         }
