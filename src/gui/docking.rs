@@ -9,6 +9,7 @@ use super::app::Tab;
 use super::cmdpanel::Command;
 use super::texts::{tr, Text};
 use crate::error::Lang;
+use eh3d_dock::about::{AboutBrand, Phoenix};
 use eh3d_dock::core::{AboutInfo, PanelDef};
 use eh3d_dock::geom::Side;
 use eh3d_dock::menu::{DockAction, Entry, Gen, Item, Label, Menu, MenuBar, StdAction};
@@ -18,6 +19,14 @@ use eh3d_dock::shortcuts::Shortcut;
 use eh3d_dock::stdmenus::{edit_menu, file_menu, help_menu, view_menu, window_menu, HelpOptions};
 use eh3d_dock::texts::{DockText, Text8};
 use eh3d_dock::workspaces::Workspace;
+
+/// The look of the window «About»: which program of the family this is and its own picture, drawn in a ring of its colour.
+pub fn about_brand() -> AboutBrand {
+    AboutBrand {
+        program: Phoenix::Pnp,
+        logo_png: include_bytes!("../../images/brand/icon-256.png"),
+    }
+}
 
 /// The panels of the sector of pick and place, by name.
 pub const BOARD_VIEW: &str = "board_view";
@@ -285,4 +294,24 @@ pub fn menu_state(f: &MenuFacts) -> (Vec<String>, Vec<(String, bool)>) {
 pub fn bring_forward(layout: &mut Layout, panel: &str) {
     let _ = layout.show(panel);
     let _ = layout.set_active(panel);
+}
+
+#[cfg(test)]
+mod about_tests {
+    use super::*;
+
+    #[test]
+    fn the_window_about_has_the_name_the_repository_and_the_picture_of_this_program() {
+        let brand = about_brand();
+        assert_eq!(brand.program, Phoenix::Pnp);
+        assert_eq!(brand.program.name(), "EH3D-PHOENIX-PNP");
+        assert_eq!(
+            brand.program.repository(),
+            "https://github.com/JuanenRac/EH3D-PHOENIX-PNP"
+        );
+        let png = brand.logo_png;
+        assert_eq!(png.get(1..4), Some(&b"PNG"[..]));
+        // the width and the height in the header of the picture
+        assert_eq!(png.get(16..24), Some(&[0, 0, 1, 0, 0, 0, 1, 0][..]));
+    }
 }
