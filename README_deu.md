@@ -18,7 +18,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 1955 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt, und obwohl das Programm Bilder seines eigenen Fensters aufnimmt (`--shot`), hat keine Person die Zeichnung auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`phoenix-pnp`) mit 1965 Tests, die auf einem Computer laufen: liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (mit Prioritäten, Trays und Streifen), liest die Maschineneinstellungen aus einer Datei, plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen (Ränge, Düsenspitzen, Winkelgrenzen, Zeit der Bewegungen, Panels), schreibt eine Ladeliste und führt den Plan auf einer simulierten Maschine Schritt für Schritt mit eingespeisten Fehlern aus. Es hat außerdem ein Fenster (gebaut mit `--features gui`), dessen Logik ohne Bildschirm getestet wird; die Zeichnung selbst ist nicht durch Tests abgedeckt, und obwohl das Programm Bilder seines eigenen Fensters aufnimmt (`--shot`), hat keine Person die Zeichnung auf einem Bildschirm geprüft. Es steuert keine Maschine: Es wurde nicht auf einer Maschine erprobt und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.1.4` |
 | Reifegrad | Gerüst |
-| Tests | 1955 |
+| Tests | 1965 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -47,7 +47,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | liest die Positionsdatei einer Platine, ordnet jedem Bauteil seinen Zuführer zu (Priorität, Tray, Streifen), plant die Reihenfolge der Bestückung für einen Kopf mit bis zu sechs Düsen mit Rängen, Düsenspitzen, Winkelgrenzen und der Zeit der Bewegungen, plant Panels und schreibt die Ladeliste; auf einem Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `phoenix-pnp` führt dieselben Funktionen wie die Bibliothek aus (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit seinem Code `PHOENIX-PNP-NNN` und einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 1955 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen, beschädigten Eingaben und kleinen erzeugten Fällen. |
+| Tests | 🟡 | 1965 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen, beschädigten Eingaben und kleinen erzeugten Fällen. |
 | Maschinenkonfiguration | 🟡 | eine Datei `Schlüssel = Wert` mit Version, ein Prüfer, der die Zeile nennt, und die Sicherheitsgrenzen (Z-Weg, Grenzen von X und Y, Wiederholungen, Düsenwinkel); die Werte wurden nicht mit einer echten Maschine verglichen. |
 | Simulator und Auftrag | 🟡 | eine virtuelle Uhr, zufällig (mit Startwert) oder an gewählter Stelle eingespeiste Fehler, Wiederholungen, die Richtlinien Alarm und Aufschieben, Zuführer, die nach wiederholten Fehlern abschalten, Pause, Einzelschritte und ein gespeicherter Zustand zum Fortsetzen; es simuliert nur, nichts hat eine Maschine bewegt. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
@@ -160,6 +160,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 * **Regeln, die die Maschine nur sicherer machen** (`src/safety.rs`, `examples/safety_events.txt`): nach einer Wiederholung, einer Zeitüberschreitung oder einer abgelehnten Fahrt wird der Vorschub gekürzt (`safety_careful_speed_pct`, dann `safety_slow_speed_pct`) und danach die Maschine angehalten; eine Position, die nicht die verlangte ist, oder ein verlorenes Vakuum halten sie sofort an, ein Fehler der Steuerung stoppt sie. Eine gute Antwort gibt nichts zurück, und nur eine Person gibt eine angehaltene Maschine frei, auf langsam und nie auf normal. `phoenix-pnp safety-replay EVENTS` spielt eine Datei mit Ereignissen ab und endet mit 2, wenn die Maschine angehalten oder gestoppt endet. Die Tests prüfen jede Folge von bis zu fünf Ereignissen und 500 lange Läufe nach Zufall und scheitern, wenn eine Änderung eine Störung die Maschine beschleunigen lässt.
 * **Schauen, bewegen, wieder schauen, das Vakuum und erfundene Platinen** (`src/lookmove.rs`, `src/vacuumcal.rs`, `src/testboard.rs`, `src/cmd_import.rs`, `examples/vacuum_readings.csv`): `phoenix-pnp align-iterate` bringt den Kopf in kleinen Schritten gegen eine erfundene Kamera zu einer Marke (kein Schritt über `lml_max_step_mm`; ein Blick, der schlechter wird, halbiert Schritt und Verstärkung für immer, zwei in Folge halten an, ein nicht lesbarer Blick hält ohne Fahrt an); `phoenix-pnp vacuum-calibrate READINGS` schlägt `vacuum_pick_min_kpa` und `vacuum_release_max_kpa` mit einem Abstand innerhalb der Lücke zwischen den Messwerten mit und ohne Teil vor und meldet, wenn sie sich überlappen; `phoenix-pnp test-board-gen grid|mixed|dense` schreibt eine aus einem Startwert erfundene Platine mit ihren Zuführern, um Maschinen und Einstellungen zu vergleichen.
 * **Dateien eines anderen Programms importieren** (`src/xmlmini.rs`, `src/openpnp.rs`, `src/cmd_import.rs`, `examples/openpnp_machine.xml`, `examples/openpnp_package.xml`, `examples/openpnp_parts.xml`): `phoenix-pnp import-openpnp [--machine F] [--packages F] [--parts F] [--out-dir D]` liest die Gehäuse, Teile und Zuführer von OpenPnP, ohne je darin zu schreiben, in eine Gehäusetabelle, eine Teiletabelle und eine Zuführertabelle, die Einheiten in Millimetern. Der XML-Leser ist begrenzt (8 MiB, 32 Ebenen, 200000 Elemente; ein Dokumenttyp wird abgelehnt, damit nichts expandiert wird) und gerät nie in Panik; was sich nicht abbilden lässt (eine unbekannte Einheit, ein Wert, der keine Zahl ist, ein fehlendes Feld, ein doppelter Name, die Köpfe, Kameras und Aktoren), wird mit Datei und Zeile in den acht Sprachen genannt, und eine Zeile, die sich nicht verwenden lässt, bleibt weg. Die Beispieldateien sind für die Tests geschrieben.
+* **Projekte der Suite** (`src/eh3dfile.rs`, `src/cmd_project.rs`, `docs/eh3d-project.md`, `tests/eh3dfile.rs`): `phoenix-pnp project list|save|import|open|take|extract` hält die Arbeit im Zweig `pnp/` eines `.eh3d`-Projekts, einer einzigen Datei mit einem Zweig je Programm: `save` legt die Teiletabelle, die Stückliste, die Zuführungstabelle und die Konfiguration dort ab; `import` bewahrt eine Positionsdatei, eine Stückliste oder eine Zuführungstabelle Byte für Byte mit einem Bericht über das Gelesene; `take` kopiert eine Datei aus einem anderen Zweig, etwa `pcb/`, mit Hash und Format der Quelle, sodass `list` und `open` melden, wenn die Kopie veraltet ist (Exit-Code 2). Geschrieben wird nur `pnp/`: alle anderen Zweige, bekannt oder nicht, behalten ihre Bytes. Erprobt wurde das nur mit erfundenen Projekten.
 * **Ein geführter Handbetrieb** (`src/assist.rs`, `src/cmd_import.rs`, `examples/assist_answers.txt`): `phoenix-pnp assist PARTS [--feeders F] [--order reel|reference] [--out F] [--resume F]` führt eine Person ohne Maschine durch eine Platine: eine Rolle nach der anderen, die Oberseite vor der Unterseite, jedes Teil mit seiner Rolle, seinem Ort, seiner Drehung und ob es eine Richtung hat; die Person tippt die Referenz, wenn das Teil gesetzt ist, und der Ablauf geht nur weiter, wenn es die richtige ist (`skip`, `back` und `quit` tun, was sie sagen, und eine Checkliste lässt sich speichern und wieder lesen).
 * **Tests des Treibers und des Imports** (`tests/textmatch.rs`, `tests/driver.rs`, `tests/safety.rs`, `tests/drivercli.rs`, `tests/lookmove.rs`, `tests/vacuumcal.rs`, `tests/openpnp.rs`, `tests/assist.rs`, `tests/importcli.rs`, `tests/textvalues.rs`): das Profil und seine Fehler in den acht Sprachen, die Zeilen, die es schreibt, die Antworten, die es liest, eine Sitzung mit jedem Fehler, die Sicherheitsregeln über jede kurze Folge von Ereignissen, der an jeder Stelle abgeschnittene und mit festem Startwert beschädigte Import, jeder neue Befehl so, wie ihn eine Person ausführt, und dass ein Wert, der wie eine Zahl aussieht, in jeder Tabelle Text bleibt.
 * **Ausschuss und Wiederholungen je Teil** (`src/rejects.rs`, `src/retrypolicy.rs`, `src/cmd_shop.rs`, `examples/rejects.csv`, `examples/retry_rules.csv`): `phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT]` gibt die ausgesonderten Teile eines Laufs nach Grund (in der Reihenfolge eines Pareto-Diagramms), Gehäuse, Feeder und Bezeichner; `phoenix-pnp retry-policy PARTS FEEDERS RULES` gibt jedem Teil die Wiederholungen der ersten Regel, die zu Bezeichner, Wert, Gehäuse oder Feeder passt, errechnet die Wahrscheinlichkeit einer guten Platine und nennt die Regeln, die auf nichts passen oder nie wirken.
@@ -449,7 +450,7 @@ Die letzte Zeile öffnet das Fenster; das tut auch `phoenix-pnp` ohne Befehl, we
 
 ## 🧪 Tests
 
-Die Suite hat 1955 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt). Sie prüfen die Normalfälle, die Grenzfälle und beschädigte Eingaben: leere Dateien, Müll und abgeschnittene Dateien führen nie zu einer Panik. Kleine erzeugte Fälle (aus einem festen Startwert, also mit denselben Zahlen bei jedem Lauf) prüfen, dass der Plan nicht von der Reihenfolge der Dateien abhängt, dass ein Weg nie länger wird, dass ein irgendwo gespeicherter und fortgesetzter Auftrag genauso endet wie einer, der nie angehalten wurde, und dass sich Längen und Winkel hin und zurück umrechnen lassen. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 1965 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt). Sie prüfen die Normalfälle, die Grenzfälle und beschädigte Eingaben: leere Dateien, Müll und abgeschnittene Dateien führen nie zu einer Panik. Kleine erzeugte Fälle (aus einem festen Startwert, also mit denselben Zahlen bei jedem Lauf) prüfen, dass der Plan nicht von der Reihenfolge der Dateien abhängt, dass ein Weg nie länger wird, dass ein irgendwo gespeicherter und fortgesetzter Auftrag genauso endet wie einer, der nie angehalten wurde, und dass sich Längen und Winkel hin und zurück umrechnen lassen. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 
@@ -490,6 +491,7 @@ EH3D-PHOENIX-PNP/
 │   ├── cmd_import.rs                            die Befehle import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen
 │   ├── cmd_more.rs                              die Befehle parts-diff, config-diff, board-stats, queue-stock, feeder-deplete, feeder-refill und job-diff
 │   ├── cmd_nodes.rs                             die Befehle slot-bank, panel-compose, node-sim und table-revision; Exit-Code 2
+│   ├── cmd_project.rs                           der Befehl project: die Arbeit in einem .eh3d-Projekt
 │   ├── cmd_queue.rs                             die Befehle der Auftragswarteschlange: hinzufügen, Status, bestätigen, bearbeiten, ausführen
 │   ├── cmd_server.rs                            die Befehle für den EH3D-Server: senden, Anfrage, Status, Auftrag, Zuführungen, Kalibrieren
 │   ├── cmd_shop.rs                              die Befehle der Werkstatt: Protokolle, Schichten, Köpfe, Footprints, Ausschuss, Kosten, Lose
@@ -507,6 +509,7 @@ EH3D-PHOENIX-PNP/
 │   ├── drag.rs                                  eine Zuführung, die den Gurt an den Transportlöchern zieht: der Hub, die bedienten Aufnahmen und die Hübe eines Gurts
 │   ├── driver.rs                                eine Treibersitzung: Zeitgrenzen, Wiederholungen, ein sicherer Stopp, langsamer nach Störungen
 │   ├── drivertest.rs                            aufgezeichnete Antworten einer Steuerung, gegen die Muster eines Profils gespielt
+│   ├── eh3dfile.rs                              der Zweig pnp eines .eh3d-Projekts: speichern, importieren, übernehmen, öffnen
 │   ├── equivalents.rs                           Teile, die ein anderes Teil auf einer Zuführung ersetzen kann, mit den eingesparten Rollen
 │   ├── error.rs                                 die Fehlercodes PHOENIX-PNP-NNN und ihre Bedeutung in acht Sprachen
 │   ├── exchange.rs                              ein Auftrag in einer JSON-Datei für andere Programme: Plan und Zustand jedes Teils
@@ -662,6 +665,7 @@ EH3D-PHOENIX-PNP/
 │   ├── driver.rs                                Tests des Treibers: Profil, Zeilen, Antworten, Moonraker, simulierte Steuerung, Sitzung
 │   ├── drivercli.rs                             Tests von driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup
 │   ├── encoding.rs                              Tests der Kodierung der Dateien: UTF-8, UTF-16 und Latin-1
+│   ├── eh3dfile.rs                              Tests des Zweigs pnp: erhaltene Bytes, veraltet, Importe, Schäden
 │   ├── equivalent.rs                            Tests der gleichwertigen Teile: die Tausche, die Restbestände, die Reihenfolge der Zuführungen, abgelehnte Tabellen, der Befehl
 │   ├── exchange.rs                              Tests der Austauschdatei eines Auftrags: Schreiben, Lesen, jede Ablehnung, die Befehle
 │   ├── exitcodes.rs                             Tests des Exit-Codes 2 für eine nicht bestandene Prüfung, Befehl für Befehl
@@ -848,6 +852,7 @@ EH3D-PHOENIX-PNP/
 │   ├── SCOPE.md                                 wofür es da ist, was es nicht tut und was es nie entscheidet
 │   ├── STATUS.md                                was es gibt, was fehlt und was offen ist
 │   ├── structure.json                           Daten des Struktur-Bildes
+│   ├── eh3d-project.md                          das .eh3d-Projekt und der Zweig pnp
 │   └── windows-console.md                       warum das Fenster unter Windows ein eigenes Programm ist
 ├── tools/                                       CI-Prüfung, README-Prüfung und die Bildwerkzeuge
 ├── images/                                      Banner, Bilder von Architektur und Struktur und Bilder des Fensters

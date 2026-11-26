@@ -327,6 +327,19 @@
           }
         },
         {
+          "name": "cmd_project.rs",
+          "desc": {
+            "en": "the command project: the work in an .eh3d project",
+            "es": "el comando project: el trabajo en un proyecto .eh3d",
+            "de": "der Befehl project: die Arbeit in einem .eh3d-Projekt",
+            "fr": "la commande project : le travail dans un projet .eh3d",
+            "it": "il comando project: il lavoro in un progetto .eh3d",
+            "ja": "コマンド project：.eh3d プロジェクト内の作業",
+            "zh": "命令 project：.eh3d 工程中的工作",
+            "pt": "o comando project: o trabalho num projeto .eh3d"
+          }
+        },
+        {
           "name": "cmd_queue.rs",
           "desc": {
             "en": "the commands of the queue of jobs: add, status, confirm, edit, run",
@@ -545,6 +558,19 @@
             "ja": "コントローラの記録した応答をプロファイルのパターンで確認する",
             "zh": "把控制器的记录应答与配置档的模式对照",
             "pt": "respostas gravadas de um controlador, testadas contra os padrões de um perfil"
+          }
+        },
+        {
+          "name": "eh3dfile.rs",
+          "desc": {
+            "en": "the branch pnp of an .eh3d project: save, import, take, open",
+            "es": "la rama pnp de un proyecto .eh3d: guardar, importar, tomar, abrir",
+            "de": "der Zweig pnp eines .eh3d-Projekts: speichern, importieren, übernehmen, öffnen",
+            "fr": "la branche pnp d'un projet .eh3d : enregistrer, importer, prendre, ouvrir",
+            "it": "il ramo pnp di un progetto .eh3d: salvare, importare, prendere, aprire",
+            "ja": ".eh3d プロジェクトの pnp ブランチ：保存、取り込み、取得、開く",
+            "zh": ".eh3d 工程的 pnp 分支：保存、导入、取用、打开",
+            "pt": "o ramo pnp de um projeto .eh3d: guardar, importar, tomar, abrir"
           }
         },
         {
@@ -2554,6 +2580,19 @@
             "ja": "ファイルの文字コードのテスト：UTF-8、UTF-16、Latin-1",
             "zh": "文件编码的测试：UTF-8、UTF-16 和 Latin-1",
             "pt": "testes da codificação dos ficheiros: UTF-8, UTF-16 e Latin-1"
+          }
+        },
+        {
+          "name": "eh3dfile.rs",
+          "desc": {
+            "en": "tests of the branch pnp: bytes kept, out of date, imports, damage",
+            "es": "pruebas de la rama pnp: bytes conservados, desactualizado, importaciones, daños",
+            "de": "Tests des Zweigs pnp: erhaltene Bytes, veraltet, Importe, Schäden",
+            "fr": "tests de la branche pnp : octets conservés, périmé, imports, dommages",
+            "it": "test del ramo pnp: byte conservati, superato, importazioni, danni",
+            "ja": "pnp ブランチのテスト：バイト保持、期限切れ、取り込み、破損",
+            "zh": "pnp 分支的测试：字节保留、过期、导入、损坏",
+            "pt": "testes do ramo pnp: bytes conservados, desatualizado, importações, danos"
           }
         },
         {
@@ -4960,6 +4999,19 @@
             "ja": "構成図のデータ",
             "zh": "结构图数据",
             "pt": "dados da imagem de Estrutura"
+          }
+        },
+        {
+          "name": "eh3d-project.md",
+          "desc": {
+            "en": "the .eh3d project and the branch pnp",
+            "es": "el proyecto .eh3d y la rama pnp",
+            "de": "das .eh3d-Projekt und der Zweig pnp",
+            "fr": "le projet .eh3d et la branche pnp",
+            "it": "il progetto .eh3d e il ramo pnp",
+            "ja": ".eh3d プロジェクトと pnp ブランチ",
+            "zh": ".eh3d 工程与 pnp 分支",
+            "pt": "o projeto .eh3d e o ramo pnp"
           }
         },
         {

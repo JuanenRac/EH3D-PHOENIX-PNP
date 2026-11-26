@@ -18,7 +18,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 1955 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e, sebbene il programma acquisisca immagini della propria finestra (`--shot`), nessuna persona ha verificato il disegno su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`phoenix-pnp`) con 1965 test che girano su un computer: legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (con priorità, vassoi e strisce), legge le impostazioni della macchina da un file, pianifica l'ordine di posizionamento per una testa fino a sei ugelli (ranghi, punte degli ugelli, limiti d'angolo, tempo dei movimenti, pannelli), scrive un foglio di carico e, su una macchina simulata, esegue il piano passo dopo passo con guasti iniettati. Ha anche una finestra (compilata con `--features gui`) la cui logica è testata senza schermo; il disegno in sé non è coperto da test e, sebbene il programma acquisisca immagini della propria finestra (`--shot`), nessuna persona ha verificato il disegno su uno schermo. Non controlla nessuna macchina: non è stato provato su una macchina e non è stato verificato con una raccolta di file reali.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versione | `0.1.4` |
 | Maturità | Impalcatura |
-| Test | 1955 |
+| Test | 1965 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -47,7 +47,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | legge il file delle posizioni di una scheda, assegna a ogni componente il suo alimentatore (priorità, vassoio, striscia), pianifica l'ordine di posizionamento per una testa fino a sei ugelli con ranghi, punte degli ugelli, limiti d'angolo e il tempo dei movimenti, pianifica pannelli e scrive il foglio di carico; provato su un computer con ingressi normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `phoenix-pnp` esegue le stesse funzioni della libreria (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) e stampa il risultato; ogni errore torna come messaggio con il suo codice `PHOENIX-PNP-NNN` e un codice di uscita diverso da zero. |
-| Test | 🟡 | 1955 test passano (`cargo test`), con casi normali, casi limite, ingressi danneggiati e piccoli casi generati. |
+| Test | 🟡 | 1965 test passano (`cargo test`), con casi normali, casi limite, ingressi danneggiati e piccoli casi generati. |
 | Configurazione della macchina | 🟡 | un file `chiave = valore` con versione, un validatore che nomina la riga e i limiti di sicurezza (corsa di Z, limiti di X e Y, nuovi tentativi, angoli dell'ugello); i valori non sono stati confrontati con una macchina reale. |
 | Simulatore e lavoro | 🟡 | un orologio virtuale, guasti iniettati a caso (con un seme) o in un punto scelto, nuovi tentativi, le politiche allerta e rinvio, alimentatori che si spengono dopo guasti ripetuti, pausa, passo dopo passo e uno stato salvato da cui riprendere; simula soltanto, nulla ha mosso una macchina. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
@@ -160,6 +160,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Regole che rendono la macchina solo più sicura** (`src/safety.rs`, `examples/safety_events.txt`): dopo un tentativo, un tempo scaduto o un movimento rifiutato l'avanzamento viene ridotto (`safety_careful_speed_pct`, poi `safety_slow_speed_pct`) e poi la macchina viene trattenuta; una posizione che non è quella chiesta o un vuoto perso la trattengono subito e un errore del controllore la ferma. Una buona risposta non restituisce nulla, e solo una persona rimette in marcia una macchina trattenuta, a lento e mai a normale. `phoenix-pnp safety-replay EVENTS` ripercorre un file di eventi ed esce con 2 se la macchina finisce trattenuta o ferma. I test provano ogni sequenza fino a cinque eventi e 500 esecuzioni lunghe a caso, e falliscono se una modifica lascia che un problema acceleri la macchina.
 * **Guarda, muovi, guarda ancora, il vuoto e schede inventate** (`src/lookmove.rs`, `src/vacuumcal.rs`, `src/testboard.rs`, `src/cmd_import.rs`, `examples/vacuum_readings.csv`): `phoenix-pnp align-iterate` porta la testa a un segno a piccoli passi contro una camera inventata (nessun passo oltre `lml_max_step_mm`; uno sguardo che peggiora dimezza passo e guadagno per sempre, due di seguito lo fermano, e uno sguardo illeggibile lo ferma senza muovere); `phoenix-pnp vacuum-calibrate READINGS` propone `vacuum_pick_min_kpa` e `vacuum_release_max_kpa` con un margine dentro lo scarto tra le letture con e senza componente e dice quando si sovrappongono; `phoenix-pnp test-board-gen grid|mixed|dense` scrive una scheda e i suoi alimentatori inventati da un seme, per confrontare macchine e impostazioni.
 * **Importare i file di un altro programma** (`src/xmlmini.rs`, `src/openpnp.rs`, `src/cmd_import.rs`, `examples/openpnp_machine.xml`, `examples/openpnp_package.xml`, `examples/openpnp_parts.xml`): `phoenix-pnp import-openpnp [--machine F] [--packages F] [--parts F] [--out-dir D]` legge, senza mai scrivervi, i package, i componenti e gli alimentatori di OpenPnP in una tabella di package, una di componenti e una di alimentatori, con le unità portate in millimetri. Il lettore XML è limitato (8 MiB, 32 livelli, 200000 elementi; un tipo di documento viene rifiutato perché nulla venga espanso) e non va mai in panico; ciò che non si può convertire (un'unità sconosciuta, un valore che non è un numero, un campo mancante, un nome doppio, le teste, le camere e gli attuatori) viene detto con il suo file e la sua riga nelle otto lingue, e una riga inutilizzabile viene lasciata fuori. I file di esempio sono scritti per i test.
+* **Progetti della suite** (`src/eh3dfile.rs`, `src/cmd_project.rs`, `docs/eh3d-project.md`, `tests/eh3dfile.rs`): `phoenix-pnp project list|save|import|open|take|extract` tiene il lavoro nel ramo `pnp/` di un progetto `.eh3d`, un solo file con un ramo per ogni programma: `save` vi mette la tabella dei componenti, la distinta base, la tabella dei feeder e la configurazione; `import` conserva byte per byte un file di posizioni, una distinta base o una tabella dei feeder con un rapporto di ciò che è stato letto; `take` copia un file da un altro ramo, come `pcb/`, con l'hash e il formato della sorgente, e `list` e `open` dicono quando è superato (codice di uscita 2). Viene scritto solo `pnp/`: gli altri rami, noti o no, conservano i loro byte. È stato provato solo con progetti inventati.
 * **Una modalità manuale guidata** (`src/assist.rs`, `src/cmd_import.rs`, `examples/assist_answers.txt`): `phoenix-pnp assist PARTS [--feeders F] [--order reel|reference] [--out F] [--resume F]` guida una persona lungo una scheda senza macchina: una bobina alla volta, il lato superiore prima dell'inferiore, ogni componente con la sua bobina, il suo punto, la sua rotazione e l'eventuale verso; la persona digita il riferimento quando è posizionato e il percorso prosegue solo se è quello giusto (`skip`, `back` e `quit` fanno ciò che dicono, e un elenco di controllo si può salvare e rileggere).
 * **Test del driver e dell'importazione** (`tests/textmatch.rs`, `tests/driver.rs`, `tests/safety.rs`, `tests/drivercli.rs`, `tests/lookmove.rs`, `tests/vacuumcal.rs`, `tests/openpnp.rs`, `tests/assist.rs`, `tests/importcli.rs`, `tests/textvalues.rs`): il profilo e i suoi errori nelle otto lingue, le righe che scrive, le risposte che legge, una sessione con ogni guasto, le regole di sicurezza su ogni breve sequenza di eventi, l'importazione tagliata in ogni punto e danneggiata con un seme fisso, ogni nuovo comando come lo esegue una persona, e che un valore che sembra un numero resti testo in ogni tabella.
 * **Scarti e tentativi per parte** (`src/rejects.rs`, `src/retrypolicy.rs`, `src/cmd_shop.rs`, `examples/rejects.csv`, `examples/retry_rules.csv`): `phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT]` dà i pezzi scartati di un lotto per motivo (nell'ordine di un diagramma di Pareto), package, alimentatore e riferimento; `phoenix-pnp retry-policy PARTS FEEDERS RULES` dà a ogni parte i tentativi della prima regola che si adatta al suo riferimento, valore, package o alimentatore, calcola la probabilità di una scheda buona e segnala le regole che non si adattano a nulla o non agiscono mai.
@@ -449,7 +450,7 @@ L'ultima riga apre la finestra; lo fa anche `phoenix-pnp` senza comando se è st
 
 ## 🧪 Test
 
-La suite ha 1955 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli ingressi danneggiati: file vuoti, spazzatura e file tagliati non provocano mai un panic. Piccoli casi generati (da un seme fisso, quindi con gli stessi numeri a ogni esecuzione) verificano che il piano non dipenda dall'ordine dei file, che un percorso non si allunghi mai, che un lavoro salvato e ripreso in qualsiasi punto finisca come quello che non si è mai fermato, e che lunghezze e angoli si convertano avanti e indietro. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 1965 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli ingressi danneggiati: file vuoti, spazzatura e file tagliati non provocano mai un panic. Piccoli casi generati (da un seme fisso, quindi con gli stessi numeri a ogni esecuzione) verificano che il piano non dipenda dall'ordine dei file, che un percorso non si allunghi mai, che un lavoro salvato e ripreso in qualsiasi punto finisca come quello che non si è mai fermato, e che lunghezze e angoli si convertano avanti e indietro. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -490,6 +491,7 @@ EH3D-PHOENIX-PNP/
 │   ├── cmd_import.rs                            i comandi import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen
 │   ├── cmd_more.rs                              i comandi parts-diff, config-diff, board-stats, queue-stock, feeder-deplete, feeder-refill e job-diff
 │   ├── cmd_nodes.rs                             i comandi slot-bank, panel-compose, node-sim e table-revision; codice di uscita 2
+│   ├── cmd_project.rs                           il comando project: il lavoro in un progetto .eh3d
 │   ├── cmd_queue.rs                             i comandi della coda di lavori: aggiungi, stato, conferma, modifica, esegui
 │   ├── cmd_server.rs                            i comandi che parlano con il server EH3D: invio, richiesta, stato, lavoro, feeder, calibrazione
 │   ├── cmd_shop.rs                              i comandi del reparto: registri, turni, teste, impronte, scarti, costi, lotti
@@ -507,6 +509,7 @@ EH3D-PHOENIX-PNP/
 │   ├── drag.rs                                  un feeder che trascina il nastro dai fori: la corsa, i prelievi serviti e le corse di un nastro
 │   ├── driver.rs                                una sessione del driver: tempi, tentativi, un arresto sicuro, più lento dopo i problemi
 │   ├── drivertest.rs                            risposte registrate di un controllore, provate contro i modelli di un profilo
+│   ├── eh3dfile.rs                              il ramo pnp di un progetto .eh3d: salvare, importare, prendere, aprire
 │   ├── equivalents.rs                           componenti che un altro già su un feeder può sostituire, con le bobine che si risparmiano
 │   ├── error.rs                                 i codici di errore PHOENIX-PNP-NNN e il loro significato in otto lingue
 │   ├── exchange.rs                              un lavoro in un file JSON per altri programmi: il piano e lo stato di ogni parte
@@ -662,6 +665,7 @@ EH3D-PHOENIX-PNP/
 │   ├── driver.rs                                test del driver: profilo, righe, risposte, Moonraker, controllore simulato, sessione
 │   ├── drivercli.rs                             test di driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup
 │   ├── encoding.rs                              test della codifica dei file: UTF-8, UTF-16 e Latin-1
+│   ├── eh3dfile.rs                              test del ramo pnp: byte conservati, superato, importazioni, danni
 │   ├── equivalent.rs                            test dei componenti equivalenti: gli scambi, i pezzi rimasti, l'ordine dei feeder, tabelle rifiutate, il comando
 │   ├── exchange.rs                              test del file di scambio di un lavoro: scrittura, lettura, ogni rifiuto, i comandi
 │   ├── exitcodes.rs                             test del codice di uscita 2 per un controllo non superato, comando per comando
@@ -848,6 +852,7 @@ EH3D-PHOENIX-PNP/
 │   ├── SCOPE.md                                 a cosa serve, cosa non farà e cosa non decide mai
 │   ├── STATUS.md                                cosa esiste, cosa manca e cosa è ancora aperto
 │   ├── structure.json                           dati dell'immagine di Struttura
+│   ├── eh3d-project.md                          il progetto .eh3d e il ramo pnp
 │   └── windows-console.md                       perché la finestra è un programma a sé su Windows
 ├── tools/                                       controllo della CI e del README e strumenti per le immagini
 ├── images/                                      banner, immagini di Architettura e Struttura, e immagini della finestra

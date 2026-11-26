@@ -4,6 +4,10 @@
 
 EH3D-PHOENIX-PNP is a working program whose every machine-facing capability is a simulation: a library, a command line (`phoenix-pnp`) and a window (`phoenix-pnp-gui`, built with `--features gui`). It reads position files and tables, assigns feeders, plans the order of the placements, carries a job out on a simulated machine with a simulated camera, vacuum and G-code controller, and writes the plan, the load sheet, the report and the files for assembly houses. The suite of tests runs on Windows and Linux in the CI. Nothing has moved a real machine.
 
+## Projects of the suite
+
+The command `project` keeps the work in the branch `pnp/` of an `.eh3d` project (`eh3d-project.md`): the other branches keep their bytes, copies taken from them are told as out of date and imported files keep their original with a report.
+
 ## The window
 
 The window is built on the docking frame of the suite (`eh3d-dock`, in EH3D-COMMON). Its panels are the seven of the sector of pick and place (the board view, parts, feeders, job, camera, machine and console) and the guide, packages, panels, boards, load sheet, tools and problems, and one panel for each of fifteen commands of the driver and the assistants, hidden until they are asked for. It starts in one of three arrangements, Setup, Run and Compact; the person can move, float, fold, hide, maximise and lock the panels and save an arrangement under a name, and what was arranged is kept in `window.cfg` under keys that begin with `dock.`. The menus and the shortcuts, the panels and the arrangements are data and are tested without a screen. The drawing has been compiled and run in a context with no window; no person has looked at the arrangements on a screen, and the colours do not yet have the look that the other programs of the suite share.
@@ -18,7 +22,7 @@ A driver profile says whether the machine homes with end switches or without the
 
 ## Capabilities
 
-The official state of each capability is in `REQUIREMENTS.md`. The register has 163 requirements: 108 implemented, 33 prototype, 22 planned and 0 validated. By progress: 108 done, 33 partial, 16 pending and 6 blocked. This page never states a state that `REQUIREMENTS.md` does not.
+The official state of each capability is in `REQUIREMENTS.md`. The register has 169 requirements: 114 implemented, 33 prototype, 22 planned and 0 validated. By progress: 114 done, 33 partial, 16 pending and 6 blocked. This page never states a state that `REQUIREMENTS.md` does not.
 
 ## Open questions
 
@@ -29,7 +33,7 @@ The official state of each capability is in `REQUIREMENTS.md`. The register has 
 
 ## What it needs from other repositories
 
-* `EH3D-COMMON`: the client of the server, the panel of the settings of the server and the docking frame, as a sibling folder at version 0.3.0.
+* `EH3D-COMMON`: the client of the server, the panel of the settings of the server, the docking frame and the project container, as a sibling folder. The CI takes its main branch until the release that holds what a program does with its branch; the workflows are then pinned to that release.
 * The vision program of the suite for a live camera; the nodes of the feeders and of the head, whose contracts this program follows, for anything that is not simulated: no real node has been asked.
 
 ## Known technical debt and omitted tests

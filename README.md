@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 1955 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`phoenix-pnp`) with 1965 tests that run on a computer: reads the position file of a board, gives each part its feeder (with priorities, trays and strips), reads the settings of the machine from a file, plans the order of the placements for a head with up to six nozzles (ranks, nozzle tips, angle limits, time of the moves, panels), writes a load sheet and, on a simulated machine, carries the plan out step by step with injected failures. It also has a window (built with `--features gui`) whose logic is tested without a screen; the drawing itself is not covered by tests, and although the program takes pictures of its own window (`--shot`), no person has reviewed the drawing on a screen. It does not drive any machine: it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.1.4` |
 | Maturity | Scaffolding |
-| Tests | 1955 |
+| Tests | 1965 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | reads the position file of a board, gives each part its feeder (priority, tray, strip), plans the order of the placements for a head with up to six nozzles with ranks, nozzle tips, angle limits and the time of the moves, plans panels and writes the load sheet; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `phoenix-pnp` runs the same functions as the library (`parts`, `check`, `plan`, `schedule`, `preflight`, `simulate`, `loadsheet`, `config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`) and prints the result; every error comes back as a message with its `PHOENIX-PNP-NNN` code and a non-zero exit code. |
-| Tests | 🟡 | 1955 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
+| Tests | 🟡 | 1965 tests pass (`cargo test`), with normal cases, edge cases, damaged input and small generated cases. |
 | Machine configuration | 🟡 | a `key = value` file with a version, a validator that names the line, and the safety limits (travel of Z, limits of X and Y, retries, nozzle angles); the values have not been compared with a real machine. |
 | Simulator and job | 🟡 | a virtual clock, failures injected by chance (with a seed) or at a chosen place, retries, the policies alert and defer, feeders that switch off after repeated faults, pause, step by step, and a saved state to resume from; it only simulates, nothing has driven a machine. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
@@ -160,6 +160,7 @@ Each line is one part of this repository and the light says how far it is today.
 * **Rules that only make the machine safer** (`src/safety.rs`, `examples/safety_events.txt`): after a retry, a timeout or a refused move the feed is cut (`safety_careful_speed_pct`, then `safety_slow_speed_pct`) and then the machine is held; a position that is not the one asked for or a lost vacuum hold it at once and an error of the controller stops it. A good answer gives nothing back, and only a person brings a held machine back, to slow and never to normal. `phoenix-pnp safety-replay EVENTS` replays a file of events and exits with 2 when the machine ends held or stopped. The tests try every sequence of up to five events and 500 long runs made by chance, and fail if a change lets a trouble speed the machine up.
 * **Look, move, look again, the vacuum and made-up boards** (`src/lookmove.rs`, `src/vacuumcal.rs`, `src/testboard.rs`, `src/cmd_import.rs`, `examples/vacuum_readings.csv`): `phoenix-pnp align-iterate` brings the head to a mark in small steps against a camera that is made up (no step over `lml_max_step_mm`; a look that gets worse halves the step and the gain for good, two in a row stop it, and a look that cannot be read stops it with no move); `phoenix-pnp vacuum-calibrate READINGS` proposes `vacuum_pick_min_kpa` and `vacuum_release_max_kpa` a margin inside the gap between the readings with and without a part and says when they overlap; `phoenix-pnp test-board-gen grid|mixed|dense` writes a board and its feeders made up from a seed, to compare machines and settings.
 * **Importing the files of another program** (`src/xmlmini.rs`, `src/openpnp.rs`, `src/cmd_import.rs`, `examples/openpnp_machine.xml`, `examples/openpnp_package.xml`, `examples/openpnp_parts.xml`): `phoenix-pnp import-openpnp [--machine F] [--packages F] [--parts F] [--out-dir D]` reads, and never writes to, the packages, the parts and the feeders of OpenPnP into a table of packages, a table of parts and a table of feeders, with the units brought to millimetres. The reader of XML is bounded (8 MiB, 32 levels, 200000 elements; a document type is refused so that nothing is expanded) and never panics; whatever cannot be mapped (an unknown unit, a value that is not a number, a missing field, a name that is there twice, the heads, cameras and actuators) is told with its file and line in the eight languages, and a row that cannot be used is left out. The example files are written for the tests.
+* **Projects of the suite** (`src/eh3dfile.rs`, `src/cmd_project.rs`, `docs/eh3d-project.md`, `tests/eh3dfile.rs`): `phoenix-pnp project list|save|import|open|take|extract` keeps the work in the branch `pnp/` of an `.eh3d` project, one file with a branch for each program: `save` puts the table of parts, the bill of materials, the table of feeders and the configuration there; `import` keeps a position file, a BOM or a table of feeders byte for byte with a report of what was read; `take` copies a file from another branch, such as `pcb/`, with the hash and the format of its source, so `list` and `open` say when it is out of date (exit code 2). Only `pnp/` is written: every other branch, known or not, keeps its bytes. It has only been tried with made-up projects.
 * **A guided manual mode** (`src/assist.rs`, `src/cmd_import.rs`, `examples/assist_answers.txt`): `phoenix-pnp assist PARTS [--feeders F] [--order reel|reference] [--out F] [--resume F]` walks a person through a board with no machine: one reel at a time, the top side before the bottom, each part with its reel, its place, its turn and whether it has a direction; the person types the reference when it is placed and the walk goes on only if it is the right one (`skip`, `back` and `quit` do what they say, and a checklist can be saved and read again).
 * **Tests of the driver and of the import** (`tests/textmatch.rs`, `tests/driver.rs`, `tests/safety.rs`, `tests/drivercli.rs`, `tests/lookmove.rs`, `tests/vacuumcal.rs`, `tests/openpnp.rs`, `tests/assist.rs`, `tests/importcli.rs`, `tests/textvalues.rs`): the profile and its errors in the eight languages, the lines it writes, the answers it reads, a session with every fault, the rules of safety over every short sequence of events, the import cut at every place and damaged on a fixed seed, every new command as a person runs it, and that a value that looks like a number stays text in every table.
 * **Rejects and retries by part** (`src/rejects.rs`, `src/retrypolicy.rs`, `src/cmd_shop.rs`, `examples/rejects.csv`, `examples/retry_rules.csv`): `phoenix-pnp reject-report PARTS FEEDERS REJECTS [--boards N] [--max-rate PERCENT]` gives the rejected parts of a run by reason (in the order of a Pareto chart), package, feeder and reference; `phoenix-pnp retry-policy PARTS FEEDERS RULES` gives each part the retries of the first rule that fits its reference, value, package or feeder, works out the chance of a good board and tells the rules that fit nothing or never act.
@@ -449,7 +450,7 @@ The last line opens the window; so does `phoenix-pnp` with no command when it wa
 
 ## 🧪 Testing
 
-The suite has 1955 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 1965 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. Small generated cases (from a fixed seed, so they give the same numbers on every run) check that the plan does not depend on the order of the files, that a walk is never made longer, that a job saved and resumed anywhere ends as the one that never stopped, and that lengths and angles convert back and forth. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -490,6 +491,7 @@ EH3D-PHOENIX-PNP/
 │   ├── cmd_import.rs                            the commands import-openpnp, assist, align-iterate, vacuum-calibrate, test-board-gen
 │   ├── cmd_more.rs                              the commands of the diffs, board-stats, queue-stock, feeder-deplete and feeder-refill
 │   ├── cmd_nodes.rs                             the commands slot-bank, panel-compose, node-sim and table-revision; exit code 2
+│   ├── cmd_project.rs                           the command project: the work in an .eh3d project
 │   ├── cmd_queue.rs                             the commands of the queue of jobs: add, status, confirm, edit, run
 │   ├── cmd_server.rs                            the commands that talk to the EH3D server: send, request, status, job, feeders, calibrate
 │   ├── cmd_shop.rs                              the commands of the shop floor: records, shifts, heads, footprints, rejects, costs, lots
@@ -507,6 +509,7 @@ EH3D-PHOENIX-PNP/
 │   ├── drag.rs                                  a feeder that drags the tape by its holes: the stroke and the picks it serves
 │   ├── driver.rs                                a driver session: timeouts, retries, a stop that fails closed, slower after trouble
 │   ├── drivertest.rs                            recorded answers of a controller played against the patterns of a profile
+│   ├── eh3dfile.rs                              the branch pnp of an .eh3d project: save, import, take, open
 │   ├── equivalents.rs                           parts that another part on a feeder can stand for, and the reels this saves
 │   ├── error.rs                                 the error codes PHOENIX-PNP-NNN and their meaning in eight languages
 │   ├── exchange.rs                              a job in a JSON file for other programs: the plan and the state of each part
@@ -662,6 +665,7 @@ EH3D-PHOENIX-PNP/
 │   ├── driver.rs                                tests of the driver: profile, lines, answers, Moonraker, simulated controller, session
 │   ├── drivercli.rs                             tests of driver-check, driver-test, driver-run, safety-replay, homing-repeat, bringup
 │   ├── encoding.rs                              tests of the encoding of the files: UTF-8, UTF-16 and Latin-1
+│   ├── eh3dfile.rs                              tests of the branch pnp: bytes kept, out of date, imports, damage
 │   ├── equivalent.rs                            tests of the equivalents: the swaps, what is left, refused tables, the command
 │   ├── exchange.rs                              tests of the job exchange file: writing, reading, every refusal, the commands
 │   ├── exitcodes.rs                             tests of the exit code 2 for a check that is not passed, command by command
@@ -848,6 +852,7 @@ EH3D-PHOENIX-PNP/
 │   ├── SCOPE.md                                 what the program is for, what it will not do and what it never decides
 │   ├── STATUS.md                                what exists, what is missing and what is still open
 │   ├── structure.json                           data of the Repository Structure picture
+│   ├── eh3d-project.md                          the .eh3d project and the branch pnp
 │   └── windows-console.md                       why the window is a program of its own on Windows
 ├── tools/                                       CI check, README check and the picture tools
 ├── images/                                      banner, Architecture and Structure pictures, and the pictures of the window
