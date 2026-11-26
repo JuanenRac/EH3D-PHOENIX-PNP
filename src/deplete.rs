@@ -7,7 +7,7 @@
 
 use crate::error::{Code, PnpError};
 use crate::feeding::{from_csv, FeederKind};
-use crate::parts::{csv_field, detect_delimiter, read_records};
+use crate::parts::{csv_field, detect_delimiter, formula_guard, read_records};
 
 /// What happened to one feeder.
 #[derive(Debug, Clone, PartialEq)]
@@ -131,11 +131,13 @@ pub fn deplete(feeders_text: &str, state_text: &str) -> Result<Depleted, PnpErro
 /// A field of the table, in quotes when it holds the delimiter.
 pub(crate) fn csv_cell(text: &str, delim: char) -> String {
     if delim == ',' {
-        csv_field(text)
-    } else if text.contains([delim, '"', '\n', '\r']) {
+        return csv_field(text);
+    }
+    let text = formula_guard(text);
+    if text.contains([delim, '"', '\n', '\r']) {
         format!("\"{}\"", text.replace('"', "\"\""))
     } else {
-        text.to_string()
+        text.into_owned()
     }
 }
 

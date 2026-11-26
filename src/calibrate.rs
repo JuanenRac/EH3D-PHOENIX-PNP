@@ -609,6 +609,7 @@ pub fn teach_file(text: &str) -> Result<Vec<(String, Taught)>, PnpError> {
 pub fn taught_csv(rows: &[(String, Taught)]) -> String {
     let mut out = String::from("id,kind,x,y,count,cols,rows,pitch_x,pitch_y,pitch,rotation\n");
     for (id, t) in rows {
+        let id = crate::parts::csv_field(id);
         match t {
             Taught::Strip(s) => out.push_str(&format!(
                 "{id},strip,{:.3},{:.3},{},,,,,{:.4},{:.3}\n",

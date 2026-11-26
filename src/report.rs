@@ -1141,7 +1141,11 @@ impl WorkReport {
     pub fn csv_sections(&self) -> String {
         let mut out = String::new();
         let mut row = |section: &str, name: &str, value: String| {
-            out.push_str(&format!("{section},{},{value},,,,,,\n", csv_field(name)));
+            out.push_str(&format!(
+                "{section},{},{},,,,,,\n",
+                csv_field(name),
+                csv_field(&value)
+            ));
         };
         row(
             "work",

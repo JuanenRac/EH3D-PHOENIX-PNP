@@ -413,7 +413,7 @@ impl Queue {
                 e.boards.to_string(),
                 e.done.to_string(),
                 e.state.name().to_string(),
-                e.confirmed.clone(),
+                csv_field(&e.confirmed),
                 csv_field(&e.detail),
             ];
             out.push_str(&fields.join(","));

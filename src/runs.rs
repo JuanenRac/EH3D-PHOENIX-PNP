@@ -152,7 +152,7 @@ impl Runs {
                 r.skipped,
                 r.pending,
                 r.seconds,
-                r.error.as_deref().unwrap_or("")
+                crate::parts::csv_field(r.error.as_deref().unwrap_or(""))
             ));
         }
         out

@@ -5,9 +5,9 @@ use eh3d_phoenix_pnp::config::{MachineConfig, KEYS};
 use eh3d_phoenix_pnp::feeding::from_csv as feeders_from_csv;
 use eh3d_phoenix_pnp::parts::{parse, Part};
 use eh3d_phoenix_pnp::server::{
-    calibrate_request, dry_run, error_text, feeder_rows, feeders_request, label, link_settings,
-    parse_response, part_name, placements, safe_segment, Calibrate, JobInfo, Mode, Order, Remote,
-    ScLink, SimServer, Target, Transport,
+    authorization_refusal, calibrate_request, dry_run, error_text, feeder_rows, feeders_request,
+    label, link_settings, parse_response, part_name, placements, safe_segment, Calibrate, JobInfo,
+    Mode, Order, Remote, ScLink, SimServer, Target, Transport,
 };
 use eh3d_serverclient as sc;
 use serde_json::{json, Value};
@@ -529,6 +529,14 @@ fn an_answer_in_chunks_is_put_together_and_a_cut_one_is_an_error() {
 
 /// A small server on the loopback address that gives the requests to a server in memory. It answers `n` requests and keeps the `Authorization` header of each.
 fn serve(n: usize) -> (String, Arc<Mutex<Vec<String>>>, thread::JoinHandle<()>) {
+    serve_with(n, false)
+}
+
+/// The same, with a server that may want every job authorised before it starts.
+fn serve_with(
+    n: usize,
+    authorize: bool,
+) -> (String, Arc<Mutex<Vec<String>>>, thread::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap().to_string();
     let seen = Arc::new(Mutex::new(Vec::new()));
@@ -536,6 +544,7 @@ fn serve(n: usize) -> (String, Arc<Mutex<Vec<String>>>, thread::JoinHandle<()>) 
     let handle = thread::spawn(move || {
         let mut server = SimServer::new(&["m1"]);
         server.steps_per_read = 100;
+        server.require_authorization = authorize;
         for _ in 0..n {
             let (mut s, _) = listener.accept().unwrap();
             let mut buf = Vec::new();
@@ -1652,6 +1661,7 @@ mod hunt_round4 {
             done: 1,
             total: 2,
             message: "half".to_string(),
+            ..JobInfo::default()
         };
         assert_eq!(j.line(), "j1: running, 1 of 2 (50%) - half");
         let quiet = JobInfo {
@@ -2091,4 +2101,246 @@ mod hunt_round4 {
             assert_eq!(Calibrate::parse(bad), None, "{bad:?}");
         }
     }
+}
+
+// ---- the authorization of a job with the hash of the server
+
+/// What the server in memory was asked to do with the body of each request, and, when `meddle` is on, a job that changes right before it is authorised.
+struct Watched {
+    server: SimServer,
+    bodies: Vec<(String, Option<Value>)>,
+    meddle: bool,
+}
+
+impl Transport for Watched {
+    fn call(
+        &mut self,
+        method: &str,
+        path: &str,
+        body: Option<&Value>,
+    ) -> Result<(u16, Value), String> {
+        if self.meddle && path.ends_with("/authorize") {
+            let id = path.split('/').nth(5).unwrap_or("").to_string();
+            assert!(self.server.change_job(&id), "{path}");
+        }
+        self.bodies
+            .push((format!("{method} {path}"), body.cloned()));
+        self.server.call(method, path, body)
+    }
+}
+
+/// A machine whose feeders are loaded, on a server that wants every job authorised, and a job of placements that waits.
+fn waiting() -> (Remote<Watched>, JobInfo) {
+    let mut r = Remote::new(
+        Watched {
+            server: SimServer::new(&["m1"]),
+            bodies: Vec::new(),
+            meddle: false,
+        },
+        &target(),
+    );
+    let rows = feeder_rows(&feeders()).unwrap();
+    let load = r.create("feeders", &feeders_request(&rows, true)).unwrap();
+    r.order(&load.id, Order::Start).unwrap();
+    let request = placements(&board(), &rows, (0.0, 0.0)).unwrap().request;
+    let job = r.create("board", &request).unwrap();
+    r.transport.server.require_authorization = true;
+    r.transport.bodies.clear();
+    (r, job)
+}
+
+fn posts(r: &Remote<Watched>, end: &str) -> Vec<Option<Value>> {
+    r.transport
+        .bodies
+        .iter()
+        .filter(|(line, _)| line.starts_with("POST") && line.ends_with(end))
+        .map(|(_, body)| body.clone())
+        .collect()
+}
+
+#[test]
+fn a_job_is_authorised_and_started_with_the_hash_the_server_made() {
+    let (mut r, job) = waiting();
+    let shown = job.toolpath_sha256.clone();
+    assert_eq!(shown.len(), 64);
+    assert!(!job.authorized());
+    let why = r.order(&job.id, Order::Start).unwrap_err();
+    assert!(why.contains("authorization_required"), "{why}");
+    assert!(why.contains(&shown), "{why}");
+    assert!(
+        why.contains(&format!("server-job {} --authorize {shown}", job.id)),
+        "{why}"
+    );
+    let done = r.authorize(&job.id, &shown.to_ascii_uppercase()).unwrap();
+    assert!(done.authorized(), "{done:?}");
+    assert_eq!(done.authorized_by, "sim");
+    assert_eq!(
+        posts(&r, "/authorize"),
+        vec![Some(json!({"toolpath_sha256": shown}))]
+    );
+    r.transport.bodies.clear();
+    assert_eq!(r.start(&job.id, Some(&shown)).unwrap().state, "running");
+    assert_eq!(
+        posts(&r, "/start"),
+        vec![Some(json!({"toolpath_sha256": shown}))]
+    );
+}
+
+#[test]
+fn a_job_that_changed_after_it_was_shown_is_not_authorised() {
+    let (mut r, job) = waiting();
+    let shown = job.toolpath_sha256.clone();
+    assert!(r.transport.server.change_job(&job.id));
+    let why = r.authorize(&job.id, &shown).unwrap_err();
+    assert!(why.contains("stale_authorization"), "{why}");
+    let now = r.job(&job.id).unwrap();
+    assert_ne!(now.toolpath_sha256, shown);
+    // the new hash is told, and nothing was sent to authorise it
+    assert!(why.contains(&now.toolpath_sha256), "{why}");
+    assert!(posts(&r, "/authorize").is_empty());
+    assert!(!now.authorized());
+    let why = r.start(&job.id, Some(&shown)).unwrap_err();
+    assert!(why.contains("stale_authorization"), "{why}");
+}
+
+#[test]
+fn a_job_that_changes_between_the_last_look_and_the_authorization_is_refused_by_the_server() {
+    let (mut r, job) = waiting();
+    r.transport.meddle = true;
+    r.speak("es");
+    let why = r.authorize(&job.id, &job.toolpath_sha256).unwrap_err();
+    assert!(why.contains("stale_authorization"), "{why}");
+    assert!(why.contains("vuelve a mirarlo"), "{why}");
+    // what was sent is what was shown, never a hash read afterwards
+    assert_eq!(
+        posts(&r, "/authorize"),
+        vec![Some(json!({"toolpath_sha256": job.toolpath_sha256}))]
+    );
+    assert!(!r.job(&job.id).unwrap().authorized());
+}
+
+#[test]
+fn an_authorization_is_of_one_hash_only_and_a_changed_job_needs_another() {
+    let (mut r, job) = waiting();
+    let shown = job.toolpath_sha256.clone();
+    r.authorize(&job.id, &shown).unwrap();
+    assert!(r.transport.server.change_job(&job.id));
+    let why = r.start(&job.id, Some(&shown)).unwrap_err();
+    assert!(why.contains("stale_authorization"), "{why}");
+    let why = r.start(&job.id, None).unwrap_err();
+    assert!(why.contains("authorization_required"), "{why}");
+    assert_eq!(r.job(&job.id).unwrap().state, "queued");
+}
+
+#[test]
+fn a_token_without_the_scope_a_text_that_is_no_hash_and_the_hash_of_the_lines_authorise_nothing() {
+    let (mut r, job) = waiting();
+    r.transport.server.may_authorize = false;
+    let why = r.authorize(&job.id, &job.toolpath_sha256).unwrap_err();
+    assert!(why.contains("forbidden_scope"), "{why}");
+    r.transport.server.may_authorize = true;
+    r.transport.bodies.clear();
+    for bad in ["", "abc", &"g".repeat(64), &"a".repeat(65)] {
+        assert!(r.authorize(&job.id, bad).is_err(), "{bad}");
+        assert!(r.start(&job.id, Some(bad)).is_err(), "{bad}");
+    }
+    assert!(
+        r.transport.bodies.is_empty(),
+        "a text that is no hash is not sent"
+    );
+    let lines = eh3d_phoenix_pnp::toolpath::fingerprint(&["G28".to_string()]);
+    let why = r.authorize(&job.id, &lines).unwrap_err();
+    assert!(why.contains("stale_authorization"), "{why}");
+    assert!(posts(&r, "/authorize").is_empty());
+}
+
+#[test]
+fn only_a_hash_of_the_server_is_kept_and_the_refusals_are_told_in_the_eight_languages() {
+    for odd in [json!(5), json!("abc"), json!("z".repeat(64)), Value::Null] {
+        let j = JobInfo::from_json(
+            &json!({"toolpath_sha256": odd, "authorization": {"toolpath_sha256": odd, "by": 3}}),
+        );
+        assert_eq!(j, JobInfo::default(), "{odd}");
+        assert!(!j.authorized());
+    }
+    let j = JobInfo::from_json(&json!({"toolpath_sha256": "AB".repeat(32)}));
+    assert_eq!(j.toolpath_sha256, "ab".repeat(32));
+    for code in ["stale_authorization", "authorization_required"] {
+        let texts: std::collections::BTreeSet<&str> = sc::Lang::ALL
+            .iter()
+            .map(|l| authorization_refusal(code, *l).unwrap())
+            .collect();
+        assert_eq!(texts.len(), 8, "{code}");
+    }
+    assert!(authorization_refusal("machine_busy", sc::Lang::En).is_none());
+    assert!(authorization_refusal("stale_authorization", sc::Lang::De)
+        .unwrap()
+        .contains("Genehmigen"));
+}
+
+/// The word after `word` in a text.
+fn after(text: &str, word: &str) -> String {
+    let at = text.find(word).unwrap_or_else(|| panic!("{text}")) + word.len();
+    text[at..]
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .find(|w| !w.is_empty())
+        .unwrap_or_default()
+        .to_string()
+}
+
+#[test]
+fn the_commands_authorise_a_job_with_the_hash_that_server_status_shows() {
+    let dir = temp("authorize");
+    let (address, _seen, _server) = serve_with(100, true);
+    let cfg = config(&dir, &address, "server");
+    let job = |args: &[&str]| {
+        let mut all = args.to_vec();
+        all.extend(["--config", cfg.as_str()]);
+        run(&all)
+    };
+    // the table of feeders is a job of the plugin too: its start is refused and the message says how to authorise it
+    let o = job(&[
+        "server-send",
+        "examples/board.pos",
+        "examples/feeders.csv",
+        "--start",
+    ]);
+    assert_eq!(o.status.code(), Some(1), "{}", out(&o));
+    assert!(err(&o).contains("authorization_required"), "{}", err(&o));
+    let hash = after(&err(&o), "server-job w-0001 --authorize ");
+    let o = job(&["server-job", "w-0001", "--authorize", &hash]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(out(&o).contains("authorised by sim"), "{}", out(&o));
+    let o = job(&["server-job", "w-0001", "--start", "--hash", &hash]);
+    assert!(out(&o).contains("w-0001: done"), "{} {}", out(&o), err(&o));
+
+    let o = job(&[
+        "server-send",
+        "examples/board.pos",
+        "examples/feeders.csv",
+        "--keep-feeders",
+    ]);
+    assert!(o.status.success(), "{}", err(&o));
+    let sent = after(&out(&o), "toolpath_sha256 (server): ");
+    let o = job(&["server-status", "w-0002"]);
+    assert!(out(&o).contains("not authorised"), "{}", out(&o));
+    assert_eq!(after(&out(&o), "toolpath_sha256 (server): "), sent);
+    let o = job(&["server-job", "w-0002", "--authorize", &"0".repeat(64)]);
+    assert_eq!(o.status.code(), Some(1));
+    assert!(err(&o).contains("stale_authorization"), "{}", err(&o));
+    let o = job(&["server-job", "w-0002", "--authorize", &sent]);
+    assert!(o.status.success(), "{}", err(&o));
+    let o = job(&["server-job", "w-0002", "--start", "--hash", &sent]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(out(&o).contains("w-0002: running"), "{}", out(&o));
+
+    for args in [
+        vec!["server-job", "w-2", "--authorize", sent.as_str(), "--start"],
+        vec!["server-job", "w-2", "--pause", "--hash", sent.as_str()],
+        vec!["server-job", "w-2", "--authorize"],
+    ] {
+        let o = job(&args);
+        assert_eq!(o.status.code(), Some(1), "{args:?}");
+    }
+    let _ = std::fs::remove_dir_all(dir);
 }

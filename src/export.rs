@@ -6,11 +6,7 @@ use crate::parts::Part;
 use crate::planner::AdvancedPlan;
 
 fn csv_field(s: &str) -> String {
-    if s.contains([',', '"', '\n', '\r', ';']) {
-        format!("\"{}\"", s.replace('"', "\"\""))
-    } else {
-        s.to_string()
-    }
+    crate::parts::csv_field(s)
 }
 
 /// A report for a person: the totals, the batches, and what is missing or low.

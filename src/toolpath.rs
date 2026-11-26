@@ -1,9 +1,9 @@
 // EH3D-PHOENIX-PNP - the lines of a job and their fingerprint.
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
-//! The lines that a driver profile writes for a plan, from connecting to switching the motors off, are what a person is shown before a job is authorised, and the fingerprint of those lines
+//! The lines that a driver profile writes for a plan, from connecting to switching the motors off, can be looked at before they are run, and the fingerprint of those lines
 //! (SHA-256 of the lines, each one ended by a line break) says whether what is run is what was seen. The same plan and the same profile always give the same lines and the same
-//! fingerprint; a line that changes, is added or goes, or a place that moves by a thousandth of a millimetre, gives another one. This is the fingerprint of the lines of this program: the
-//! server makes its own of the request it holds, and the two are not the same number. Nothing is sent anywhere; the lines are text.
+//! fingerprint; a line that changes, is added or goes, or a place that moves by a thousandth of a millimetre, gives another one. This is a local check of the lines of this program and nothing
+//! authorises with it: the server makes its own hash of the request it holds, and that one (see `server`) is what authorises a job there. Nothing is sent anywhere; the lines are text.
 
 use crate::gcodedriver::DriverProfile;
 use crate::plan::Placement;

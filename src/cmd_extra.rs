@@ -18,7 +18,8 @@ use eh3d_phoenix_pnp::plan::{plan, Settings};
 use eh3d_phoenix_pnp::{drag, equivalents, feeding, heightmap, toolpath};
 
 /// `toolpath-hash PARTS FEEDERS PROFILE [--side top|bottom] [--board-width MM] [--partial] [--expect HASH] [--script-out F]`: plans the board, writes the lines that the profile gives for
-/// the whole job and prints their SHA-256. With `--expect` the command ends with 2 when the lines are not the ones of that hash: the plan changed after it was shown to a person.
+/// the whole job and prints their SHA-256 as `lines_sha256`. With `--expect` the command ends with 2 when the lines are not the ones of that hash. It is a local check: a job of the
+/// server is authorised with the hash of the server (`server-job ID --authorize`), never with this one.
 pub fn toolpath_hash(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let expect = flag(&mut args, "--expect")?;
@@ -62,14 +63,14 @@ pub fn toolpath_hash(mut args: Vec<String>) -> Result<(), String> {
     let lines = toolpath::script(&profile, &planned.placements)?;
     let hash = toolpath::fingerprint(&lines);
     let row: [&str; 8] = [
-        "toolpath_sha256: {hash} ({n} lines, {p} placements)",
-        "toolpath_sha256: {hash} ({n} líneas, {p} colocaciones)",
-        "toolpath_sha256: {hash} ({n} Zeilen, {p} Bestückungen)",
-        "toolpath_sha256 : {hash} ({n} lignes, {p} placements)",
-        "toolpath_sha256: {hash} ({n} righe, {p} posizionamenti)",
-        "toolpath_sha256: {hash}（{n} 行、{p} 件の実装）",
-        "toolpath_sha256：{hash}（{n} 行，{p} 个贴装）",
-        "toolpath_sha256: {hash} ({n} linhas, {p} colocações)",
+        "lines_sha256: {hash} ({n} lines, {p} placements)",
+        "lines_sha256: {hash} ({n} líneas, {p} colocaciones)",
+        "lines_sha256: {hash} ({n} Zeilen, {p} Bestückungen)",
+        "lines_sha256 : {hash} ({n} lignes, {p} placements)",
+        "lines_sha256: {hash} ({n} righe, {p} posizionamenti)",
+        "lines_sha256: {hash}（{n} 行、{p} 件の実装）",
+        "lines_sha256：{hash}（{n} 行，{p} 个贴装）",
+        "lines_sha256: {hash} ({n} linhas, {p} colocações)",
     ];
     println!(
         "{}",
@@ -88,14 +89,14 @@ pub fn toolpath_hash(mut args: Vec<String>) -> Result<(), String> {
         deliver(&toolpath::text(&lines), Some(o), &inputs, lang)?;
     }
     let evidence: [&str; 8] = [
-        "evidence=simulator: the lines were written from the profile and nothing was sent to a controller; this is the fingerprint of the lines of this program, not the one the server makes",
-        "evidence=simulator: las líneas se escribieron desde el perfil y no se envió nada a un controlador; es la huella de las líneas de este programa, no la que calcula el servidor",
-        "evidence=simulator: die Zeilen wurden aus dem Profil geschrieben und nichts an eine Steuerung gesendet; das ist der Fingerabdruck der Zeilen dieses Programms, nicht der des Servers",
-        "evidence=simulator : les lignes ont été écrites depuis le profil et rien n'a été envoyé à un contrôleur ; c'est l'empreinte des lignes de ce programme, pas celle que calcule le serveur",
-        "evidence=simulator: le righe sono state scritte dal profilo e non è stato inviato nulla a un controllore; è l'impronta delle righe di questo programma, non quella calcolata dal server",
-        "evidence=simulator：プロファイルから行を書き出しただけで、コントローラには何も送っていません。これはこのプログラムの行のフィンガープリントで、サーバーが作るものではありません",
-        "evidence=simulator：仅根据配置文件写出了这些行，没有向控制器发送任何内容；这是本程序所写行的指纹，不是服务器计算的那一个",
-        "evidence=simulator: as linhas foram escritas a partir do perfil e nada foi enviado a um controlador; é a impressão das linhas deste programa, não a que o servidor calcula",
+        "evidence=simulator: the lines were written from the profile and nothing was sent to a controller; this is a local check of the lines of this program, never the hash that authorises a job of the server (server-status JOB shows that one)",
+        "evidence=simulator: las líneas se escribieron desde el perfil y no se envió nada a un controlador; es una comprobación local de las líneas de este programa, nunca la huella que autoriza un trabajo del servidor (esa la muestra server-status JOB)",
+        "evidence=simulator: die Zeilen wurden aus dem Profil geschrieben und nichts an eine Steuerung gesendet; das ist eine örtliche Prüfung der Zeilen dieses Programms, niemals der Hash, der einen Auftrag des Servers genehmigt (den zeigt server-status JOB)",
+        "evidence=simulator : les lignes ont été écrites depuis le profil et rien n'a été envoyé à un contrôleur ; c'est une vérification locale des lignes de ce programme, jamais l'empreinte qui autorise un travail du serveur (server-status JOB montre celle-là)",
+        "evidence=simulator: le righe sono state scritte dal profilo e non è stato inviato nulla a un controllore; è un controllo locale delle righe di questo programma, mai l'impronta che autorizza un lavoro del server (quella la mostra server-status JOB)",
+        "evidence=simulator：プロファイルから行を書き出しただけで、コントローラには何も送っていません。これはこのプログラムの行をローカルで確認するためのもので、サーバーのジョブを承認するハッシュではありません（そちらは server-status JOB で表示します）",
+        "evidence=simulator：仅根据配置文件写出了这些行，没有向控制器发送任何内容；这只是对本程序所写行的本地校验，绝不是用于授权服务器作业的哈希（后者由 server-status JOB 显示）",
+        "evidence=simulator: as linhas foram escritas a partir do perfil e nada foi enviado a um controlador; é uma verificação local das linhas deste programa, nunca a impressão que autoriza um trabalho do servidor (essa é mostrada por server-status JOB)",
     ];
     println!("{}", say(lang, &evidence, &[]));
     if let Some(e) = expect {
