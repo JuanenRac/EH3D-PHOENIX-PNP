@@ -23,7 +23,7 @@ pub const MAX_LINE: usize = 200;
 pub const MAX_PROFILE_BYTES: usize = 65_536;
 
 /// Every key of a profile file, in the order of the examples.
-pub const KEYS: [&str; 62] = [
+pub const KEYS: [&str; 63] = [
     "schema_version",
     "dialect",
     "transport",
@@ -86,6 +86,7 @@ pub const KEYS: [&str; 62] = [
     "bringup_probe_mm",
     "tolerate_unknown_echo",
     "stop_on_unknown_command",
+    "refuse_turn_without_axis",
 ];
 
 /// The keys that may be written more than once.
@@ -408,6 +409,146 @@ pub struct DriverProfile {
     pub tolerate_unknown_echo: bool,
     /// A controller that says it does not know a line (and then answers `ok`) is read as an error, so that a pump that was never switched is not taken for switched.
     pub stop_on_unknown_command: bool,
+    /// A machine with no axis to turn the nozzle refuses a part that must be turned; with `no` the part is placed as it lies in its feeder.
+    pub refuse_turn_without_axis: bool,
+}
+
+/// Why a step cannot be written by a profile.
+#[derive(Debug, Clone, PartialEq)]
+pub enum LineFault {
+    Feed {
+        feed: f64,
+        max: f64,
+    },
+    Outside {
+        axis: String,
+        value: f64,
+        lo: f64,
+        hi: f64,
+    },
+    NoTurnAxis,
+    NoActuator(String),
+    /// A placement of a nozzle (counted from 1) that the profile does not have.
+    Nozzle {
+        reference: String,
+        nozzle: usize,
+        count: usize,
+    },
+    /// A part that must be turned on a machine with no axis to turn it.
+    Unturnable {
+        reference: String,
+        degrees: f64,
+    },
+}
+
+impl LineFault {
+    /// The refusal in a language.
+    pub fn localized(&self, lang: Lang) -> String {
+        match self {
+            LineFault::Feed { feed, max } => say(
+                lang,
+                &[
+                    "the feed {v} is not from above 0 to {max} mm/min",
+                    "el avance {v} no está entre más de 0 y {max} mm/min",
+                    "der Vorschub {v} liegt nicht über 0 und höchstens bei {max} mm/min",
+                    "l'avance {v} n'est pas comprise entre plus de 0 et {max} mm/min",
+                    "l'avanzamento {v} non è compreso tra più di 0 e {max} mm/min",
+                    "送り {v} は 0 より大きく {max} mm/min 以下の範囲にありません",
+                    "进给 {v} 不在大于 0 且不超过 {max} mm/min 的范围内",
+                    "o avanço {v} não está entre mais de 0 e {max} mm/min",
+                ],
+                &[("v", num(*feed)), ("max", num(*max))],
+            ),
+            LineFault::Outside {
+                axis,
+                value,
+                lo,
+                hi,
+            } => say(
+                lang,
+                &[
+                    "{axis} {v} is outside {lo} to {hi}",
+                    "{axis} {v} está fuera de {lo} a {hi}",
+                    "{axis} {v} liegt außerhalb von {lo} bis {hi}",
+                    "{axis} {v} est hors de {lo} à {hi}",
+                    "{axis} {v} è fuori da {lo} a {hi}",
+                    "{axis} {v} は {lo} から {hi} の範囲外です",
+                    "{axis} {v} 超出 {lo} 到 {hi}",
+                    "{axis} {v} está fora de {lo} a {hi}",
+                ],
+                &[
+                    ("axis", axis.clone()),
+                    ("v", num(*value)),
+                    ("lo", num(*lo)),
+                    ("hi", num(*hi)),
+                ],
+            ),
+            LineFault::NoTurnAxis => say(
+                lang,
+                &[
+                    "the machine has no axis to turn the nozzle",
+                    "la máquina no tiene eje para girar la boquilla",
+                    "die Maschine hat keine Achse zum Drehen der Düse",
+                    "la machine n'a pas d'axe pour tourner la buse",
+                    "la macchina non ha un asse per ruotare l'ugello",
+                    "この機械にはノズルを回す軸がありません",
+                    "机器没有旋转吸嘴的轴",
+                    "a máquina não tem eixo para rodar o bico",
+                ],
+                &[],
+            ),
+            LineFault::NoActuator(name) => say(
+                lang,
+                &[
+                    "no actuator is called '{name}'",
+                    "ningún actuador se llama '{name}'",
+                    "kein Aktor heißt '{name}'",
+                    "aucun actionneur ne s'appelle '{name}'",
+                    "nessun attuatore si chiama '{name}'",
+                    "「{name}」というアクチュエータはありません",
+                    "没有名为“{name}”的执行器",
+                    "nenhum atuador se chama '{name}'",
+                ],
+                &[("name", name.clone())],
+            ),
+            LineFault::Nozzle {
+                reference,
+                nozzle,
+                count,
+            } => say(
+                lang,
+                &[
+                    "{reference} uses nozzle {n} and the profile has {count}",
+                    "{reference} usa la boquilla {n} y el perfil tiene {count}",
+                    "{reference} nutzt Düse {n}, und das Profil hat {count}",
+                    "{reference} utilise la buse {n} et le profil en a {count}",
+                    "{reference} usa l'ugello {n} e il profilo ne ha {count}",
+                    "{reference} はノズル {n} を使いますが、プロファイルのノズルは {count} 個です",
+                    "{reference} 使用吸嘴 {n}，而配置档只有 {count} 个",
+                    "{reference} usa o bico {n} e o perfil tem {count}",
+                ],
+                &[
+                    ("reference", reference.clone()),
+                    ("n", nozzle.to_string()),
+                    ("count", count.to_string()),
+                ],
+            ),
+            LineFault::Unturnable { reference, degrees } => say(
+                lang,
+                &[
+                    "{reference} must be turned {deg} degrees and the machine has no axis to turn the nozzle",
+                    "{reference} debe girarse {deg} grados y la máquina no tiene eje para girar la boquilla",
+                    "{reference} muss um {deg} Grad gedreht werden, und die Maschine hat keine Achse zum Drehen der Düse",
+                    "{reference} doit être tourné de {deg} degrés et la machine n'a pas d'axe pour tourner la buse",
+                    "{reference} va ruotato di {deg} gradi e la macchina non ha un asse per ruotare l'ugello",
+                    "{reference} は {deg} 度回す必要がありますが、この機械にはノズルを回す軸がありません",
+                    "{reference} 需要旋转 {deg} 度，而机器没有旋转吸嘴的轴",
+                    "{reference} tem de rodar {deg} graus e a máquina não tem eixo para rodar o bico",
+                ],
+                &[("reference", reference.clone()), ("deg", num(*degrees))],
+            ),
+        }
+    }
 }
 
 /// A place the head is asked to go to; an axis that is `None` is left where it is.
@@ -529,6 +670,7 @@ impl Default for DriverProfile {
             bringup_probe_mm: 20.0,
             tolerate_unknown_echo: true,
             stop_on_unknown_command: true,
+            refuse_turn_without_axis: true,
         }
     }
 }
@@ -845,6 +987,10 @@ impl DriverProfile {
                 self.stop_on_unknown_command =
                     yes_no(v).ok_or_else(|| err(Fault::BadValue("yes or no".into())))?
             }
+            "refuse_turn_without_axis" => {
+                self.refuse_turn_without_axis =
+                    yes_no(v).ok_or_else(|| err(Fault::BadValue("yes or no".into())))?
+            }
             _ => return Err(err(Fault::UnknownKey)),
         }
         Ok(())
@@ -1004,12 +1150,17 @@ impl DriverProfile {
     /// The line of a move: the command, the axes that are given and the feed. A place that is not a number, outside the limits or with a feed over the greatest is refused: nothing is
     /// clamped, because a move that was not asked for is worse than no move.
     pub fn move_line(&self, t: &Target, feed: f64) -> Result<String, String> {
+        self.move_line_checked(t, feed)
+            .map_err(|f| f.localized(Lang::En))
+    }
+
+    /// `move_line` with the reason of a refusal as a value that can be said in every language.
+    pub fn move_line_checked(&self, t: &Target, feed: f64) -> Result<String, LineFault> {
         if !feed.is_finite() || feed <= 0.0 || feed > self.feed_max {
-            return Err(format!(
-                "the feed {} is not from above 0 to {} mm/min",
-                num(feed),
-                num(self.feed_max)
-            ));
+            return Err(LineFault::Feed {
+                feed,
+                max: self.feed_max,
+            });
         }
         let mut out = self.move_command.clone();
         let values = [t.x, t.y, t.z, t.rot];
@@ -1022,15 +1173,15 @@ impl DriverProfile {
         for ((value, letter), (lo, hi)) in values.iter().zip(self.letters()).zip(ranges) {
             let Some(v) = value else { continue };
             if !v.is_finite() || !(lo..=hi).contains(v) {
-                return Err(format!(
-                    "{letter} {} is outside {} to {}",
-                    num(*v),
-                    num(lo),
-                    num(hi)
-                ));
+                return Err(LineFault::Outside {
+                    axis: letter.to_string(),
+                    value: *v,
+                    lo,
+                    hi,
+                });
             }
             if letter.is_empty() {
-                return Err("the machine has no axis to turn the nozzle".into());
+                return Err(LineFault::NoTurnAxis);
             }
             out.push_str(&format!(" {letter}{v:.3}"));
         }
@@ -1040,11 +1191,17 @@ impl DriverProfile {
 
     /// The line that switches an actuator.
     pub fn actuator_line(&self, name: &str, on: bool) -> Result<String, String> {
+        self.actuator_line_checked(name, on)
+            .map_err(|f| f.localized(Lang::En))
+    }
+
+    /// `actuator_line` with the reason of a refusal as a value.
+    pub fn actuator_line_checked(&self, name: &str, on: bool) -> Result<String, LineFault> {
         self.actuators
             .iter()
             .find(|a| a.name == name)
             .map(|a| if on { a.on.clone() } else { a.off.clone() })
-            .ok_or_else(|| format!("no actuator is called '{name}'"))
+            .ok_or_else(|| LineFault::NoActuator(name.to_string()))
     }
 
     /// The line that waits the milliseconds given.
@@ -1064,16 +1221,31 @@ impl DriverProfile {
     }
 
     /// The steps that pick a part at its feeder and put it on the board: up, over the feeder, down, the pump on, up, over the place with the turn, down, the pump off and the blow,
-    /// up. A placement of a nozzle the profile does not have is refused.
+    /// up. A placement of a nozzle the profile does not have is refused, and so is a part that must be turned on a machine with no axis to turn it (`refuse_turn_without_axis`).
     pub fn placement_ops(&self, p: &Placement) -> Result<Vec<Op>, String> {
+        self.placement_ops_checked(p)
+            .map_err(|f| f.localized(Lang::En))
+    }
+
+    /// `placement_ops` with the reason of a refusal as a value.
+    pub fn placement_ops_checked(&self, p: &Placement) -> Result<Vec<Op>, LineFault> {
         // the nozzles of a plan are counted from 0
         if p.nozzle >= self.nozzles {
-            return Err(format!(
-                "{} uses nozzle {} and the profile has {}",
-                p.reference,
-                p.nozzle + 1,
-                self.nozzles
-            ));
+            return Err(LineFault::Nozzle {
+                reference: p.reference.clone(),
+                nozzle: p.nozzle + 1,
+                count: self.nozzles,
+            });
+        }
+        let turn = (p.nozzle_place_deg - p.nozzle_pick_deg).rem_euclid(360.0);
+        if self.axis_rot.is_empty()
+            && self.refuse_turn_without_axis
+            && turn.min(360.0 - turn) > 0.01
+        {
+            return Err(LineFault::Unturnable {
+                reference: p.reference.clone(),
+                degrees: turn,
+            });
         }
         let at = |x: f64, y: f64, rot: Option<f64>| Target {
             x: Some(x),
@@ -1108,7 +1280,15 @@ impl DriverProfile {
         ops.push(Op::Move(z(self.z_travel), self.feed_z));
         // every step must be one the profile can write before any of them is sent
         for op in &ops {
-            self.lines(op)?;
+            match op {
+                Op::Move(t, feed) => {
+                    self.move_line_checked(t, *feed)?;
+                }
+                Op::Actuator(n, on) => {
+                    self.actuator_line_checked(n, *on)?;
+                }
+                _ => {}
+            }
         }
         Ok(ops)
     }
@@ -1142,7 +1322,7 @@ impl DriverProfile {
         if self.error.is_match(l) {
             return Reply::Error(l.to_string());
         }
-        if self.stop_on_unknown_command && says_unknown_command(l) {
+        if says_turn_not_made(l) || (self.stop_on_unknown_command && says_unknown_command(l)) {
             return Reply::Error(l.to_string());
         }
         if self.busy.is_match(l) {
@@ -1235,6 +1415,15 @@ fn says_unknown_command(line: &str) -> bool {
         r.trim_start()
             .to_ascii_lowercase()
             .starts_with("unknown command")
+    })
+}
+
+/// Whether a line is the notice of Marlin that it did not move the axis `E`, which on this machine turns the nozzle: `cold extrusion prevented` and `too long extrusion prevented`. Marlin
+/// answers `ok` after them, so they are read as errors.
+fn says_turn_not_made(line: &str) -> bool {
+    line.strip_prefix("echo:").is_some_and(|r| {
+        let r = r.trim_start().to_ascii_lowercase();
+        r.starts_with("cold extrusion prevented") || r.starts_with("too long extrusion prevented")
     })
 }
 

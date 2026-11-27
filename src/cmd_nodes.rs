@@ -7,8 +7,9 @@
 use crate::cli_args::{finish, flag, num};
 use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
+use eh3d_phoenix_pnp::msg8::{pick, say};
 use eh3d_phoenix_pnp::nodelink::{
-    beat_period_ms, one_lost_question_is_enough, Feeders, Head, ScNodeLink,
+    beat_period_ms, one_lost_question_is_enough, Feeders, Head, Hold, ScNodeLink,
 };
 use eh3d_phoenix_pnp::nodesim::{Injection, SimFeeders, SimHead};
 use eh3d_phoenix_pnp::panelcomp::Composition;
@@ -182,7 +183,7 @@ pub fn panel_compose(mut args: Vec<String>) -> Result<(), String> {
 /// watches the nodes gave. Each step asks the head whether the machine may move, asks for the permission to move, advances a feeder, picks and places with a nozzle, and lets the permission go. It says
 /// what the link saw. The same seed gives the same text. The exit code is 2 when the link was held.
 pub fn node_sim(mut args: Vec<String>) -> Result<(), String> {
-    let (_, cfg) = language_and_config(&mut args)?;
+    let (lang, cfg) = language_and_config(&mut args)?;
     let steps = flag(&mut args, "--steps")?
         .map(|v| crate::cmd_flow::whole(&v, "--steps", 1.0, 10_000.0))
         .transpose()?
@@ -227,53 +228,220 @@ pub fn node_sim(mut args: Vec<String>) -> Result<(), String> {
         let _ = feeders.refresh();
         if !head.xy_clear() {
             skipped += 1;
-            println!(
-                "step {step}: the head is not clear or cannot be heard: the machine does not move"
-            );
+            let row: [&str; 8] = [
+                "step {step}: the head is not clear or cannot be heard: the machine does not move",
+                "paso {step}: el cabezal no está libre o no se le oye: la máquina no se mueve",
+                "Schritt {step}: der Kopf ist nicht frei oder nicht erreichbar: die Maschine bewegt sich nicht",
+                "étape {step} : la tête n'est pas dégagée ou ne répond pas : la machine ne bouge pas",
+                "passo {step}: la testa non è libera o non risponde: la macchina non si muove",
+                "手順 {step}：ヘッドが退避していないか応答がないため、機械は動きません",
+                "第 {step} 步：机头未让开或无法联系，机器不移动",
+                "passo {step}: a cabeça não está livre ou não se ouve: a máquina não se move",
+            ];
+            println!("{}", say(lang, &row, &[("step", step.to_string())]));
             continue;
         }
         match head.set_xy_moving(true) {
             Ok(()) => {
                 moved += 1;
-                let _ = feeders.advance(1, 1);
+                let advanced = feeders.advance(1, 1);
                 let _ = head.set_xy_moving(false);
+                // a part is picked only when the feeder said its tape moved
+                if let Err(e) = advanced {
+                    let row: [&str; 8] = [
+                        "step {step}: moved; the feeder did not advance and nothing is picked: {why}",
+                        "paso {step}: movido; el alimentador no avanzó y no se toma nada: {why}",
+                        "Schritt {step}: bewegt; der Feeder hat nicht vorgeschoben, nichts wird aufgenommen: {why}",
+                        "étape {step} : déplacé ; le chargeur n'a pas avancé, rien n'est pris : {why}",
+                        "passo {step}: mosso; l'alimentatore non è avanzato e non si preleva nulla: {why}",
+                        "手順 {step}：移動しました。フィーダが送られなかったため、何も取りません：{why}",
+                        "第 {step} 步：已移动；供料器未进给，不拾取任何元件：{why}",
+                        "passo {step}: movido; o alimentador não avançou e nada é apanhado: {why}",
+                    ];
+                    println!(
+                        "{}",
+                        say(
+                            lang,
+                            &row,
+                            &[("step", step.to_string()), ("why", e.localized(lang))]
+                        )
+                    );
+                    continue;
+                }
                 let picked = head.pick(1);
                 let placed = head.place(1);
+                let row: [&str; 8] = [
+                    "step {step}: moved; pick {pick}, place {place}",
+                    "paso {step}: movido; toma {pick}, colocación {place}",
+                    "Schritt {step}: bewegt; Aufnahme {pick}, Absetzen {place}",
+                    "étape {step} : déplacé ; prise {pick}, pose {place}",
+                    "passo {step}: mosso; presa {pick}, posa {place}",
+                    "手順 {step}：移動しました。ピック {pick}、プレース {place}",
+                    "第 {step} 步：已移动；拾取 {pick}，贴放 {place}",
+                    "passo {step}: movido; recolha {pick}, colocação {place}",
+                ];
                 println!(
-                    "step {step}: moved; pick {}, place {}",
-                    picked.is_ok(),
-                    placed.is_ok()
+                    "{}",
+                    say(
+                        lang,
+                        &row,
+                        &[
+                            ("step", step.to_string()),
+                            ("pick", picked.is_ok().to_string()),
+                            ("place", placed.is_ok().to_string())
+                        ]
+                    )
                 );
             }
             Err(e) => {
                 refused += 1;
-                println!("step {step}: the permission was refused: {e}");
+                let row: [&str; 8] = [
+                    "step {step}: the permission was refused: {why}",
+                    "paso {step}: se denegó el permiso: {why}",
+                    "Schritt {step}: die Erlaubnis wurde verweigert: {why}",
+                    "étape {step} : l'autorisation a été refusée : {why}",
+                    "passo {step}: il permesso è stato negato: {why}",
+                    "手順 {step}：許可が拒否されました：{why}",
+                    "第 {step} 步：许可被拒绝：{why}",
+                    "passo {step}: a autorização foi recusada: {why}",
+                ];
+                println!(
+                    "{}",
+                    say(
+                        lang,
+                        &row,
+                        &[("step", step.to_string()), ("why", e.localized(lang))]
+                    )
+                );
             }
         }
     }
+    let row: [&str; 8] = [
+        "{steps} steps: {moved} moved, {refused} refused, {skipped} not clear; the head answered {head_n} requests, the feeders {feed_n}; head {head}, feeders {feed}",
+        "{steps} pasos: {moved} movidos, {refused} denegados, {skipped} no libres; el cabezal respondió {head_n} peticiones, los alimentadores {feed_n}; cabezal {head}, alimentadores {feed}",
+        "{steps} Schritte: {moved} bewegt, {refused} verweigert, {skipped} nicht frei; der Kopf beantwortete {head_n} Anfragen, die Feeder {feed_n}; Kopf {head}, Feeder {feed}",
+        "{steps} étapes : {moved} déplacées, {refused} refusées, {skipped} non dégagées ; la tête a répondu à {head_n} requêtes, les chargeurs à {feed_n} ; tête {head}, chargeurs {feed}",
+        "{steps} passi: {moved} mossi, {refused} negati, {skipped} non liberi; la testa ha risposto a {head_n} richieste, gli alimentatori a {feed_n}; testa {head}, alimentatori {feed}",
+        "{steps} 手順：移動 {moved}、拒否 {refused}、未退避 {skipped}。ヘッドは {head_n} 件、フィーダは {feed_n} 件に応答。ヘッド {head}、フィーダ {feed}",
+        "{steps} 步：移动 {moved}，拒绝 {refused}，未让开 {skipped}；机头应答 {head_n} 次请求，供料器 {feed_n} 次；机头 {head}，供料器 {feed}",
+        "{steps} passos: {moved} movidos, {refused} recusados, {skipped} não livres; a cabeça respondeu a {head_n} pedidos, os alimentadores a {feed_n}; cabeça {head}, alimentadores {feed}",
+    ];
+    let hold_word = |hold: Option<Hold>| match hold {
+        Some(h) => h.localized(lang),
+        None => pick(
+            lang,
+            &[
+                "not held",
+                "sin retener",
+                "nicht gesperrt",
+                "non retenu",
+                "non bloccato",
+                "保留なし",
+                "未保持",
+                "sem retenção",
+            ],
+        ),
+    };
     println!(
-        "{steps} steps: {moved} moved, {refused} refused, {skipped} not clear; the head answered {} requests, the feeders {}; head {}, feeders {}",
-        head_sim.requests(),
-        feed_sim.requests(),
-        head.guard().held().map_or("not held", |h| h.name()),
-        feeders.guard().held().map_or("not held", |h| h.name())
+        "{}",
+        say(
+            lang,
+            &row,
+            &[
+                ("steps", steps.to_string()),
+                ("moved", moved.to_string()),
+                ("refused", refused.to_string()),
+                ("skipped", skipped.to_string()),
+                ("head_n", head_sim.requests().to_string()),
+                ("feed_n", feed_sim.requests().to_string()),
+                ("head", hold_word(head.guard().held()).to_string()),
+                ("feed", hold_word(feeders.guard().held()).to_string()),
+            ]
+        )
     );
-    for (name, watch) in [("head", head.watch_ms()), ("feeders", feeders.watch_ms())] {
+    for (name, watch) in [
+        (
+            [
+                "head",
+                "cabezal",
+                "Kopf",
+                "tête",
+                "testa",
+                "ヘッド",
+                "机头",
+                "cabeça",
+            ],
+            head.watch_ms(),
+        ),
+        (
+            [
+                "feeders",
+                "alimentadores",
+                "Feeder",
+                "chargeurs",
+                "alimentatori",
+                "フィーダ",
+                "供料器",
+                "alimentadores",
+            ],
+            feeders.watch_ms(),
+        ),
+    ] {
         let Some(watch) = watch else {
             continue;
         };
+        let row: [&str; 8] = [
+            "{name}: safe after {watch} ms without a question with the token; asked every {period} ms while an order is waited for",
+            "{name}: pasa a seguro tras {watch} ms sin una pregunta con el token; se le pregunta cada {period} ms mientras se espera una orden",
+            "{name}: sicher nach {watch} ms ohne Anfrage mit dem Token; während eines Auftrags alle {period} ms gefragt",
+            "{name} : en état sûr après {watch} ms sans requête avec le jeton ; interrogé toutes les {period} ms pendant l'attente d'un ordre",
+            "{name}: in stato sicuro dopo {watch} ms senza una richiesta con il token; interrogato ogni {period} ms mentre si attende un ordine",
+            "{name}：トークン付きの問い合わせが {watch} ms ないと安全状態になります。指令の待機中は {period} ms ごとに問い合わせます",
+            "{name}：{watch} ms 内没有带令牌的请求即进入安全状态；等待指令期间每 {period} ms 询问一次",
+            "{name}: fica em estado seguro após {watch} ms sem uma pergunta com o token; perguntado a cada {period} ms enquanto se espera uma ordem",
+        ];
+        let short: [&str; 8] = [
+            "; one question without an answer is enough for it (node_timeout_s)",
+            "; basta una pregunta sin respuesta para ello (node_timeout_s)",
+            "; eine Anfrage ohne Antwort genügt dafür (node_timeout_s)",
+            " ; une seule requête sans réponse suffit (node_timeout_s)",
+            "; basta una richiesta senza risposta (node_timeout_s)",
+            "。応答のない問い合わせ 1 回でそうなります（node_timeout_s）",
+            "；一次无应答的询问就足以触发（node_timeout_s）",
+            "; basta uma pergunta sem resposta para isso (node_timeout_s)",
+        ];
         println!(
-            "{name}: safe after {watch} ms without a question with the token; asked every {} ms while an order is waited for{}",
-            beat_period_ms(watch),
+            "{}{}",
+            say(
+                lang,
+                &row,
+                &[
+                    ("name", pick(lang, &name).to_string()),
+                    ("watch", watch.to_string()),
+                    ("period", beat_period_ms(watch).to_string())
+                ]
+            ),
             if one_lost_question_is_enough(watch, cfg.node_timeout_s) {
-                "; one question without an answer is enough for it (node_timeout_s)"
+                pick(lang, &short)
             } else {
                 ""
             }
         );
     }
     if head.guard().held().is_some() || feeders.guard().held().is_some() {
-        return Err(not_passed("the link to a node was held"));
+        return Err(not_passed(pick(
+            lang,
+            &[
+                "the link to a node was held",
+                "se retuvo el enlace con un nodo",
+                "die Verbindung zu einem Knoten wurde gesperrt",
+                "la liaison avec un nœud a été retenue",
+                "il collegamento a un nodo è stato bloccato",
+                "ノードとの接続が保留されました",
+                "与某个节点的连接已被保持",
+                "a ligação a um nó ficou retida",
+            ],
+        )));
     }
     Ok(())
 }

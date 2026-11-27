@@ -4,6 +4,22 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The driver takes a part at the angle it lies at in its feeder:** `driver-run` and `toolpath-hash` took every part as lying at 0 degrees. They now read the table of feeders with every column of `schedule`, turn the nozzle to the `rotation` of the feeder before the pick, leave out a feeder that is off and refuse a part of a tray or of a strip.
+- **The driver mounts the same board as the plan:** the rotation rules of the configuration (`rotation`) were ignored by `driver-run` and `toolpath-hash`, and the marks of the board counted as parts with no feeder.
+- **The bottom side of a board that does not start at X 0:** `driver-run` and `toolpath-hash` take `--origin-x`.
+- **A machine with no axis to turn the nozzle:** a part that had to be turned was placed unturned without a word; it is now refused before anything is sent (`refuse_turn_without_axis`, `yes` by default).
+- **A busy controller does not end a move:** a wait (`M400`) answered without `ok` was taken as done and the next line was sent.
+- **The place the head reports does not end a move:** after a wait with no answer, a head that reported the target was taken to be there, although a controller reports where it was told to go while it is still on its way. The wait is now asked again and has to say `ok`.
+- **A held run leaves nothing switched on:** a job that stopped because the rules of safety held the machine released the motors and left the pump running. It now sends the lines of `safe_stop`.
+- **A turn that Marlin did not make:** `cold extrusion prevented` and `too long extrusion prevented` are followed by `ok`; they now stop the session, because the axis `E` turns the nozzle.
+- **A controller that restarts:** a `start` of Marlin in the middle of a job stops the session.
+- **The stop that was not confirmed is told:** a line of `safe_stop` with no `ok` is sent again, and `driver-run` and `bringup` name the lines the controller never confirmed so that a person looks at the pump, the valves and the motors.
+- **The feeder node says why it refuses:** `safe_state` and `busy`, which that node writes under `error`, were lost on the way and only the status 409 was seen.
+- **A node that says it is safe is held at once:** a refusal with `safe_state` holds it, and no further order is sent until a person acknowledges.
+- **An order with no answer is followed by a stop:** the head or the feeder node is asked to stop what may still be moving; the library also has a stop that is sent even while a node is held.
+- **A tape in doubt waits for a person:** after an advance that ended `stopped`, `timeout`, `no_answer` or with no readable answer, that feeder takes no other advance until it is acknowledged, and `node-sim` picks nothing after an advance that failed.
+- **The reason the driver stopped, in eight languages:** `driver-run`, `bringup`, `homing-repeat` and the steps a profile cannot write said it in English.
+- **The nodes in eight languages:** their errors and every line of `node-sim` follow `--lang`.
 - **The driver turns the nozzle before it takes a part:** the axis of the nozzle was left at the angle of the part before when the next one was picked, so from the second placement on a part could be placed turned by that angle. The axis now goes to its angle of pick on the way to the feeder. Tried against the simulated controller only.
 - **A homing obeys the interlocks and the hold:** `G28` was sent while a rule of X, Y or Z was not satisfied (a door open) or while the rules of safety held the machine; it is now refused as any other move.
 - **A line the controller does not know stops the session:** Marlin answers it with a notice and then `ok`, so a pump that was never switched was taken for switched. The new key `stop_on_unknown_command` of a driver profile (`yes` by default) reads the notice as an error.
