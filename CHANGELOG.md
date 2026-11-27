@@ -4,8 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A question to a node is waited for half a second (safety):** `node_timeout_s` is 0.5 by default (it was 2) and takes fractions (0.1 to 120), so one reading of the state that gets lost no longer uses up the 2000 ms watch of the head. An order, which a node answers only when the move is over, keeps its 2 seconds in the new setting `node_order_timeout_s` (0.5 to 120). Tried on nodes on a computer only.
 - **A hook just written is not refused:** Linux does not start a program while its file is still open for writing ("Text file busy"), which happens right after it is written or copied. The start is now tried again for about a second, and then told as a failure.
-- **1 more test**, for the above (it runs on Linux).
+- **3 more tests**, for the above (the one of the hooks runs on Linux).
 
 ## [0.1.6] - Parts are turned from the angle of their feeder, a held run stops safely and a silent node holds the job (simulator only)
 

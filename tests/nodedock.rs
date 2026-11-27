@@ -380,6 +380,12 @@ fn the_panel_of_the_nodes_has_the_watch_of_each_node_once_it_was_asked() {
     let mut bench = Bench::new(&cfg);
     assert_eq!(bench.watches(), [None, None]);
     bench.ask();
-    // the head's watch is not longer than the time one question may take; the feeder node's is
+    // with the default time of a question, one that gets lost does not use up the watch of any node
+    assert_eq!(bench.watches(), [Some((2000, false)), Some((5000, false))]);
+    // with a question that may take as long as the head's watch, one is enough for the head and not for the feeder node
+    let mut slow = cfg.clone();
+    slow.node_timeout_s = 2.0;
+    let mut bench = Bench::new(&slow);
+    bench.ask();
     assert_eq!(bench.watches(), [Some((2000, true)), Some((5000, false))]);
 }

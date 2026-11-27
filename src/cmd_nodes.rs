@@ -9,7 +9,7 @@ use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
 use eh3d_phoenix_pnp::msg8::{pick, say};
 use eh3d_phoenix_pnp::nodelink::{
-    beat_period_ms, one_lost_question_is_enough, Feeders, Head, Hold, ScNodeLink,
+    beat_period_ms, one_lost_question_is_enough, Feeders, Head, Hold, NodeTimes, ScNodeLink,
 };
 use eh3d_phoenix_pnp::nodesim::{Injection, SimFeeders, SimHead};
 use eh3d_phoenix_pnp::panelcomp::Composition;
@@ -214,7 +214,11 @@ pub fn node_sim(mut args: Vec<String>) -> Result<(), String> {
     feed_sim.set_injection(Injection::seeded(seed ^ 0x9E37, silence, unauthorized, 0));
     let retries = 0;
     let link = |s: Box<dyn eh3d_serverclient::Transport>| {
-        ScNodeLink::new("sim:1", "t", cfg.node_timeout_s, retries, s).without_waiting()
+        let times = NodeTimes {
+            question_s: cfg.node_timeout_s,
+            order_s: cfg.node_order_timeout_s,
+        };
+        ScNodeLink::new("sim:1", "t", times, retries, s).without_waiting()
     };
     let mut head = Head::new(link(Box::new(head_sim.clone())), cfg.node_silence_limit);
     let mut feeders = Feeders::new(link(Box::new(feed_sim.clone())), cfg.node_silence_limit);

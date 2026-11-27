@@ -6,7 +6,7 @@ use eh3d_phoenix_pnp::gcodedriver::{DriverProfile, Target};
 use eh3d_phoenix_pnp::gcodesim::{Faults, GcodeSim, SimLink};
 use eh3d_phoenix_pnp::nodelink::{
     beat_period_ms, one_lost_question_is_enough, xy_clear_signal, ChainStatus, Feeders, Head,
-    HeadStatus, Hold, LinkError, NodeLink, ScNodeLink, XY_CLEAR,
+    HeadStatus, Hold, LinkError, NodeLink, NodeTimes, ScNodeLink, XY_CLEAR,
 };
 use eh3d_phoenix_pnp::nodesim::{Inject, Injection, SimFeeders, SimHead};
 use eh3d_phoenix_pnp::slotbank::Seen;
@@ -20,7 +20,14 @@ const BIN: &str = env!("CARGO_BIN_EXE_phoenix-pnp");
 const MARLIN: &str = include_str!("../examples/driver_marlin.cfg");
 
 fn over_http(sim: &SimHead, token: &str) -> ScNodeLink {
-    ScNodeLink::new("sim:1", token, 2, 0, Box::new(sim.clone())).without_waiting()
+    ScNodeLink::new(
+        "sim:1",
+        token,
+        NodeTimes::default(),
+        0,
+        Box::new(sim.clone()),
+    )
+    .without_waiting()
 }
 
 fn refused(e: LinkError) -> (u16, Option<String>) {
@@ -295,7 +302,8 @@ fn the_feeders_advance_run_out_jam_and_are_cleared_through_the_link() {
 #[test]
 fn a_feeder_node_that_goes_silent_or_safe_is_held_and_no_tape_moves() {
     let sim = SimFeeders::new(4, None, "t");
-    let link = ScNodeLink::new("sim:2", "t", 2, 0, Box::new(sim.clone())).without_waiting();
+    let link = ScNodeLink::new("sim:2", "t", NodeTimes::default(), 0, Box::new(sim.clone()))
+        .without_waiting();
     let mut node = Feeders::new(link, 2);
     sim.set_injection(Injection::scripted(vec![Some(Inject::Silence); 2]));
     node.refresh().unwrap_err();
@@ -455,7 +463,14 @@ impl eh3d_serverclient::Transport for Fixed {
 }
 
 fn link_to(status: u16, body: &'static str) -> ScNodeLink {
-    ScNodeLink::new("node:1", "t", 2, 0, Box::new(Fixed(status, body))).without_waiting()
+    ScNodeLink::new(
+        "node:1",
+        "t",
+        NodeTimes::default(),
+        0,
+        Box::new(Fixed(status, body)),
+    )
+    .without_waiting()
 }
 
 #[test]
@@ -507,8 +522,9 @@ fn the_watch_of_a_node_is_read_from_its_status_and_a_firmware_that_does_not_say_
     }
     assert_eq!(beat_period_ms(2000), 666);
     assert_eq!(beat_period_ms(60), 50);
-    assert!(one_lost_question_is_enough(2000, 2));
-    assert!(!one_lost_question_is_enough(5000, 2));
+    assert!(one_lost_question_is_enough(2000, 2.0));
+    assert!(!one_lost_question_is_enough(5000, 2.0));
+    assert!(!one_lost_question_is_enough(2000, 0.5));
 }
 
 #[test]
@@ -622,7 +638,14 @@ fn the_command_says_the_watches_and_a_pause_longer_than_them_leaves_the_nodes_sa
         "{said}"
     );
     assert!(said.contains("feeders: safe after 5000 ms"), "{said}");
-    assert!(said.contains("node_timeout_s"), "{said}");
+    // with the default time of a question, one that gets lost does not use up the watch of any node
+    assert!(!said.contains("node_timeout_s"), "{said}");
+    let slow = std::env::temp_dir().join(format!("pnp_slow_node_{}.cfg", std::process::id()));
+    std::fs::write(&slow, "node_timeout_s = 2\n").unwrap();
+    let (code, warned) = node_sim(&["--steps", "3", "--config", slow.to_str().unwrap()]);
+    let _ = std::fs::remove_file(&slow);
+    assert_eq!(code, 0, "{warned}");
+    assert!(warned.contains("node_timeout_s"), "{warned}");
     let (code, said) = node_sim(&["--steps", "3", "--pause-ms", "2500"]);
     assert_eq!(code, 2, "{said}");
     assert!(said.contains("head safe"), "{said}");
@@ -633,7 +656,8 @@ fn the_command_says_the_watches_and_a_pause_longer_than_them_leaves_the_nodes_sa
 
 fn feeders_over_http(sim: &SimFeeders) -> Feeders<ScNodeLink> {
     Feeders::new(
-        ScNodeLink::new("sim:1", "t", 2, 0, Box::new(sim.clone())).without_waiting(),
+        ScNodeLink::new("sim:1", "t", NodeTimes::default(), 0, Box::new(sim.clone()))
+            .without_waiting(),
         3,
     )
 }
@@ -768,5 +792,57 @@ fn the_command_speaks_the_language_asked_and_picks_nothing_when_the_feeder_did_n
     let (_, text) = node_sim(&["--seed", "5", "--steps", "40", "--silence", "250"]);
     for line in text.lines().filter(|l| l.contains("did not advance")) {
         assert!(line.contains("nothing is picked"), "{line}");
+    }
+}
+
+// ---- the time of a question and the time of an order
+
+/// A node that keeps the method and the time it was given for each request.
+struct Clock(Arc<std::sync::Mutex<Vec<(String, Duration)>>>);
+
+impl eh3d_serverclient::Transport for Clock {
+    fn send(
+        &self,
+        request: &eh3d_serverclient::Request,
+    ) -> Result<eh3d_serverclient::Reply, eh3d_serverclient::TransportError> {
+        self.0
+            .lock()
+            .unwrap()
+            .push((request.method.clone(), request.timeout));
+        Ok(eh3d_serverclient::Reply::new(200, "{}".to_string()))
+    }
+}
+
+#[test]
+fn a_question_has_the_time_of_a_question_and_an_order_keeps_its_own() {
+    let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let node = Box::new(Clock(seen.clone()));
+    let mut link = ScNodeLink::new("node:1", "t", NodeTimes::default(), 0, node).without_waiting();
+    link.call("GET", "/api/status", true).unwrap();
+    link.call("POST", "/api/z?n=1&mm=1.000", true).unwrap();
+    assert_eq!(
+        *seen.lock().unwrap(),
+        vec![
+            ("GET".to_string(), Duration::from_millis(500)),
+            ("POST".to_string(), Duration::from_secs(2)),
+        ]
+    );
+}
+
+#[test]
+fn half_a_second_for_a_question_is_the_default_and_the_settings_accept_it() {
+    use eh3d_phoenix_pnp::config::MachineConfig;
+    let d = MachineConfig::default();
+    assert_eq!((d.node_timeout_s, d.node_order_timeout_s), (0.5, 2.0));
+    // under the 2000 ms of the watch of the head
+    assert!(!one_lost_question_is_enough(2000, d.node_timeout_s));
+    let c = MachineConfig::parse("node_timeout_s = 0.5\nnode_order_timeout_s = 7.5\n").unwrap();
+    assert_eq!((c.node_timeout_s, c.node_order_timeout_s), (0.5, 7.5));
+    for bad in [
+        "node_timeout_s = 0",
+        "node_timeout_s = 121",
+        "node_order_timeout_s = 0.2",
+    ] {
+        assert!(MachineConfig::parse(bad).is_err(), "{bad}");
     }
 }
