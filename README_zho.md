@@ -18,7 +18,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 1969 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`phoenix-pnp`），有 1984 个可在计算机上运行的测试：读取电路板的位置文件，为每个元件分配供料器（支持优先级、托盘和料带），从文件读取机器设置，为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制、移动时间、拼板），写出上料表，并在模拟机器上逐步执行计划，可注入故障。它还有一个窗口（用 `--features gui` 构建），其逻辑在没有屏幕的情况下经过测试；绘制本身不在测试范围内；程序会拍摄自己窗口的图片（`--shot`），但没有人在屏幕上检查过绘制。它不控制任何机器：没有在机器上试过，也没有用真实文件集合检查过。
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | 版本 | `0.1.5` |
 | 成熟度 | 脚手架 |
-| 测试 | 1969 |
+| 测试 | 1984 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -47,7 +47,7 @@
 |---|---|---|
 | 核心 | 🟡 | 读取电路板的位置文件，为每个元件分配供料器（优先级、托盘、料带），为最多六个吸嘴的贴装头规划贴装顺序（等级、吸嘴头、角度限制和移动时间），规划拼板并写出上料表；已在计算机上用正常和损坏的输入测试，但没有用真实文件集合测试。 |
 | 命令行 | 🟡 | `phoenix-pnp` 运行与库相同的函数（`parts`、`check`、`plan`、`schedule`、`preflight`、`simulate`、`loadsheet`、`config-check`, `check-bottom`, `tables-check`, `recipe-check`, `import-centroid`, `vision-test`）并打印结果；每个错误都以带 `PHOENIX-PNP-NNN` 代码的消息和非零退出码返回。 |
-| 测试 | 🟡 | 1969 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
+| 测试 | 🟡 | 1984 个测试通过（`cargo test`），包括正常情况、边界情况、损坏的输入和小型生成的用例。 |
 | 机器配置 | 🟡 | 带版本号的 `键 = 值` 文件、会指出行号的校验器以及安全限制（Z 行程、X 和 Y 的限位、重试次数、吸嘴角度）；这些值没有与真实机器比对过。 |
 | 模拟器与作业 | 🟡 | 虚拟时钟、按概率（带种子）或在选定位置注入的故障、重试、警报与搁置两种策略、反复故障后停用的供料器、暂停、单步执行以及可用于恢复的已保存状态；只是模拟，没有驱动过任何机器。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
@@ -174,6 +174,8 @@
 * **工具页**（`src/gui/toolbox.rs`）：轴间隙、吸嘴偏心、相机校准、供料器示教、有方向零件表、物料清单的核对与订购、批量库存，以及电路板网格拼板，各自使用与对应命令相同的库函数；文本可以键入或从文件读取，结果显示在屏幕上，会生成文件的工具有一个按钮，把文件写入输出文件夹且不会覆盖已有文件；相机和偏心可以应用到机器上。表单的初始值是 `machine.cfg` 的键（`order_boards`、`panel_cols`、`panel_rows`、`panel_pitch_x_mm`、`panel_pitch_y_mm`、`panel_fiducial_mm`、`panel_board_width_mm`、`panel_board_height_mm`）。
 * **供料器料架的槽位**（`src/slotbank.rs`、`src/cmd_nodes.rs`、`examples/slot_bank.csv`）：`phoenix-pnp slot-bank 表 [--tape MM]` 读取左、右料架上哪个供料器占用哪些槽位（`id,bank,first_slot,tape_mm,state,chain`），并为每个料架绘出一行，每个槽位一个字符。料带按其宽度和间隙占用相应数量的槽位（`slot_pitch_mm`、`slot_gap_mm`：8 mm 料带占 3 个 4 mm 槽位，因此 `slot_bank_slots` = 60 的料架可放二十条），两个供料器不能共用一个槽位，也没有供料器能延伸到离料架边缘超过吸头可达范围（`slot_reach_mm`）的地方。槽位中的内容为空闲、已占用、已耗尽或卡住，它们之间的转换（装入料盘、用完、卡住、清除或重装、取走）是一张表，由一个测试完整走一遍。供料器耗尽或卡住时退出码为 2。
 * **与供料器和吸头节点的链路**（`src/nodelink.rs`、`src/nodesim.rs`、`src/cmd_nodes.rs`）：吸头节点和供料器节点按各自的契约通过 HTTP 应答，本程序通过套件的通用客户端发问。计算机上的吸头节点和供料器节点讲同一契约，无响应、被拒的令牌和拒绝都由固定种子生成（`phoenix-pnp node-sim [--seed S] [--silence PM]`）。连续 `node_silence_limit` 次提问无应答，或节点自称处于安全状态时，该节点被保持，在有人确认之前不会向它发出任何会运动的请求。轴的互锁从吸头读取 `xy_clear`：只有吸头刚刚说明所有吸嘴都已抬起，机器才在 X 和 Y 方向移动，听不到的吸头绝不视为畅通。链中供料器的状态会推动其槽位的状态。通过通用客户端看不到节点以 `why` 给出的拒绝原因。没有任何东西与真实节点通信过。
+* **节点监视** (`src/nodelink.rs`, `src/nodesim.rs`)：如果在节点状态中给出的时间内（吸头为 `link_lost_ms`，供料器节点为 `server_lost_ms`）没有收到带令牌的请求，节点就进入安全状态。状态用令牌查询；`node-sim` 和节点面板给出该时间，当一次无响应的查询（`node_timeout_s`）就足以触发时给出警告，`node-sim --pause-ms` 让步骤之间经过时间，库在等待命令完成时通过第二条链路查询节点。仅用计算机上的节点试过。
+* **大元件的拍摄位置与更短的路径** (`src/vision.rs`, `src/planner.rs`)：`phoenix-pnp camera-shots 长边MM 短边MM [--vision F]` 为大于相机视野的元件安排拍摄位置，相邻照片至少重叠 `shot_overlap_pct`（超过 `shot_max` 时退出码为 2）；不进行拍摄，也不拼接。设置 `or_opt = yes` 后，2-opt 之后的第二遍把一到三个点的路段移到更好的位置，绝不使路径变长。
 * **槽位和节点面板**（`src/gui/nodeview.rs`、`src/gui/docking.rs`、`src/gui/window.rs`）：两个面板一开始隐藏，可从“视图”或“工具”菜单打开，绘出料架（每个槽位一个方块，按状态着色），并显示吸头和供料器节点是否应答、是否被保持、机器是否可以移动；在模拟中可以降下一个吸嘴、切断链路、让供料器卡住，以观察规则起作用，面板会说明这些节点是模拟的。面板出现之前保存的布局仍可加载，两个新面板保持隐藏。文字有八种语言。
 * **拼板组合**（`src/panelcomp.rs`、`src/cmd_nodes.rs`、`examples/panel_compose.json`）：`phoenix-pnp panel-compose 规格 [--clearance MM] [--out F]` 读取板材尺寸、四条导轨的宽度、每块电路板的外形和各单元（哪块板、原点放在哪里、旋转多少度），检查每个单元都在导轨之间、没有两个重叠、也没有一个比 `panel_clearance_mm` 更靠近另一个，并写出其他命令读取的拼板文件；单元按名称排序，数字只有一种写法，所以同一组合总得到同一个文件。每个单元可以是不同的电路板。放不下时不写任何内容，退出码为 2。
 * **帮助只教能用的内容，以及小型守卫**（`tests/helpdemo.rs`、`tests/textkeep.rs`、`src/revision.rs`）：帮助中的每个示例（`example: phoenix-pnp ...`）都由测试运行，帮助还列出退出码（0、1 和 2）。形似数字的值（`0402`、`007`）在每个表读取器中都保持为文本。`phoenix-pnp table-revision 文件` 给出表的修订，`feeder-refill ... --out 文件 --revision 令牌` 只有在文件仍是取得修订时的样子才会替换它。
@@ -239,7 +241,7 @@ phoenix-pnp nozzle-calibrate FILE [--config F]            根据多个角度的�
 phoenix-pnp panelize BOARD --cols N --rows N --pitch-x MM --pitch-y MM [--out F] 由同一电路板按网格复制而成的拼板文件
 phoenix-pnp slot-bank 表 [--tape MM] [--out F]  供料器料架：占用、空闲、耗尽或卡住的槽位，以及料带可放的位置（供料器耗尽或卡住时退出码为 2）
 phoenix-pnp panel-compose 规格 [--clearance MM] [--out F]  检查带导轨的板材上摆放并旋转的电路板拼板并写出拼板文件（放不下时退出码为 2 且不写任何内容）
-phoenix-pnp node-sim [--steps N] [--seed S] [--silence PM]  在模拟的吸头节点和供料器节点上运行一次作业，故障由种子生成（链路被保持时退出码为 2）
+phoenix-pnp node-sim [--steps N] [--seed S] [--silence PM] [--pause-ms N]  在模拟的吸头节点和供料器节点上运行一次作业，故障由种子生成（链路被保持时退出码为 2）
 phoenix-pnp table-revision 文件                   表的修订；feeder-refill --out F --revision 令牌 仅在 F 仍是该修订时才替换它
 phoenix-pnp polarity-sheet PARTS [--side top|bottom] [--out F] 有方向的零件，以 CSV 形式用于作业后的检查
 phoenix-pnp bom-order BOM [--boards N] [--spare-percent P] [--out F] N 块板所需采购的零件，含备用量
@@ -291,6 +293,7 @@ phoenix-pnp server-job ID --authorize HASH|--start [--hash HASH]|--pause|--resum
 phoenix-pnp server-feeders [list | set SLOT PART COUNT | clear SLOT]  服务器机器上的供料器，或一次登记、补充、清空一个槽位（有供料器没有零件时退出码为 2）
 phoenix-pnp server-calibrate feeder|nozzle|camera TARGET [--offset X,Y]  在服务器的机器上创建校准作业，启动并跟踪（未正常结束则退出码为 2）
 phoenix-pnp server-request PARTS FEEDERS --out DIR  写出 server-send 会发出的两个请求（feeders.json、place.json），供其他程序使用
+phoenix-pnp camera-shots LONG_MM SHORT_MM [--vision F]  大于相机视野的元件的拍摄位置（超过 shot_max 时退出码为 2）
 phoenix-pnp camera-selftest [--points N] [--noise PX] [--seed S] [--tol MM]  对虚构相机随机观测，并按 camera-calibrate 的方法拟合：拟合与真值的距离（超过 MM 则退出码为 2）
 phoenix-pnp machine-template [NAME] [--out F]  机器设置的起点（desktop-1、desktop-2、dual-head、production-4、simulation、server、full），可打印或写入文件
 phoenix-pnp lot-trace PARTS FEEDERS LOTS [--serial S] [--out F]  每个已贴装元件所来自的批次和料盘（据供料器内容表），有元件缺少批次则退出码为 2
@@ -451,7 +454,7 @@ cargo run --release --features gui
 
 ## 🧪 测试
 
-测试套件共有 1969 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件共有 1984 个测试（`cargo test`，在 CI 中于 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会引发 panic。由固定种子生成的小型用例（每次运行得到相同的数字）检查：计划不依赖文件顺序，路径绝不会变长，在任意位置保存并恢复的作业与从未停止的作业结果相同，长度和角度可来回换算。CI 还会运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 

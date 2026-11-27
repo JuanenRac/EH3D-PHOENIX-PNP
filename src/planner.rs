@@ -146,11 +146,75 @@ pub fn two_opt(points: &[(f64, f64)], order: &mut [usize], start: (f64, f64), pa
     }
 }
 
+/// Shortens an open path with Or-opt moves: a stretch of one to three places is taken out and put back elsewhere in the path, kept or turned round, when that makes the path shorter.
+/// It finds what 2-opt cannot, such as one place visited out of its way. The first point is joined to `start`. The path is never made longer.
+pub fn or_opt(points: &[(f64, f64)], order: &mut Vec<usize>, start: (f64, f64), passes: usize) {
+    let n = order.len();
+    if n < 3 {
+        return;
+    }
+    for _ in 0..passes {
+        let mut improved = false;
+        for len in 1..=3usize.min(n - 1) {
+            let mut i = 0;
+            while i + len <= n {
+                let at = |k: usize| points[order[k]];
+                let before = if i == 0 { start } else { at(i - 1) };
+                let (head, tail) = (at(i), at(i + len - 1));
+                // what taking the stretch out saves
+                let saved = if i + len < n {
+                    dist(before, head) + dist(tail, at(i + len)) - dist(before, at(i + len))
+                } else {
+                    dist(before, head)
+                };
+                let rest: Vec<usize> = order[..i]
+                    .iter()
+                    .chain(&order[i + len..])
+                    .copied()
+                    .collect();
+                let mut best: Option<(f64, usize, bool)> = None;
+                // `j` is the place of the rest before which the stretch would go; `i` itself is where it was
+                for j in 0..=rest.len() {
+                    let a = if j == 0 { start } else { points[rest[j - 1]] };
+                    for turned in [false, true] {
+                        let (first, last) = if turned { (tail, head) } else { (head, tail) };
+                        let added = match rest.get(j) {
+                            Some(&k) => dist(a, first) + dist(last, points[k]) - dist(a, points[k]),
+                            None => dist(a, first),
+                        };
+                        let gain = saved - added;
+                        if gain > 1e-9 && best.is_none_or(|(g, _, _)| gain > g) {
+                            best = Some((gain, j, turned));
+                        }
+                    }
+                }
+                if let Some((_, j, turned)) = best {
+                    let mut stretch = order[i..i + len].to_vec();
+                    if turned {
+                        stretch.reverse();
+                    }
+                    let mut next = rest;
+                    next.splice(j..j, stretch);
+                    *order = next;
+                    improved = true;
+                }
+                i += 1;
+            }
+        }
+        if !improved {
+            break;
+        }
+    }
+}
+
 fn walk(items: &[Item], idx: &[usize], start: (f64, f64), cfg: &MachineConfig) -> Vec<usize> {
     let points: Vec<(f64, f64)> = idx.iter().map(|&k| items[k].at).collect();
     let mut order = nearest_walk(&points, start);
     if cfg.two_opt && points.len() <= cfg.two_opt_max_points {
         two_opt(&points, &mut order, start, cfg.two_opt_passes);
+    }
+    if cfg.or_opt && points.len() <= cfg.two_opt_max_points {
+        or_opt(&points, &mut order, start, cfg.two_opt_passes);
     }
     order.into_iter().map(|o| idx[o]).collect()
 }

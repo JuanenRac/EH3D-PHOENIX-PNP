@@ -454,11 +454,13 @@ pub enum Text {
     NozzlePicking,
     NozzleCarrying,
     NozzlePlacing,
+    NodeWatch,
+    NodeWatchShort,
 }
 
 impl Text {
     /// How many words there are (the last variant, plus one).
-    pub const COUNT: usize = Text::NozzlePlacing as usize + 1;
+    pub const COUNT: usize = Text::NodeWatchShort as usize + 1;
 }
 
 /// The name of a language in that language.
@@ -1015,4 +1017,6 @@ static TABLE: &[[&str; 8]] = &[
     ["picking", "recogiendo", "nimmt auf", "prélève", "preleva", "ピック中", "拾取中", "a recolher"],
     ["carrying a part", "con una pieza", "trägt ein Teil", "porte une pièce", "con una parte", "部品を保持", "持有零件", "com uma peça"],
     ["placing", "colocando", "setzt", "pose", "posiziona", "配置中", "贴装中", "a colocar"],
+    ["Safe state when not asked for (ms)", "Estado seguro si no se le pregunta en (ms)", "Sicherer Zustand ohne Abfrage nach (ms)", "État sûr sans interrogation après (ms)", "Stato sicuro se non interrogato per (ms)", "問い合わせがないと安全状態になる時間 (ms)", "无查询进入安全状态的时间 (ms)", "Estado seguro se não for perguntado durante (ms)"],
+    ["One unanswered question is enough for it (node_timeout_s)", "Basta una pregunta sin respuesta (node_timeout_s)", "Eine Abfrage ohne Antwort genügt dafür (node_timeout_s)", "Une seule question sans réponse suffit (node_timeout_s)", "Basta una domanda senza risposta (node_timeout_s)", "応答のない問い合わせ 1 回で到達します (node_timeout_s)", "一次无响应的查询就足以触发 (node_timeout_s)", "Basta uma pergunta sem resposta (node_timeout_s)"],
 ];

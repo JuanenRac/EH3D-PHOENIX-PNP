@@ -877,14 +877,24 @@ impl PnpApp {
             Light::Silent | Light::Held => col(pal.warn),
             Light::Denied => col(pal.danger),
         };
-        for (name, l) in [
-            (Text::NodeHead, self.s.bench.head_light),
-            (Text::NodeFeeders, self.s.bench.feeders_light),
+        let [head_watch, feeders_watch] = self.s.bench.watches();
+        for (name, l, watch) in [
+            (Text::NodeHead, self.s.bench.head_light, head_watch),
+            (Text::NodeFeeders, self.s.bench.feeders_light, feeders_watch),
         ] {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label(RichText::new(tr(name, lang)).strong());
                 ui.label(RichText::new(tr(l.text(), lang)).color(light(l)));
             });
+            if let Some((ms, short)) = watch {
+                ui.label(
+                    RichText::new(format!("{}: {ms}", tr(Text::NodeWatch, lang)))
+                        .color(col(pal.dim)),
+                );
+                if short {
+                    ui.label(RichText::new(tr(Text::NodeWatchShort, lang)).color(col(pal.warn)));
+                }
+            }
         }
         let (word, colour) = if self.s.bench.xy_clear {
             (Text::NodeXyClear, col(pal.ok))

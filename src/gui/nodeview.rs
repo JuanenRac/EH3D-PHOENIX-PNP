@@ -7,7 +7,7 @@
 
 use super::texts::Text;
 use crate::config::MachineConfig;
-use crate::nodelink::{Feeders, Head, Hold, LinkError};
+use crate::nodelink::{one_lost_question_is_enough, Feeders, Head, Hold, LinkError};
 use crate::nodesim::{Injection, SimFeeders, SimHead};
 use crate::slotbank::{Bank, Geometry, Layout, State};
 
@@ -115,6 +115,8 @@ pub struct Bench {
     pub source: Option<Source>,
     /// Whether the table on show was changed since it was read or saved.
     pub dirty: bool,
+    /// The seconds one question to a node may take (`node_timeout_s`).
+    timeout_s: u64,
 }
 
 /// The file a table of the banks was read from and its revision.
@@ -157,7 +159,15 @@ impl Bench {
             feeder_jammed: false,
             source: None,
             dirty: false,
+            timeout_s: cfg.node_timeout_s,
         }
+    }
+
+    /// What the nodes said of their watch the last time they were asked: for the head and the feeder node, the milliseconds without a question with the token after which they are
+    /// safe, and whether one question without an answer is enough for it. A node that was not asked, or does not say it, is none.
+    pub fn watches(&self) -> [Option<(u32, bool)>; 2] {
+        [self.head.watch_ms(), self.feeders.watch_ms()]
+            .map(|w| w.map(|ms| (ms, one_lost_question_is_enough(ms, self.timeout_s))))
     }
 
     /// Reads a table of the banks from a file and keeps its revision, so that a later save is held to it. A file that cannot be read or is wrong leaves the table on show where it is and says

@@ -6,8 +6,8 @@ use eh3d_phoenix_pnp::error::{Code, Lang};
 use eh3d_phoenix_pnp::model::{Camera, Offset};
 use eh3d_phoenix_pnp::sim::{Rng, SimCamera};
 use eh3d_phoenix_pnp::vision::{
-    default_file, measure_image, median3, min_area_rect, otsu_level, render, wrap, Axis, Filter,
-    Image, Mask, ThresholdMode, VisionConfig, KEYS,
+    default_file, measure_image, median3, min_area_rect, otsu_level, plan_shots, render, wrap,
+    Axis, Filter, Image, Mask, ThresholdMode, VisionConfig, KEYS,
 };
 use std::collections::HashSet;
 
@@ -729,4 +729,83 @@ fn the_picture_of_each_look_comes_from_the_seed_and_the_number_of_the_look() {
     });
     let same = (0..3).all(|_| c.measure(0).ok() == d.measure(0).ok());
     assert!(!same);
+}
+
+#[test]
+fn the_shots_for_a_part_bigger_than_the_camera_are_planned() {
+    // a part that fits has one picture in its middle
+    let one = plan_shots((6.0, 4.0), (6.4, 4.8), 0.2).unwrap();
+    assert_eq!((one.columns, one.rows, one.shots), (1, 1, vec![(0.0, 0.0)]));
+    // 20 x 10 mm with a picture of 8 x 6 mm sharing a quarter: three across, two down, turned at the second row
+    let plan = plan_shots((20.0, 10.0), (8.0, 6.0), 0.25).unwrap();
+    assert_eq!((plan.columns, plan.rows), (3, 2));
+    assert_eq!(
+        plan.shots,
+        vec![
+            (-6.0, -2.0),
+            (0.0, -2.0),
+            (6.0, -2.0),
+            (6.0, 2.0),
+            (0.0, 2.0),
+            (-6.0, 2.0)
+        ]
+    );
+    // the pictures reach both edges and neighbours share what was asked or more, whatever the sizes
+    let mut rng = Rng::new(9);
+    let mut between = move |lo: f64, hi: f64| {
+        lo + (hi - lo) * ((rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64)
+    };
+    for _ in 0..200 {
+        let part = (between(0.5, 30.0), between(0.5, 30.0));
+        let field = (between(4.0, 20.0), between(4.0, 20.0));
+        let overlap = between(0.0, 0.5);
+        let plan = plan_shots(part, field, overlap).unwrap();
+        assert_eq!(plan.shots.len() as u32, plan.columns * plan.rows);
+        let xs: Vec<f64> = plan.shots[..plan.columns as usize]
+            .iter()
+            .map(|s| s.0)
+            .collect();
+        if plan.columns > 1 {
+            assert!(near(xs[0] - field.0 / 2.0, -part.0 / 2.0, 1e-9));
+            assert!(near(xs[xs.len() - 1] + field.0 / 2.0, part.0 / 2.0, 1e-9));
+            for w in xs.windows(2) {
+                assert!(w[1] - w[0] <= field.0 * (1.0 - overlap) + 1e-6, "{xs:?}");
+            }
+        }
+    }
+    for (part, field, overlap) in [
+        ((0.0, 1.0), (5.0, 5.0), 0.2),
+        ((1.0, f64::NAN), (5.0, 5.0), 0.2),
+        ((1.0, 1.0), (5.0, -5.0), 0.2),
+        ((1.0, 1.0), (5.0, 5.0), 0.95),
+        ((1000.0, 1000.0), (1.0, 1.0), 0.0),
+        ((1e12, 1.0), (1.0, 1.0), 0.0),
+    ] {
+        assert_eq!(plan_shots(part, field, overlap), None, "{part:?} {field:?}");
+    }
+}
+
+#[test]
+fn the_command_of_the_shots_says_where_each_picture_is_and_ends_with_2_over_the_most() {
+    let run = |args: &[&str]| {
+        let out = std::process::Command::new(env!("CARGO_BIN_EXE_phoenix-pnp"))
+            .arg("camera-shots")
+            .args(args)
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .output()
+            .unwrap();
+        (
+            out.status.code().unwrap(),
+            String::from_utf8_lossy(&out.stdout).into_owned(),
+        )
+    };
+    let (code, said) = run(&["1", "0.5"]);
+    assert_eq!(code, 0, "{said}");
+    assert!(said.contains("1 pictures (1 across, 1 down)"), "{said}");
+    assert!(said.contains("\n1,0.000,0.000"), "{said}");
+    let (code, said) = run(&["40", "40"]);
+    assert_eq!(code, 2, "{said}");
+    assert_eq!(run(&["1"]).0, 1);
+    assert_eq!(run(&["0", "1"]).0, 1);
+    assert_eq!(run(&["1", "x"]).0, 1);
 }

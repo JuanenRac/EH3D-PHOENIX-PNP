@@ -64,6 +64,7 @@ pub const KEYS: [&str; 266] = [
     "two_opt",
     "two_opt_max_points",
     "two_opt_passes",
+    "or_opt",
     "rank_step",
     "component_origin",
     "default_height_mm",
@@ -279,6 +280,8 @@ pub const KEYS: [&str; 266] = [
     "slot_reach_mm",
     "node_silence_limit",
     "node_timeout_s",
+    "shot_overlap_pct",
+    "shot_max",
     "panel_clearance_mm",
     "spec_table",
     "spec_machine",
@@ -508,6 +511,8 @@ pub struct MachineConfig {
     pub two_opt: bool,
     pub two_opt_max_points: usize,
     pub two_opt_passes: usize,
+    /// After 2-opt, also move short stretches of the walk to a better place (Or-opt); off, so that a plan does not change without being asked.
+    pub or_opt: bool,
     pub rank_step: i32,
     pub component_origin: ComponentOrigin,
     pub default_height_mm: f64,
@@ -854,6 +859,9 @@ pub struct MachineConfig {
     /// The nodes of the feeders and of the head: how many questions in a row may go unanswered before the link is told to be silent and the machine is held, and how long one question may take.
     pub node_silence_limit: u32,
     pub node_timeout_s: u64,
+    /// camera-shots: how much of the picture two neighbouring pictures of a part must share (per cent), and how many pictures of one part are accepted.
+    pub shot_overlap_pct: f64,
+    pub shot_max: u32,
     /// panel-compose: the least distance between the outlines of two boards of a panel (millimetres).
     pub panel_clearance_mm: f64,
     /// The specification sheet of the machine (`machine-sheet`): the table, the machine, the work area and the smallest part tried, as text, and the greatest speed (mm/s). Empty, and 0,
@@ -921,6 +929,7 @@ impl Default for MachineConfig {
             two_opt: true,
             two_opt_max_points: 2000,
             two_opt_passes: 10,
+            or_opt: false,
             rank_step: 10,
             component_origin: ComponentOrigin::CadOrigin,
             default_height_mm: 1.0,
@@ -1126,6 +1135,8 @@ impl Default for MachineConfig {
             slot_reach_mm: 240.0,
             node_silence_limit: 3,
             node_timeout_s: 2,
+            shot_overlap_pct: 20.0,
+            shot_max: 9,
             panel_clearance_mm: 1.0,
             spec_table: String::new(),
             spec_machine: String::new(),
@@ -1450,6 +1461,7 @@ impl MachineConfig {
                 self.two_opt_max_points = int(line, key, v, 3, 20_000)? as usize
             }
             "two_opt_passes" => self.two_opt_passes = int(line, key, v, 1, 100)? as usize,
+            "or_opt" => self.or_opt = flag(line, key, v)?,
             "rank_step" => self.rank_step = int(line, key, v, 1, 1000)? as i32,
             "component_origin" => {
                 self.component_origin = match v.to_ascii_lowercase().as_str() {
@@ -1880,6 +1892,8 @@ impl MachineConfig {
             "slot_reach_mm" => self.slot_reach_mm = n(1.0, 5000.0)?,
             "node_silence_limit" => self.node_silence_limit = int(line, key, v, 1, 100)? as u32,
             "node_timeout_s" => self.node_timeout_s = int(line, key, v, 1, 120)? as u64,
+            "shot_overlap_pct" => self.shot_overlap_pct = n(0.0, 90.0)?,
+            "shot_max" => self.shot_max = int(line, key, v, 1, 400)? as u32,
             "panel_clearance_mm" => self.panel_clearance_mm = n(0.0, 50.0)?,
             "spec_table" => self.spec_table = server_text(line, key, v, 80)?,
             "spec_machine" => self.spec_machine = server_text(line, key, v, 80)?,

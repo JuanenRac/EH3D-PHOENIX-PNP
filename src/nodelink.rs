@@ -5,13 +5,17 @@
 //! wrong (silence, a refused token, a refusal with its reason). `ScNodeLink` is that over the common client of the suite (`eh3d-serverclient`: its retries, its time limit, its state of the
 //! link), and `nodesim` holds nodes on a computer that speak the same contract, so everything here is tried without a node. On top of the link, `Head` and `Feeders` read the answers into
 //! typed states and give the orders; both keep a `Guard`: after `node_silence_limit` questions in a row without an answer (or when the node says it is in its safe state) the node is held and
-//! nothing that moves is asked of it until a person acknowledges, and a head that cannot be heard is never taken to be clear. `xy_clear_signal` is what the interlock of the axes reads: the
+//! nothing that moves is asked of it until a person acknowledges, and a head that cannot be heard is never taken to be clear. A node goes to its safe state by itself when it is not asked
+//! with the token for the time it says in its status (`link_lost_ms` of the head, `server_lost_ms` of the feeder node), so the state is asked with the token, and with a second link
+//! (`keep_alive`) the node is asked three times in that time while an order is waited for. `xy_clear_signal` is what the interlock of the axes reads: the
 //! machine may move in X and Y only while the head says every nozzle is raised. The refusal of an order keeps its status and, where the link can see it, its reason. Over `ScNodeLink` that
 //! reason is the `why` that the node gave, asked of the common client right after the error (`Client::why_of`), and a fixed token stays after a `401` (`Client::with_fixed_token`). Nothing
 //! here has talked to a real node.
 
 use crate::slotbank::Seen;
 use eh3d_serverclient as sc;
+use std::sync::mpsc::{self, RecvTimeoutError};
+use std::time::Duration;
 
 /// The name of the signal that the interlocks of the axes read for the head.
 pub const XY_CLEAR: &str = "xy_clear";
@@ -201,6 +205,80 @@ impl NodeLink for ScNodeLink {
     }
 }
 
+/// The longest watch of a node that is believed (the settings of the nodes go up to this).
+pub const MAX_WATCH_MS: u64 = 600_000;
+/// A node is asked at least this far apart while an order is waited for, whatever it says.
+pub const MIN_BEAT_MS: u32 = 50;
+
+/// How often a node that goes to its safe state after `watch_ms` without a question with the token is asked while an order is waited for: three times in that time.
+pub fn beat_period_ms(watch_ms: u32) -> u32 {
+    (watch_ms / 3).max(MIN_BEAT_MS)
+}
+
+/// Whether one question that gets no answer is enough for the safe state: the program waits `timeout_s` for it, and the node `watch_ms`.
+pub fn one_lost_question_is_enough(watch_ms: u32, timeout_s: u64) -> bool {
+    timeout_s.saturating_mul(1000) >= u64::from(watch_ms)
+}
+
+/// The watch that a status says under `key`; a firmware that does not say it, or says what makes no sense, is none.
+fn watch_of(j: &sc::Json, key: &str) -> Option<u32> {
+    j.get(key)
+        .and_then(sc::Json::as_u64)
+        .filter(|v| (1..=MAX_WATCH_MS).contains(v))
+        .and_then(|v| u32::try_from(v).ok())
+}
+
+/// Asks a node for its state with the token, so that the node counts the question as the program being heard; a node that refuses the token (or a program that has none) is asked again
+/// without it, so that the state is still read.
+fn status_of<L: NodeLink>(link: &mut L) -> Result<String, LinkError> {
+    match link.call("GET", "/api/status", true) {
+        Err(LinkError::Unauthorized | LinkError::Bad(_)) => link.call("GET", "/api/status", false),
+        other => other,
+    }
+}
+
+/// A second link to a node, on which it is asked for its state while an order is waited for on the first, as the contract of the nodes says.
+struct Beat {
+    link: Box<dyn NodeLink + Send>,
+    answered: u32,
+    missed: u32,
+}
+
+impl Beat {
+    fn new(link: Box<dyn NodeLink + Send>) -> Beat {
+        Beat {
+            link,
+            answered: 0,
+            missed: 0,
+        }
+    }
+
+    /// Runs `order` and asks the node every `period` until it is over.
+    fn during<T>(&mut self, period: Duration, order: impl FnOnce() -> T) -> T {
+        let (over, waiting) = mpsc::channel::<()>();
+        let link = &mut self.link;
+        let (result, answered, missed) = std::thread::scope(|scope| {
+            let asking = scope.spawn(move || {
+                let (mut answered, mut missed) = (0u32, 0u32);
+                while let Err(RecvTimeoutError::Timeout) = waiting.recv_timeout(period) {
+                    match link.call("GET", "/api/status", true) {
+                        Ok(_) => answered = answered.saturating_add(1),
+                        Err(_) => missed = missed.saturating_add(1),
+                    }
+                }
+                (answered, missed)
+            });
+            let result = order();
+            drop(over);
+            let (answered, missed) = asking.join().unwrap_or((0, 0));
+            (result, answered, missed)
+        });
+        self.answered = self.answered.saturating_add(answered);
+        self.missed = self.missed.saturating_add(missed);
+        result
+    }
+}
+
 /// Holds a node that cannot be heard or that says it is safe: from `limit` questions in a row without an answer on, nothing that moves is asked of it until a person acknowledges.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Guard {
@@ -307,6 +385,8 @@ pub struct HeadStatus {
     pub z_safe_mm: f64,
     pub selfcheck: String,
     pub nozzles: Vec<NozzleState>,
+    /// The milliseconds without a question with the token after which the head is safe (`link_lost_ms`); none when it does not say it.
+    pub watch_ms: Option<u32>,
 }
 
 impl HeadStatus {
@@ -345,6 +425,7 @@ impl HeadStatus {
             z_safe_mm: number(&j, "z_safe_mm")?,
             selfcheck: text(&j, "selfcheck")?,
             nozzles,
+            watch_ms: watch_of(&j, "link_lost_ms"),
         })
     }
 }
@@ -354,6 +435,9 @@ pub struct Head<L: NodeLink> {
     link: L,
     guard: Guard,
     last: Option<HeadStatus>,
+    /// The watch the head said the last time it was read.
+    watch_ms: Option<u32>,
+    beat: Option<Beat>,
 }
 
 impl<L: NodeLink> Head<L> {
@@ -363,7 +447,28 @@ impl<L: NodeLink> Head<L> {
             link,
             guard: Guard::new(silence_limit),
             last: None,
+            watch_ms: None,
+            beat: None,
         }
+    }
+
+    /// Keeps the head hearing the program while an order is waited for: `link` is a second link to the same head, asked for the state every third of the watch that the head says. A
+    /// head that does not say its watch is not asked, and nothing is asked before the state was read once.
+    pub fn keep_alive(mut self, link: Box<dyn NodeLink + Send>) -> Head<L> {
+        self.beat = Some(Beat::new(link));
+        self
+    }
+
+    /// The questions of the second link that were answered and that were not.
+    pub fn beats(&self) -> (u32, u32) {
+        self.beat
+            .as_ref()
+            .map_or((0, 0), |b| (b.answered, b.missed))
+    }
+
+    /// The watch the head said the last time it was read.
+    pub fn watch_ms(&self) -> Option<u32> {
+        self.watch_ms
     }
 
     pub fn guard(&self) -> &Guard {
@@ -393,18 +498,32 @@ impl<L: NodeLink> Head<L> {
         if let Some(h) = self.guard.held() {
             return Err(LinkError::Held(h));
         }
-        self.ask("POST", path, true)
+        match (self.beat.take(), self.watch_ms) {
+            (Some(mut beat), Some(watch)) => {
+                let period = Duration::from_millis(u64::from(beat_period_ms(watch)));
+                let result = beat.during(period, || self.ask("POST", path, true));
+                self.beat = Some(beat);
+                result
+            }
+            (beat, _) => {
+                self.beat = beat;
+                self.ask("POST", path, true)
+            }
+        }
     }
 
-    /// Asks the head for its state (this needs no token). A head that says it is safe is held.
+    /// Asks the head for its state, with the token so that the question counts as the program being heard (the state is still read when the token is refused). A head that says it is
+    /// safe is held.
     pub fn refresh(&mut self) -> Result<&HeadStatus, LinkError> {
-        let body = self.ask("GET", "/api/status", false);
+        let body = status_of(&mut self.link);
+        self.guard.note(&body);
         let status = body.and_then(|b| HeadStatus::from_body(&b));
         match status {
             Ok(s) => {
                 if s.safe {
                     self.guard.node_is_safe();
                 }
+                self.watch_ms = s.watch_ms;
                 self.last = Some(s);
                 Ok(self.last.as_ref().unwrap_or_else(|| unreachable!()))
             }
@@ -507,6 +626,8 @@ pub struct ChainStatus {
     pub safe: bool,
     pub selfcheck: String,
     pub feeders: Vec<FeederState>,
+    /// The milliseconds without a question with the token after which the node is safe (`server_lost_ms`); none when it does not say it.
+    pub watch_ms: Option<u32>,
 }
 
 impl ChainStatus {
@@ -528,6 +649,7 @@ impl ChainStatus {
             safe: flag(&j, "safe")?,
             selfcheck: text(&j, "selfcheck")?,
             feeders,
+            watch_ms: watch_of(&j, "server_lost_ms"),
         })
     }
 
@@ -560,6 +682,8 @@ pub struct Feeders<L: NodeLink> {
     link: L,
     guard: Guard,
     last: Option<ChainStatus>,
+    watch_ms: Option<u32>,
+    beat: Option<Beat>,
 }
 
 impl<L: NodeLink> Feeders<L> {
@@ -568,7 +692,27 @@ impl<L: NodeLink> Feeders<L> {
             link,
             guard: Guard::new(silence_limit),
             last: None,
+            watch_ms: None,
+            beat: None,
         }
+    }
+
+    /// Keeps the feeder node hearing the program while an advance is waited for, as `Head::keep_alive` does for the head.
+    pub fn keep_alive(mut self, link: Box<dyn NodeLink + Send>) -> Feeders<L> {
+        self.beat = Some(Beat::new(link));
+        self
+    }
+
+    /// The questions of the second link that were answered and that were not.
+    pub fn beats(&self) -> (u32, u32) {
+        self.beat
+            .as_ref()
+            .map_or((0, 0), |b| (b.answered, b.missed))
+    }
+
+    /// The watch the node said the last time it was read.
+    pub fn watch_ms(&self) -> Option<u32> {
+        self.watch_ms
     }
 
     pub fn guard(&self) -> &Guard {
@@ -593,14 +737,16 @@ impl<L: NodeLink> Feeders<L> {
         result
     }
 
-    /// Asks the node for the state of its chain. A node that says it is safe is held.
+    /// Asks the node for the state of its chain, with the token as `Head::refresh` does. A node that says it is safe is held.
     pub fn refresh(&mut self) -> Result<&ChainStatus, LinkError> {
-        let body = self.ask("GET", "/api/status", false);
+        let body = status_of(&mut self.link);
+        self.guard.note(&body);
         match body.and_then(|b| ChainStatus::from_body(&b)) {
             Ok(s) => {
                 if s.safe {
                     self.guard.node_is_safe();
                 }
+                self.watch_ms = s.watch_ms;
                 self.last = Some(s);
                 Ok(self.last.as_ref().unwrap_or_else(|| unreachable!()))
             }
@@ -631,11 +777,19 @@ impl<L: NodeLink> Feeders<L> {
         if let Some(h) = self.guard.held() {
             return Err(LinkError::Held(h));
         }
-        self.ask(
-            "POST",
-            &format!("/api/feeder/advance?slot={slot}&count={count}"),
-            true,
-        )
+        let path = format!("/api/feeder/advance?slot={slot}&count={count}");
+        match (self.beat.take(), self.watch_ms) {
+            (Some(mut beat), Some(watch)) => {
+                let period = Duration::from_millis(u64::from(beat_period_ms(watch)));
+                let result = beat.during(period, || self.ask("POST", &path, true));
+                self.beat = Some(beat);
+                result
+            }
+            (beat, _) => {
+                self.beat = beat;
+                self.ask("POST", &path, true)
+            }
+        }
         .map(|_| ())
     }
 

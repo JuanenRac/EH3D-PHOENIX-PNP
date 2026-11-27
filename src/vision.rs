@@ -16,6 +16,67 @@ use crate::model::Offset;
 use crate::sim::Rng;
 use std::collections::HashSet;
 
+/// The most pictures of one part that are planned.
+pub const MAX_SHOTS: u32 = 400;
+
+/// The pictures that together see a part bigger than the camera: how many across and down, and where the middle of each one is from the middle of the part (millimetres), a row after
+/// the other, the direction turned at every row so that the way between them is short.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShotPlan {
+    pub columns: u32,
+    pub rows: u32,
+    pub shots: Vec<(f64, f64)>,
+}
+
+/// The middles of the pictures along one side: one in the middle when the picture holds the side, else the fewest that reach from edge to edge with neighbours sharing `overlap`
+/// (a share of the picture) or more.
+fn along(side: f64, field: f64, overlap: f64) -> Option<Vec<f64>> {
+    if side <= field {
+        return Some(vec![0.0]);
+    }
+    let span = side - field;
+    let steps = (span / (field * (1.0 - overlap)) - 1e-9).ceil().max(1.0);
+    if steps >= f64::from(MAX_SHOTS) {
+        return None;
+    }
+    Some(
+        (0..=steps as u32)
+            .map(|i| -span / 2.0 + span * f64::from(i) / steps)
+            .collect(),
+    )
+}
+
+/// Works out the pictures of a part of `part` (width, height, mm) with a camera that sees `field` (width, height, mm), neighbours sharing `overlap` (0 to 0.9) of a picture or more.
+/// Nothing for a size that is not a number above zero, an overlap out of range, or more than `MAX_SHOTS` pictures. Joining the pictures is not part of this.
+pub fn plan_shots(part: (f64, f64), field: (f64, f64), overlap: f64) -> Option<ShotPlan> {
+    let sizes = [part.0, part.1, field.0, field.1];
+    if sizes.iter().any(|v| !v.is_finite() || *v <= 0.0) || !(0.0..=0.9).contains(&overlap) {
+        return None;
+    }
+    let across = along(part.0, field.0, overlap)?;
+    let down = along(part.1, field.1, overlap)?;
+    let (columns, rows) = (across.len() as u32, down.len() as u32);
+    if columns.saturating_mul(rows) > MAX_SHOTS {
+        return None;
+    }
+    let mut shots = Vec::with_capacity(across.len() * down.len());
+    for (row, y) in down.iter().enumerate() {
+        for i in 0..across.len() {
+            let column = if row % 2 == 0 {
+                i
+            } else {
+                across.len() - 1 - i
+            };
+            shots.push((across[column], *y));
+        }
+    }
+    Some(ShotPlan {
+        columns,
+        rows,
+        shots,
+    })
+}
+
 /// The largest vision file that is read.
 pub const MAX_VISION_BYTES: usize = 65_536;
 /// The version of the format of the file that this program writes and reads.

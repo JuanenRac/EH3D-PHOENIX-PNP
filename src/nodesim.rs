@@ -188,6 +188,43 @@ struct Nozzle {
     failed: u32,
 }
 
+/// The watch of a node on a computer: it goes to its safe state when no question with the token arrived for `limit` milliseconds. The clock only moves when it is told to, so a run is the
+/// same every time; like the node, it starts to watch with the first question that carries the token.
+#[derive(Debug, Clone, Copy)]
+struct Watch {
+    limit: u32,
+    since: u32,
+    watching: bool,
+}
+
+impl Watch {
+    fn new(limit: u32) -> Watch {
+        Watch {
+            limit,
+            since: 0,
+            watching: false,
+        }
+    }
+
+    /// The clock moves; true when the node has now waited too long.
+    fn elapse(&mut self, ms: u32) -> bool {
+        if !self.watching {
+            return false;
+        }
+        self.since = self.since.saturating_add(ms);
+        self.since > self.limit
+    }
+
+    fn heard(&mut self) {
+        self.watching = true;
+        self.since = 0;
+    }
+}
+
+/// The watch of the head and of the feeder node on a computer, as their settings start.
+pub const SIM_LINK_LOST_MS: u32 = 2000;
+pub const SIM_SERVER_LOST_MS: u32 = 5000;
+
 #[derive(Debug)]
 struct HeadState {
     token: String,
@@ -198,6 +235,7 @@ struct HeadState {
     safe: bool,
     requests: u64,
     inject: Injection,
+    watch: Watch,
 }
 
 impl HeadState {
@@ -241,7 +279,7 @@ impl HeadState {
             ("ok", "")
         };
         format!(
-            "{{\"node\":\"head-sim\",\"version\":\"sim\",\"nozzle_count\":{},\"safe\":{},\"safe_reason\":\"{}\",\"safe_code\":\"{}\",\"pump\":{},\"xy_clear\":{},\"xy_moving\":{},\"xy_blocking\":\"{}\",\"z_safe_mm\":{:.3},\"selfcheck\":\"{check}\",\"selfcheck_codes\":\"{codes}\",\"nozzles\":[{}]}}",
+            "{{\"node\":\"head-sim\",\"version\":\"sim\",\"nozzle_count\":{},\"safe\":{},\"safe_reason\":\"{}\",\"safe_code\":\"{}\",\"pump\":{},\"xy_clear\":{},\"xy_moving\":{},\"xy_blocking\":\"{}\",\"link_lost_ms\":{},\"z_safe_mm\":{:.3},\"selfcheck\":\"{check}\",\"selfcheck_codes\":\"{codes}\",\"nozzles\":[{}]}}",
             self.nozzles.len(),
             self.safe,
             if self.safe { "server_lost" } else { "none" },
@@ -250,6 +288,7 @@ impl HeadState {
             clear && !self.safe,
             self.xy_moving,
             list.join(","),
+            self.watch.limit,
             self.z_safe,
             nozzles.join(",")
         )
@@ -378,7 +417,21 @@ impl SimHead {
             safe: false,
             requests: 0,
             inject: Injection::none(),
+            watch: Watch::new(SIM_LINK_LOST_MS),
         })))
+    }
+
+    /// Sets the watch of the head (`link_lost_ms`).
+    pub fn set_link_lost_ms(&self, ms: u32) {
+        self.state().watch.limit = ms;
+    }
+
+    /// Time passes: a head that has heard a question with the token and then none for longer than its watch is safe.
+    pub fn elapse(&self, ms: u32) {
+        let mut s = self.state();
+        if s.watch.elapse(ms) {
+            s.safe = true;
+        }
     }
 
     fn state(&self) -> std::sync::MutexGuard<'_, HeadState> {
@@ -438,6 +491,9 @@ impl SimHead {
         if token_needed(&call) && !token_ok {
             return error(401, "unauthorized");
         }
+        if token_ok {
+            s.watch.heard();
+        }
         s.route(&call)
     }
 }
@@ -481,6 +537,7 @@ struct ChainState {
     safe: bool,
     requests: u64,
     inject: Injection,
+    watch: Watch,
 }
 
 impl ChainState {
@@ -521,10 +578,11 @@ impl ChainState {
             "ok"
         };
         format!(
-            "{{\"node\":\"feeders-sim\",\"version\":\"sim\",\"slots\":{},\"online\":{online},\"safe\":{},\"safe_reason\":\"{}\",\"bus\":\"rs485\",\"selfcheck\":\"{check}\",\"feeders\":[{}]}}",
+            "{{\"node\":\"feeders-sim\",\"version\":\"sim\",\"slots\":{},\"online\":{online},\"safe\":{},\"safe_reason\":\"{}\",\"server_lost_ms\":{},\"bus\":\"rs485\",\"selfcheck\":\"{check}\",\"feeders\":[{}]}}",
             self.units.len(),
             self.safe,
             if self.safe { "server_lost" } else { "none" },
+            self.watch.limit,
             feeders.join(",")
         )
     }
@@ -626,7 +684,21 @@ impl SimFeeders {
             safe: false,
             requests: 0,
             inject: Injection::none(),
+            watch: Watch::new(SIM_SERVER_LOST_MS),
         })))
+    }
+
+    /// Sets the watch of the feeder node over the program (`server_lost_ms`).
+    pub fn set_server_lost_ms(&self, ms: u32) {
+        self.state().watch.limit = ms;
+    }
+
+    /// Time passes: a node that has heard a question with the token and then none for longer than its watch is safe.
+    pub fn elapse(&self, ms: u32) {
+        let mut s = self.state();
+        if s.watch.elapse(ms) {
+            s.safe = true;
+        }
     }
 
     fn state(&self) -> std::sync::MutexGuard<'_, ChainState> {
@@ -695,6 +767,9 @@ impl SimFeeders {
         }
         if token_needed(&call) && !token_ok {
             return error(401, "unauthorized");
+        }
+        if token_ok {
+            s.watch.heard();
         }
         s.route(&call)
     }
