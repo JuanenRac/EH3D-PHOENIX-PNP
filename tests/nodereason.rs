@@ -55,15 +55,20 @@ fn a_409_gives_the_why_the_node_wrote_and_nothing_else() {
         let e = l.call("POST", "/api/nozzle/place?n=1", true).unwrap_err();
         assert_eq!(refusal(e), (409, Some(why.to_string())));
     }
-    // the `error` and the `detail` of an answer are not taken for the reason
-    let node = Node::new(
-        409,
-        "{\"error\":\"busy\",\"detail\":\"a pick is under way\"}",
-    );
-    let e = link(&node)
-        .call("POST", "/api/nozzle/pick?n=1", true)
-        .unwrap_err();
-    assert_eq!(refusal(e), (409, None));
+    // `busy` and `safe_state` under `error` are the words of the contract of the feeder node; any other `error` and the `detail` are not taken for the reason
+    for (body, why) in [
+        (
+            "{\"error\":\"busy\",\"detail\":\"a pick is under way\"}",
+            Some("busy"),
+        ),
+        ("{\"error\":\"safe_state\"}", Some("safe_state")),
+        ("{\"error\":\"bad_request\",\"detail\":\"slot\"}", None),
+    ] {
+        let e = link(&Node::new(409, body))
+            .call("POST", "/api/nozzle/pick?n=1", true)
+            .unwrap_err();
+        assert_eq!(refusal(e), (409, why.map(str::to_string)), "{body}");
+    }
     // a refusal that is not JSON, and one of another status
     let e = link(&Node::new(500, "boom"))
         .call("GET", "/api/state", false)

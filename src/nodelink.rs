@@ -9,11 +9,16 @@
 //! with the token for the time it says in its status (`link_lost_ms` of the head, `server_lost_ms` of the feeder node), so the state is asked with the token, and with a second link
 //! (`keep_alive`) the node is asked three times in that time while an order is waited for. `xy_clear_signal` is what the interlock of the axes reads: the
 //! machine may move in X and Y only while the head says every nozzle is raised. The refusal of an order keeps its status and, where the link can see it, its reason. Over `ScNodeLink` that
-//! reason is the `why` that the node gave, asked of the common client right after the error (`Client::why_of`), and a fixed token stays after a `401` (`Client::with_fixed_token`). Nothing
-//! here has talked to a real node.
+//! reason is the `why` that the node gave, asked of the common client right after the error (`Client::why_of`), or, when there is no `why`, the word `safe_state` or `busy` under
+//! `error` (as the feeder node answers), and a fixed token stays after a `401` (`Client::with_fixed_token`). A refusal with `safe_state` holds the node at once. An order that gets no answer is
+//! followed by a stop of the node, and a feeder whose advance did not end well (no answer, `stopped`, `timeout`, `no_answer`) takes no further advance until it is acknowledged,
+//! because nobody knows where its tape is. Nothing here has talked to a real node.
 
+use crate::error::Lang;
+use crate::msg8::{pick, say};
 use crate::slotbank::Seen;
 use eh3d_serverclient as sc;
+use std::collections::BTreeSet;
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::time::Duration;
 
@@ -25,6 +30,9 @@ pub const MAX_NOZZLES: usize = 6;
 pub const MAX_SLOTS: usize = 32;
 /// The most bytes of the body of a refusal that the link keeps when asked to (the most the common client keeps).
 pub const MAX_EXCERPT_BYTES: u16 = 4096;
+
+/// The words that the contract of the feeder node puts under `error`, not under `why`, in a refusal of an order.
+pub const ERROR_WORDS: [&str; 2] = ["safe_state", "busy"];
 
 /// Why a question or an order did not give an answer.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,20 +47,124 @@ pub enum LinkError {
     Bad(String),
     /// The guard holds the node: nothing that moves is asked until a person acknowledges.
     Held(Hold),
+    /// The tape of this feeder is not where it was asked to be, or nobody knows: it takes no advance until a person acknowledges the feeder.
+    Unsure(u8),
 }
 
 impl std::fmt::Display for LinkError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.localized(Lang::En))
+    }
+}
+
+impl LinkError {
+    /// The reason a node gave with a refusal.
+    pub fn why(&self) -> Option<&str> {
         match self {
-            LinkError::Silent => f.write_str("the node does not answer"),
-            LinkError::Unauthorized => f.write_str("the node refuses the token"),
-            LinkError::Refused { status, why } => match why {
-                Some(w) => write!(f, "the node refuses ({status}): {w}"),
-                None => write!(f, "the node refuses ({status})"),
-            },
-            LinkError::Bad(m) => write!(f, "the answer of the node cannot be read: {m}"),
-            LinkError::Held(h) => write!(f, "the node is held: {}", h.name()),
+            LinkError::Refused { why, .. } => why.as_deref(),
+            _ => None,
         }
+    }
+
+    /// The error in a language. The word a node gives as its reason is kept as the node wrote it.
+    pub fn localized(&self, lang: Lang) -> String {
+        let (row, pairs): ([&'static str; 8], Vec<(&str, String)>) = match self {
+            LinkError::Silent => (
+                [
+                    "the node does not answer",
+                    "el nodo no responde",
+                    "der Knoten antwortet nicht",
+                    "le nœud ne répond pas",
+                    "il nodo non risponde",
+                    "ノードが応答しません",
+                    "节点没有应答",
+                    "o nó não responde",
+                ],
+                vec![],
+            ),
+            LinkError::Unauthorized => (
+                [
+                    "the node refuses the token",
+                    "el nodo rechaza el token",
+                    "der Knoten lehnt das Token ab",
+                    "le nœud refuse le jeton",
+                    "il nodo rifiuta il token",
+                    "ノードがトークンを拒否しました",
+                    "节点拒绝了令牌",
+                    "o nó recusa o token",
+                ],
+                vec![],
+            ),
+            LinkError::Refused {
+                status,
+                why: Some(why),
+            } => (
+                [
+                    "the node refuses ({status}): {why}",
+                    "el nodo rechaza ({status}): {why}",
+                    "der Knoten lehnt ab ({status}): {why}",
+                    "le nœud refuse ({status}) : {why}",
+                    "il nodo rifiuta ({status}): {why}",
+                    "ノードが拒否しました（{status}）：{why}",
+                    "节点拒绝（{status}）：{why}",
+                    "o nó recusa ({status}): {why}",
+                ],
+                vec![("status", status.to_string()), ("why", why.clone())],
+            ),
+            LinkError::Refused { status, why: None } => (
+                [
+                    "the node refuses ({status})",
+                    "el nodo rechaza ({status})",
+                    "der Knoten lehnt ab ({status})",
+                    "le nœud refuse ({status})",
+                    "il nodo rifiuta ({status})",
+                    "ノードが拒否しました（{status}）",
+                    "节点拒绝（{status}）",
+                    "o nó recusa ({status})",
+                ],
+                vec![("status", status.to_string())],
+            ),
+            LinkError::Bad(what) => (
+                [
+                    "the answer of the node cannot be read: {what}",
+                    "no se puede leer la respuesta del nodo: {what}",
+                    "die Antwort des Knotens ist nicht lesbar: {what}",
+                    "la réponse du nœud est illisible : {what}",
+                    "la risposta del nodo non è leggibile: {what}",
+                    "ノードの応答を読めません：{what}",
+                    "无法读取节点的应答：{what}",
+                    "não é possível ler a resposta do nó: {what}",
+                ],
+                vec![("what", what.clone())],
+            ),
+            LinkError::Held(hold) => (
+                [
+                    "the node is held: {hold}",
+                    "el nodo está retenido: {hold}",
+                    "der Knoten ist gesperrt: {hold}",
+                    "le nœud est retenu : {hold}",
+                    "il nodo è bloccato: {hold}",
+                    "ノードは保留されています：{hold}",
+                    "节点处于保持状态：{hold}",
+                    "o nó está retido: {hold}",
+                ],
+                vec![("hold", hold.localized(lang).to_string())],
+            ),
+            LinkError::Unsure(slot) => (
+                [
+                    "the tape of the feeder {slot} may not be where it was asked to be: look at it and acknowledge it",
+                    "la cinta del alimentador {slot} puede no estar donde se pidió: revísela y confírmelo",
+                    "der Gurt des Feeders {slot} steht vielleicht nicht, wo er sollte: ansehen und quittieren",
+                    "la bande du chargeur {slot} n'est peut-être pas à la position demandée : vérifiez-la puis acquittez",
+                    "il nastro dell'alimentatore {slot} potrebbe non essere dove richiesto: controllarlo e confermare",
+                    "フィーダ {slot} のテープは指示の位置にない可能性があります。確認してから承認してください",
+                    "供料器 {slot} 的编带可能不在要求的位置：请检查后确认",
+                    "a fita do alimentador {slot} pode não estar onde foi pedido: verifique-a e confirme",
+                ],
+                vec![("slot", slot.to_string())],
+            ),
+        };
+        say(lang, &row, &pairs)
     }
 }
 
@@ -73,6 +185,33 @@ impl Hold {
             Hold::Silent => "silent",
             Hold::Safe => "safe",
         }
+    }
+
+    /// The word of the hold in a language.
+    pub fn localized(self, lang: Lang) -> &'static str {
+        let row: [&'static str; 8] = match self {
+            Hold::Silent => [
+                "silent",
+                "sin respuesta",
+                "stumm",
+                "muet",
+                "muto",
+                "無応答",
+                "无应答",
+                "sem resposta",
+            ],
+            Hold::Safe => [
+                "safe",
+                "en estado seguro",
+                "im sicheren Zustand",
+                "en état sûr",
+                "in stato sicuro",
+                "安全状態",
+                "安全状态",
+                "em estado seguro",
+            ],
+        };
+        pick(lang, &row)
     }
 }
 
@@ -194,8 +333,14 @@ impl NodeLink for ScNodeLink {
                 why: None,
             }),
             Err(error @ sc::ClientError::Server { status, .. }) => {
-                // asked right after the error, as the client says: the `why` a node gives with a `409`, and none when the answer has none
+                // asked right after the error, as the client says: the `why` a node gives with a `409`; the feeder node says `safe_state` and `busy` under `error` instead
                 let why = self.client.why_of(&error).map(str::to_string);
+                let why = why.or_else(|| match error {
+                    sc::ClientError::Server { code, .. } => {
+                        code.filter(|c| ERROR_WORDS.contains(&c.as_str()))
+                    }
+                    _ => None,
+                });
                 Err(LinkError::Refused { status, why })
             }
             Err(sc::ClientError::Config(m) | sc::ClientError::BadReply(m)) => {
@@ -304,6 +449,10 @@ impl Guard {
                 if self.silent_run >= self.limit && self.held.is_none() {
                     self.held = Some(Hold::Silent);
                 }
+            }
+            Err(e) if e.why() == Some("safe_state") => {
+                self.silent_run = 0;
+                self.node_is_safe();
             }
             Ok(_) | Err(_) => self.silent_run = 0,
         }
@@ -498,7 +647,7 @@ impl<L: NodeLink> Head<L> {
         if let Some(h) = self.guard.held() {
             return Err(LinkError::Held(h));
         }
-        match (self.beat.take(), self.watch_ms) {
+        let result = match (self.beat.take(), self.watch_ms) {
             (Some(mut beat), Some(watch)) => {
                 let period = Duration::from_millis(u64::from(beat_period_ms(watch)));
                 let result = beat.during(period, || self.ask("POST", path, true));
@@ -509,7 +658,17 @@ impl<L: NodeLink> Head<L> {
                 self.beat = beat;
                 self.ask("POST", path, true)
             }
+        };
+        if matches!(result, Err(LinkError::Silent)) {
+            // the program gave up waiting and the head may still be moving: ask it to stop (a stop never drops a part)
+            let _ = self.link.call("POST", "/api/stop", true);
         }
+        result
+    }
+
+    /// Stops every move of the head where it is (the vacuum stays as it is). It is asked even while the node is held.
+    pub fn stop(&mut self) -> Result<(), LinkError> {
+        self.ask("POST", "/api/stop", true).map(|_| ())
     }
 
     /// Asks the head for its state, with the token so that the question counts as the program being heard (the state is still read when the token is refused). A head that says it is
@@ -684,6 +843,8 @@ pub struct Feeders<L: NodeLink> {
     last: Option<ChainStatus>,
     watch_ms: Option<u32>,
     beat: Option<Beat>,
+    /// The positions whose tape is not known to be where it was asked to be.
+    unsure: BTreeSet<u8>,
 }
 
 impl<L: NodeLink> Feeders<L> {
@@ -694,7 +855,18 @@ impl<L: NodeLink> Feeders<L> {
             last: None,
             watch_ms: None,
             beat: None,
+            unsure: BTreeSet::new(),
         }
+    }
+
+    /// The positions that take no advance until they are acknowledged with `ack`.
+    pub fn unsure(&self) -> Vec<u8> {
+        self.unsure.iter().copied().collect()
+    }
+
+    /// Stops every feeder at once. It is asked even while the node is held.
+    pub fn stop(&mut self) -> Result<(), LinkError> {
+        self.ask("POST", "/api/feeder/stop", true).map(|_| ())
     }
 
     /// Keeps the feeder node hearing the program while an advance is waited for, as `Head::keep_alive` does for the head.
@@ -777,8 +949,11 @@ impl<L: NodeLink> Feeders<L> {
         if let Some(h) = self.guard.held() {
             return Err(LinkError::Held(h));
         }
+        if self.unsure.contains(&slot) {
+            return Err(LinkError::Unsure(slot));
+        }
         let path = format!("/api/feeder/advance?slot={slot}&count={count}");
-        match (self.beat.take(), self.watch_ms) {
+        let result = match (self.beat.take(), self.watch_ms) {
             (Some(mut beat), Some(watch)) => {
                 let period = Duration::from_millis(u64::from(beat_period_ms(watch)));
                 let result = beat.during(period, || self.ask("POST", &path, true));
@@ -789,15 +964,29 @@ impl<L: NodeLink> Feeders<L> {
                 self.beat = beat;
                 self.ask("POST", &path, true)
             }
+        };
+        let unsure = match &result {
+            Ok(_) => false,
+            Err(LinkError::Silent) => {
+                // the program gave up waiting and the tape may still be moving: ask the node to stop
+                let _ = self.link.call("POST", "/api/feeder/stop", true);
+                true
+            }
+            Err(LinkError::Bad(_)) => true,
+            Err(e) => matches!(e.why(), Some("stopped" | "timeout" | "no_answer")),
+        };
+        if unsure {
+            self.unsure.insert(slot);
         }
-        .map(|_| ())
+        result.map(|_| ())
     }
 
-    /// Clears the fault of one feeder whose cause is gone.
+    /// Clears the fault of one feeder whose cause is gone, and lets it be advanced again when its tape was not known to be in place: a person has looked at it.
     pub fn ack(&mut self, slot: u8) -> Result<(), LinkError> {
         Feeders::<L>::check_slot(slot)?;
-        self.ask("POST", &format!("/api/feeder/ack?slot={slot}"), true)
-            .map(|_| ())
+        self.ask("POST", &format!("/api/feeder/ack?slot={slot}"), true)?;
+        self.unsure.remove(&slot);
+        Ok(())
     }
 }
 

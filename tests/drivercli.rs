@@ -313,3 +313,162 @@ fn every_new_command_without_its_files_answers_with_an_error_line() {
         assert_eq!(o.status.code(), Some(1), "{cmd}");
     }
 }
+
+/// The lines of the script of a job of `driver-run` with the files given.
+fn script_of(dir: &Path, parts: &str, feeders: &str, more: &[&str]) -> (Output, String) {
+    let script = dir.join("script.gcode");
+    let _ = std::fs::remove_file(&script);
+    let mut args = vec![
+        "driver-run",
+        parts,
+        feeders,
+        MARLIN,
+        "--script-out",
+        p(&script),
+    ];
+    args.extend_from_slice(more);
+    let o = run(&args);
+    let text = std::fs::read_to_string(&script).unwrap_or_default();
+    (o, text)
+}
+
+const ONE_PART: &str = "## Unit = mm, Angle = deg.\nR1 10k R_0603 10.0 20.0 0.0000 top\n";
+const HEAD: &str = "id,value,package,x,y,count";
+
+#[test]
+fn a_part_is_taken_at_the_angle_it_lies_at_in_its_feeder() {
+    let dir = temp("angle");
+    let parts = dir.join("b.pos");
+    std::fs::write(&parts, ONE_PART).unwrap();
+    let feeders = dir.join("f.csv");
+    std::fs::write(
+        &feeders,
+        format!("{HEAD},rotation\nF1,10k,R_0603,-20,10,5,90\n"),
+    )
+    .unwrap();
+    let (o, g) = script_of(&dir, p(&parts), p(&feeders), &[]);
+    assert!(o.status.success(), "{}", err(&o));
+    // the axis goes to 90 on the way to the feeder and back to the angle of the part on the way to the board
+    assert!(g.contains("G1 X-20.000 Y10.000 E90.000"), "{g}");
+    assert!(g.contains("G1 X10.000 Y20.000 E0.000"), "{g}");
+    // the fingerprint is of the same lines
+    let o = run(&["toolpath-hash", p(&parts), p(&feeders), MARLIN]);
+    assert!(o.status.success(), "{}", err(&o));
+    let plain = dir.join("plain.csv");
+    std::fs::write(&plain, format!("{HEAD}\nF1,10k,R_0603,-20,10,5\n")).unwrap();
+    let other = run(&["toolpath-hash", p(&parts), p(&plain), MARLIN]);
+    assert_ne!(out(&o), out(&other));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_tray_is_refused_by_the_driver_and_a_feeder_that_is_off_is_not_used() {
+    let dir = temp("kinds");
+    let parts = dir.join("b.pos");
+    std::fs::write(&parts, ONE_PART).unwrap();
+    let tray = dir.join("tray.csv");
+    std::fs::write(
+        &tray,
+        format!("{HEAD},kind,cols,rows,pitch_x,pitch_y\nT1,10k,R_0603,-20,10,4,tray,2,2,5,5\n"),
+    )
+    .unwrap();
+    let (o, g) = script_of(&dir, p(&parts), p(&tray), &["--lang", "es"]);
+    assert_eq!(o.status.code(), Some(1));
+    assert!(
+        err(&o).contains("T1") && err(&o).contains("tray"),
+        "{}",
+        err(&o)
+    );
+    assert!(g.is_empty(), "nothing is written");
+    // a tray for a kind of part that the board does not have is no reason to refuse
+    let both = dir.join("both.csv");
+    std::fs::write(
+        &both,
+        format!("{HEAD},kind,cols,rows,pitch_x,pitch_y,enabled\nT1,1u,C_0805,-20,30,4,tray,2,2,5,5,\nF0,10k,R_0603,-20,40,5,,,,,,no\nF1,10k,R_0603,-20,10,5,,,,,,yes\n"),
+    )
+    .unwrap();
+    let (o, g) = script_of(&dir, p(&parts), p(&both), &[]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(
+        g.contains("X-20.000 Y10.000") && !g.contains("Y40.000"),
+        "{g}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_driver_applies_the_rotation_rules_and_leaves_the_marks_of_the_board_out() {
+    let dir = temp("rules");
+    let parts = dir.join("b.pos");
+    std::fs::write(
+        &parts,
+        format!("{ONE_PART}FID1 Fiducial Fiducial_1mm 2.0 2.0 0.0000 top\n"),
+    )
+    .unwrap();
+    let feeders = dir.join("f.csv");
+    std::fs::write(&feeders, format!("{HEAD}\nF1,10k,R_0603,-20,10,5\n")).unwrap();
+    let cfg = dir.join("machine.cfg");
+    std::fs::write(&cfg, "rotation = R_0603 : 90\n").unwrap();
+    let (o, g) = script_of(&dir, p(&parts), p(&feeders), &["--config", p(&cfg)]);
+    assert!(o.status.success(), "{}{}", out(&o), err(&o));
+    assert!(
+        out(&o).contains("FID1") && out(&o).contains("1 parts placed"),
+        "{}",
+        out(&o)
+    );
+    assert!(g.contains("G1 X10.000 Y20.000 E90.000"), "{g}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_bottom_side_is_mirrored_about_where_the_board_is() {
+    let dir = temp("origin");
+    let parts = dir.join("b.pos");
+    std::fs::write(
+        &parts,
+        "## Unit = mm, Angle = deg.\nR1 10k R_0603 10.0 20.0 0.0000 bottom\n",
+    )
+    .unwrap();
+    let feeders = dir.join("f.csv");
+    std::fs::write(&feeders, format!("{HEAD}\nF1,10k,R_0603,-20,10,5\n")).unwrap();
+    let side = ["--side", "bottom", "--board-width", "50"];
+    let (o, g) = script_of(&dir, p(&parts), p(&feeders), &side);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(g.contains("G1 X40.000 Y20.000"), "{g}");
+    let mut moved = side.to_vec();
+    moved.extend_from_slice(&["--origin-x", "100"]);
+    let (o, g) = script_of(&dir, p(&parts), p(&feeders), &moved);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(g.contains("G1 X240.000 Y20.000"), "{g}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_run_that_fails_is_told_in_the_language_asked_with_what_was_not_confirmed() {
+    let o = run(&[
+        "driver-run",
+        BOARD,
+        FEEDERS,
+        MARLIN,
+        "--fault",
+        "halt@20",
+        "--lang",
+        "es",
+    ]);
+    assert_eq!(o.status.code(), Some(2));
+    let e = err(&o);
+    assert!(
+        e.contains("parado en") && e.contains("Rechazado") && e.contains("fue rechazada"),
+        "{e}"
+    );
+    assert!(e.contains("AVISO") && e.contains("M42 P5 S0"), "{e}");
+    let o = run(&["driver-run", BOARD, FEEDERS, MARLIN, "--lang", "de"]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(out(&o).contains("6 Teile bestückt"), "{}", out(&o));
+    let o = run(&["bringup", MARLIN, "--fault", "halt@3", "--lang", "fr"]);
+    assert!(
+        err(&o).contains("ATTENTION") && err(&o).contains("ont échoué"),
+        "{}",
+        err(&o)
+    );
+}

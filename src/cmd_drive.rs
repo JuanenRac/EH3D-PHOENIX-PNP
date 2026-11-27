@@ -9,16 +9,17 @@ use crate::cmd_flow::{deliver, whole};
 use crate::cmd_nodes::fail;
 use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
+use eh3d_phoenix_pnp::config::MachineConfig;
 use eh3d_phoenix_pnp::driver::{Failure, Session};
 use eh3d_phoenix_pnp::drivertest;
 use eh3d_phoenix_pnp::error::Lang;
-use eh3d_phoenix_pnp::feeders::{assign_side, from_csv as feeders_csv};
 use eh3d_phoenix_pnp::gcodedriver::{DriverProfile, HomingMode, Op, Transport, MAX_PROFILE_BYTES};
 use eh3d_phoenix_pnp::gcodesim::{Faults, GcodeSim, Link, MoonrakerLink, SimLink, SimMoonraker};
 use eh3d_phoenix_pnp::msg8::{num as show, pick, say};
-use eh3d_phoenix_pnp::parts::{parse, Side};
-use eh3d_phoenix_pnp::plan::{plan, Settings};
+use eh3d_phoenix_pnp::parts::Side;
+use eh3d_phoenix_pnp::plan::Placement;
 use eh3d_phoenix_pnp::safety::{replay, replay_text, Level, Rules};
+use eh3d_phoenix_pnp::toolpath::{self, JobOptions};
 
 pub fn load_profile(path: &str, lang: Lang) -> Result<DriverProfile, String> {
     let text = read_text(path, MAX_PROFILE_BYTES as u64)?;
@@ -219,30 +220,133 @@ pub fn driver_test(mut args: Vec<String>) -> Result<(), String> {
     }
 }
 
-fn session_text(failure: &Failure) -> String {
-    format!("{:?}: {}", failure.kind, failure.detail)
+fn session_text(failure: &Failure, lang: Lang) -> String {
+    format!(
+        "{}: {}",
+        failure.kind.localized(lang),
+        failure.localized(lang)
+    )
+}
+
+/// The options that say which job of a board the driver is given: `--side`, `--board-width`, `--origin-x` and `--partial`.
+pub fn job_options(args: &mut Vec<String>) -> Result<JobOptions, String> {
+    let partial = switch(args, "--partial");
+    let side = match flag(args, "--side")?.as_deref() {
+        None | Some("top") => Side::Top,
+        Some("bottom") => Side::Bottom,
+        Some(o) => return Err(format!("--side '{o}' is not top or bottom")),
+    };
+    let board_width_mm = match flag(args, "--board-width")? {
+        Some(v) => Some(num(&v, "--board-width")?),
+        None => None,
+    };
+    let origin_x_mm = match flag(args, "--origin-x")? {
+        Some(v) => num(&v, "--origin-x")?,
+        None => 0.0,
+    };
+    Ok(JobOptions {
+        side,
+        board_width_mm,
+        origin_x_mm,
+        partial,
+    })
+}
+
+/// The placements of the job of the files `args[0]` (parts) and `args[1]` (feeders); the marks of the board that are left out are named.
+pub fn job_of(
+    args: &[String],
+    profile: &DriverProfile,
+    cfg: &MachineConfig,
+    options: JobOptions,
+    lang: Lang,
+) -> Result<eh3d_phoenix_pnp::plan::Plan, String> {
+    let parts = read_text(&args[0], cfg.max_file_bytes)?;
+    let feeders = read_text(&args[1], cfg.max_file_bytes)?;
+    let job = toolpath::plan_job(&parts, &feeders, profile, cfg, options, lang)?;
+    if !job.marks.is_empty() {
+        let row: [&str; 8] = [
+            "{n} parts are marks of the board and are not placed ({names})",
+            "{n} piezas son marcas de la placa y no se colocan ({names})",
+            "{n} Teile sind Marken der Platine und werden nicht bestückt ({names})",
+            "{n} composants sont des repères de la carte et ne sont pas posés ({names})",
+            "{n} componenti sono riferimenti della scheda e non vengono posati ({names})",
+            "{n} 個の部品は基板のマークのため実装しません（{names}）",
+            "{n} 个元件是电路板标记点，不进行贴装（{names}）",
+            "{n} componentes são marcas da placa e não são colocados ({names})",
+        ];
+        println!(
+            "{}",
+            say(
+                lang,
+                &row,
+                &[
+                    ("n", job.marks.len().to_string()),
+                    ("names", job.marks.join(", "))
+                ]
+            )
+        );
+    }
+    Ok(job.plan)
+}
+
+/// Says which lines of the safe stop the controller did not confirm, so that a person looks at what they switch off.
+fn warn_unconfirmed<L: Link>(s: &Session<L>, lang: Lang) {
+    if s.unconfirmed.is_empty() {
+        return;
+    }
+    let row: [&str; 8] = [
+        "WARNING: the controller did not confirm these lines that leave the machine safe: {lines}. Check the pump, the valves and the motors by hand",
+        "AVISO: el controlador no confirmó estas líneas que dejan la máquina segura: {lines}. Compruebe a mano la bomba, las válvulas y los motores",
+        "WARNUNG: die Steuerung hat diese Zeilen, die die Maschine sichern, nicht bestätigt: {lines}. Pumpe, Ventile und Motoren von Hand prüfen",
+        "ATTENTION : le contrôleur n'a pas confirmé ces lignes de mise en sécurité : {lines}. Vérifiez à la main la pompe, les vannes et les moteurs",
+        "ATTENZIONE: il controllore non ha confermato queste righe che mettono in sicurezza la macchina: {lines}. Controllare a mano pompa, valvole e motori",
+        "警告：機械を安全にする次の行がコントローラに確認されていません：{lines}。ポンプ・バルブ・モーターを手で確認してください",
+        "警告：控制器未确认以下使机器进入安全状态的行：{lines}。请手动检查气泵、电磁阀和电机",
+        "AVISO: o controlador não confirmou estas linhas que deixam a máquina segura: {lines}. Verifique à mão a bomba, as válvulas e os motores",
+    ];
+    eprintln!(
+        "{}",
+        say(lang, &row, &[("lines", s.unconfirmed.join(" | "))])
+    );
 }
 
 /// Runs the plan on a session over any link.
 fn run_on<L: Link>(
     s: &mut Session<L>,
-    placements: &[eh3d_phoenix_pnp::plan::Placement],
+    placements: &[Placement],
+    lang: Lang,
 ) -> Result<usize, String> {
-    s.connect().map_err(|f| session_text(&f))?;
-    s.home().map_err(|f| session_text(&f))?;
+    s.connect().map_err(|f| session_text(&f, lang))?;
+    s.home().map_err(|f| session_text(&f, lang))?;
     let report = s.run_placements(placements);
     let _ = s.close();
     match report.failed {
         None => Ok(report.placed),
-        Some((reference, f)) => fail(format!(
-            "stopped at {reference} after {} parts: {}",
-            report.placed,
-            session_text(&f)
-        )),
+        Some((reference, f)) => {
+            let row: [&str; 8] = [
+                "stopped at {reference} after {placed} parts: {why}",
+                "parado en {reference} tras {placed} piezas: {why}",
+                "bei {reference} nach {placed} Teilen angehalten: {why}",
+                "arrêté à {reference} après {placed} composants : {why}",
+                "fermato a {reference} dopo {placed} componenti: {why}",
+                "{placed} 個の後、{reference} で停止しました：{why}",
+                "贴装 {placed} 个后在 {reference} 处停止：{why}",
+                "parado em {reference} após {placed} componentes: {why}",
+            ];
+            fail(say(
+                lang,
+                &row,
+                &[
+                    ("reference", reference),
+                    ("placed", report.placed.to_string()),
+                    ("why", session_text(&f, lang)),
+                ],
+            ))
+        }
     }
 }
 
-/// `driver-run PARTS FEEDERS PROFILE [--side top|bottom] [--board-width MM] [--fault ...] [--seed S] [--script-out F] [--log-out F] [--partial]`: plans the board, turns the plan into the lines of
+/// `driver-run PARTS FEEDERS PROFILE [--side top|bottom] [--board-width MM] [--origin-x MM] [--fault ...] [--seed S] [--script-out F] [--log-out F] [--partial]`: plans the board, turns the plan into the lines of
 /// the profile and sends them to a SIMULATED controller of the dialect of the profile, with its timeouts, retries and stop.
 pub fn driver_run(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
@@ -250,39 +354,15 @@ pub fn driver_run(mut args: Vec<String>) -> Result<(), String> {
     let seed = seed_of(&mut args)?;
     let script_out = flag(&mut args, "--script-out")?;
     let log_out = flag(&mut args, "--log-out")?;
-    let partial = switch(&mut args, "--partial");
-    let side = match flag(&mut args, "--side")?.as_deref() {
-        None | Some("top") => Side::Top,
-        Some("bottom") => Side::Bottom,
-        Some(o) => return Err(format!("--side '{o}' is not top or bottom")),
-    };
-    let width = match flag(&mut args, "--board-width")? {
-        Some(v) => Some(num(&v, "--board-width")?),
-        None => None,
-    };
+    let options = job_options(&mut args)?;
     finish(&args, 3)?;
     if args.len() < 3 {
         return Err("driver-run needs the parts, the feeders and a profile".into());
     }
     let profile = load_profile(&args[2], lang)?;
-    let parts = parse(&read_text(&args[0], cfg.max_file_bytes)?)?;
-    let feeders = feeders_csv(&read_text(&args[1], cfg.max_file_bytes)?)?;
-    let assigned = assign_side(&parts, &feeders, Some(side));
-    if (!assigned.without_feeder.is_empty() || !assigned.short.is_empty()) && !partial {
-        return Err(
-            "the feeders do not cover the board (use --partial to place only what can be placed)"
-                .into(),
-        );
-    }
-    let settings = Settings {
-        nozzles: profile.nozzles,
-        side,
-        board_width_mm: width,
-        ..Settings::default()
-    };
-    let planned = plan(&parts, &feeders, &assigned, &settings)?;
+    let planned = job_of(&args, &profile, &cfg, options, lang)?;
     // the lines of the whole job, before anything is sent: a step the profile cannot write stops the command here
-    let script = eh3d_phoenix_pnp::toolpath::script(&profile, &planned.placements)?;
+    let script = toolpath::script_in(&profile, &planned.placements, lang)?;
     let inputs = vec![args[0].clone(), args[1].clone(), args[2].clone()];
     let result = match profile.transport {
         Transport::Serial => {
@@ -290,14 +370,16 @@ pub fn driver_run(mut args: Vec<String>) -> Result<(), String> {
                 &profile,
                 SimLink::new(GcodeSim::new(&profile, faults, seed)),
             );
-            let r = run_on(&mut s, &planned.placements);
+            let r = run_on(&mut s, &planned.placements, lang);
+            warn_unconfirmed(&s, lang);
             finish_run(&s.log, &log_out, &inputs, lang)?;
             r
         }
         Transport::Moonraker => {
             let link = MoonrakerLink::new(&profile, SimMoonraker::new(&profile, faults, seed));
             let mut s = Session::new(&profile, link);
-            let r = run_on(&mut s, &planned.placements);
+            let r = run_on(&mut s, &planned.placements, lang);
+            warn_unconfirmed(&s, lang);
             finish_run(&s.log, &log_out, &inputs, lang)?;
             r
         }
@@ -327,7 +409,24 @@ pub fn driver_run(mut args: Vec<String>) -> Result<(), String> {
     );
     match result {
         Ok(n) => {
-            println!("{n} parts placed, {} lines in the script", script.len());
+            let row: [&str; 8] = [
+                "{n} parts placed, {lines} lines in the script",
+                "{n} piezas colocadas, {lines} líneas en el guion",
+                "{n} Teile bestückt, {lines} Zeilen im Skript",
+                "{n} composants posés, {lines} lignes dans le script",
+                "{n} componenti posati, {lines} righe nello script",
+                "{n} 個を実装しました。スクリプトは {lines} 行です",
+                "已贴装 {n} 个元件，脚本共 {lines} 行",
+                "{n} componentes colocados, {lines} linhas no guião",
+            ];
+            println!(
+                "{}",
+                say(
+                    lang,
+                    &row,
+                    &[("n", n.to_string()), ("lines", script.len().to_string())]
+                )
+            );
             Ok(())
         }
         Err(e) => Err(e),
@@ -408,10 +507,10 @@ pub fn homing_repeat(mut args: Vec<String>) -> Result<(), String> {
         &profile,
         SimLink::new(GcodeSim::new(&profile, faults, seed)),
     );
-    s.connect().map_err(|f| session_text(&f))?;
+    s.connect().map_err(|f| session_text(&f, lang))?;
     let mut places: Vec<(f64, f64)> = Vec::new();
     for _ in 0..runs {
-        s.home().map_err(|f| session_text(&f))?;
+        s.home().map_err(|f| session_text(&f, lang))?;
         places.push(s.link.sim.true_position());
     }
     let spread = |f: fn(&(f64, f64)) -> f64| {
@@ -461,10 +560,20 @@ pub fn homing_repeat(mut args: Vec<String>) -> Result<(), String> {
     }
     println!("evidence=simulator");
     if worst > limit {
-        fail(format!(
-            "the spread of {} mm is over {} mm",
-            show(worst),
-            show(limit)
+        let row: [&str; 8] = [
+            "the spread of {worst} mm is over {limit} mm",
+            "la dispersión de {worst} mm supera {limit} mm",
+            "die Streuung von {worst} mm liegt über {limit} mm",
+            "la dispersion de {worst} mm dépasse {limit} mm",
+            "la dispersione di {worst} mm supera {limit} mm",
+            "ばらつき {worst} mm は {limit} mm を超えています",
+            "离散 {worst} mm 超过 {limit} mm",
+            "a dispersão de {worst} mm ultrapassa {limit} mm",
+        ];
+        fail(say(
+            lang,
+            &row,
+            &[("worst", show(worst)), ("limit", show(limit))],
         ))
     } else {
         Ok(())
@@ -510,14 +619,32 @@ pub fn bringup(mut args: Vec<String>) -> Result<(), String> {
             Ok(()) => println!("PASS  {name}"),
             Err(f) => {
                 failed += 1;
-                println!("FAIL  {name}: {}", session_text(f));
+                println!("FAIL  {name}: {}", session_text(f, lang));
             }
         }
     }
+    warn_unconfirmed(&s, lang);
     println!("evidence=simulator");
     if failed == 0 {
         Ok(())
     } else {
-        fail(format!("{failed} of {} steps failed", results.len()))
+        let row: [&str; 8] = [
+            "{failed} of {all} steps failed",
+            "{failed} de {all} pasos fallaron",
+            "{failed} von {all} Schritten sind fehlgeschlagen",
+            "{failed} étapes sur {all} ont échoué",
+            "{failed} passi su {all} non riusciti",
+            "{all} 手順のうち {failed} 件が失敗しました",
+            "{all} 个步骤中有 {failed} 个失败",
+            "{failed} de {all} passos falharam",
+        ];
+        fail(say(
+            lang,
+            &row,
+            &[
+                ("failed", failed.to_string()),
+                ("all", results.len().to_string()),
+            ],
+        ))
     }
 }

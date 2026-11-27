@@ -1,13 +1,15 @@
 //! The G-code driver: the profile file and its checks, the lines it writes, how it reads the answers of a controller, the Moonraker requests, the simulated controller and a session that
 //! has timeouts, retries and a stop that fails closed. Everything is played against the simulated controller; none of it has been tried on a machine.
 
-use eh3d_phoenix_pnp::driver::{Kind, Session};
+use eh3d_phoenix_pnp::driver::{Kind, Session, Why};
 use eh3d_phoenix_pnp::drivertest;
 use eh3d_phoenix_pnp::error::Lang;
 use eh3d_phoenix_pnp::gcodedriver::{
-    DriverProfile, Fault, Op, Pos, Reply, Target, Transport, KEYS,
+    DriverProfile, Fault, LineFault, Op, Pos, Reply, Target, Transport, KEYS,
 };
-use eh3d_phoenix_pnp::gcodesim::{Faults, GcodeSim, Link, MoonrakerLink, SimLink, SimMoonraker};
+use eh3d_phoenix_pnp::gcodesim::{
+    Faults, GcodeSim, Link, LinkError, MoonrakerLink, SimLink, SimMoonraker,
+};
 use eh3d_phoenix_pnp::plan::Placement;
 
 const MARLIN: &str = include_str!("../examples/driver_marlin.cfg");
@@ -252,8 +254,23 @@ fn a_move_is_a_line_and_the_line_that_waits_for_it() {
 #[test]
 fn a_machine_without_a_turning_axis_refuses_a_turn_and_the_placement_leaves_it_out() {
     let lf = MARLIN.replace("\r\n", "\n");
-    let p = DriverProfile::parse(&format!("{lf}\naxis_rot = none\n").replace("axis_rot = E\n", ""))
-        .unwrap();
+    let mut p =
+        DriverProfile::parse(&format!("{lf}\naxis_rot = none\n").replace("axis_rot = E\n", ""))
+            .unwrap();
+    // by default a part that must be turned is refused, and one that need not be is placed
+    let turned = placement("R1", (-20.0, 10.0), (10.0, 20.0), 90.0);
+    assert_eq!(
+        p.placement_ops_checked(&turned),
+        Err(LineFault::Unturnable {
+            reference: "R1".into(),
+            degrees: 90.0
+        })
+    );
+    assert!(p.placement_ops(&turned).unwrap_err().contains("R1"));
+    let mut straight = placement("R2", (-20.0, 10.0), (10.0, 20.0), 90.0);
+    straight.nozzle_pick_deg = 90.0;
+    assert!(p.placement_ops(&straight).is_ok());
+    p.refuse_turn_without_axis = false;
     let t = Target {
         rot: Some(10.0),
         ..Target::default()
@@ -729,8 +746,8 @@ fn a_query_that_gets_no_answer_is_asked_again_and_a_move_is_not_sent_twice() {
 fn a_wait_that_times_out_is_settled_by_asking_where_the_head_is() {
     let p = marlin();
     let mut s = ready(&p, Faults::default());
-    s.profile.move_timeout_s = 0.5;
-    // 100 mm at 3000 mm/min take 2 s: the wait times out, the head is at the target, the session goes on
+    s.profile.move_timeout_s = 1.5;
+    // 100 mm at 3000 mm/min take 2 s: the wait times out, the head says the target, the wait is asked again and says ok, and the session goes on
     let t = Target {
         x: Some(100.0),
         y: Some(0.0),
@@ -1117,4 +1134,283 @@ fn the_square_of_the_first_start_goes_up_first_and_stays_within_the_limits() {
         assert!(p.move_line(t, p.feed_travel).is_ok(), "{t:?}");
     }
     assert_eq!((moves[4].x, moves[4].y), (Some(12.0), Some(7.0)));
+}
+
+// ---- what ends a move, what stops a session
+
+/// The simulated controller with the answer to some lines replaced: `change` is told the line and how many times it came, and gives the answer instead of the controller's.
+struct Over {
+    inner: SimLink,
+    change: Box<dyn FnMut(&str, usize) -> Option<Result<Vec<String>, LinkError>>>,
+    seen: std::collections::BTreeMap<String, usize>,
+}
+
+impl Over {
+    fn count(&self, line: &str) -> usize {
+        self.seen.get(line).copied().unwrap_or(0)
+    }
+}
+
+impl Link for Over {
+    fn exchange(&mut self, line: &str, timeout_s: f64) -> Result<Vec<String>, LinkError> {
+        let n = self.seen.entry(line.to_string()).or_insert(0);
+        *n += 1;
+        match (self.change)(line, *n) {
+            Some(answer) => answer,
+            None => self.inner.exchange(line, timeout_s),
+        }
+    }
+    fn pause(&mut self, seconds: f64) {
+        self.inner.pause(seconds);
+    }
+    fn now(&self) -> f64 {
+        self.inner.now()
+    }
+}
+
+fn over(
+    p: &DriverProfile,
+    change: impl FnMut(&str, usize) -> Option<Result<Vec<String>, LinkError>> + 'static,
+) -> Session<Over> {
+    let link = Over {
+        inner: SimLink::new(GcodeSim::new(p, Faults::default(), 1)),
+        change: Box::new(change),
+        seen: Default::default(),
+    };
+    let mut s = Session::new(p, link);
+    s.connect().unwrap();
+    s.home().unwrap();
+    s
+}
+
+fn answers(lines: &[&str]) -> Option<Result<Vec<String>, LinkError>> {
+    Some(Ok(lines.iter().map(|l| l.to_string()).collect()))
+}
+
+fn x_to(x: f64) -> Target {
+    Target {
+        x: Some(x),
+        ..Target::default()
+    }
+}
+
+#[test]
+fn a_wait_that_only_says_busy_does_not_end_a_move() {
+    let p = marlin();
+    // the first M400 is the one of the move: the homing sends none
+    let mut s = over(&p, |l, _| {
+        (l == "M400")
+            .then(|| answers(&["echo:busy: processing"]))
+            .flatten()
+    });
+    let e = s.move_to(&x_to(10.0), 3000.0).unwrap_err();
+    assert_eq!(e.kind, Kind::Timeout);
+    assert_eq!(
+        e.why,
+        Why::NoOk {
+            line: "M400".into(),
+            tries: 3
+        }
+    );
+    assert_eq!(s.link.count("M400"), 3);
+    assert!(s.is_halted());
+    // one busy answer and then ok is only waited out
+    let mut s = over(&p, |l, n| {
+        (l == "M400" && n == 1)
+            .then(|| answers(&["echo:busy: processing"]))
+            .flatten()
+    });
+    s.move_to(&x_to(10.0), 3000.0).unwrap();
+    assert_eq!(s.link.count("M400"), 2);
+}
+
+#[test]
+fn the_place_the_head_reports_does_not_end_a_move_whose_wait_never_says_ok() {
+    // a controller reports where it was told to go while the head is still on its way
+    for (retries, waits) in [(2, 3), (0, 2)] {
+        let mut p = marlin();
+        p.retries = retries;
+        let mut s = over(&p, |l, _| (l == "M400").then_some(Err(LinkError::Timeout)));
+        let e = s.move_to(&x_to(10.0), 3000.0).unwrap_err();
+        assert_eq!((e.kind, e.why.clone()), (Kind::Timeout, Why::NeverDone));
+        assert_eq!(s.link.count("M400"), waits, "retries {retries}");
+        assert!(s.is_halted());
+    }
+    // a lost answer: the wait is asked again, says ok and the move is over
+    let p = marlin();
+    let mut s = over(&p, |l, n| {
+        (l == "M400" && n == 1).then_some(Err(LinkError::Timeout))
+    });
+    s.move_to(&x_to(10.0), 3000.0).unwrap();
+    assert_eq!(s.link.count("M400"), 2);
+    assert!(s.log.iter().any(|e| e.line == "(recovered)"));
+}
+
+#[test]
+fn a_run_that_ends_because_the_machine_is_held_leaves_nothing_switched_on() {
+    use eh3d_phoenix_pnp::safety::Event;
+    let p = marlin();
+    let mut s = ready(&p, Faults::default());
+    s.set_actuator("pump", true).unwrap();
+    s.event(Event::VacuumLost);
+    assert_eq!(s.link.sim.pin(5), Some(255));
+    let report = s.run_placements(&[placement("R1", (-20.0, 10.0), (10.0, 20.0), 0.0)]);
+    let (who, f) = report.failed.unwrap();
+    assert_eq!((who.as_str(), f.kind), ("R1", Kind::Held));
+    assert_eq!(s.link.sim.pin(5), Some(0), "the pump is switched off");
+    assert!(s.is_halted());
+    assert!(s.unconfirmed.is_empty());
+}
+
+#[test]
+fn a_turn_that_marlin_says_it_did_not_make_stops_the_session() {
+    let p = marlin();
+    for notice in [
+        "echo: cold extrusion prevented",
+        "echo:Cold extrusion prevented",
+        "echo: too long extrusion prevented",
+    ] {
+        assert!(matches!(p.classify(notice), Reply::Error(_)), "{notice}");
+    }
+    assert!(matches!(p.classify("echo:SD card ok"), Reply::Echo(_)));
+    let mut s = over(&p, |l, _| {
+        l.contains(" E90.000")
+            .then(|| answers(&["echo: cold extrusion prevented", "ok"]))
+            .flatten()
+    });
+    let report = s.run_placements(&[placement("R1", (-20.0, 10.0), (10.0, 20.0), 90.0)]);
+    assert_eq!(report.failed.unwrap().1.kind, Kind::Rejected);
+    assert!(s.is_halted());
+}
+
+#[test]
+fn a_controller_that_restarts_while_the_job_runs_stops_the_session() {
+    let p = marlin();
+    let mut s = over(&p, |l, _| {
+        (l == "M400").then(|| answers(&["start", "ok"])).flatten()
+    });
+    let e = s.move_to(&x_to(10.0), 3000.0).unwrap_err();
+    assert_eq!(e.kind, Kind::Link);
+    assert_eq!(
+        e.why,
+        Why::Restarted {
+            line: "M400".into()
+        }
+    );
+    assert!(s.is_halted());
+    // at the connection the greeting of a controller that has just booted is no fault
+    let link = Over {
+        inner: SimLink::new(GcodeSim::new(&p, Faults::default(), 1)),
+        change: Box::new(|l, _| (l == "M115").then(|| answers(&["start", "ok"])).flatten()),
+        seen: Default::default(),
+    };
+    Session::new(&p, link).connect().unwrap();
+}
+
+#[test]
+fn the_lines_that_leave_the_machine_safe_are_sent_again_and_told_when_not_confirmed() {
+    let p = marlin();
+    // one answer lost: the line is sent again and confirmed
+    let mut s = over(&p, |l, n| {
+        (l == "M42 P5 S0" && n == 1).then_some(Err(LinkError::Timeout))
+    });
+    s.move_to(&x_to(9999.0), 1000.0).unwrap_err();
+    assert_eq!(s.link.count("M42 P5 S0"), 2);
+    assert!(s.unconfirmed.is_empty(), "{:?}", s.unconfirmed);
+    // never answered: tried 1 + retries times, the other lines are still sent
+    let mut s = over(&p, |l, _| {
+        (l == "M42 P5 S0").then_some(Err(LinkError::Timeout))
+    });
+    s.move_to(&x_to(9999.0), 1000.0).unwrap_err();
+    assert_eq!(s.link.count("M42 P5 S0"), 3);
+    assert_eq!(s.link.count("M84"), 1);
+    assert_eq!(s.unconfirmed, ["M42 P5 S0"]);
+    // refused by a halted controller: not sent again, and told
+    let mut s = ready(
+        &p,
+        Faults {
+            halt_at: Some(4),
+            ..Faults::default()
+        },
+    );
+    s.move_to(&x_to(10.0), 1000.0).unwrap_err();
+    assert_eq!(s.unconfirmed, ["M42 P5 S0", "M42 P6 S0", "M84"]);
+}
+
+#[test]
+fn every_reason_of_a_failure_is_said_in_the_eight_languages() {
+    let reasons = [
+        Why::Stopped,
+        Why::NotConnected,
+        Why::Held(eh3d_phoenix_pnp::safety::Level::Hold),
+        Why::LinkClosed("unplugged".into()),
+        Why::NoAnswer {
+            line: "G28".into(),
+            seconds: 30.0,
+            tries: 1,
+        },
+        Why::Refused {
+            line: "G28".into(),
+            said: "Error:x".into(),
+        },
+        Why::NoOk {
+            line: "M400".into(),
+            tries: 3,
+        },
+        Why::Unreadable {
+            line: "M114".into(),
+            said: "??".into(),
+        },
+        Why::NoPosition,
+        Why::NotAtTarget,
+        Why::NeverDone,
+        Why::Mismatch {
+            x: 1.0,
+            y: 2.0,
+            z: 3.0,
+        },
+        Why::Restarted {
+            line: "M400".into(),
+        },
+        Why::Profile(LineFault::NoTurnAxis),
+        Why::Profile(LineFault::NoActuator("fan".into())),
+        Why::Profile(LineFault::Feed {
+            feed: 0.0,
+            max: 100.0,
+        }),
+        Why::Profile(LineFault::Outside {
+            axis: "X".into(),
+            value: 500.0,
+            lo: 0.0,
+            hi: 400.0,
+        }),
+        Why::Profile(LineFault::Nozzle {
+            reference: "R1".into(),
+            nozzle: 2,
+            count: 1,
+        }),
+        Why::Profile(LineFault::Unturnable {
+            reference: "R1".into(),
+            degrees: 90.0,
+        }),
+    ];
+    for why in &reasons {
+        let mut said = std::collections::BTreeSet::new();
+        for lang in Lang::ALL {
+            let text = why.localized(lang);
+            assert!(
+                !text.is_empty() && !text.contains('{') && !text.contains('}'),
+                "{why:?} {text}"
+            );
+            said.insert(text);
+        }
+        assert_eq!(said.len(), 8, "{why:?}");
+    }
+    assert_eq!(Kind::Rejected.localized(Lang::En), "Rejected");
+    assert_eq!(Kind::Rejected.localized(Lang::Es), "Rechazado");
+    let p = marlin();
+    let mut s = ready(&p, Faults::default());
+    let e = s.move_to(&x_to(9999.0), 1000.0).unwrap_err();
+    assert_eq!(e.detail, e.localized(Lang::En));
+    assert!(e.localized(Lang::Es).contains("fuera de"), "{e:?}");
 }

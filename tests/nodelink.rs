@@ -628,3 +628,145 @@ fn the_command_says_the_watches_and_a_pause_longer_than_them_leaves_the_nodes_sa
     assert!(said.contains("head safe"), "{said}");
     assert_eq!(node_sim(&["--pause-ms", "x"]).0, 1);
 }
+
+// ---- the answers of the nodes to an order that did not end well
+
+fn feeders_over_http(sim: &SimFeeders) -> Feeders<ScNodeLink> {
+    Feeders::new(
+        ScNodeLink::new("sim:1", "t", 2, 0, Box::new(sim.clone())).without_waiting(),
+        3,
+    )
+}
+
+#[test]
+fn the_reason_of_the_feeder_node_is_read_over_the_link_when_it_comes_as_an_error_word() {
+    let sim = SimFeeders::new(4, Some(100), "t");
+    let mut node = feeders_over_http(&sim);
+    sim.set_busy(true);
+    assert_eq!(
+        refused(node.advance(1, 1).unwrap_err()),
+        (409, Some("busy".to_string()))
+    );
+    assert_eq!(node.guard().held(), None, "busy is no fault");
+    sim.set_busy(false);
+    sim.set_safe(true);
+    assert_eq!(
+        refused(node.advance(1, 1).unwrap_err()),
+        (409, Some("safe_state".to_string()))
+    );
+    // the refusal says it is safe: the node is held at once and nothing more is asked of it
+    assert_eq!(node.guard().held(), Some(Hold::Safe));
+    let before = sim.requests();
+    assert_eq!(node.advance(1, 1), Err(LinkError::Held(Hold::Safe)));
+    assert_eq!(sim.requests(), before);
+}
+
+#[test]
+fn a_head_that_refuses_with_safe_state_is_held_at_once_and_busy_is_no_fault() {
+    let sim = SimHead::new(2, "t");
+    let mut head = Head::new(sim.clone(), 3);
+    sim.set_busy(true);
+    assert_eq!(head.pick(1).unwrap_err().why(), Some("busy"));
+    assert_eq!(head.guard().held(), None);
+    sim.set_busy(false);
+    sim.set_safe(true);
+    assert_eq!(head.pick(1).unwrap_err().why(), Some("safe_state"));
+    assert_eq!(head.guard().held(), Some(Hold::Safe));
+}
+
+#[test]
+fn an_order_with_no_answer_is_followed_by_a_stop_and_a_stop_can_be_asked_while_held() {
+    let sim = SimHead::new(2, "t");
+    let mut head = Head::new(sim.clone(), 3);
+    sim.set_injection(Injection::scripted(vec![Some(Inject::Silence)]));
+    assert_eq!(head.pick(1), Err(LinkError::Silent));
+    assert_eq!(sim.stops(), 1);
+    sim.set_safe(true);
+    head.refresh().unwrap();
+    assert!(head.guard().held().is_some());
+    head.stop().unwrap();
+    assert_eq!(sim.stops(), 2);
+
+    let sim = SimFeeders::new(4, Some(100), "t");
+    let mut node = Feeders::new(sim.clone(), 3);
+    sim.set_injection(Injection::scripted(vec![Some(Inject::Silence)]));
+    assert_eq!(node.advance(1, 1), Err(LinkError::Silent));
+    assert_eq!(sim.stops(), 1);
+    assert_eq!(node.unsure(), [1]);
+    node.stop().unwrap();
+    assert_eq!(sim.stops(), 2);
+}
+
+#[test]
+fn a_feeder_whose_advance_did_not_end_well_takes_no_other_until_it_is_acknowledged() {
+    for why in ["stopped", "timeout", "no_answer"] {
+        let sim = SimFeeders::new(4, Some(100), "t");
+        let mut node = Feeders::new(sim.clone(), 3);
+        sim.set_next_advance(why);
+        assert_eq!(node.advance(2, 1).unwrap_err().why(), Some(why));
+        assert_eq!(node.unsure(), [2]);
+        let before = sim.requests();
+        assert_eq!(node.advance(2, 1), Err(LinkError::Unsure(2)), "{why}");
+        assert_eq!(sim.requests(), before, "nothing is sent");
+        assert_eq!(sim.advances(2), 0);
+        node.advance(1, 1).unwrap();
+        node.ack(2).unwrap();
+        assert!(node.unsure().is_empty());
+        node.advance(2, 1).unwrap();
+        assert_eq!(sim.advances(2), 1);
+    }
+    // a refusal before anything moved leaves the feeder as it was
+    let sim = SimFeeders::new(4, Some(100), "t");
+    let mut node = Feeders::new(sim.clone(), 3);
+    sim.jam(1);
+    node.advance(1, 1).unwrap_err();
+    assert!(node.unsure().is_empty());
+}
+
+#[test]
+fn the_errors_of_a_node_are_said_in_the_eight_languages() {
+    use eh3d_phoenix_pnp::error::Lang;
+    let errors = [
+        LinkError::Silent,
+        LinkError::Unauthorized,
+        LinkError::Refused {
+            status: 409,
+            why: Some("busy".into()),
+        },
+        LinkError::Refused {
+            status: 403,
+            why: None,
+        },
+        LinkError::Bad("x".into()),
+        LinkError::Held(Hold::Safe),
+        LinkError::Held(Hold::Silent),
+        LinkError::Unsure(3),
+    ];
+    for e in &errors {
+        let said: std::collections::BTreeSet<String> =
+            Lang::ALL.iter().map(|l| e.localized(*l)).collect();
+        assert_eq!(said.len(), 8, "{e:?}");
+        assert!(said.iter().all(|t| !t.contains('{')), "{said:?}");
+        assert_eq!(e.to_string(), e.localized(Lang::En));
+    }
+    assert_eq!(
+        LinkError::Held(Hold::Safe).to_string(),
+        "the node is held: safe"
+    );
+}
+
+#[test]
+fn the_command_speaks_the_language_asked_and_picks_nothing_when_the_feeder_did_not_advance() {
+    let (code, text) = node_sim(&["--seed", "7", "--steps", "3", "--lang", "es"]);
+    assert_eq!(code, 0, "{text}");
+    assert!(
+        text.contains("paso 1: movido; toma true") && text.contains("3 pasos: 3 movidos"),
+        "{text}"
+    );
+    assert!(text.contains("pasa a seguro tras"), "{text}");
+    // with every request silent but the ones of the head nothing can be told apart, so the faults are drawn at a high rate
+    let (_, text) = node_sim(&["--seed", "5", "--steps", "40", "--silence", "250"]);
+    for line in text.lines().filter(|l| l.contains("did not advance")) {
+        assert!(line.contains("nothing is picked"), "{line}");
+    }
+}

@@ -236,6 +236,8 @@ struct HeadState {
     requests: u64,
     inject: Injection,
     watch: Watch,
+    stops: u32,
+    busy: bool,
 }
 
 impl HeadState {
@@ -305,6 +307,9 @@ impl HeadState {
     }
 
     fn route(&mut self, call: &Call) -> Out {
+        if self.busy && call.method == "POST" && call.path != "/api/stop" {
+            return error(409, "busy");
+        }
         match (call.method.as_str(), call.path.as_str()) {
             ("GET", "/api/status") => json_ok(self.status()),
             ("GET", "/api/nozzle") => match self.nozzle_arg(call) {
@@ -315,7 +320,10 @@ impl HeadState {
                 self.safe = false;
                 json_ok("{\"ok\":true,\"why\":\"cleared\"}".into())
             }
-            ("POST", "/api/stop") => json_ok("{\"ok\":true,\"why\":\"ok\"}".into()),
+            ("POST", "/api/stop") => {
+                self.stops += 1;
+                json_ok("{\"ok\":true,\"why\":\"ok\"}".into())
+            }
             ("POST", "/api/xy") => match call.get("moving") {
                 Some("1") => {
                     if self.safe {
@@ -418,7 +426,19 @@ impl SimHead {
             requests: 0,
             inject: Injection::none(),
             watch: Watch::new(SIM_LINK_LOST_MS),
+            stops: 0,
+            busy: false,
         })))
+    }
+
+    /// The stops the head was asked for.
+    pub fn stops(&self) -> u32 {
+        self.state().stops
+    }
+
+    /// A head that is waiting for an order of somebody else: every other order but a stop is `busy`.
+    pub fn set_busy(&self, on: bool) {
+        self.state().busy = on;
     }
 
     /// Sets the watch of the head (`link_lost_ms`).
@@ -538,6 +558,10 @@ struct ChainState {
     requests: u64,
     inject: Injection,
     watch: Watch,
+    stops: u32,
+    busy: bool,
+    /// What the next advance ends in, as if something happened while the tape moved.
+    next_advance: Option<&'static str>,
 }
 
 impl ChainState {
@@ -598,8 +622,15 @@ impl ChainState {
     }
 
     fn route(&mut self, call: &Call) -> Out {
+        if self.busy && call.method == "POST" && call.path != "/api/feeder/stop" {
+            return error(409, "busy");
+        }
         match (call.method.as_str(), call.path.as_str()) {
             ("GET", "/api/status") => json_ok(self.status()),
+            ("POST", "/api/feeder/stop") => {
+                self.stops += 1;
+                json_ok("{\"ok\":true}".into())
+            }
             ("GET", "/api/feeder") => match self.slot_arg(call) {
                 Ok(i) => json_ok(self.feeder_json(i)),
                 Err(e) => e,
@@ -647,6 +678,10 @@ impl ChainState {
                 if u.remaining == Some(0) {
                     return refuse(409, "empty");
                 }
+                if let Some(why) = self.next_advance.take() {
+                    let status = if why == "no_answer" { 503 } else { 409 };
+                    return refuse(status, why);
+                }
                 u.advances += count;
                 if let Some(r) = u.remaining.as_mut() {
                     *r = r.saturating_sub(count);
@@ -685,7 +720,25 @@ impl SimFeeders {
             requests: 0,
             inject: Injection::none(),
             watch: Watch::new(SIM_SERVER_LOST_MS),
+            stops: 0,
+            busy: false,
+            next_advance: None,
         })))
+    }
+
+    /// The stops the node was asked for.
+    pub fn stops(&self) -> u32 {
+        self.state().stops
+    }
+
+    /// A node that is waiting for an advance of somebody else: every other order but a stop is `busy`.
+    pub fn set_busy(&self, on: bool) {
+        self.state().busy = on;
+    }
+
+    /// The next advance that would move a tape ends in `why` instead (`stopped`, `timeout` or `no_answer`).
+    pub fn set_next_advance(&self, why: &'static str) {
+        self.state().next_advance = Some(why);
     }
 
     /// Sets the watch of the feeder node over the program (`server_lost_ms`).

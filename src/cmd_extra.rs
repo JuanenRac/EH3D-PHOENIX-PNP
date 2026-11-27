@@ -5,35 +5,24 @@
 // check of theirs is not passed (a job that is not the one that was authorised, a board that bends too much, a part with no feeder, a tape that cannot be dragged) and with 1 when the
 // arguments or the files are wrong.
 
-use crate::cli_args::{finish, flag, num, switch};
+use crate::cli_args::{finish, flag, num};
 use crate::cmd_drive::load_profile;
 use crate::cmd_flow::deliver;
 use crate::cmd_nodes::fail;
 use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
-use eh3d_phoenix_pnp::feeders::assign_side;
 use eh3d_phoenix_pnp::msg8::{num as show, say};
-use eh3d_phoenix_pnp::parts::{parse, Side};
-use eh3d_phoenix_pnp::plan::{plan, Settings};
+use eh3d_phoenix_pnp::parts::parse;
 use eh3d_phoenix_pnp::{drag, equivalents, feeding, heightmap, toolpath};
 
-/// `toolpath-hash PARTS FEEDERS PROFILE [--side top|bottom] [--board-width MM] [--partial] [--expect HASH] [--script-out F]`: plans the board, writes the lines that the profile gives for
+/// `toolpath-hash PARTS FEEDERS PROFILE [--side top|bottom] [--board-width MM] [--origin-x MM] [--partial] [--expect HASH] [--script-out F]`: plans the board, writes the lines that the profile gives for
 /// the whole job and prints their SHA-256 as `lines_sha256`. With `--expect` the command ends with 2 when the lines are not the ones of that hash. It is a local check: a job of the
 /// server is authorised with the hash of the server (`server-job ID --authorize`), never with this one.
 pub fn toolpath_hash(mut args: Vec<String>) -> Result<(), String> {
     let (lang, cfg) = language_and_config(&mut args)?;
     let expect = flag(&mut args, "--expect")?;
     let script_out = flag(&mut args, "--script-out")?;
-    let partial = switch(&mut args, "--partial");
-    let side = match flag(&mut args, "--side")?.as_deref() {
-        None | Some("top") => Side::Top,
-        Some("bottom") => Side::Bottom,
-        Some(o) => return Err(format!("--side '{o}' is not top or bottom")),
-    };
-    let width = match flag(&mut args, "--board-width")? {
-        Some(v) => Some(num(&v, "--board-width")?),
-        None => None,
-    };
+    let options = crate::cmd_drive::job_options(&mut args)?;
     finish(&args, 3)?;
     if args.len() < 3 {
         return Err("toolpath-hash needs the parts, the feeders and a profile".into());
@@ -44,23 +33,8 @@ pub fn toolpath_hash(mut args: Vec<String>) -> Result<(), String> {
         }
     }
     let profile = load_profile(&args[2], lang)?;
-    let parts = parse(&read_text(&args[0], cfg.max_file_bytes)?)?;
-    let feeders = eh3d_phoenix_pnp::feeders::from_csv(&read_text(&args[1], cfg.max_file_bytes)?)?;
-    let assigned = assign_side(&parts, &feeders, Some(side));
-    if (!assigned.without_feeder.is_empty() || !assigned.short.is_empty()) && !partial {
-        return Err(
-            "the feeders do not cover the board (use --partial to place only what can be placed)"
-                .into(),
-        );
-    }
-    let settings = Settings {
-        nozzles: profile.nozzles,
-        side,
-        board_width_mm: width,
-        ..Settings::default()
-    };
-    let planned = plan(&parts, &feeders, &assigned, &settings)?;
-    let lines = toolpath::script(&profile, &planned.placements)?;
+    let planned = crate::cmd_drive::job_of(&args, &profile, &cfg, options, lang)?;
+    let lines = toolpath::script_in(&profile, &planned.placements, lang)?;
     let hash = toolpath::fingerprint(&lines);
     let row: [&str; 8] = [
         "lines_sha256: {hash} ({n} lines, {p} placements)",
