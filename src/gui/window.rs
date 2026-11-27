@@ -193,14 +193,28 @@ fn seen_width(ui: &egui::Ui) -> f32 {
         .max(0.0)
 }
 
-/// The widths to draw a table with in the room there is now: the ones remembered or the ones it starts with, narrowed down to the names of the columns when the panel is narrow
-/// (`fit_columns`). A column whose width the person set keeps it.
+/// The longest text of every column of a table, of at most the first 500 rows: what a column is not narrowed under, so that nothing in sight ends in dots.
+fn longest<const N: usize>(rows: impl Iterator<Item = [String; N]>) -> Vec<String> {
+    let mut out = vec![String::new(); N];
+    for row in rows.take(500) {
+        for (kept, text) in out.iter_mut().zip(row) {
+            if text.chars().count() > kept.chars().count() {
+                *kept = text;
+            }
+        }
+    }
+    out
+}
+
+/// The widths to draw a table with in the room there is now: the ones remembered or the ones it starts with, narrowed down to the names of the columns and their longest texts
+/// (`cells`, which may be empty) when the panel is narrow (`fit_columns`). A column whose width the person set keeps it.
 fn fitted(
     ui: &egui::Ui,
     set: &UiSettings,
     table: &str,
     defaults: &[f32],
     titles: &[&str],
+    cells: &[String],
 ) -> Vec<f32> {
     let preferred = set.column_widths(table, defaults);
     let font = egui::TextStyle::Body.resolve(ui.style());
@@ -211,13 +225,18 @@ fn fitted(
             if set.column_is_set(table, i) {
                 return *w;
             }
-            let title = titles.get(i).map_or(0.0, |t| {
+            let wide = |text: &str| {
                 ui.painter()
-                    .layout_no_wrap((*t).to_string(), font.clone(), Color32::WHITE)
+                    .layout_no_wrap(text.to_string(), font.clone(), Color32::WHITE)
                     .size()
                     .x
-            });
-            (title.ceil() + 4.0).max((*w * 0.55).min(48.0))
+                    .ceil()
+                    + 4.0
+            };
+            let title = titles.get(i).map_or(0.0, |t| wide(t));
+            // a text longer than the width the column starts with does not widen it
+            let cell = cells.get(i).map_or(0.0, |t| wide(t).min(*w));
+            title.max(cell).max((*w * 0.55).min(48.0))
         })
         .collect();
     fit_columns(
@@ -1257,12 +1276,25 @@ impl PnpApp {
             tr(Text::ColTip, lang),
             tr(Text::ColStatus, lang),
         ];
+        let cells = longest(rows.iter().map(|r| {
+            [
+                r.row.step.to_string(),
+                r.row.reference.clone(),
+                r.row.value.clone(),
+                r.row.feeder.clone(),
+                r.row.nozzle.to_string(),
+                r.row.batch.to_string(),
+                r.row.tip.clone(),
+                tr(r.state.text(), lang).to_string(),
+            ]
+        }));
         let mut widths = fitted(
             ui,
             &self.s.ui,
             "plan",
             &[44.0, 70.0, 100.0, 70.0, 56.0, 56.0, 80.0, 90.0],
             &titles,
+            &cells,
         );
         let mut clicked: Option<String> = None;
         let next = jobtab::current_index(self.s.session.job());
@@ -1619,12 +1651,31 @@ impl PnpApp {
             tr(Text::ColFeeder, lang),
             tr(Text::ColStatus, lang),
         ];
+        let cells = longest(rows.iter().map(|r| {
+            let side = if r.side == Side::Top {
+                Text::SideTop
+            } else {
+                Text::SideBottom
+            };
+            [
+                r.reference.clone(),
+                r.value.clone(),
+                r.package.clone(),
+                format!("{:.3}", r.x),
+                format!("{:.3}", r.y),
+                format!("{:.1}", r.rotation),
+                tr(side, lang).to_string(),
+                r.feeder.clone(),
+                status_label(r.status, lang, &pal).0.to_string(),
+            ]
+        }));
         let mut widths = fitted(
             ui,
             &self.s.ui,
             "parts",
             &[70.0, 100.0, 120.0, 70.0, 70.0, 60.0, 70.0, 70.0, 90.0],
             &titles,
+            &cells,
         );
         let mut clicked: Option<String> = None;
         table_area(ui, "parts_table", &widths.clone(), false, |ui| {
@@ -1741,6 +1792,7 @@ impl PnpApp {
                 130.0, 50.0, 80.0, 60.0, 100.0, 80.0, 50.0, 70.0, 70.0, 70.0, 30.0,
             ],
             &titles,
+            &[],
         );
         let mut pending: Option<(String, PartProps)> = None;
         let mut remove: Option<String> = None;
@@ -1904,6 +1956,7 @@ impl PnpApp {
             "kinds",
             &[110.0, 140.0, 60.0, 80.0, 50.0, 80.0, 80.0, 40.0],
             &titles,
+            &[],
         );
         table_area(ui, "kinds_table", &kw.clone(), false, |ui| {
             if let Some(i) = header(ui, &pal, "kinds_head", &mut kw, &titles) {
@@ -1983,6 +2036,21 @@ impl PnpApp {
             tr(Text::ColPriority, lang),
             tr(Text::ColEnabled, lang),
         ];
+        let cells = longest(rows.iter().map(|r| {
+            [
+                r.id.clone(),
+                r.value.clone(),
+                r.package.clone(),
+                format!("{:.1}", r.x),
+                format!("{:.1}", r.y),
+                r.count.to_string(),
+                r.left.to_string(),
+                r.slot.clone(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ]
+        }));
         let mut widths = fitted(
             ui,
             &self.s.ui,
@@ -1991,6 +2059,7 @@ impl PnpApp {
                 60.0, 110.0, 130.0, 60.0, 60.0, 80.0, 80.0, 70.0, 60.0, 70.0, 40.0,
             ],
             &titles,
+            &cells,
         );
         let mut commit = false;
         let mut cancel = false;
@@ -2288,6 +2357,7 @@ impl PnpApp {
             "children",
             &[90.0, 70.0, 70.0, 100.0, 70.0, 70.0, 60.0],
             &titles,
+            &[],
         );
         table_area(ui, "children_table", &widths.clone(), true, |ui| {
             if let Some(i) = header(ui, &pal, "children_head", &mut widths, &titles) {
@@ -2397,6 +2467,7 @@ impl PnpApp {
             "fids",
             &[70.0, 80.0, 80.0, 40.0, 110.0, 110.0, 90.0],
             &titles,
+            &[],
         );
         let mut edits = self.s.fid_edit.clone();
         table_area(ui, "fids_table", &fw.clone(), false, |ui| {
@@ -2480,7 +2551,14 @@ impl PnpApp {
             tr(Text::ColFile, lang),
             tr(Text::ColCopies, lang),
         ];
-        let mut widths = fitted(ui, &self.s.ui, "boards", &[110.0, 260.0, 70.0], &titles);
+        let mut widths = fitted(
+            ui,
+            &self.s.ui,
+            "boards",
+            &[110.0, 260.0, 70.0],
+            &titles,
+            &[],
+        );
         table_area(ui, "boards_table", &widths.clone(), false, |ui| {
             if let Some(i) = header(ui, &pal, "boards_head", &mut widths, &titles) {
                 self.s.ui.set_column_width("boards", i, widths[i]);
@@ -2612,6 +2690,7 @@ impl PnpApp {
             "sheet",
             &[60.0, 110.0, 130.0, 60.0, 80.0, 80.0, 60.0, 60.0],
             &titles,
+            &[],
         );
         table_area(ui, "sheet_table", &widths.clone(), false, |ui| {
             if let Some(i) = header(ui, &pal, "sheet_head", &mut widths, &titles) {
@@ -4283,6 +4362,15 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// The longest texts of the rows are kept for the widths of the columns.
+    #[test]
+    fn the_longest_text_of_each_column_is_found() {
+        let rows = [["R1", "10k"], ["C100", "1u"], ["U2", "STM32"]];
+        let found = longest(rows.iter().map(|r| r.map(str::to_string)));
+        assert_eq!(found, ["C100", "STM32"]);
+        assert_eq!(longest(std::iter::empty::<[String; 2]>()), ["", ""]);
     }
 
     /// The row of the filter of the job takes a further row rather than being cut.
