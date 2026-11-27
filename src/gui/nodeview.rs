@@ -116,7 +116,7 @@ pub struct Bench {
     /// Whether the table on show was changed since it was read or saved.
     pub dirty: bool,
     /// The seconds one question to a node may take (`node_timeout_s`).
-    timeout_s: u64,
+    timeout_s: f64,
 }
 
 /// The file a table of the banks was read from and its revision.

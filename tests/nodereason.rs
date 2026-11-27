@@ -1,6 +1,6 @@
 //! The link to a node over the common client: the `why` of a refusal as the node gave it, a token that stays after a `401` and a piece of the body of a refusal with the secrets masked.
 
-use eh3d_phoenix_pnp::nodelink::{LinkError, NodeLink, ScNodeLink};
+use eh3d_phoenix_pnp::nodelink::{LinkError, NodeLink, NodeTimes, ScNodeLink};
 use eh3d_serverclient::{Reply, Request, Transport, TransportError};
 use std::sync::{Arc, Mutex};
 
@@ -37,7 +37,14 @@ impl Transport for Node {
 }
 
 fn link(node: &Node) -> ScNodeLink {
-    ScNodeLink::new("node:1", "tk-1234", 2, 0, Box::new(node.clone())).without_waiting()
+    ScNodeLink::new(
+        "node:1",
+        "tk-1234",
+        NodeTimes::default(),
+        0,
+        Box::new(node.clone()),
+    )
+    .without_waiting()
 }
 
 fn refusal(e: LinkError) -> (u16, Option<String>) {
@@ -123,9 +130,15 @@ fn the_body_of_a_refusal_is_kept_only_when_asked_for_and_with_its_secrets_masked
     l.call("POST", "/api/stop", true).unwrap_err();
     assert_eq!(l.refused_body(), None);
     // asked for: a piece of it, without the token wherever it appears and without the values under a secret name
-    let mut l =
-        ScNodeLink::new_with_excerpt("node:1", "tk-1234", 2, 0, 200, Box::new(node.clone()))
-            .without_waiting();
+    let mut l = ScNodeLink::new_with_excerpt(
+        "node:1",
+        "tk-1234",
+        NodeTimes::default(),
+        0,
+        200,
+        Box::new(node.clone()),
+    )
+    .without_waiting();
     l.call("POST", "/api/stop", true).unwrap_err();
     let piece = l.refused_body().expect("a piece was kept").to_string();
     assert!(piece.contains("busy"), "{piece}");
@@ -137,13 +150,20 @@ fn the_body_of_a_refusal_is_kept_only_when_asked_for_and_with_its_secrets_masked
     // the piece is cut to the bytes asked for
     let big = Node::new(409, &format!("{{\"detail\":\"{}\"}}", "x".repeat(5000)));
     let mut l =
-        ScNodeLink::new_with_excerpt("node:1", "t", 2, 0, 64, Box::new(big)).without_waiting();
+        ScNodeLink::new_with_excerpt("node:1", "t", NodeTimes::default(), 0, 64, Box::new(big))
+            .without_waiting();
     l.call("POST", "/api/stop", true).unwrap_err();
     assert!(l.refused_body().unwrap().len() <= 64);
     // a good answer clears it
-    let mut ok =
-        ScNodeLink::new_with_excerpt("node:1", "t", 2, 0, 64, Box::new(Node::new(200, "{}")))
-            .without_waiting();
+    let mut ok = ScNodeLink::new_with_excerpt(
+        "node:1",
+        "t",
+        NodeTimes::default(),
+        0,
+        64,
+        Box::new(Node::new(200, "{}")),
+    )
+    .without_waiting();
     ok.call("GET", "/api/status", false).unwrap();
     assert_eq!(ok.refused_body(), None);
 }
