@@ -218,8 +218,15 @@ fn fitted(
         &minimum,
         ui.spacing().item_spacing.x,
         ui.available_width(),
-        egui::style::ScrollStyle::solid().allocated_width(),
+        solid_bar().allocated_width(),
     )
+}
+
+/// The look of the bar of a box that moves sideways: it takes its own room, and nothing is faded at the edge, where the last column or the last words in sight are.
+fn solid_bar() -> egui::style::ScrollStyle {
+    let mut style = egui::style::ScrollStyle::solid();
+    style.fade.strength = 0.0;
+    style
 }
 
 /// The head and the rows of a table in a box that moves sideways when the columns do not fit, so that what is past the edge of the panel can be reached. `shrink` lets the box be as
@@ -234,7 +241,7 @@ fn table_area(
     let gaps = ui.spacing().item_spacing.x * widths.len().saturating_sub(1) as f32;
     let width = widths.iter().sum::<f32>() + gaps;
     ui.scope(|ui| {
-        ui.spacing_mut().scroll = egui::style::ScrollStyle::solid();
+        ui.spacing_mut().scroll = solid_bar();
         egui::ScrollArea::horizontal()
             .id_salt(id)
             .auto_shrink([false, shrink])
@@ -2752,7 +2759,20 @@ impl PnpApp {
     fn server_panel(&mut self, ui: &mut egui::Ui) {
         let lang = super::serverui::view_lang(self.s.lang());
         self.s.server.refresh();
-        if let Some(action) = eh3d_view::server_gui::show(ui, &mut self.s.server.panel, lang) {
+        // the shared panel of the server is wider than a narrow side column: what does not fit is reached sideways, not cut
+        let action = ui
+            .scope(|ui| {
+                ui.spacing_mut().scroll = solid_bar();
+                egui::ScrollArea::horizontal()
+                    .id_salt("server_scroll")
+                    .auto_shrink([false, true])
+                    .show(ui, |ui| {
+                        eh3d_view::server_gui::show(ui, &mut self.s.server.panel, lang)
+                    })
+                    .inner
+            })
+            .inner;
+        if let Some(action) = action {
             self.s.server_action(action);
         }
     }
