@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.6] - Parts are turned from the angle of their feeder, a held run stops safely and a silent node holds the job (simulator only)
+
 - **The driver takes a part at the angle it lies at in its feeder:** `driver-run` and `toolpath-hash` took every part as lying at 0 degrees. They now read the table of feeders with every column of `schedule`, turn the nozzle to the `rotation` of the feeder before the pick, leave out a feeder that is off and refuse a part of a tray or of a strip.
 - **The driver mounts the same board as the plan:** the rotation rules of the configuration (`rotation`) were ignored by `driver-run` and `toolpath-hash`, and the marks of the board counted as parts with no feeder.
 - **The bottom side of a board that does not start at X 0:** `driver-run` and `toolpath-hash` take `--origin-x`.
