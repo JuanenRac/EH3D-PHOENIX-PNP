@@ -21,7 +21,7 @@ pub const MAX_CONFIG_BYTES: usize = 262_144;
 const MAX_LINE_CHARS: usize = 4096;
 
 /// Every key that the file knows, in the order of the example `examples/machine.cfg`.
-pub const KEYS: [&str; 269] = [
+pub const KEYS: [&str; 270] = [
     "schema_version",
     "language",
     "max_file_bytes",
@@ -280,6 +280,7 @@ pub const KEYS: [&str; 269] = [
     "slot_reach_mm",
     "node_silence_limit",
     "node_timeout_s",
+    "node_order_timeout_s",
     "shot_overlap_pct",
     "shot_max",
     "panel_clearance_mm",
@@ -856,9 +857,11 @@ pub struct MachineConfig {
     pub slot_gap_mm: f64,
     pub slot_bank_slots: u32,
     pub slot_reach_mm: f64,
-    /// The nodes of the feeders and of the head: how many questions in a row may go unanswered before the link is told to be silent and the machine is held, and how long one question may take.
+    /// The nodes of the feeders and of the head: how many questions in a row may go unanswered before the link is told to be silent and the machine is held, how long one question
+    /// (a reading of the state) may take, and how long an order, which the node answers only when it is over, may take (seconds).
     pub node_silence_limit: u32,
-    pub node_timeout_s: u64,
+    pub node_timeout_s: f64,
+    pub node_order_timeout_s: f64,
     /// camera-shots: how much of the picture two neighbouring pictures of a part must share (per cent), and how many pictures of one part are accepted.
     pub shot_overlap_pct: f64,
     pub shot_max: u32,
@@ -1134,7 +1137,8 @@ impl Default for MachineConfig {
             slot_bank_slots: 60,
             slot_reach_mm: 240.0,
             node_silence_limit: 3,
-            node_timeout_s: 2,
+            node_timeout_s: 0.5,
+            node_order_timeout_s: 2.0,
             shot_overlap_pct: 20.0,
             shot_max: 9,
             panel_clearance_mm: 1.0,
@@ -1891,7 +1895,8 @@ impl MachineConfig {
             "slot_bank_slots" => self.slot_bank_slots = int(line, key, v, 1, 256)? as u32,
             "slot_reach_mm" => self.slot_reach_mm = n(1.0, 5000.0)?,
             "node_silence_limit" => self.node_silence_limit = int(line, key, v, 1, 100)? as u32,
-            "node_timeout_s" => self.node_timeout_s = int(line, key, v, 1, 120)? as u64,
+            "node_timeout_s" => self.node_timeout_s = n(0.1, 120.0)?,
+            "node_order_timeout_s" => self.node_order_timeout_s = n(0.5, 120.0)?,
             "shot_overlap_pct" => self.shot_overlap_pct = n(0.0, 90.0)?,
             "shot_max" => self.shot_max = int(line, key, v, 1, 400)? as u32,
             "panel_clearance_mm" => self.panel_clearance_mm = n(0.0, 50.0)?,

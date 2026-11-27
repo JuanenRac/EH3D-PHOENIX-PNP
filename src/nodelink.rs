@@ -226,6 +226,55 @@ pub struct ScNodeLink {
     client: sc::Client,
 }
 
+/// How long the program waits for a node, in seconds. A question (a `GET`) is answered at once, and its time is kept under the watch of the node so that one that gets lost does not
+/// use up the watch (`node_timeout_s`). An order (any other request) is answered only when the move is over, so it has a time of its own (`node_order_timeout_s`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct NodeTimes {
+    pub question_s: f64,
+    pub order_s: f64,
+}
+
+impl Default for NodeTimes {
+    fn default() -> NodeTimes {
+        NodeTimes {
+            question_s: 0.5,
+            order_s: 2.0,
+        }
+    }
+}
+
+/// The transport of a link with the time of each request set: the common client counts whole seconds and has one time for everything.
+struct Timed {
+    inner: Box<dyn sc::Transport>,
+    times: NodeTimes,
+}
+
+impl Timed {
+    fn timed(&self, request: &sc::Request) -> sc::Request {
+        let seconds = if request.method == "GET" {
+            self.times.question_s
+        } else {
+            self.times.order_s
+        };
+        let mut timed = request.clone();
+        // a socket does not take a time of zero, and a time that is not a number keeps the one of the client
+        if let Ok(limit) = Duration::try_from_secs_f64(seconds) {
+            timed.timeout = limit.max(Duration::from_millis(1));
+        }
+        timed
+    }
+}
+
+impl sc::Transport for Timed {
+    fn send(&self, request: &sc::Request) -> Result<sc::Reply, sc::TransportError> {
+        self.inner.send(&self.timed(request))
+    }
+
+    fn send_full(&self, request: &sc::Request) -> Result<sc::FullReply, sc::TransportError> {
+        self.inner.send_full(&self.timed(request))
+    }
+}
+
 /// A sleeper that does not wait, for a link tried against a node on a computer.
 pub struct NoSleep;
 
@@ -234,16 +283,16 @@ impl sc::client::Sleeper for NoSleep {
 }
 
 impl ScNodeLink {
-    /// A link to the node at `address` (`host:port`) over `transport` (the plain one of the client, or a node on a computer). `timeout_s` and `retries` are the time one question may take and
-    /// the times a failed question is asked again.
+    /// A link to the node at `address` (`host:port`) over `transport` (the plain one of the client, or a node on a computer). `times` and `retries` are the time one question and one order
+    /// may take and the times a failed question is asked again.
     pub fn new(
         address: &str,
         token: &str,
-        timeout_s: u64,
+        times: NodeTimes,
         retries: u32,
         transport: Box<dyn sc::Transport>,
     ) -> ScNodeLink {
-        ScNodeLink::build(address, token, timeout_s, retries, 0, transport)
+        ScNodeLink::build(address, token, times, retries, 0, transport)
     }
 
     /// The same, keeping up to `excerpt_bytes` bytes (at most `MAX_EXCERPT_BYTES`) of the body of every refusal, with the token and the values under a name such as `token` or `password`
@@ -251,12 +300,12 @@ impl ScNodeLink {
     pub fn new_with_excerpt(
         address: &str,
         token: &str,
-        timeout_s: u64,
+        times: NodeTimes,
         retries: u32,
         excerpt_bytes: u16,
         transport: Box<dyn sc::Transport>,
     ) -> ScNodeLink {
-        ScNodeLink::build(address, token, timeout_s, retries, excerpt_bytes, transport)
+        ScNodeLink::build(address, token, times, retries, excerpt_bytes, transport)
     }
 
     /// The start of the body of the last refusal, masked, when `new_with_excerpt` asked to keep one. Read it right after the error.
@@ -269,7 +318,7 @@ impl ScNodeLink {
     fn build(
         address: &str,
         token: &str,
-        timeout_s: u64,
+        times: NodeTimes,
         retries: u32,
         excerpt_bytes: u16,
         transport: Box<dyn sc::Transport>,
@@ -277,12 +326,17 @@ impl ScNodeLink {
         let mut settings = sc::Settings {
             server_address: address.to_string(),
             server_token: sc::Secret::new(token),
-            server_timeout_s: timeout_s,
+            // every request gets its own time in `Timed`; this one is only what the client asks for
+            server_timeout_s: (times.question_s.ceil() as u64).max(1),
             server_retries: retries,
             ..sc::Settings::default()
         };
         settings.server_error_body_bytes = u64::from(excerpt_bytes.min(MAX_EXCERPT_BYTES));
-        let client = sc::Client::new(settings, transport).with_auto_refresh(false);
+        let timed = Box::new(Timed {
+            inner: transport,
+            times,
+        });
+        let client = sc::Client::new(settings, timed).with_auto_refresh(false);
         // the token of a node is written in the settings and does not run out: a `401` does not make the client forget it
         let client = client.with_fixed_token(true);
         ScNodeLink { client }
@@ -361,8 +415,8 @@ pub fn beat_period_ms(watch_ms: u32) -> u32 {
 }
 
 /// Whether one question that gets no answer is enough for the safe state: the program waits `timeout_s` for it, and the node `watch_ms`.
-pub fn one_lost_question_is_enough(watch_ms: u32, timeout_s: u64) -> bool {
-    timeout_s.saturating_mul(1000) >= u64::from(watch_ms)
+pub fn one_lost_question_is_enough(watch_ms: u32, timeout_s: f64) -> bool {
+    timeout_s * 1000.0 >= f64::from(watch_ms)
 }
 
 /// The watch that a status says under `key`; a firmware that does not say it, or says what makes no sense, is none.
