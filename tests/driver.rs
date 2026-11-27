@@ -1138,10 +1138,13 @@ fn the_square_of_the_first_start_goes_up_first_and_stays_within_the_limits() {
 
 // ---- what ends a move, what stops a session
 
+/// What replaces the answer to a line, or leaves the controller to answer.
+type Change = Box<dyn FnMut(&str, usize) -> Option<Result<Vec<String>, LinkError>>>;
+
 /// The simulated controller with the answer to some lines replaced: `change` is told the line and how many times it came, and gives the answer instead of the controller's.
 struct Over {
     inner: SimLink,
-    change: Box<dyn FnMut(&str, usize) -> Option<Result<Vec<String>, LinkError>>>,
+    change: Change,
     seen: std::collections::BTreeMap<String, usize>,
 }
 
