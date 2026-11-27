@@ -322,6 +322,8 @@ fn ready() -> Session<SimLink> {
     let p = profile();
     let mut s = Session::new(&p, SimLink::new(GcodeSim::new(&p, Faults::default(), 1)));
     s.connect().unwrap();
+    // the homing moves X and Y, so it is made while the head says it is clear
+    assert!(s.set_signal(XY_CLEAR, true));
     s.home().unwrap();
     s
 }
@@ -365,10 +367,16 @@ fn the_axes_of_the_machine_move_only_while_the_head_says_it_is_clear() {
     let mut s = ready();
     assert!(s.set_signal(XY_CLEAR, xy_clear_signal(&mut head)));
     s.move_to(&xy(9.0, 9.0), 6000.0).unwrap();
-    // before anyone asked, the signal is unknown and does not satisfy the rule
-    let mut s = ready();
+    // before anyone asked, the signal is unknown and does not satisfy the rule, for the homing or for a move
+    let p = profile();
+    let unasked = || {
+        let mut s = Session::new(&p, SimLink::new(GcodeSim::new(&p, Faults::default(), 1)));
+        s.connect().unwrap();
+        s
+    };
+    assert_eq!(unasked().home().unwrap_err().kind, Kind::Interlock);
     assert_eq!(
-        s.move_to(&xy(1.0, 1.0), 6000.0).unwrap_err().kind,
+        unasked().move_to(&xy(1.0, 1.0), 6000.0).unwrap_err().kind,
         Kind::Interlock
     );
 }
