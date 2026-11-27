@@ -6,6 +6,9 @@ All notable changes to this project are documented here.
 
 - **A question to a node is waited for half a second (safety):** `node_timeout_s` is 0.5 by default (it was 2) and takes fractions (0.1 to 120), so one reading of the state that gets lost no longer uses up the 2000 ms watch of the head. An order, which a node answers only when the move is over, keeps its 2 seconds in the new setting `node_order_timeout_s` (0.5 to 120). Tried on nodes on a computer only.
 - **2 more tests**, for the above.
+
+## [0.1.6] - Parts are turned from the angle of their feeder, a held run stops safely and a silent node holds the job (simulator only)
+
 - **The driver takes a part at the angle it lies at in its feeder:** `driver-run` and `toolpath-hash` took every part as lying at 0 degrees. They now read the table of feeders with every column of `schedule`, turn the nozzle to the `rotation` of the feeder before the pick, leave out a feeder that is off and refuse a part of a tray or of a strip.
 - **The driver mounts the same board as the plan:** the rotation rules of the configuration (`rotation`) were ignored by `driver-run` and `toolpath-hash`, and the marks of the board counted as parts with no feeder.
 - **The bottom side of a board that does not start at X 0:** `driver-run` and `toolpath-hash` take `--origin-x`.
