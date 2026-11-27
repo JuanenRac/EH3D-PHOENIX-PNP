@@ -14,6 +14,8 @@
 //!   without control characters. The same data go to the standard input of the program as one line of JSON of at most 1024 bytes (`payload`); a program that does not read it is not held up.
 //! * A rules file has a size limit and at most 50 rules; at most `hooks_max_runs` programs are run in one job; each one gets `hooks_timeout_s` seconds and is stopped when it takes longer; what
 //!   it prints is cut to 4096 bytes. A hook that fails, is not found or is stopped is told and changes nothing about the job.
+//! * Linux refuses for a moment to start a program whose file is still open for writing ("Text file busy"): it was just written or copied, by anyone. The start is tried again for about
+//!   a second and then told as a failure.
 //!
 //! Nothing here moves a machine, and the programs are the operator's own: the crate does not ship any.
 
@@ -22,7 +24,7 @@ use crate::error::{Code, PnpError};
 use crate::job::{Job, Phase, Status};
 use crate::parts::read_records_numbered;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
 /// The events a hook can be run for.
@@ -448,6 +450,25 @@ fn cut(bytes: &[u8]) -> String {
     s.trim_end().to_string()
 }
 
+/// How many times a program whose file is busy is started, and the pause between two tries: about a second in all.
+const BUSY_TRIES: u32 = 50;
+const BUSY_PAUSE: Duration = Duration::from_millis(20);
+
+/// Starts the program. While any process holds the file open for writing, Linux answers "Text file busy"; that can also be a child that another thread started in between and that has not
+/// yet become its own program, so it passes by itself: the start is tried again, a limited number of times. Every other error is given at once.
+fn start(cmd: &mut Command) -> std::io::Result<Child> {
+    let mut tries = 1;
+    loop {
+        match cmd.spawn() {
+            Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy && tries < BUSY_TRIES => {
+                tries += 1;
+                std::thread::sleep(BUSY_PAUSE);
+            }
+            other => return other,
+        }
+    }
+}
+
 /// Runs one call: the program of `folder` with the arguments, through no shell, waiting at most `timeout_s` seconds, with what it prints cut to `MAX_OUTPUT` bytes. The event is also in the
 /// environment (`PHOENIX_PNP_EVENT`).
 pub fn run_call(folder: &Path, call: &Call, timeout_s: f64) -> Outcome {
@@ -478,7 +499,7 @@ pub fn run_call_with(folder: &Path, call: &Call, timeout_s: f64, payload: Option
         // no window of its own
         cmd.creation_flags(0x0800_0000);
     }
-    let mut child = match cmd.spawn() {
+    let mut child = match start(&mut cmd) {
         Ok(c) => c,
         Err(e) => return Outcome::Failed(format!("{}: {e}", call.program)),
     };

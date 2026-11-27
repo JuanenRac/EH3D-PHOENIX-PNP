@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A hook just written is not refused:** Linux does not start a program while its file is still open for writing ("Text file busy"), which happens right after it is written or copied. The start is now tried again for about a second, and then told as a failure.
+- **1 more test**, for the above (it runs on Linux).
+
 ## [0.1.6] - Parts are turned from the angle of their feeder, a held run stops safely and a silent node holds the job (simulator only)
 
 - **The driver takes a part at the angle it lies at in its feeder:** `driver-run` and `toolpath-hash` took every part as lying at 0 degrees. They now read the table of feeders with every column of `schedule`, turn the nozzle to the `rotation` of the feeder before the pick, leave out a feeder that is off and refuse a part of a tray or of a strip.

@@ -422,6 +422,41 @@ fn a_program_that_takes_too_long_is_stopped() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+// Linux does not start a program while its file is open for writing ("Text file busy"). The other tests of this file meet that by chance: the copy of one is still open in a child that
+// another started. Here the file is held open on purpose.
+#[cfg(target_os = "linux")]
+#[test]
+fn a_program_that_is_still_open_for_writing_is_tried_again_and_then_told() {
+    let dir = scratch("busy");
+    let path = dir.join("later");
+    write_script(&path, "#!/bin/sh\necho started\n");
+    let hold = || std::fs::OpenOptions::new().write(true).open(&path).unwrap();
+    // closed a moment later: the program is run
+    let held = hold();
+    let release = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(150));
+        drop(held);
+    });
+    assert_eq!(
+        run_call(&dir, &call("later", &[]), 20.0),
+        Outcome::Ran {
+            code: 0,
+            output: "started".to_string()
+        }
+    );
+    release.join().unwrap();
+    // never closed: given up after a limited time and told
+    let held = hold();
+    let began = std::time::Instant::now();
+    match run_call(&dir, &call("later", &[]), 20.0) {
+        Outcome::Failed(why) => assert!(why.starts_with("later: "), "{why}"),
+        other => panic!("{other:?}"),
+    }
+    assert!(began.elapsed().as_secs_f64() < 15.0);
+    drop(held);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 // ---- simulate --hooks
 
 fn root() -> PathBuf {
