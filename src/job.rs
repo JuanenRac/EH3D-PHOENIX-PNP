@@ -13,6 +13,7 @@
 
 use crate::config::{ErrorPolicy, FaultAction, MachineConfig};
 use crate::error::{Code, PnpError};
+use crate::events::What;
 use crate::feeding::{choose, FeederSpec};
 use crate::model::{Actuator, Camera, FeederDevice, Machine, Nozzle, Offset};
 use crate::planner::AdvancedPlan;
@@ -605,10 +606,12 @@ impl Job {
         };
         self.machine.wait(self.actuators[n].delay_s());
         self.actuators[n].set(on)?;
-        self.machine.note(format!(
-            "actuator {name} switched {}",
-            if on { "on" } else { "off" }
-        ));
+        let what = if on {
+            What::ActuatorOn
+        } else {
+            What::ActuatorOff
+        };
+        self.machine.note(what, &[name.to_string()]);
         Ok(())
     }
 
@@ -751,15 +754,13 @@ impl Job {
                     }
                     self.reasons[idx] = format!("by the person, after: {}", failure.error);
                 }
-                self.machine.note(format!(
-                    "{} {} by the person",
-                    failure.reference,
-                    if action == Action::Skip {
-                        "left out"
-                    } else {
-                        "put aside"
-                    }
-                ));
+                let what = if action == Action::Skip {
+                    What::LeftOut
+                } else {
+                    What::PutAside
+                };
+                self.machine
+                    .note(what, std::slice::from_ref(&failure.reference));
                 self.cursor = self.next_cursor(self.cursor);
                 self.paused = false;
                 self.error = None;
@@ -777,10 +778,10 @@ impl Job {
                 }
                 self.devices[f].set_enabled(false);
                 self.stats.feeders[f].disabled = true;
-                self.machine.note(format!(
-                    "feeder {} switched off by the person",
-                    failure.feeder
-                ));
+                self.machine.note(
+                    What::FeederOffByPerson,
+                    std::slice::from_ref(&failure.feeder),
+                );
                 self.resume();
             }
         }
@@ -945,7 +946,7 @@ impl Job {
             self.stats.feeders[f].disabled = true;
             let id = self.devices[f].id().to_string();
             self.machine
-                .note(format!("feeder {id} switched off after {faults} faults"));
+                .note(What::FeederOffFaults, &[id, faults.to_string()]);
         }
         None
     }
@@ -953,10 +954,14 @@ impl Job {
     /// The error that stops the job when the faults of a feeder reach the limit and the person is to decide.
     fn window_error(&mut self, f: usize, faults: u32) -> PnpError {
         let id = self.devices[f].id().to_string();
-        self.machine.note(format!(
-            "feeder {id} has {faults} faults among its last {} picks: the job waits for the person",
-            self.cfg.fault_window
-        ));
+        self.machine.note(
+            What::FeederWaits,
+            &[
+                id.clone(),
+                faults.to_string(),
+                self.cfg.fault_window.to_string(),
+            ],
+        );
         PnpError::new(
             Code::FeederFaultWindow,
             format!(
@@ -980,17 +985,21 @@ impl Job {
         v.pick_checks += 1;
         if self.vacuum.holds(level) {
             v.lowest_held_kpa = Some(v.lowest_held_kpa.map_or(level, |l| l.min(level)));
-            self.machine.note(format!(
-                "vacuum of nozzle {}: {level:.1} kPa, {reference} is held",
-                nozzle + 1
-            ));
+            self.machine.note(
+                What::VacuumHeld,
+                &[
+                    (nozzle + 1).to_string(),
+                    format!("{level:.1}"),
+                    reference.to_string(),
+                ],
+            );
             return Ok(());
         }
         v.pick_misses += 1;
-        self.machine.note(format!(
-            "vacuum of nozzle {}: {level:.1} kPa, no part on the nozzle",
-            nozzle + 1
-        ));
+        self.machine.note(
+            What::VacuumNoPart,
+            &[(nozzle + 1).to_string(), format!("{level:.1}")],
+        );
         self.machine.discard(nozzle);
         self.vacuum.release(nozzle);
         Err(PnpError::new(
@@ -1017,17 +1026,25 @@ impl Job {
         if self.vacuum.gone(level) {
             v.highest_released_kpa = Some(v.highest_released_kpa.map_or(level, |l| l.max(level)));
             self.vacuum.release(nozzle);
-            self.machine.note(format!(
-                "vacuum of nozzle {}: {level:.1} kPa, {reference} let go",
-                nozzle + 1
-            ));
+            self.machine.note(
+                What::VacuumLetGo,
+                &[
+                    (nozzle + 1).to_string(),
+                    format!("{level:.1}"),
+                    reference.to_string(),
+                ],
+            );
             return Ok(());
         }
         v.place_stuck += 1;
-        self.machine.note(format!(
-            "vacuum of nozzle {}: {level:.1} kPa, {reference} is still on the nozzle",
-            nozzle + 1
-        ));
+        self.machine.note(
+            What::VacuumStuck,
+            &[
+                (nozzle + 1).to_string(),
+                format!("{level:.1}"),
+                reference.to_string(),
+            ],
+        );
         self.machine.regrip(nozzle, reference);
         Err(PnpError::new(
             Code::VacuumStuck,
@@ -1269,10 +1286,8 @@ impl Job {
             Err(e) if e.code == Code::SimFault => {
                 self.stats.align.camera_failures += 1;
                 self.stats.feeders[f].no_reading += 1;
-                self.machine.note(format!(
-                    "the camera gave no reading of the part on nozzle {}",
-                    nozzle + 1
-                ));
+                self.machine
+                    .note(What::NoReading, &[(nozzle + 1).to_string()]);
                 Err(PnpError::new(Code::AlignFailed, e.detail))
             }
             // the pipeline of the vision found no part in the picture: a look without a reading, with the code that says why
@@ -1284,11 +1299,10 @@ impl Job {
             {
                 self.stats.align.camera_failures += 1;
                 self.stats.feeders[f].no_reading += 1;
-                self.machine.note(format!(
-                    "the vision found no part on nozzle {}: {}",
-                    nozzle + 1,
-                    e.code.label()
-                ));
+                self.machine.note(
+                    What::VisionNothing,
+                    &[(nozzle + 1).to_string(), e.code.label().to_string()],
+                );
                 Err(e)
             }
             Err(e) => Err(e),
@@ -1317,11 +1331,10 @@ impl Job {
                         again += 1;
                         self.stats.align.rereads += 1;
                         self.stats.feeders[f].rereads += 1;
-                        self.machine.note(format!(
-                            "the part on nozzle {} is {:.3} mm from the nozzle: the camera looks again",
-                            nozzle + 1,
-                            away_mm
-                        ));
+                        self.machine.note(
+                            What::LooksAgain,
+                            &[(nozzle + 1).to_string(), format!("{away_mm:.3}")],
+                        );
                         self.machine.wait(self.cfg.align_settle_s);
                         seen = self.look_once(nozzle, f)?;
                         away_mm = seen.dx_mm.hypot(seen.dy_mm);
@@ -1329,11 +1342,10 @@ impl Job {
                     if away_mm > tolerance {
                         self.stats.align.rejected += 1;
                         self.stats.feeders[f].thrown_away += 1;
-                        self.machine.note(format!(
-                            "the part on nozzle {} is {:.3} mm from the nozzle: thrown away",
-                            nozzle + 1,
-                            away_mm
-                        ));
+                        self.machine.note(
+                            What::ThrownAway,
+                            &[(nozzle + 1).to_string(), format!("{away_mm:.3}")],
+                        );
                         return Err(PnpError::new(
                             Code::AlignRejected,
                             format!(
@@ -1352,14 +1364,16 @@ impl Job {
             total.dy_mm += seen.dy_mm;
             total.rotation_deg += seen.rotation_deg;
             self.camera.apply(seen);
-            self.machine.note(format!(
-                "look {} at nozzle {}: X {:.3} Y {:.3} mm, turned {:.3} degrees",
-                pass + 1,
-                nozzle + 1,
-                seen.dx_mm,
-                seen.dy_mm,
-                seen.rotation_deg
-            ));
+            self.machine.note(
+                What::Look,
+                &[
+                    (pass + 1).to_string(),
+                    (nozzle + 1).to_string(),
+                    format!("{:.3}", seen.dx_mm),
+                    format!("{:.3}", seen.dy_mm),
+                    format!("{:.3}", seen.rotation_deg),
+                ],
+            );
         }
         let a = &mut self.stats.align;
         a.corrected += 1;
@@ -1410,22 +1424,26 @@ impl Job {
             .filter(|o| *o != (0.0, 0.0));
         if let Some(o) = learned {
             target = (target.0 - o.0, target.1 - o.1);
-            self.machine.note(format!(
-                "nozzle {} places {} with the learned offset X {:+.4} Y {:+.4} mm taken out",
-                nozzle + 1,
-                pl.reference,
-                o.0,
-                o.1
-            ));
+            self.machine.note(
+                What::LearnedOffset,
+                &[
+                    (nozzle + 1).to_string(),
+                    pl.reference.clone(),
+                    format!("{:+.4}", o.0),
+                    format!("{:+.4}", o.1),
+                ],
+            );
         }
         self.travel(target)?;
         if let Some(c) = correction {
-            self.machine.note(format!(
-                "nozzle {} places {} turned {:.3} degrees",
-                nozzle + 1,
-                pl.reference,
-                pl.rotation - c.rotation_deg
-            ));
+            self.machine.note(
+                What::PlacesTurned,
+                &[
+                    (nozzle + 1).to_string(),
+                    pl.reference.clone(),
+                    format!("{:.3}", pl.rotation - c.rotation_deg),
+                ],
+            );
         }
         let source = self.index[&pl.feeder];
         self.now = self.params_for(source, idx);

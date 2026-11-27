@@ -46,6 +46,86 @@ impl FileKind {
         FileKind::Banks,
     ];
 
+    /// What the window calls this kind of file, in its language.
+    pub fn title(self, lang: Lang) -> &'static str {
+        let row: [&str; 8] = match self {
+            FileKind::Parts => [
+                "parts", "piezas", "Teile", "pièces", "parti", "部品", "零件", "peças",
+            ],
+            FileKind::Feeders => [
+                "feeders",
+                "alimentadores",
+                "Feeder",
+                "chargeurs",
+                "alimentatori",
+                "フィーダー",
+                "供料器",
+                "alimentadores",
+            ],
+            FileKind::Config => [
+                "settings",
+                "configuración",
+                "Einstellungen",
+                "réglages",
+                "impostazioni",
+                "設定",
+                "设置",
+                "configuração",
+            ],
+            FileKind::Packages => [
+                "packages",
+                "encapsulados",
+                "Gehäuse",
+                "boîtiers",
+                "package",
+                "パッケージ",
+                "封装",
+                "encapsulamentos",
+            ],
+            FileKind::Catalog => [
+                "catalogue",
+                "catálogo",
+                "Katalog",
+                "catalogue",
+                "catalogo",
+                "カタログ",
+                "目录",
+                "catálogo",
+            ],
+            FileKind::Panel => [
+                "panel",
+                "panel",
+                "Nutzen",
+                "panneau",
+                "pannello",
+                "面付け",
+                "拼板",
+                "painel",
+            ],
+            FileKind::Slots => [
+                "slots",
+                "ranuras",
+                "Steckplätze",
+                "emplacements",
+                "sedi",
+                "スロット",
+                "料位",
+                "ranhuras",
+            ],
+            FileKind::Banks => [
+                "feeder banks",
+                "bancos de alimentadores",
+                "Feederbänke",
+                "bancs de chargeurs",
+                "banchi di alimentatori",
+                "フィーダーバンク",
+                "供料器组",
+                "bancos de alimentadores",
+            ],
+        };
+        crate::msg8::pick(lang, &row)
+    }
+
     pub fn key(self) -> &'static str {
         match self {
             FileKind::Parts => "parts",

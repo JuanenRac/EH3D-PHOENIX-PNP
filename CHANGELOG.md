@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The driver turns the nozzle before it takes a part:** the axis of the nozzle was left at the angle of the part before when the next one was picked, so from the second placement on a part could be placed turned by that angle. The axis now goes to its angle of pick on the way to the feeder. Tried against the simulated controller only.
+- **A homing obeys the interlocks and the hold:** `G28` was sent while a rule of X, Y or Z was not satisfied (a door open) or while the rules of safety held the machine; it is now refused as any other move.
+- **A line the controller does not know stops the session:** Marlin answers it with a notice and then `ok`, so a pump that was never switched was taken for switched. The new key `stop_on_unknown_command` of a driver profile (`yes` by default) reads the notice as an error.
+- **The default stop closes the blow valve too:** without a profile line of its own, `safe_stop` closed the vacuum and released the motors but left the blow on.
+- **The first start goes up before it travels:** the square of `bringup` raised the head and moved it in X and Y in the same line; a step «lift» now comes first.
+- **The square of the first start stays within the limits:** it began at 0, which a profile whose least X or Y is over 0 refused.
+- **The console speaks the language of the window:** what the simulated machine does (moves, picks, places, vacuum, looks of the camera, decisions) was always in English between lines in the chosen language. Reports and the command line keep the English sentences.
+- **Kinds of files, decisions and fits are named in the language of the window:** the list of loaded files, the lines of the console and the fit of the fiducials showed internal words such as `feeders` or `similarity`.
 - **What the tag v0.3.7 of EH3D-COMMON brings to the window:** the panel «Attachments» writes nothing over a project another program saved after the panel read it, says so and reads the list again, and `viewer.max_preview_mb` (16 by default) in `window.cfg` says how much text a whole preview keeps.
 
 - **The nodes hear the program that watches them:** the head and the feeder node go to their safe state when no request with the token arrives for a time (`link_lost_ms` of the head, `server_lost_ms` of the feeder node), and a state asked without the token does not count. The state was asked without it, so a node that was only being watched would have gone safe. It is now asked with the token (and without it when the token is refused, so that it is still read). Tried on nodes on a computer only.

@@ -600,6 +600,19 @@
           }
         },
         {
+          "name": "events.rs",
+          "desc": {
+            "en": "what the simulated machine says it did, in eight languages",
+            "es": "lo que la máquina simulada dice que hizo, en ocho idiomas",
+            "de": "was die simulierte Maschine als getan meldet, in acht Sprachen",
+            "fr": "ce que la machine simulée dit avoir fait, en huit langues",
+            "it": "quello che la macchina simulata dice di aver fatto, in otto lingue",
+            "ja": "模擬マシンが行ったことの文（8 言語）",
+            "zh": "模拟机器所做事情的说明（八种语言）",
+            "pt": "o que a máquina simulada diz ter feito, em oito línguas"
+          }
+        },
+        {
           "name": "exchange.rs",
           "desc": {
             "en": "a job in a JSON file for other programs: the plan and the state of each part",
