@@ -186,6 +186,13 @@ fn header(
     resized
 }
 
+/// The width that is in sight from where the next widget starts: a line above that did not fit makes the panel believe it is wider than what is seen of it.
+fn seen_width(ui: &egui::Ui) -> f32 {
+    ui.available_width()
+        .min(ui.clip_rect().right() - ui.cursor().left())
+        .max(0.0)
+}
+
 /// The widths to draw a table with in the room there is now: the ones remembered or the ones it starts with, narrowed down to the names of the columns when the panel is narrow
 /// (`fit_columns`). A column whose width the person set keeps it.
 fn fitted(
@@ -217,7 +224,7 @@ fn fitted(
         &preferred,
         &minimum,
         ui.spacing().item_spacing.x,
-        ui.available_width(),
+        seen_width(ui),
         solid_bar().allocated_width(),
     )
 }
@@ -240,7 +247,9 @@ fn table_area(
 ) {
     let gaps = ui.spacing().item_spacing.x * widths.len().saturating_sub(1) as f32;
     let width = widths.iter().sum::<f32>() + gaps;
+    let seen = seen_width(ui);
     ui.scope(|ui| {
+        ui.set_max_width(seen);
         ui.spacing_mut().scroll = solid_bar();
         egui::ScrollArea::horizontal()
             .id_salt(id)
@@ -1224,7 +1233,7 @@ impl PnpApp {
         jobtab::sort_job(&mut rows, sort);
         let filter = self.s.job_filter.clone();
         let shown = jobtab::filter_rows(&rows, &filter);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label(
                 RichText::new(format!(
                     "{}/{} {}",
