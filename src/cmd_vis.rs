@@ -2,7 +2,7 @@
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 
 use crate::cli_args::{finish, flag, num};
-use crate::cmd_nodes::fail;
+use crate::cmd_nodes::{fail, not_passed};
 use crate::commands::{read_text, refuse_same_file};
 use eh3d_phoenix_pnp::catalog::Catalog;
 use eh3d_phoenix_pnp::config::{MachineConfig, MAX_CONFIG_BYTES};
@@ -12,7 +12,7 @@ use eh3d_phoenix_pnp::fidcheck;
 use eh3d_phoenix_pnp::fiducial;
 use eh3d_phoenix_pnp::inspect;
 use eh3d_phoenix_pnp::parts::parse_all;
-use eh3d_phoenix_pnp::vision::{VisionConfig, MAX_VISION_BYTES};
+use eh3d_phoenix_pnp::vision::{plan_shots, Axis, VisionConfig, MAX_SHOTS, MAX_VISION_BYTES};
 use eh3d_phoenix_pnp::visionsim;
 
 fn language_and_config(args: &mut Vec<String>) -> Result<(Lang, MachineConfig), String> {
@@ -320,4 +320,60 @@ pub fn feeder_check(mut args: Vec<String>) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+/// `camera-shots LONG_MM SHORT_MM [--vision F] [--config F]`: the pictures needed to see a part of that size with the camera of the vision settings (the picture is `image_width` by
+/// `image_height` pixels of `mm_per_px`, the long side of the part along `nominal_long_axis`), neighbours sharing `shot_overlap_pct` or more, and where the middle of each one is from
+/// the middle of the part. It does not move anything and does not join pictures. The exit code is 2 when more than `shot_max` pictures are needed.
+pub fn camera_shots(mut args: Vec<String>) -> Result<(), String> {
+    let (lang, cfg) = language_and_config(&mut args)?;
+    let vision = match flag(&mut args, "--vision")? {
+        Some(path) => VisionConfig::parse(&read_text(&path, MAX_VISION_BYTES as u64)?)
+            .map_err(|e| e.localized(lang))?,
+        None => VisionConfig::default(),
+    };
+    finish(&args, 2)?;
+    let (Some(long), Some(short)) = (args.first(), args.get(1)) else {
+        return Err("camera-shots needs the long and the short side of a part (mm)".into());
+    };
+    let side = |text: &String, what: &str| -> Result<f64, String> {
+        let v = num(text, what)?;
+        if !(0.05..=1000.0).contains(&v) {
+            return Err(format!("{what} {text} is not from 0.05 to 1000"));
+        }
+        Ok(v)
+    };
+    let (long, short) = (side(long, "the long side")?, side(short, "the short side")?);
+    let field = (
+        vision.image_width as f64 * vision.mm_per_px,
+        vision.image_height as f64 * vision.mm_per_px,
+    );
+    let part = match vision.nominal_long_axis {
+        Axis::X => (long, short),
+        Axis::Y => (short, long),
+    };
+    let plan = plan_shots(part, field, cfg.shot_overlap_pct / 100.0).ok_or_else(|| {
+        format!("the part needs more than {MAX_SHOTS} pictures, or a size is not valid")
+    })?;
+    println!(
+        "a part of {:.3} x {:.3} mm, a picture of {:.3} x {:.3} mm: {} pictures ({} across, {} down)",
+        part.0,
+        part.1,
+        field.0,
+        field.1,
+        plan.shots.len(),
+        plan.columns,
+        plan.rows
+    );
+    for (i, (x, y)) in plan.shots.iter().enumerate() {
+        println!("{},{x:.3},{y:.3}", i + 1);
+    }
+    if plan.shots.len() > cfg.shot_max as usize {
+        return Err(not_passed(format!(
+            "{} pictures are more than shot_max ({})",
+            plan.shots.len(),
+            cfg.shot_max
+        )));
+    }
+    Ok(())
 }

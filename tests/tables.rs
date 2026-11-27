@@ -2,6 +2,8 @@
 
 use eh3d_phoenix_pnp::config::MachineConfig;
 use eh3d_phoenix_pnp::error::{Code, Lang};
+use eh3d_phoenix_pnp::gui::settings::UiSettings;
+use eh3d_phoenix_pnp::gui::tables::fit_columns;
 use eh3d_phoenix_pnp::gui::workspace::Workspace;
 use eh3d_phoenix_pnp::job::STATS_CSV_HEADER;
 use eh3d_phoenix_pnp::parts::{from_csv, parse, parse_all, take_references, Profile};
@@ -583,4 +585,71 @@ fn the_parts_put_aside_come_in_the_csv_with_their_reason() {
         "{text}"
     );
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+fn total(widths: &[f32], gap: f32) -> f32 {
+    widths.iter().sum::<f32>() + gap * (widths.len() - 1) as f32
+}
+
+#[test]
+fn the_columns_of_a_table_that_fits_keep_their_widths_and_narrow_down_before_they_overflow() {
+    let (preferred, minimum) = ([70.0, 100.0, 120.0], [50.0, 40.0, 60.0]);
+    assert_eq!(
+        fit_columns(&preferred, &minimum, 8.0, 500.0, 10.0),
+        preferred
+    );
+    // too narrow for what they prefer: what is missing comes from the ones that have it to spare
+    let w = fit_columns(&preferred, &minimum, 8.0, 250.0, 10.0);
+    assert!((total(&w, 8.0) - 240.0).abs() < 0.01, "{w:?}");
+    for ((w, p), m) in w.iter().zip(preferred).zip(minimum) {
+        assert!(*w >= m && *w <= p, "{w} is not from {m} to {p}");
+    }
+}
+
+#[test]
+fn columns_that_cannot_fit_leave_none_half_in_sight() {
+    let preferred = [44.0, 70.0, 100.0, 70.0, 56.0, 56.0, 80.0, 90.0];
+    let minimum = [30.0, 65.0, 55.0, 70.0, 45.0, 45.0, 48.0, 50.0];
+    for room in (120..700).step_by(7).map(|n| n as f32) {
+        let w = fit_columns(&preferred, &minimum, 8.0, room, 10.0);
+        assert_eq!(w.len(), preferred.len());
+        let mut left = 0.0;
+        for (i, width) in w.iter().enumerate() {
+            assert!(*width + 0.01 >= minimum[i], "{room}: column {i} is {width}");
+            let right = left + width;
+            // whole inside the room, or starting past its edge
+            assert!(
+                right <= room + 0.01 || left >= room - 0.01,
+                "{room}: column {i} goes from {left} to {right}: {w:?}"
+            );
+            left = right + 8.0;
+        }
+    }
+}
+
+#[test]
+fn a_table_with_one_column_or_none_and_a_room_that_is_too_small_do_not_break() {
+    assert!(fit_columns(&[], &[], 8.0, 100.0, 10.0).is_empty());
+    assert_eq!(fit_columns(&[90.0], &[80.0], 8.0, 20.0, 10.0), [90.0]);
+    assert_eq!(
+        fit_columns(&[90.0, 90.0], &[80.0, 80.0], 8.0, 20.0, 10.0),
+        [90.0, 90.0]
+    );
+    // a minimum over the preferred width wins
+    assert_eq!(fit_columns(&[30.0], &[50.0], 8.0, 300.0, 10.0), [50.0]);
+}
+
+#[test]
+fn a_column_whose_width_was_set_is_told_apart() {
+    let mut set = UiSettings::default();
+    assert!(!set.column_is_set("plan", 1));
+    set.set_column_width("plan", 1, 150.0);
+    assert!(set.column_is_set("plan", 1) && !set.column_is_set("plan", 0));
+}
+
+#[test]
+fn the_widths_of_the_columns_of_the_packages_are_remembered() {
+    let mut set = UiSettings::default();
+    set.set_column_width("pkgsb", 10, 44.0);
+    assert!(set.column_is_set("pkgsb", 10));
 }

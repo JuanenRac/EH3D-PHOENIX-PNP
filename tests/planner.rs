@@ -7,7 +7,9 @@ use eh3d_phoenix_pnp::feeders::Feeder;
 use eh3d_phoenix_pnp::feeding::{assign, FeederSpec};
 use eh3d_phoenix_pnp::motion::{move_time, AxisMotion};
 use eh3d_phoenix_pnp::parts::{Part, Side};
-use eh3d_phoenix_pnp::planner::{path_length, plan_advanced, two_opt, AdvancedPlan, Options};
+use eh3d_phoenix_pnp::planner::{
+    or_opt, path_length, plan_advanced, two_opt, AdvancedPlan, Options,
+};
 
 struct Rng(u64);
 
@@ -772,4 +774,48 @@ fn more_than_eight_tips_are_ordered_by_the_nearest_first_and_every_part_is_place
         refs(&plan),
         ["P8", "P7", "P6", "P5", "P4", "P3", "P2", "P1", "P0"]
     );
+}
+
+#[test]
+fn or_opt_puts_a_place_visited_out_of_its_way_back_in_line() {
+    // the walk goes along a line and comes back for the second place at the end
+    let points = [(1.0, 0.0), (3.0, 0.0), (4.0, 0.0), (5.0, 0.0), (2.0, 0.0)];
+    let mut order = vec![0, 1, 2, 3, 4];
+    or_opt(&points, &mut order, (0.0, 0.0), 10);
+    assert_eq!(order, [0, 4, 1, 2, 3]);
+    assert!((path_length(&points, &order, (0.0, 0.0)) - 5.0).abs() < 1e-9);
+    for mut small in [vec![], vec![0], vec![1, 0]] {
+        let was = small.clone();
+        or_opt(&points, &mut small, (0.0, 0.0), 10);
+        assert_eq!(small, was);
+    }
+}
+
+#[test]
+fn or_opt_after_two_opt_never_makes_the_walk_longer_keeps_every_point_and_sometimes_wins() {
+    let mut rng = Rng(77);
+    let mut won = 0;
+    for _ in 0..60 {
+        let n = 3 + rng.below(40);
+        let points: Vec<(f64, f64)> = (0..n)
+            .map(|_| (rng.between(0.0, 100.0), rng.between(0.0, 100.0)))
+            .collect();
+        let start = (rng.between(0.0, 100.0), rng.between(0.0, 100.0));
+        let mut order: Vec<usize> = (0..n).collect();
+        two_opt(&points, &mut order, start, 1000);
+        let before = path_length(&points, &order, start);
+        or_opt(&points, &mut order, start, 1000);
+        let after = path_length(&points, &order, start);
+        assert!(after <= before + 1e-9, "{after} > {before}");
+        if after < before - 1e-6 {
+            won += 1;
+        }
+        let mut seen = order.clone();
+        seen.sort_unstable();
+        assert_eq!(seen, (0..n).collect::<Vec<_>>());
+    }
+    assert!(won > 0, "Or-opt found nothing in 60 walks");
+    // off unless it is asked for
+    assert!(!MachineConfig::default().or_opt);
+    assert!(MachineConfig::parse("or_opt = yes\n").unwrap().or_opt);
 }

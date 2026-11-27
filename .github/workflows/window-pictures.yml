@@ -57,6 +57,14 @@ jobs:
             shot --shot "$out/job_$lang.png" --window job --steps 9 --lang "$lang"
             shot --shot "$out/machine_$lang.png" --window machine --lang "$lang"
           done
+          # the narrow sizes at which the side columns are checked
+          for lang in en de; do
+            for width in 1400 1520; do
+              shot_at() { xvfb-run -a -s "-screen 0 1920x1080x24" timeout 120 "$exe" gui "$@" --theme phoenix --size "${width}x900" --wait 20 examples/board.pos examples/feeders.csv examples/machine.cfg; }
+              shot_at --shot "$out/narrow_${width}_job_$lang.png" --window job --steps 9 --lang "$lang"
+              shot_at --shot "$out/narrow_${width}_feeders_$lang.png" --window feeders --lang "$lang"
+            done
+          done
           ls -l "$out"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

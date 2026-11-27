@@ -2,7 +2,7 @@
 
 This register is the single source of the state of each capability: `STATUS.md`, the README files and the capability matrix of the documentation hub cite it and never state a state that it does not. A state is one of `planned`, `prototype`, `implemented` and `validated`. `validated` means that a person has run the capability on a real machine and the evidence of the manifest says `bench` or `field`; nothing here is validated, because nothing of this program has moved a real machine.
 
-The register has 173 requirements: 118 implemented, 33 prototype, 22 planned and 0 validated. By progress: 118 done, 33 partial, 16 pending and 6 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
+The register has 177 requirements: 122 implemented, 34 prototype, 21 planned and 0 validated. By progress: 122 done, 34 partial, 15 pending and 6 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
 
 ## How to read the register
 
@@ -53,7 +53,7 @@ The check is `tests/reqs.rs`: it reads this table, finds each test and fails whe
 |---|---|---|---|---|---|---|
 | PPNP-023 | The vision is a chain of steps with settings, and a part is measured on a made-up picture. | prototype | partial | simulator | `vision::a_part_turned_30_degrees_in_64_by_64_pixels_is_measured_as_the_second_program_says` | A fixed chain of steps; it is not a list that a person edits. |
 | PPNP-024 | A part on the nozzle is looked at and the place is moved and turned by what is seen. | implemented | done | simulator | `align::the_place_is_moved_and_turned_by_what_the_camera_sees` | With a simulated camera only. |
-| PPNP-025 | The shots needed to see a part bigger than the camera are worked out. | planned | pending | none | `planned:vision::the_shots_for_a_part_bigger_than_the_camera_are_planned` | - |
+| PPNP-025 | The shots needed to see a part bigger than the camera are worked out. | implemented | done | host-test | `vision::the_shots_for_a_part_bigger_than_the_camera_are_planned` | The places of the pictures are worked out; the pictures are not captured or joined. |
 | PPNP-026 | The measured fiducials are fitted to the designed ones, the residual of each mark is told and a fit that misses too much is refused. | implemented | done | host-test | `panel::two_marks_fix_a_turn_and_a_shift` | - |
 | PPNP-027 | A fiducial next to a part refines the place of that part. | planned | pending | none | `planned:fidcheck::a_local_mark_refines_the_place_of_its_part` | - |
 | PPNP-028 | The fiducials are located with the change of height taken into account. | planned | blocked | none | `planned:fidcheck::the_height_of_a_mark_changes_where_it_is_seen` | Needs a real camera. |
@@ -267,3 +267,12 @@ The check is `tests/reqs.rs`: it reads this table, finds each test and fails whe
 | PPNP-171 | The menu File of the window opens a project of the suite and shows the panel of its attachments. | implemented | done | host-test | `docking::the_file_menu_opens_a_project_of_the_suite_and_shows_its_attachments` | - |
 | PPNP-172 | The limits of the panel of the attachments are read from the settings file of the window and kept when it is written. | implemented | done | host-test | `docking::the_limits_of_the_attachments_are_kept_in_the_settings_of_the_window` | - |
 | PPNP-173 | A file dropped on the panel of the attachments is attached there, and the files the window reads are left to the window. | implemented | done | host-test | `docking::the_files_the_window_reads_are_told_apart_from_the_ones_of_the_attachments` | The drop itself is tested in EH3D-COMMON with made-up events, not on a desktop. |
+
+## The watch of the nodes and shorter walks
+
+| ID | Requirement | State | Progress | Evidence | Test | Limits |
+|---|---|---|---|---|---|---|
+| PPNP-174 | The state of a node is asked with the token, so that watching a node does not leave it unheard, and is still read when the token is refused. | implemented | done | simulator | `nodelink::asking_for_the_state_with_the_token_keeps_a_node_from_its_safe_state` | Tried on nodes on a computer, whose clock only moves when it is told to. |
+| PPNP-175 | The time a node waits before its safe state is read from its status and told, with a warning when one lost question is enough. | implemented | done | simulator | `nodelink::the_command_says_the_watches_and_a_pause_longer_than_them_leaves_the_nodes_safe` | A firmware that does not say the time is taken without it. |
+| PPNP-176 | While an order is waited for, the node is asked on a second link often enough not to go safe. | prototype | partial | simulator | `nodelink::the_node_is_asked_on_a_second_link_while_an_order_is_waited_for` | The library does it; no command and no job drives a real node yet, and no firmware has answered two links. |
+| PPNP-177 | A walk is shortened further by moving short stretches of it, never making it longer. | implemented | done | host-test | `planner::or_opt_after_two_opt_never_makes_the_walk_longer_keeps_every_point_and_sometimes_wins` | Off by default; each group of the plan is shortened on its own. |

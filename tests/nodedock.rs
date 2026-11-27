@@ -373,3 +373,13 @@ fn a_table_that_cannot_be_read_leaves_the_one_on_show() {
     assert_eq!(b.layout.entries().len(), 6);
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 }
+
+#[test]
+fn the_panel_of_the_nodes_has_the_watch_of_each_node_once_it_was_asked() {
+    let cfg = MachineConfig::default();
+    let mut bench = Bench::new(&cfg);
+    assert_eq!(bench.watches(), [None, None]);
+    bench.ask();
+    // the head's watch is not longer than the time one question may take; the feeder node's is
+    assert_eq!(bench.watches(), [Some((2000, true)), Some((5000, false))]);
+}

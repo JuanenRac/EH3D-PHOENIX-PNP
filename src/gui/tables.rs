@@ -53,6 +53,51 @@ pub fn natural_cmp(a: &str, b: &str) -> Ordering {
     }
 }
 
+/// The widths the columns of a table are drawn with in a room `room` wide, with `gap` between two columns and `bar` the width that the bar that moves the rows up and down takes.
+/// A column is never narrower than its `minimum` (the name in its head) and starts from its `preferred` width. When all fit as they prefer, nothing changes; when they fit narrower,
+/// what is missing is taken from the columns that have it to spare; when not even the minimums fit, the first columns that do are drawn to fill the room exactly and the others keep
+/// their preferred width past its edge, reached by moving the table sideways: no column is left half in sight.
+pub fn fit_columns(preferred: &[f32], minimum: &[f32], gap: f32, room: f32, bar: f32) -> Vec<f32> {
+    let n = preferred.len().min(minimum.len());
+    let mins = &minimum[..n];
+    let mut widths: Vec<f32> = (0..n).map(|i| preferred[i].max(mins[i])).collect();
+    let all = |w: &[f32]| w.iter().sum::<f32>() + gap * w.len().saturating_sub(1) as f32;
+    let inner = room - bar;
+    if n == 0 || all(&widths) <= inner {
+        return widths;
+    }
+    // the part of each column above its minimum
+    let slack: Vec<f32> = (0..n).map(|i| widths[i] - mins[i]).collect();
+    if all(mins) <= inner {
+        let extra = inner - all(mins);
+        let sum: f32 = slack.iter().sum();
+        for i in 0..n {
+            let share = if sum > 0.0 { slack[i] / sum } else { 0.0 };
+            widths[i] = mins[i] + extra * share;
+        }
+        return widths;
+    }
+    let mut k = 1;
+    while k + 1 < n && all(&mins[..=k]) <= room {
+        k += 1;
+    }
+    let extra = room - all(&mins[..k]);
+    // a single column wider than the room cannot be helped
+    if extra < 0.0 {
+        return widths;
+    }
+    let sum: f32 = slack[..k].iter().sum();
+    for i in 0..k {
+        let share = if sum > 0.0 {
+            slack[i] / sum
+        } else {
+            1.0 / k as f32
+        };
+        widths[i] = mins[i] + extra * share;
+    }
+    widths
+}
+
 /// The column a table is sorted by and the direction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SortState<C> {

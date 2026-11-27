@@ -7,7 +7,9 @@
 use crate::cli_args::{finish, flag, num};
 use crate::cmd_tools::language_and_config;
 use crate::commands::read_text;
-use eh3d_phoenix_pnp::nodelink::{Feeders, Head, ScNodeLink};
+use eh3d_phoenix_pnp::nodelink::{
+    beat_period_ms, one_lost_question_is_enough, Feeders, Head, ScNodeLink,
+};
 use eh3d_phoenix_pnp::nodesim::{Injection, SimFeeders, SimHead};
 use eh3d_phoenix_pnp::panelcomp::Composition;
 use eh3d_phoenix_pnp::report;
@@ -175,8 +177,9 @@ pub fn panel_compose(mut args: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
-/// `node-sim [--steps N] [--seed S] [--silence PM] [--unauthorized PM] [--interlock PM]`: a job on a head node and a feeder node that are made up, with faults drawn from the seed (per thousand
-/// requests). Each step asks the head whether the machine may move, asks for the permission to move, advances a feeder, picks and places with a nozzle, and lets the permission go. It says
+/// `node-sim [--steps N] [--seed S] [--silence PM] [--unauthorized PM] [--interlock PM] [--pause-ms N]`: a job on a head node and a feeder node that are made up, with faults drawn from the
+/// seed (per thousand requests). `--pause-ms` is the time that passes between two steps: longer than the watch of a node, the node is safe when it is asked again. The last line says the
+/// watches the nodes gave. Each step asks the head whether the machine may move, asks for the permission to move, advances a feeder, picks and places with a nozzle, and lets the permission go. It says
 /// what the link saw. The same seed gives the same text. The exit code is 2 when the link was held.
 pub fn node_sim(mut args: Vec<String>) -> Result<(), String> {
     let (_, cfg) = language_and_config(&mut args)?;
@@ -199,6 +202,10 @@ pub fn node_sim(mut args: Vec<String>) -> Result<(), String> {
         rate("--unauthorized")?,
         rate("--interlock")?,
     );
+    let pause = flag(&mut args, "--pause-ms")?
+        .map(|v| crate::cmd_flow::whole(&v, "--pause-ms", 0.0, 600_000.0))
+        .transpose()?
+        .unwrap_or(0) as u32;
     finish(&args, 0)?;
     let head_sim = SimHead::new(2, "t");
     let feed_sim = SimFeeders::new(4, Some(1000), "t");
@@ -212,6 +219,12 @@ pub fn node_sim(mut args: Vec<String>) -> Result<(), String> {
     let mut feeders = Feeders::new(link(Box::new(feed_sim.clone())), cfg.node_silence_limit);
     let (mut moved, mut refused, mut skipped) = (0u32, 0u32, 0u32);
     for step in 1..=steps {
+        if step > 1 {
+            head_sim.elapse(pause);
+            feed_sim.elapse(pause);
+        }
+        // the state of the chain is read at every step, which also keeps the feeder node hearing the program
+        let _ = feeders.refresh();
         if !head.xy_clear() {
             skipped += 1;
             println!(
@@ -245,6 +258,20 @@ pub fn node_sim(mut args: Vec<String>) -> Result<(), String> {
         head.guard().held().map_or("not held", |h| h.name()),
         feeders.guard().held().map_or("not held", |h| h.name())
     );
+    for (name, watch) in [("head", head.watch_ms()), ("feeders", feeders.watch_ms())] {
+        let Some(watch) = watch else {
+            continue;
+        };
+        println!(
+            "{name}: safe after {watch} ms without a question with the token; asked every {} ms while an order is waited for{}",
+            beat_period_ms(watch),
+            if one_lost_question_is_enough(watch, cfg.node_timeout_s) {
+                "; one question without an answer is enough for it (node_timeout_s)"
+            } else {
+                ""
+            }
+        );
+    }
     if head.guard().held().is_some() || feeders.guard().held().is_some() {
         return Err(not_passed("the link to a node was held"));
     }

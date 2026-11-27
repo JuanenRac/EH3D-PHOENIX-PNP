@@ -5,13 +5,16 @@ use eh3d_phoenix_pnp::driver::{Kind, Session};
 use eh3d_phoenix_pnp::gcodedriver::{DriverProfile, Target};
 use eh3d_phoenix_pnp::gcodesim::{Faults, GcodeSim, SimLink};
 use eh3d_phoenix_pnp::nodelink::{
-    xy_clear_signal, ChainStatus, Feeders, Head, HeadStatus, Hold, LinkError, NodeLink, ScNodeLink,
-    XY_CLEAR,
+    beat_period_ms, one_lost_question_is_enough, xy_clear_signal, ChainStatus, Feeders, Head,
+    HeadStatus, Hold, LinkError, NodeLink, ScNodeLink, XY_CLEAR,
 };
 use eh3d_phoenix_pnp::nodesim::{Inject, Injection, SimFeeders, SimHead};
 use eh3d_phoenix_pnp::slotbank::Seen;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 const BIN: &str = env!("CARGO_BIN_EXE_phoenix-pnp");
 const MARLIN: &str = include_str!("../examples/driver_marlin.cfg");
@@ -461,4 +464,159 @@ fn a_node_that_refuses_the_token_is_asked_again_with_it_and_a_link_that_is_fixed
     // the answer of a node that accepts it comes back whole
     let mut ok = link_to(200, "{\"ok\":true}");
     assert_eq!(ok.call("POST", "/api/stop", true).unwrap(), "{\"ok\":true}");
+}
+
+#[test]
+fn the_watch_of_a_node_is_read_from_its_status_and_a_firmware_that_does_not_say_it_is_none() {
+    let sim = SimHead::new(2, "t");
+    let mut head = Head::new(sim.clone(), 3);
+    assert_eq!(head.watch_ms(), None);
+    assert_eq!(head.refresh().unwrap().watch_ms, Some(2000));
+    assert_eq!(head.watch_ms(), Some(2000));
+    let feeders = SimFeeders::new(4, None, "t");
+    feeders.set_server_lost_ms(9000);
+    let mut node = Feeders::new(feeders.clone(), 3);
+    assert_eq!(node.refresh().unwrap().watch_ms, Some(9000));
+    assert_eq!(node.watch_ms(), Some(9000));
+    let body = r#"{"safe":false,"xy_clear":true,"xy_moving":false,"xy_blocking":"","z_safe_mm":5.0,"selfcheck":"ok","nozzles":[]}"#;
+    assert_eq!(HeadStatus::from_body(body).unwrap().watch_ms, None);
+    for (text, watch) in [
+        ("500", Some(500)),
+        ("0", None),
+        ("600001", None),
+        ("-5", None),
+        ("\"2000\"", None),
+    ] {
+        let with = body.replace(
+            "\"selfcheck\"",
+            &format!("\"link_lost_ms\":{text},\"selfcheck\""),
+        );
+        assert_eq!(
+            HeadStatus::from_body(&with).unwrap().watch_ms,
+            watch,
+            "{text}"
+        );
+    }
+    assert_eq!(beat_period_ms(2000), 666);
+    assert_eq!(beat_period_ms(60), 50);
+    assert!(one_lost_question_is_enough(2000, 2));
+    assert!(!one_lost_question_is_enough(5000, 2));
+}
+
+#[test]
+fn asking_for_the_state_with_the_token_keeps_a_node_from_its_safe_state() {
+    // a program that only reads the state, more often than the watch, is heard
+    let sim = SimHead::new(2, "t");
+    let mut head = Head::new(over_http(&sim, "t"), 3);
+    let feeders = SimFeeders::new(4, None, "t");
+    let mut node = Feeders::new(feeders.clone(), 3);
+    for _ in 0..10 {
+        assert!(!head.refresh().unwrap().safe);
+        assert!(!node.refresh().unwrap().safe);
+        sim.elapse(1500);
+        feeders.elapse(1500);
+    }
+    // one that is quiet longer than the watch finds the node safe and holds it
+    sim.elapse(2001);
+    feeders.elapse(5001);
+    assert!(head.refresh().unwrap().safe);
+    assert!(node.refresh().unwrap().safe);
+    assert_eq!(head.guard().held(), Some(Hold::Safe));
+    assert_eq!(node.guard().held(), Some(Hold::Safe));
+    head.acknowledge_node().unwrap();
+    assert!(head.xy_clear());
+}
+
+#[test]
+fn a_state_asked_without_the_token_is_read_but_does_not_count_as_being_heard() {
+    let sim = SimHead::new(2, "t");
+    let mut link = over_http(&sim, "t");
+    link.call("GET", "/api/status", true).unwrap();
+    for _ in 0..3 {
+        sim.elapse(900);
+        link.call("GET", "/api/status", false).unwrap();
+    }
+    let body = link.call("GET", "/api/status", false).unwrap();
+    assert!(HeadStatus::from_body(&body).unwrap().safe, "{body}");
+    // a program with the wrong token still reads the state
+    let other = SimHead::new(2, "t");
+    let mut head = Head::new(over_http(&other, "wrong"), 3);
+    assert!(head.refresh().unwrap().xy_clear);
+    assert_eq!(head.watch_ms(), Some(2000));
+}
+
+/// A link whose orders take until the second link has asked the node twice (or ten seconds), and a second link that counts what it asks.
+struct SlowOrders {
+    node: SimHead,
+    asked: Arc<AtomicU32>,
+}
+
+impl NodeLink for SlowOrders {
+    fn call(&mut self, method: &str, path: &str, auth: bool) -> Result<String, LinkError> {
+        if method == "POST" {
+            let start = Instant::now();
+            while self.asked.load(Ordering::SeqCst) < 2 && start.elapsed().as_secs() < 10 {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        }
+        self.node.call(method, path, auth)
+    }
+}
+
+struct Counting {
+    node: SimHead,
+    asked: Arc<AtomicU32>,
+}
+
+impl NodeLink for Counting {
+    fn call(&mut self, method: &str, path: &str, auth: bool) -> Result<String, LinkError> {
+        assert_eq!((method, path, auth), ("GET", "/api/status", true));
+        let answer = self.node.call(method, path, auth);
+        self.asked.fetch_add(1, Ordering::SeqCst);
+        answer
+    }
+}
+
+#[test]
+fn the_node_is_asked_on_a_second_link_while_an_order_is_waited_for() {
+    let sim = SimHead::new(2, "t");
+    sim.set_link_lost_ms(600);
+    let asked = Arc::new(AtomicU32::new(0));
+    let slow = SlowOrders {
+        node: sim.clone(),
+        asked: asked.clone(),
+    };
+    let mut head = Head::new(slow, 3).keep_alive(Box::new(Counting {
+        node: sim.clone(),
+        asked: asked.clone(),
+    }));
+    // before the state was read the watch is not known and nothing is asked
+    assert_eq!(head.beats(), (0, 0));
+    head.refresh().unwrap();
+    head.pick(1).unwrap();
+    let (answered, missed) = head.beats();
+    assert!(answered >= 2, "{answered}");
+    assert_eq!(missed, 0);
+    // nothing goes on being asked once the order is over
+    let after = asked.load(Ordering::SeqCst);
+    std::thread::sleep(Duration::from_millis(500));
+    assert_eq!(asked.load(Ordering::SeqCst), after);
+}
+
+#[test]
+fn the_command_says_the_watches_and_a_pause_longer_than_them_leaves_the_nodes_safe() {
+    let (code, said) = node_sim(&["--steps", "3", "--pause-ms", "1500"]);
+    assert_eq!(code, 0, "{said}");
+    assert!(
+        said.contains(
+            "head: safe after 2000 ms without a question with the token; asked every 666 ms"
+        ),
+        "{said}"
+    );
+    assert!(said.contains("feeders: safe after 5000 ms"), "{said}");
+    assert!(said.contains("node_timeout_s"), "{said}");
+    let (code, said) = node_sim(&["--steps", "3", "--pause-ms", "2500"]);
+    assert_eq!(code, 2, "{said}");
+    assert!(said.contains("head safe"), "{said}");
+    assert_eq!(node_sim(&["--pause-ms", "x"]).0, 1);
 }
