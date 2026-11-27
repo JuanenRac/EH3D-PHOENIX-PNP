@@ -13,9 +13,7 @@ use eh3d_phoenix_pnp::driver::{Failure, Session};
 use eh3d_phoenix_pnp::drivertest;
 use eh3d_phoenix_pnp::error::Lang;
 use eh3d_phoenix_pnp::feeders::{assign_side, from_csv as feeders_csv};
-use eh3d_phoenix_pnp::gcodedriver::{
-    DriverProfile, HomingMode, Op, Target, Transport, MAX_PROFILE_BYTES,
-};
+use eh3d_phoenix_pnp::gcodedriver::{DriverProfile, HomingMode, Op, Transport, MAX_PROFILE_BYTES};
 use eh3d_phoenix_pnp::gcodesim::{Faults, GcodeSim, Link, MoonrakerLink, SimLink, SimMoonraker};
 use eh3d_phoenix_pnp::msg8::{num as show, pick, say};
 use eh3d_phoenix_pnp::parts::{parse, Side};
