@@ -2,7 +2,7 @@
 
 This register is the single source of the state of each capability: `STATUS.md`, the README files and the capability matrix of the documentation hub cite it and never state a state that it does not. A state is one of `planned`, `prototype`, `implemented` and `validated`. `validated` means that a person has run the capability on a real machine and the evidence of the manifest says `bench` or `field`; nothing here is validated, because nothing of this program has moved a real machine.
 
-The register has 177 requirements: 122 implemented, 34 prototype, 21 planned and 0 validated. By progress: 122 done, 34 partial, 15 pending and 6 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
+The register has 184 requirements: 129 implemented, 34 prototype, 21 planned and 0 validated. By progress: 129 done, 34 partial, 15 pending and 6 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
 
 ## How to read the register
 
@@ -276,3 +276,15 @@ The check is `tests/reqs.rs`: it reads this table, finds each test and fails whe
 | PPNP-175 | The time a node waits before its safe state is read from its status and told, with a warning when one lost question is enough. | implemented | done | simulator | `nodelink::the_command_says_the_watches_and_a_pause_longer_than_them_leaves_the_nodes_safe` | A firmware that does not say the time is taken without it. |
 | PPNP-176 | While an order is waited for, the node is asked on a second link often enough not to go safe. | prototype | partial | simulator | `nodelink::the_node_is_asked_on_a_second_link_while_an_order_is_waited_for` | The library does it; no command and no job drives a real node yet, and no firmware has answered two links. |
 | PPNP-177 | A walk is shortened further by moving short stretches of it, never making it longer. | implemented | done | host-test | `planner::or_opt_after_two_opt_never_makes_the_walk_longer_keeps_every_point_and_sometimes_wins` | Off by default; each group of the plan is shortened on its own. |
+
+## Moves of the driver and the language of the console
+
+| ID | Requirement | State | Progress | Evidence | Test | Limits |
+|---|---|---|---|---|---|---|
+| PPNP-178 | The driver turns the axis of the nozzle to its angle of pick before every part is taken, so that a part ends at its angle whatever the one before left. | implemented | done | simulator | `driver::the_axis_of_the_nozzle_is_at_the_angle_of_the_pick_before_every_part_is_taken` | The planner of `driver-run` takes every part as lying at 0 degrees in its feeder; no nozzle has turned on a machine. |
+| PPNP-179 | A homing is refused while an interlock of X, Y or Z is not satisfied or while the rules of safety hold the machine. | implemented | done | simulator | `driver::a_homing_is_refused_while_an_interlock_of_x_y_or_z_is_not_satisfied` | No sensor of a real machine has been read. |
+| PPNP-180 | A line the controller says it does not know is an error even when `ok` follows (`stop_on_unknown_command`, on by default). | implemented | done | simulator | `driver::a_line_the_controller_says_it_does_not_know_stops_the_session_even_when_ok_follows` | The notices read are the ones Marlin and Klipper are documented to write; none was captured from a machine. |
+| PPNP-181 | The lines of the default profile that leave the machine safe close the vacuum and the blow before releasing the motors. | implemented | done | host-test | `driver::the_default_stop_closes_both_valves_before_the_motors_are_released` | The pins are those of the example; a machine has its own. |
+| PPNP-182 | The square of the first start goes up to the height of travel before any move in X and Y, and starts at the least places the profile allows. | implemented | done | simulator | `driver::the_square_of_the_first_start_goes_up_first_and_stays_within_the_limits` | Nothing in it knows what stands on the bed. |
+| PPNP-183 | Every event of the simulated machine has its sentence in the eight languages, with the English one as reports had it. | implemented | done | host-test | `jobtab::every_event_of_the_machine_has_its_sentence_in_the_eight_languages` | The translations were not read by native speakers. |
+| PPNP-184 | The console of the window says what the machine does, the files loaded, the decisions and the fit in the language of the window. | implemented | done | host-test | `jobtab::the_console_says_what_the_machine_does_in_the_language_of_the_window` | The details of an error and the lines of a finished report of a tool may still be in English. |

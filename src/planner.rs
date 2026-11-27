@@ -714,6 +714,7 @@ pub fn plan_advanced(
             }
             order.push(left.remove(best));
         }
+        let mut picked_at: Vec<f64> = Vec::with_capacity(order.len());
         for (nozzle, &k) in order.iter().enumerate() {
             let it = &items[k];
             let new = rot_path(
@@ -734,6 +735,7 @@ pub fn plan_advanced(
             align_s += per_pick;
             rotation_s += r;
             angles[nozzle] = new;
+            picked_at.push(new);
             head = it.pick;
         }
         for (nozzle, &k) in order.iter().enumerate() {
@@ -759,6 +761,8 @@ pub fn plan_advanced(
                 x: it.at.0,
                 y: it.at.1,
                 rotation: it.rot,
+                nozzle_pick_deg: picked_at[nozzle],
+                nozzle_place_deg: new,
                 nozzle,
                 batch: batch_no,
             });

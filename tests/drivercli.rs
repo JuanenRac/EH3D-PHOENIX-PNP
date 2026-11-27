@@ -274,6 +274,7 @@ fn bringup_passes_on_a_good_machine_and_names_the_step_that_fails() {
         "position",
         "actuator pump",
         "actuator blow",
+        "lift",
         "move 4",
         "close",
     ] {

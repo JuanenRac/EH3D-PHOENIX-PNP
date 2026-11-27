@@ -45,6 +45,10 @@ pub struct Placement {
     pub x: f64,
     pub y: f64,
     pub rotation: f64,
+    /// The angle of the axis of the nozzle when it takes the part (the one the part lies at in its feeder) and when it puts it down, in degrees: the part ends turned by the
+    /// difference of the two from how it lay, so the axis has to be at the first before the pick.
+    pub nozzle_pick_deg: f64,
+    pub nozzle_place_deg: f64,
     pub nozzle: usize,
     pub batch: usize,
 }
@@ -240,6 +244,9 @@ pub fn plan(
                 x: at.0,
                 y: at.1,
                 rotation: rot,
+                // this planner has no angle of the part in its feeder: it lies at 0
+                nozzle_pick_deg: 0.0,
+                nozzle_place_deg: rot.rem_euclid(360.0),
                 nozzle,
                 batch,
             });

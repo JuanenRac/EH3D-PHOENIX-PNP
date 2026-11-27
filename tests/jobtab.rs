@@ -285,7 +285,7 @@ fn the_actions_are_carried_out_on_the_job_and_the_job_goes_on() {
         .log
         .entries()
         .iter()
-        .any(|e| e.text.contains("skip") && e.text.starts_with(tr(Text::ErrorTitle, Lang::En))));
+        .any(|e| e.text.contains("Skip") && e.text.starts_with(tr(Text::ErrorTitle, Lang::En))));
     skip_all(&mut a);
     let job = a.session.job().unwrap();
     assert_eq!((job.stats().placed, job.stats().skipped), (0, 6));
@@ -431,4 +431,50 @@ fn a_feeder_that_reaches_its_limit_of_faults_opens_the_dialog_with_the_four_acti
     assert!(a.decide(Action::SwitchOffFeeder));
     let job = a.session.job().unwrap();
     assert!(job.stats().feeders.iter().any(|f| f.disabled));
+}
+
+#[test]
+fn every_event_of_the_machine_has_its_sentence_in_the_eight_languages() {
+    use eh3d_phoenix_pnp::events::What;
+    for what in What::ALL {
+        let values: Vec<String> = (0..what.places()).map(|i| format!("<{i}>")).collect();
+        let english = what.line(Lang::En, &values);
+        for lang in Lang::ALL {
+            let line = what.line(lang, &values);
+            assert!(!line.contains('{'), "{what:?} {lang:?}: {line}");
+            for v in &values {
+                assert!(line.contains(v.as_str()), "{what:?} {lang:?}: {line}");
+            }
+            if lang != Lang::En {
+                assert_ne!(line, english, "{what:?} {lang:?}");
+            }
+        }
+    }
+}
+
+#[test]
+fn the_console_says_what_the_machine_does_in_the_language_of_the_window() {
+    for (lang, picked, parts) in [
+        (Lang::En, "picked", "parts"),
+        (Lang::Es, "recogi", "piezas"),
+        (Lang::De, "aufgenommen", "Teile"),
+    ] {
+        let mut a = app(&format!("language = {}\n", lang.code()));
+        assert_eq!(a.ui.lang, lang);
+        a.run_steps(4);
+        let said: Vec<&str> = a.log.entries().iter().map(|e| e.text.as_str()).collect();
+        assert!(
+            said.iter().any(|t| t.contains(picked)),
+            "{lang:?}: {said:?}"
+        );
+        assert!(said.iter().any(|t| t.contains(parts)), "{lang:?}: {said:?}");
+        if lang != Lang::En {
+            assert!(
+                !said
+                    .iter()
+                    .any(|t| t.contains("move to") || t.contains(" picked ")),
+                "{lang:?}: {said:?}"
+            );
+        }
+    }
 }

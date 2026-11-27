@@ -819,3 +819,25 @@ fn or_opt_after_two_opt_never_makes_the_walk_longer_keeps_every_point_and_someti
     assert!(!MachineConfig::default().or_opt);
     assert!(MachineConfig::parse("or_opt = yes\n").unwrap().or_opt);
 }
+
+#[test]
+fn the_angles_of_the_axis_of_a_placement_differ_by_the_turn_the_part_needs_from_its_feeder() {
+    let parts = vec![
+        part("R1", "10k", "R", 10.0, 5.0, 90.0),
+        part("R2", "10k", "R", 20.0, 5.0, 270.0),
+        part("R3", "10k", "R", 30.0, 5.0, 0.0),
+    ];
+    let mut f = feeder("F", "10k", "R", 0.0, 0.0, 5);
+    f.tape_rotation = 45.0;
+    let plan = make(&parts, &[f], "", "", Options::default()).unwrap();
+    for p in &plan.plan.placements {
+        assert_eq!(p.nozzle_pick_deg.rem_euclid(360.0), 45.0, "{}", p.reference);
+        let turned = (p.nozzle_place_deg - p.nozzle_pick_deg).rem_euclid(360.0);
+        let wanted = (p.rotation - 45.0).rem_euclid(360.0);
+        assert!(
+            (turned - wanted).abs() < 1e-9,
+            "{}: {turned} {wanted}",
+            p.reference
+        );
+    }
+}

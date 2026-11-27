@@ -4,7 +4,8 @@
 
 use crate::camera::CameraModel;
 use crate::config::{HeadSpec, MachineConfig, VisionMode};
-use crate::error::{Code, PnpError};
+use crate::error::{Code, Lang, PnpError};
+use crate::events::What;
 use crate::model::{Actuator, Camera, Driver, FeederDevice, Machine, Nozzle, Offset};
 use crate::motion::{move_time, AxisMotion, BacklashMode};
 use crate::vision::{measure_image, render, wrap, VisionConfig};
@@ -81,7 +82,18 @@ impl SimOp {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Event {
     pub t_us: u64,
+    /// The sentence in English, as reports and the command line give it.
     pub text: String,
+    /// What happened and its values, so that the window can say it in its language.
+    pub what: What,
+    pub values: Vec<String>,
+}
+
+impl Event {
+    /// The sentence in a language.
+    pub fn line(&self, lang: Lang) -> String {
+        self.what.line(lang, &self.values)
+    }
 }
 
 fn fault(op: SimOp, n: u64) -> PnpError {
@@ -177,11 +189,13 @@ impl SimMachine {
         };
     }
 
-    pub fn note(&mut self, text: impl Into<String>) {
+    pub fn note(&mut self, what: What, values: &[String]) {
         if self.events.len() < MAX_EVENTS {
             self.events.push(Event {
                 t_us: self.clock_us,
-                text: text.into(),
+                text: what.line(Lang::En, values),
+                what,
+                values: values.to_vec(),
             });
         }
     }
@@ -258,7 +272,7 @@ impl SimMachine {
     /// Puts a nozzle tip on at the start, without the time of a change.
     pub fn mount_tip(&mut self, tip: &str) {
         self.tip = tip.to_string();
-        self.note(format!("nozzle tip '{tip}' mounted"));
+        self.note(What::TipMounted, &[tip.to_string()]);
     }
 
     pub fn nozzle_count(&self) -> usize {
@@ -269,10 +283,10 @@ impl SimMachine {
     pub fn regrip(&mut self, nozzle: usize, reference: &str) {
         if let Some(slot) = self.nozzles.get_mut(nozzle) {
             *slot = Some(reference.to_string());
-            self.note(format!(
-                "nozzle {} still holds {reference} after the place",
-                nozzle + 1
-            ));
+            self.note(
+                What::StillHolds,
+                &[(nozzle + 1).to_string(), reference.to_string()],
+            );
         }
     }
 }
@@ -307,7 +321,10 @@ impl Machine for SimMachine {
             let t = move_time(delta.0, delta.1, &self.motion.0, &self.motion.1);
             self.advance(t);
             self.pos = to;
-            self.note(format!("move to X {:.3} Y {:.3}", to.0, to.1));
+            self.note(
+                What::MoveTo,
+                &[format!("{:.3}", to.0), format!("{:.3}", to.1)],
+            );
             return Ok(());
         }
         // an axis that reverses gives by its slack before it takes up the load: either the move ends short (the error), or the move goes past the place and comes back from the
@@ -359,22 +376,25 @@ impl Machine for SimMachine {
             self.advance(back);
             self.backlash_stats.approaches += 1;
             self.backlash_stats.approach_s += back;
-            self.note(format!(
-                "went past the place by X {:.3} Y {:.3} and came back from the positive side",
-                -over.0, -over.1
-            ));
+            self.note(
+                What::WentPast,
+                &[format!("{:.3}", -over.0), format!("{:.3}", -over.1)],
+            );
         }
         self.lash = lash;
         self.pos = to;
-        self.note(format!("move to X {:.3} Y {:.3}", to.0, to.1));
+        self.note(
+            What::MoveTo,
+            &[format!("{:.3}", to.0), format!("{:.3}", to.1)],
+        );
         let missed = error.0.hypot(error.1);
         if missed > 0.0 {
             self.backlash_stats.short_moves += 1;
             self.backlash_stats.worst_mm = self.backlash_stats.worst_mm.max(missed);
-            self.note(format!(
-                "the move ended X {:+.3} Y {:+.3} from the place: an axis reversed and gave by its slack",
-                error.0, error.1
-            ));
+            self.note(
+                What::EndedShort,
+                &[format!("{:+.3}", error.0), format!("{:+.3}", error.1)],
+            );
         }
         Ok(())
     }
@@ -407,11 +427,14 @@ impl Nozzle for SimMachine {
         }
         self.advance(self.pick_s);
         if let Some(e) = self.draw(SimOp::Pick) {
-            self.note(format!("pick of {reference} failed"));
+            self.note(What::PickFailed, &[reference.to_string()]);
             return Err(e);
         }
         self.nozzles[nozzle] = Some(reference.to_string());
-        self.note(format!("nozzle {} picked {reference}", nozzle + 1));
+        self.note(
+            What::Picked,
+            &[(nozzle + 1).to_string(), reference.to_string()],
+        );
         Ok(())
     }
 
@@ -433,11 +456,11 @@ impl Nozzle for SimMachine {
         };
         self.advance(self.place_s);
         if let Some(e) = self.draw(SimOp::Place) {
-            self.note(format!("place of {held} failed"));
+            self.note(What::PlaceFailed, std::slice::from_ref(&held));
             return Err(e);
         }
         self.nozzles[nozzle] = None;
-        self.note(format!("nozzle {} placed {held}", nozzle + 1));
+        self.note(What::Placed, &[(nozzle + 1).to_string(), held.clone()]);
         Ok(held)
     }
 
@@ -445,7 +468,7 @@ impl Nozzle for SimMachine {
         if let Some(slot) = self.nozzles.get_mut(nozzle) {
             let had = slot.take();
             if let Some(h) = had {
-                self.note(format!("nozzle {} discarded {h}", nozzle + 1));
+                self.note(What::Discarded, &[(nozzle + 1).to_string(), h]);
             }
         }
     }
@@ -457,7 +480,7 @@ impl Nozzle for SimMachine {
     fn change_tip(&mut self, tip: &str) {
         self.advance(self.tip_change_s);
         self.tip = tip.to_string();
-        self.note(format!("nozzle tip changed to '{tip}'"));
+        self.note(What::TipChanged, &[tip.to_string()]);
     }
 }
 

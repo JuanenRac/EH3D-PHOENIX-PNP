@@ -22,6 +22,12 @@ fn ready(p: &DriverProfile) -> Session<SimLink> {
     s
 }
 
+fn connected(p: &DriverProfile) -> Session<SimLink> {
+    let mut s = Session::new(p, SimLink::new(GcodeSim::new(p, Faults::default(), 1)));
+    s.connect().unwrap();
+    s
+}
+
 fn xy(x: f64, y: f64) -> Target {
     Target {
         x: Some(x),
@@ -240,13 +246,15 @@ fn the_axis_of_the_nozzle_still_moves_when_only_x_and_y_are_guarded() {
 #[test]
 fn a_sensor_that_nobody_reports_keeps_the_machine_still_and_one_that_does_lets_it_move() {
     let p = profile_with("interlock = door | on | all");
-    let mut s = ready(&p);
+    // not homed: nobody has reported the door, so the homing would be refused as well
+    let mut s = connected(&p);
     let f = s.move_to(&xy(5.0, 5.0), 6000.0).unwrap_err();
     assert_eq!(f.kind, Kind::Interlock);
     assert!(f.detail.contains("door"));
     // a new session, with the door reported closed
-    let mut s = ready(&p);
+    let mut s = connected(&p);
     assert!(s.set_signal("door", true));
+    s.home().unwrap();
     s.move_to(&xy(5.0, 5.0), 6000.0).unwrap();
     s.move_to(&z_only(8.0), 3000.0).unwrap();
     // the door opens in the middle of the job
@@ -287,7 +295,10 @@ fn what_the_session_does_is_what_the_calculation_says_on_moves_made_by_chance() 
     };
     let p = profile_with("interlock = door | on | all\ninterlock = lift | on | xy");
     for _round in 0..60 {
-        let mut s = ready(&p);
+        let mut s = connected(&p);
+        assert!(s.set_signal("door", true));
+        assert!(s.set_signal("lift", true));
+        s.home().unwrap();
         let mut signals: Signals = s.signals.clone();
         for _step in 0..25 {
             match next() % 4 {

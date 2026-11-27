@@ -4,7 +4,7 @@
 //! of the configuration (`gui_steps_per_s`). Nothing here waits or draws, so a test can run a whole job in a loop.
 
 use crate::config::MachineConfig;
-use crate::error::{Code, PnpError};
+use crate::error::{Code, Lang, PnpError};
 use crate::feeding::FeederSpec;
 use crate::job::{Action, Cursor, Job, Phase, Status};
 use crate::model::Machine;
@@ -225,8 +225,8 @@ impl Session {
         self.job.as_ref().map(|j| j.machine().position())
     }
 
-    /// The events of the machine that came since the last call, each as `12.3 s text`.
-    pub fn take_events(&mut self) -> Vec<String> {
+    /// The events of the machine that came since the last call, each as `12.3 s text` in a language.
+    pub fn take_events(&mut self, lang: Lang) -> Vec<String> {
         let Some(job) = self.job.as_ref() else {
             return Vec::new();
         };
@@ -234,7 +234,7 @@ impl Session {
         let from = self.seen_events.min(events.len());
         let out: Vec<String> = events[from..]
             .iter()
-            .map(|e| format!("{:.2} s {}", e.t_us as f64 / 1e6, e.text))
+            .map(|e| format!("{:.2} s {}", e.t_us as f64 / 1e6, e.line(lang)))
             .collect();
         self.seen_events = events.len();
         out

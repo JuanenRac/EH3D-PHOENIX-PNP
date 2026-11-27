@@ -33,6 +33,7 @@ pub mod drivertest;
 pub mod eh3dfile;
 pub mod equivalents;
 pub mod error;
+pub mod events;
 pub mod exchange;
 pub mod export;
 pub mod failodds;

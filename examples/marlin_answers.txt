@@ -14,7 +14,8 @@ position -3.5 120 0.5 0 | X:-3.50 Y:120.00 Z:0.50 E:0.00 Count X:-280 Y:9600 Z:2
 # lines that are not an answer
 busy | echo:busy: processing
 busy | busy: processing
-echo | echo:Unknown command: "G999"
+# a line the controller does not know is followed by ok: it reads as an error (stop_on_unknown_command)
+error | echo:Unknown command: "G999"
 echo | echo:SD card ok
 error | Error:Printer halted. kill() called!
 error | Error:Heating failed, system stopped! Heater_ID: bed

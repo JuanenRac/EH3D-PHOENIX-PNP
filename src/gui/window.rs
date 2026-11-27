@@ -714,7 +714,7 @@ impl PnpApp {
                 }
                 for kind in FileKind::ALL {
                     if let Some(name) = self.s.ws.names.get(&kind) {
-                        ui.label(format!("{}: {name}", kind.key()));
+                        ui.label(format!("{}: {name}", kind.title(lang)));
                     }
                 }
                 ui.add_space(8.0);
@@ -2427,7 +2427,7 @@ impl PnpApp {
             ui.label(format!(
                 "{}: {}, {} - {} {:.3} mm - {} {:.3} mm - {} {:.3}",
                 tr(Text::FitSummary, lang),
-                f.mode.name(),
+                f.mode.title(lang),
                 f.ids.len(),
                 tr(Text::ResidualRms, lang),
                 f.rms,

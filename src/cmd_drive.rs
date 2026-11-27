@@ -13,9 +13,7 @@ use eh3d_phoenix_pnp::driver::{Failure, Session};
 use eh3d_phoenix_pnp::drivertest;
 use eh3d_phoenix_pnp::error::Lang;
 use eh3d_phoenix_pnp::feeders::{assign_side, from_csv as feeders_csv};
-use eh3d_phoenix_pnp::gcodedriver::{
-    DriverProfile, HomingMode, Op, Target, Transport, MAX_PROFILE_BYTES,
-};
+use eh3d_phoenix_pnp::gcodedriver::{DriverProfile, HomingMode, Op, Transport, MAX_PROFILE_BYTES};
 use eh3d_phoenix_pnp::gcodesim::{Faults, GcodeSim, Link, MoonrakerLink, SimLink, SimMoonraker};
 use eh3d_phoenix_pnp::msg8::{num as show, pick, say};
 use eh3d_phoenix_pnp::parts::{parse, Side};
@@ -497,20 +495,13 @@ pub fn bringup(mut args: Vec<String>) -> Result<(), String> {
             .and_then(|()| s.set_actuator(n, false));
         step(&format!("actuator {n}"), r);
     }
-    let d = profile
-        .bringup_probe_mm
-        .min(profile.limit_x)
-        .min(profile.limit_y);
-    let corners = [(d, 0.0), (d, d), (0.0, d), (0.0, 0.0)];
-    for (i, (x, y)) in corners.iter().enumerate() {
-        let t = Target {
-            x: Some(*x),
-            y: Some(*y),
-            z: Some(profile.z_travel),
-            rot: None,
+    for (i, t) in profile.probe_moves().into_iter().enumerate() {
+        let (name, feed) = match i {
+            0 => ("lift".to_string(), profile.feed_z),
+            n => (format!("move {n}"), profile.feed_travel),
         };
-        let r = s.run_op(&Op::Move(t, profile.feed_travel));
-        step(&format!("move {}", i + 1), r);
+        let r = s.run_op(&Op::Move(t, feed));
+        step(&name, r);
     }
     step("close", s.close());
     let mut failed = 0usize;

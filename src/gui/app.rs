@@ -314,7 +314,7 @@ impl AppState {
     fn after_load(&mut self, kind: FileKind, name: &str) {
         self.log.info(format!(
             "{name}: {} {}",
-            kind.key(),
+            kind.title(self.ui.lang),
             tr(Text::Loaded, self.ui.lang)
         ));
         if kind == FileKind::Config {
@@ -485,7 +485,7 @@ impl AppState {
                 self.log.info(format!(
                     "{} - {}",
                     tr(Text::ErrorTitle, lang),
-                    action.name()
+                    tr(super::jobtab::action_text(action), lang)
                 ));
                 self.drain_events();
                 true
@@ -571,7 +571,7 @@ impl AppState {
     }
 
     fn drain_events(&mut self) {
-        for line in self.session.take_events() {
+        for line in self.session.take_events(self.ui.lang) {
             self.log.push(Level::Info, line);
         }
     }
@@ -738,7 +738,7 @@ impl AppState {
                     self.log.info(format!(
                         "{}: {}, {} {:.3} mm, {} {:.3} mm, {} {:.3}",
                         tr(Text::FitSummary, self.ui.lang),
-                        f.mode.name(),
+                        f.mode.title(self.ui.lang),
                         tr(Text::ResidualRms, self.ui.lang),
                         f.rms,
                         tr(Text::ResidualMax, self.ui.lang),

@@ -24,6 +24,8 @@ fn placement(
         x: at.0,
         y: at.1,
         rotation: 0.0,
+        nozzle_pick_deg: 0.0,
+        nozzle_place_deg: 0.0,
         nozzle,
         batch,
     }

@@ -60,6 +60,43 @@ pub enum FitMode {
 }
 
 impl FitMode {
+    /// What the window calls this fit, in its language.
+    pub fn title(self, lang: crate::error::Lang) -> &'static str {
+        let row: [&str; 8] = match self {
+            FitMode::Auto => [
+                "automatic fit",
+                "ajuste automático",
+                "automatische Anpassung",
+                "ajustement automatique",
+                "adattamento automatico",
+                "自動フィット",
+                "自动拟合",
+                "ajuste automático",
+            ],
+            FitMode::Similarity => [
+                "similarity fit",
+                "ajuste de semejanza",
+                "Ähnlichkeitsanpassung",
+                "ajustement par similitude",
+                "adattamento per similitudine",
+                "相似変換フィット",
+                "相似变换拟合",
+                "ajuste por semelhança",
+            ],
+            FitMode::Affine => [
+                "affine fit",
+                "ajuste afín",
+                "affine Anpassung",
+                "ajustement affine",
+                "adattamento affine",
+                "アフィンフィット",
+                "仿射拟合",
+                "ajuste afim",
+            ],
+        };
+        crate::msg8::pick(lang, &row)
+    }
+
     pub fn parse(text: &str) -> Option<FitMode> {
         match text {
             "auto" => Some(FitMode::Auto),

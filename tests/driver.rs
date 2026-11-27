@@ -31,6 +31,8 @@ fn placement(reference: &str, pick: (f64, f64), at: (f64, f64), rot: f64) -> Pla
         x: at.0,
         y: at.1,
         rotation: rot,
+        nozzle_pick_deg: 0.0,
+        nozzle_place_deg: rot.rem_euclid(360.0),
         nozzle: 0,
         batch: 0,
     }
@@ -1006,4 +1008,113 @@ fn strict_mode_stops_at_a_line_it_does_not_know() {
     assert_eq!(s.connect().unwrap_err().kind, Kind::Link);
     let mut s = session(&marlin(), Faults::default());
     assert!(s.connect().is_ok());
+}
+
+/// The angle at which a part ends is what it lay at plus what the axis of the nozzle turned between the pick and the place, whatever the part before left the axis at.
+#[test]
+fn the_axis_of_the_nozzle_is_at_the_angle_of_the_pick_before_every_part_is_taken() {
+    let p = marlin();
+    let mut s = ready(&p, Faults::default());
+    let mut axis = 0.0;
+    let mut at_pick = Vec::new();
+    for (n, rot) in [90.0, 180.0, 0.0, 270.0].into_iter().enumerate() {
+        let mut pl = placement("R1", (-20.0, 10.0), (10.0 + n as f64, 20.0), rot);
+        pl.nozzle_pick_deg = 45.0;
+        pl.nozzle_place_deg = 45.0 + rot;
+        let mut taken = None;
+        for op in p.placement_ops(&pl).unwrap() {
+            s.run_op(&op).unwrap();
+            axis = s.link.sim.position().rot.unwrap();
+            if matches!(&op, Op::Actuator(name, true) if name == "pump") {
+                taken = Some(axis);
+            }
+        }
+        at_pick.push(taken.unwrap());
+        assert_eq!((axis - taken.unwrap()).rem_euclid(360.0), rot, "part {n}");
+    }
+    assert_eq!(at_pick, vec![45.0; 4]);
+}
+
+#[test]
+fn the_default_stop_closes_both_valves_before_the_motors_are_released() {
+    assert_eq!(DriverProfile::default().safe_stop, marlin().safe_stop);
+}
+
+#[test]
+fn a_line_the_controller_says_it_does_not_know_stops_the_session_even_when_ok_follows() {
+    let wrong = MARLIN.replace("M42 P5 S255", "M999 P5 S255");
+    let p = DriverProfile::parse(&wrong).unwrap();
+    for line in [
+        "echo:Unknown command: \"M999\"",
+        "// Unknown command:\"M999\"",
+    ] {
+        assert!(matches!(p.classify(line), Reply::Error(_)), "{line}");
+    }
+    let mut s = ready(&p, Faults::default());
+    let e = s.set_actuator("pump", true).unwrap_err();
+    assert_eq!(e.kind, Kind::Rejected);
+    assert!(s.is_halted());
+    assert_eq!(s.signals.get("pump"), Some(&false));
+    // a person who knows the controller can switch the rule off
+    let lax = DriverProfile::parse(&wrong.replace(
+        "stop_on_unknown_command = yes",
+        "stop_on_unknown_command = no",
+    ))
+    .unwrap();
+    let mut s = ready(&lax, Faults::default());
+    s.set_actuator("pump", true).unwrap();
+}
+
+#[test]
+fn a_homing_is_refused_while_an_interlock_of_x_y_or_z_is_not_satisfied() {
+    for axes in ["all", "xy", "z"] {
+        let p =
+            DriverProfile::parse(&format!("{MARLIN}\ninterlock = door | on | {axes}\n")).unwrap();
+        let mut s = session(&p, Faults::default());
+        s.connect().unwrap();
+        let e = s.home().unwrap_err();
+        assert_eq!(e.kind, Kind::Interlock, "{axes}");
+        assert!(s.is_halted());
+        assert!(
+            !s.link.sim.log.iter().any(|l| l.starts_with("G28")),
+            "{axes}"
+        );
+    }
+    // nor while the rules of safety hold the machine
+    let p = marlin();
+    let mut s = ready(&p, Faults::default());
+    for _ in 0..p.hold_events {
+        s.event(eh3d_phoenix_pnp::safety::Event::PositionMismatch);
+    }
+    assert_eq!(s.home().unwrap_err().kind, Kind::Held);
+    // a rule of the axis of the nozzle alone does not guard the homing
+    let p = DriverProfile::parse(&format!("{MARLIN}\ninterlock = door | on | rot\n")).unwrap();
+    let mut s = session(&p, Faults::default());
+    s.connect().unwrap();
+    s.home().unwrap();
+}
+
+#[test]
+fn the_square_of_the_first_start_goes_up_first_and_stays_within_the_limits() {
+    let text = MARLIN
+        .replace("\r\n", "\n")
+        .lines()
+        .filter(|l| !l.starts_with("limit_x_min_mm") && !l.starts_with("limit_y_min_mm"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let p = DriverProfile::parse(&format!(
+        "{text}\nlimit_x_min_mm = 12\nlimit_y_min_mm = 7\n"
+    ))
+    .unwrap();
+    let moves = p.probe_moves();
+    assert_eq!(moves.len(), 5);
+    assert_eq!(
+        (moves[0].x, moves[0].y, moves[0].z),
+        (None, None, Some(p.z_travel))
+    );
+    for t in &moves[1..] {
+        assert_eq!(t.z, None);
+        assert!(p.move_line(t, p.feed_travel).is_ok(), "{t:?}");
+    }
+    assert_eq!((moves[4].x, moves[4].y), (Some(12.0), Some(7.0)));
 }

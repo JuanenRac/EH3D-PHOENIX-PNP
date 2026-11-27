@@ -447,10 +447,10 @@ fn the_events_of_the_machine_come_once() {
     let (_ws, mut s) = started("gui_steps_per_s = 1000\n");
     s.play();
     s.tick(0.5);
-    let first = s.take_events();
+    let first = s.take_events(Lang::En);
     assert!(!first.is_empty());
     assert!(first[0].contains(" s "));
-    assert!(s.take_events().is_empty());
+    assert!(s.take_events(Lang::En).is_empty());
 }
 
 #[test]

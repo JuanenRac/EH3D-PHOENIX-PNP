@@ -275,9 +275,25 @@ impl<L: Link> Session<L> {
         }
     }
 
-    /// Homes the machine.
+    /// Homes the machine. Homing moves X, Y and Z, so the interlocks of those axes and the hold of the rules of safety apply to it as to any move.
     pub fn home(&mut self) -> Result<(), Failure> {
         self.ready()?;
+        let all = Target {
+            x: Some(0.0),
+            y: Some(0.0),
+            z: Some(0.0),
+            rot: None,
+        };
+        if let Err(violation) = interlock::check(&self.profile.interlocks, &self.signals, &all) {
+            let why = violation.localized(Lang::En);
+            return Err(self.fail(Kind::Interlock, why, Event::LimitRefused));
+        }
+        if !self.governor.limits().moves {
+            return Err(Failure::new(
+                Kind::Held,
+                format!("the machine is held ({})", self.governor.level().name()),
+            ));
+        }
         let t = self.profile.move_timeout_s;
         for l in self.profile.home_lines() {
             self.send(&l, t, false)?;

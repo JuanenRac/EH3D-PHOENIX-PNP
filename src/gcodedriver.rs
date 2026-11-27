@@ -23,7 +23,7 @@ pub const MAX_LINE: usize = 200;
 pub const MAX_PROFILE_BYTES: usize = 65_536;
 
 /// Every key of a profile file, in the order of the examples.
-pub const KEYS: [&str; 61] = [
+pub const KEYS: [&str; 62] = [
     "schema_version",
     "dialect",
     "transport",
@@ -85,6 +85,7 @@ pub const KEYS: [&str; 61] = [
     "homing_sensitivity_line",
     "bringup_probe_mm",
     "tolerate_unknown_echo",
+    "stop_on_unknown_command",
 ];
 
 /// The keys that may be written more than once.
@@ -405,6 +406,8 @@ pub struct DriverProfile {
     pub homing_sensitivity_line: String,
     pub bringup_probe_mm: f64,
     pub tolerate_unknown_echo: bool,
+    /// A controller that says it does not know a line (and then answers `ok`) is read as an error, so that a pump that was never switched is not taken for switched.
+    pub stop_on_unknown_command: bool,
 }
 
 /// A place the head is asked to go to; an axis that is `None` is left where it is.
@@ -464,7 +467,7 @@ impl Default for DriverProfile {
             connect: vec!["M115".into()],
             disable: vec!["M84".into()],
             home: vec!["G28".into()],
-            safe_stop: vec!["M42 P5 S0".into(), "M84".into()],
+            safe_stop: vec!["M42 P5 S0".into(), "M42 P6 S0".into(), "M84".into()],
             wait: "M400".into(),
             position_request: "M114".into(),
             absolute_mode: "G90".into(),
@@ -525,6 +528,7 @@ impl Default for DriverProfile {
             homing_sensitivity_line: "M914 {axis}{value}".into(),
             bringup_probe_mm: 20.0,
             tolerate_unknown_echo: true,
+            stop_on_unknown_command: true,
         }
     }
 }
@@ -837,6 +841,10 @@ impl DriverProfile {
                 self.tolerate_unknown_echo =
                     yes_no(v).ok_or_else(|| err(Fault::BadValue("yes or no".into())))?
             }
+            "stop_on_unknown_command" => {
+                self.stop_on_unknown_command =
+                    yes_no(v).ok_or_else(|| err(Fault::BadValue("yes or no".into())))?
+            }
             _ => return Err(err(Fault::UnknownKey)),
         }
         Ok(())
@@ -1077,19 +1085,18 @@ impl DriverProfile {
             z: Some(z),
             ..Target::default()
         };
-        let turn = if self.axis_rot.is_empty() {
-            None
-        } else {
-            Some(p.rotation.rem_euclid(360.0))
-        };
+        // the axis of the nozzle goes to its angle of pick before the part is taken: left where the part before put it, this part would be placed turned by that angle
+        let axis = !self.axis_rot.is_empty();
+        let turn_pick = axis.then_some(p.nozzle_pick_deg);
+        let turn_place = axis.then_some(p.nozzle_place_deg);
         let mut ops = vec![
             Op::Move(z(self.z_travel), self.feed_z),
-            Op::Move(at(p.pick.0, p.pick.1, None), self.feed_travel),
+            Op::Move(at(p.pick.0, p.pick.1, turn_pick), self.feed_travel),
             Op::Move(z(self.z_pick), self.feed_z),
             Op::Actuator(self.pump.clone(), true),
             Op::Dwell(self.pump_settle_ms),
             Op::Move(z(self.z_travel), self.feed_z),
-            Op::Move(at(p.x, p.y, turn), self.feed_travel),
+            Op::Move(at(p.x, p.y, turn_place), self.feed_travel),
             Op::Move(z(self.z_place), self.feed_z),
             Op::Actuator(self.pump.clone(), false),
         ];
@@ -1107,9 +1114,35 @@ impl DriverProfile {
     }
 
     /// How a line from the controller reads: an error first (a halted controller says it before anything), then busy, then ok, then a position, then the lines that are only an echo.
+    /// The moves of the square of `bringup`: first up to the height of travel with nothing else moving, then the four corners in X and Y alone, so that the head never travels while it is
+    /// still low. The square starts at the least place of X and Y (or at 0 when that is under it) and stays within the limits.
+    pub fn probe_moves(&self) -> Vec<Target> {
+        let (x0, y0) = (self.limit_x_min.max(0.0), self.limit_y_min.max(0.0));
+        let side = self
+            .bringup_probe_mm
+            .min(self.limit_x - x0)
+            .min(self.limit_y - y0)
+            .max(0.0);
+        let lift = Target {
+            z: Some(self.z_travel),
+            ..Target::default()
+        };
+        let corners = [(side, 0.0), (side, side), (0.0, side), (0.0, 0.0)];
+        std::iter::once(lift)
+            .chain(corners.iter().map(|(x, y)| Target {
+                x: Some(x0 + x),
+                y: Some(y0 + y),
+                ..Target::default()
+            }))
+            .collect()
+    }
+
     pub fn classify(&self, line: &str) -> Reply {
         let l = line.trim();
         if self.error.is_match(l) {
+            return Reply::Error(l.to_string());
+        }
+        if self.stop_on_unknown_command && says_unknown_command(l) {
             return Reply::Error(l.to_string());
         }
         if self.busy.is_match(l) {
@@ -1191,6 +1224,18 @@ impl DriverProfile {
             rot: at(3),
         })
     }
+}
+
+/// Whether a line is the notice of a controller that it does not know what it was sent: `echo:Unknown command: "..."` of Marlin and `// Unknown command:"..."` of Klipper.
+fn says_unknown_command(line: &str) -> bool {
+    let rest = line
+        .strip_prefix("echo:")
+        .or_else(|| line.strip_prefix("//"));
+    rest.is_some_and(|r| {
+        r.trim_start()
+            .to_ascii_lowercase()
+            .starts_with("unknown command")
+    })
 }
 
 fn axis_name(v: &str) -> Option<String> {
