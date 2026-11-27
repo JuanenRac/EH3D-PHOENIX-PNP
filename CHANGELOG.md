@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **What the tag v0.3.7 of EH3D-COMMON brings to the window:** the panel «Attachments» writes nothing over a project another program saved after the panel read it, says so and reads the list again, and `viewer.max_preview_mb` (16 by default) in `window.cfg` says how much text a whole preview keeps.
+
 - **The nodes hear the program that watches them:** the head and the feeder node go to their safe state when no request with the token arrives for a time (`link_lost_ms` of the head, `server_lost_ms` of the feeder node), and a state asked without the token does not count. The state was asked without it, so a node that was only being watched would have gone safe. It is now asked with the token (and without it when the token is refused, so that it is still read). Tried on nodes on a computer only.
 - **The watch of a node is read, said and kept while an order is waited for:** `node-sim` prints the time each node gave and how often it is asked, and says when one question without an answer (`node_timeout_s`) is already enough for the safe state; `--pause-ms` lets time pass between two steps; the panel of the nodes shows the same; and the library takes a second link on which the node is asked three times in that time while a pick, a move or an advance is waited for.
 - **`camera-shots` plans the pictures of a part bigger than the camera:** how many across and down, where the middle of each one is from the middle of the part, neighbours sharing `shot_overlap_pct` or more, a row after the other with the way turned; exit code 2 over `shot_max`. The pictures are not joined and nothing is captured.

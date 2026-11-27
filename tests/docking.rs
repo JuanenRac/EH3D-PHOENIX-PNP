@@ -572,11 +572,12 @@ fn the_files_that_are_loaded_are_listed_as_recent_files_in_the_file_menu() {
 #[test]
 fn the_limits_of_the_attachments_are_kept_in_the_settings_of_the_window() {
     let s = UiSettings::parse(
-        "attachments.max_mb = 16\nlanguage = es\nviewer.max_pdf_mb = 8\nviewer.max_text_mb = no\n",
+        "attachments.max_mb = 16\nlanguage = es\nviewer.max_pdf_mb = 8\nviewer.max_text_mb = no\nviewer.max_preview_mb = 32\n",
     );
     let limits = s.panel_limits();
     assert_eq!(limits.attachments.max_attachment_bytes, 16 << 20);
     assert_eq!(limits.viewer.max_pdf_bytes, 8 << 20);
+    assert_eq!(limits.viewer.max_preview_bytes, 32 << 20);
     let back = UiSettings::parse(&s.to_text());
     assert_eq!(back.panel, s.panel);
     assert_eq!(back.panel_limits(), limits);
